@@ -48,10 +48,10 @@
   },
   "devDependencies": {
     "better-dx": "^0.2.5",
-    "@stacksjs/logging": "^0.70.193",
-    "@stacksjs/path": "^0.70.193",
-    "@stacksjs/router": "^0.70.193",
-    "@stacksjs/storage": "^0.70.193",
-    "@stacksjs/utils": "^0.70.193"
+    "@stacksjs/logging": "^0.70.324",
+    "@stacksjs/path": "^0.70.324",
+    "@stacksjs/router": "^0.70.324",
+    "@stacksjs/storage": "^0.70.324",
+    "@stacksjs/utils": "^0.70.324"
   }
 }

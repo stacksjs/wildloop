@@ -7,17 +7,17 @@
     "url": "git+https://github.com/stacksjs/wildloop.git"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.120",
-    "@stacksjs/buddy": "^0.70.207",
+    "@iconify-json/lucide": "^1.2.122",
+    "@stacksjs/buddy": "^0.70.324",
     "@stacksjs/ts-cloud": "^0.7.86",
-    "bun-query-builder": "^0.1.63",
+    "bun-query-builder": "^0.2.25",
     "stacks": "^0.70.207",
     "ts-watches": "^0.1.0",
-    "ts-web-scraper": "^0.1.6"
+    "ts-web-scraper": "^0.1.10"
   },
   "devDependencies": {
-    "@stacksjs/stx": "^0.2.111",
-    "bun-plugin-stx": "^0.2.111",
+    "@stacksjs/stx": "^0.2.166",
+    "bun-plugin-stx": "^0.2.166",
     "ts-maps": "^0.2.7"
   },
   "overrides": {

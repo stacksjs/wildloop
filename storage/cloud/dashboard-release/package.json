@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@stacksjs/ts-cloud": "^0.7.75"
+    "@stacksjs/ts-cloud": "^0.7.108"
   }
 }
