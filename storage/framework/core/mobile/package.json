@@ -32,7 +32,7 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "@stacksjs/build": "0.70.207",
+    "@stacksjs/build": "0.72.50",
     "better-dx": "^0.2.17",
     "craft-native": ">=0.0.55"
   }
