@@ -776,6 +776,124 @@ export const trailIdBySeedSourceId = new Map<string, number>()
  */
 export const supersededTrailIds = new Map<number, number>()
 
+/** Metres. Two trailheads further apart than this are two different trails. */
+const SAME_TRAIL_METRES = 2000
+
+/** Great-circle distance, in metres. */
+function metresBetween(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const radius = 6371000
+  const dLat = (bLat - aLat) * Math.PI / 180
+  const dLng = (bLng - aLng) * Math.PI / 180
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return 2 * radius * Math.asin(Math.sqrt(h))
+}
+
+/** Lowercased, punctuation folded, diacritics stripped — for comparing names. */
+function foldName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036F]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * The OSM object a seeded id refers to, in the ingest's spelling.
+ *
+ * This file writes `osm-way-25848873`; the ingest writes `way/25848873`. The
+ * same object, spelled two ways — so this is a rename, not a guess, and it is
+ * the most reliable match available for anything that came from OSM.
+ */
+function ingestOsmId(sourceId: string): string | null {
+  const match = sourceId.match(/^osm-(way|relation|node)-(\d+)$/)
+  return match ? `${match[1]}/${match[2]}` : null
+}
+
+/** Rows are ranked by how much geometry they carry — the point is a drawable line. */
+function richest(candidates: any[]): any | null {
+  const drawable = candidates.filter(row => typeof row.geometry === 'string' && row.geometry.length > 2)
+  const pool = drawable.length > 0 ? drawable : candidates
+  return pool.sort((a, b) => String(b.geometry ?? '').length - String(a.geometry ?? '').length)[0] ?? null
+}
+
+/**
+ * The catalog's own row for a seeded trail, if it has one.
+ *
+ * Three rules, in descending order of confidence, and nothing looser:
+ *
+ *  1. The same OSM object under the ingest's spelling of its id. Exact.
+ *  2. The same name in the same region. Exact.
+ *  3. The same region, within 2km, and one name containing the other —
+ *     "Alum Cave Trail" for this file's "Alum Cave Trail to Mount LeConte".
+ *
+ * Rule 3 is the only one doing any inference, and all three of its conditions
+ * have to hold at once. That matters: "Lands End Trail" is in California here
+ * and the catalog also holds four Colorado snowmobile routes called "Lands
+ * End …", which the region check alone excludes. Where nothing satisfies it —
+ * the Appalachian Trail section this file names is in TN, and the nearest
+ * catalog match is a different path called "Clingmans Dome Bypass Trail" in
+ * NC — the answer is no match, and the seeded row stands on its own.
+ */
+async function findIngestedTrail(seed: SeedTrail): Promise<any | null> {
+  const osmId = seed.source === 'osm' ? ingestOsmId(seed.sourceId) : null
+  if (osmId) {
+    const byOsmId = await Trail.where('source_id', '=', osmId).first().catch(() => null)
+    if (byOsmId)
+      return byOsmId
+  }
+
+  const sameName = await Trail
+    .where('name', '=', seed.name)
+    .where('state', '=', seed.state)
+    .where('source_id', '!=', seed.sourceId)
+    .get()
+    .catch(() => [])
+
+  const exact = richest(sameName as any[])
+  if (exact)
+    return exact
+
+  /*
+   * Rule 3, as a bounding box in SQL rather than a filter in JavaScript.
+   *
+   * Loading every trail in the region and sifting it here would mean pulling
+   * tens of thousands of rows, geometry included, twenty-five times over —
+   * the same mistake the seeders' `Trail.all()` calls used to make. The box is
+   * a range scan over the latitude/longitude index, and the circle is applied
+   * to whatever few rows come back.
+   */
+  const latSpan = SAME_TRAIL_METRES / 111_320
+  const lngSpan = latSpan / Math.max(0.15, Math.cos((seed.latitude * Math.PI) / 180))
+
+  const inBox = (await Trail
+    .where('state', '=', seed.state)
+    .where('source_id', '!=', seed.sourceId)
+    .where('latitude', '>=', seed.latitude - latSpan)
+    .where('latitude', '<=', seed.latitude + latSpan)
+    .where('longitude', '>=', seed.longitude - lngSpan)
+    .where('longitude', '<=', seed.longitude + lngSpan)
+    .get()
+    .catch(() => [])) as any[]
+
+  const seedName = foldName(seed.name)
+  const near = inBox.filter((row) => {
+    if (typeof row.latitude !== 'number' || typeof row.longitude !== 'number')
+      return false
+    if (metresBetween(seed.latitude, seed.longitude, row.latitude, row.longitude) > SAME_TRAIL_METRES)
+      return false
+
+    const rowName = foldName(String(row.name ?? ''))
+    if (rowName.length < 4)
+      return false
+
+    return seedName.includes(rowName) || rowName.includes(seedName)
+  })
+
+  return richest(near)
+}
+
 export default class TrailSeeder extends Seeder {
   // Before anything that hangs off a trail id: activities, reviews, saved
   // trails and the territories claimed on them.
@@ -848,12 +966,7 @@ export default class TrailSeeder extends Seeder {
        * The ingested row is strictly better: it carries geometry, so it draws
        * on a map, and it is what search and the catalog pages already return.
        */
-      const ingested = await Trail
-        .where('name', '=', seed.name)
-        .where('state', '=', seed.state)
-        .where('source_id', '!=', seed.sourceId)
-        .first()
-        .catch(() => null)
+      const ingested = await findIngestedTrail(seed)
 
       if (ingested) {
         trailIdBySeedSourceId.set(seed.sourceId, ingested.id)
