@@ -208,6 +208,15 @@ export default new Action({
           ? exact
           : maskRouteEndpoints(exact, hideMetresByUser.get(activity.user_id) ?? 400)
 
+        // Masking trims 400m off each end, which on a short trail can leave
+        // fewer than two points — a "route" the preview cannot draw, sent as
+        // if it could. Answering with nothing lets the card show its honest
+        // placeholder. Emphatically not a reason to fall back to the unmasked
+        // line: those endpoints are what the masking exists to withhold, and a
+        // short trail is where they give away the most.
+        if (masked.length < 2)
+          return []
+
         // Emitted as [lat, lng] pairs, which is both what the preview
         // renderer indexes and about 40% less JSON than named keys across a
         // hundred activities.
