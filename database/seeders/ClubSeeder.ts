@@ -179,6 +179,21 @@ export default class ClubSeeder extends Seeder {
         byEmail.set(email, user)
     }
 
+    /*
+     * The accounts this seeder is allowed to move around.
+     *
+     * Everyone UserSeeder creates lives on `@wildloop.test`, which never
+     * receives mail and belongs to nobody. Membership of that set is what
+     * separates "a row this seeder wrote and may rewrite" from "a person who
+     * joined a club", and the reconcile below turns on exactly that.
+     */
+    const seedUsers = (await User.all().catch(() => [])) as any[]
+    const seedUserIds = new Set(
+      seedUsers
+        .filter(user => typeof user.email === 'string' && user.email.endsWith('@wildloop.test'))
+        .map(user => user.id),
+    )
+
     // Every club needs an owner. `static order` above guarantees UserSeeder
     // has already run, so fall back to the lowest id rather than inventing an
     // account: on a fresh database that is the first seeded athlete.
@@ -194,13 +209,23 @@ export default class ClubSeeder extends Seeder {
 
       const existing = await Club.where('name', '=', seed.name).first().catch(() => null)
 
+      // Whether this club is one the seeder may rearrange people in.
+      //
+      // A seeded database is not always an empty one. On the live site Rappid
+      // Run is owned by a real account with a real member in it, and the
+      // reconcile below would have deleted that membership and handed the club
+      // to a seeded athlete — the seeder correcting its own past mistake by
+      // damaging somebody else's data. It only ever owns SEED accounts, so
+      // that is the line: real people are left exactly as they are.
+      const ownedBySeed = !existing || seedUserIds.has(existing.creator_id)
+
       const club = existing
         ? (await Club.update(existing.id, {
-            // `creator_id` is updated too. An earlier version of this seeder
-            // handed every club to whichever account had the lowest id, and
-            // leaving that in place meant the directory kept showing a random
-            // athlete as the owner of somebody else's crew.
-            creator_id: owner.id,
+            // Ownership moves only when the current owner is itself a seeded
+            // account. An earlier version of this seeder handed every club to
+            // whichever account had the lowest id, and that is worth fixing —
+            // but not at the cost of taking a real club off its real owner.
+            ...(ownedBySeed ? { creator_id: owner.id } : {}),
             description: seed.description,
             location: seed.location,
             club_type: seed.club_type,
@@ -243,7 +268,10 @@ export default class ClubSeeder extends Seeder {
         const role = wanted.get(row.user_id)
 
         if (!role) {
-          await ClubMember.delete(row.id).catch(() => undefined)
+          // Only a seeded account is ever removed. Anybody else joined this
+          // club for real, and a seeder is not entitled to an opinion on that.
+          if (seedUserIds.has(row.user_id))
+            await ClubMember.delete(row.id).catch(() => undefined)
           continue
         }
 

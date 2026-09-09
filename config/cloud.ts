@@ -350,6 +350,21 @@ export const tsCloud: TsCloudConfig = {
       // written through their API. ts-cloud reads PORKBUN_API_KEY and
       // PORKBUN_SECRET_KEY from the environment. There is deliberately no
       // hostedZoneId: nothing hosts this zone on Route53.
+      //
+      // MOVING THE ZONE TO CLOUDFLARE: change `provider` to 'cloudflare' in
+      // the same commit as the nameserver switch. The deploy writes records
+      // through whichever provider is named here, so leaving it on Porkbun
+      // after the nameservers move means every deploy writes correct records
+      // into a zone that no longer answers for the domain — and nothing fails
+      // loudly, because the write itself succeeds. CLOUDFLARE_API_TOKEN is
+      // already passed by .github/workflows/deploy.yml.
+      //
+      // The app is ready for it either way: `visitorLocation` in
+      // app/Helpers/visitorCountry.ts already reads cf-iplatitude /
+      // cf-iplongitude / cf-ipcity, so proxied traffic makes the catalog open
+      // on the visitor's own area with no code change. Without an edge in
+      // front, /api/geo/here answers `located: false` and the catalog falls
+      // back to the whole thing plus a "Trails near me" button.
       provider: 'porkbun',
       domain: 'wildloop.org',
     },
