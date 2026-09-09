@@ -298,3 +298,26 @@ export function signIn(email: string, password: string): Promise<AuthResult> {
 export function signUp(input: { name: string, email: string, password: string }): Promise<AuthResult> {
   return submit('/api/register', input, 'auth:signUp')
 }
+
+/**
+ * Where to land after signing in.
+ *
+ * The sign-in gate (and any link that wants to bring someone back where they
+ * were) passes `?redirect=`. Only same-origin paths are honoured: an absolute
+ * URL in that parameter would turn every sign-in link into an open redirect,
+ * which is the classic way a phishing page borrows a real domain's trust.
+ */
+export function postAuthDestination(fallback = '/'): string {
+  if (typeof location === 'undefined')
+    return fallback
+
+  const requested = new URLSearchParams(location.search).get('redirect')
+  if (!requested)
+    return fallback
+
+  // A single leading slash, and no `//` or `/\` that a browser reads as a host.
+  if (!/^\/(?![/\\])/.test(requested))
+    return fallback
+
+  return requested
+}

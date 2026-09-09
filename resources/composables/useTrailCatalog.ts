@@ -39,6 +39,12 @@ export interface TrailQueryResult {
   geometryById: Record<number, LatLng[]>
   total: number
   hasMore: boolean
+  /**
+   * Miles, for a "near me" query only. The API widens the search when the
+   * requested radius holds too little to be worth showing, so this is what the
+   * answer was actually computed at — not necessarily what was asked for.
+   */
+  radius?: number
 }
 
 export const catalogLoading = state(false)
@@ -163,10 +169,13 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
   const payload = await res.json()
   const { trails, geometryById } = normalizeTrailsPayload(payload)
 
+  const radius = Number(payload?.meta?.radius)
+
   return {
     trails,
     geometryById,
     total: Number(payload?.meta?.total) || trails.length,
     hasMore: Boolean(payload?.meta?.hasMore),
+    ...(Number.isFinite(radius) && radius > 0 ? { radius } : {}),
   }
 }

@@ -1,0 +1,173 @@
+<script client>
+  import {
+    AUTH_REQUIRED_EVENT,
+    gateSignIn,
+    gateSignUp,
+    goToAuthPage,
+  } from '../composables/useAuthGate'
+
+  /**
+   * The sign-in wall, mounted once by the layout.
+   *
+   * Anything gated calls `requireAuth()` from useAuthGate; this is the surface
+   * that appears when the answer is no. It signs the visitor in where they
+   * stand and then replays whatever they were trying to do, so tapping the
+   * heart on a trail card ends with the trail saved rather than with the
+   * visitor on a login page wondering which trail it was.
+   *
+   * State is local and driven by the `wildloop:auth-required` event, for two
+   * reasons the markup depends on. A template expression only resolves
+   * declarations made in THIS script, so an imported signal called from the
+   * markup never evaluates. And a module imported by two components is
+   * instantiated once per bundle, so a signal "shared" that way is not
+   * actually shared — the page set one copy while this modal watched another,
+   * and the gate never opened.
+   */
+  const gateIsOpen = state(false)
+  const gateActiveMode = state('login')
+  const gateWhy = state('')
+  const gateRegistering = derived(() => gateActiveMode() === 'register')
+
+  const formName = state('')
+  const formEmail = state('')
+  const formPassword = state('')
+  const formBusy = state(false)
+  const formError = state('')
+
+  function resetForm() {
+    formName.set('')
+    formEmail.set('')
+    formPassword.set('')
+    formError.set('')
+    formBusy.set(false)
+  }
+
+  function dismiss() {
+    resetForm()
+    gateIsOpen.set(false)
+  }
+
+  function switchTo(next) {
+    formError.set('')
+    gateActiveMode.set(next)
+  }
+
+  async function submitGate(e) {
+    e.preventDefault()
+    formError.set('')
+
+    // Read the DOM, not the signal mirror: a password manager fills the boxes
+    // without firing input events, and the form would otherwise refuse a
+    // visitor who is looking at their own filled-in credentials.
+    const fields = e.target?.elements
+    const emailValue = (fields?.email?.value ?? formEmail()).trim()
+    const passwordValue = fields?.password?.value ?? formPassword()
+    const nameValue = (fields?.name?.value ?? formName()).trim()
+    const isRegister = gateActiveMode() === 'register'
+
+    if (!emailValue || !passwordValue) {
+      formError.set('Enter your email and password.')
+      return
+    }
+    if (isRegister && !nameValue) {
+      formError.set('Enter the name other athletes will see.')
+      return
+    }
+
+    formBusy.set(true)
+    const message = isRegister
+      ? await gateSignUp(nameValue, emailValue, passwordValue)
+      : await gateSignIn(emailValue, passwordValue)
+    formBusy.set(false)
+
+    if (message) {
+      formError.set(message)
+      return
+    }
+
+    resetForm()
+    gateIsOpen.set(false)
+  }
+
+  // Escape closes it, the way every other dialog on the web does.
+  function onGateKeydown(e) {
+    if (e.key === 'Escape' && gateIsOpen())
+      dismiss()
+  }
+
+  function onAuthRequired(e) {
+    resetForm()
+    gateWhy.set(e?.detail?.reason ?? '')
+    gateActiveMode.set(e?.detail?.mode === 'register' ? 'register' : 'login')
+    gateIsOpen.set(true)
+  }
+
+  onMount(() => {
+    globalThis.addEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
+    globalThis.addEventListener('keydown', onGateKeydown)
+  })
+
+  onDestroy(() => {
+    globalThis.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
+    globalThis.removeEventListener('keydown', onGateKeydown)
+  })
+</script>
+
+<div :if="gateIsOpen()" x-cloak role="dialog" aria-modal="true" aria-labelledby="auth-gate-title" class="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+  <div @click="dismiss()" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>
+
+  <div class="relative w-full max-w-sm rounded-t-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:rounded-3xl dark:border-slate-700 dark:bg-slate-800">
+    <button @click="dismiss()" aria-label="Close" class="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200">
+      <Icon name="x" size="18" />
+    </button>
+
+    <div class="mb-5 text-center">
+      <span class="inline-flex justify-center"><BrandMark size="lg" /></span>
+      <h2 id="auth-gate-title" class="mt-3 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+        {{ gateRegistering() ? 'Create your account' : 'Welcome back' }}
+      </h2>
+      <p :if="gateWhy()" class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ gateWhy() }}</p>
+    </div>
+
+    <div class="mb-5 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-900/60">
+      <button
+        @click="switchTo('login')"
+        x-class="!gateRegistering() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'"
+        class="rounded-full px-3 py-1.5 text-sm font-semibold transition">Log in</button>
+      <button
+        @click="switchTo('register')"
+        x-class="gateRegistering() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'"
+        class="rounded-full px-3 py-1.5 text-sm font-semibold transition">Sign up</button>
+    </div>
+
+    <form @submit="submitGate($event)" class="space-y-3">
+      <div :if="gateRegistering()">
+        <label for="auth-gate-name" class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Name</label>
+        <input id="auth-gate-name" name="name" type="text" autocomplete="name" placeholder="Alex Rivera" x-value="formName" @input="formName.set($event.target.value)"
+          class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+      </div>
+
+      <div>
+        <label for="auth-gate-email" class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Email</label>
+        <input id="auth-gate-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" x-value="formEmail" @input="formEmail.set($event.target.value)"
+          class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+      </div>
+
+      <div>
+        <label for="auth-gate-password" class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Password</label>
+        <input id="auth-gate-password" name="password" type="password" x-autocomplete="gateRegistering() ? 'new-password' : 'current-password'" placeholder="••••••••" x-value="formPassword" @input="formPassword.set($event.target.value)"
+          class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+      </div>
+
+      <p :if="formError()" role="alert" class="text-sm text-rose-600 dark:text-rose-400">{{ formError() }}</p>
+
+      <button type="submit" x-disabled="formBusy()" class="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+        {{ formBusy() ? 'One moment…' : (gateRegistering() ? 'Create account' : 'Log in') }}
+      </button>
+    </form>
+
+    <button @click="goToAuthPage(gateActiveMode())" class="mt-4 w-full text-center text-xs text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300">
+      {{ gateRegistering() ? 'Open the full sign-up page' : 'Trouble signing in? Open the full page' }}
+    </button>
+  </div>
+</div>

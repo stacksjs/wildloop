@@ -6,11 +6,11 @@
 // would make every compilation that touches a name resolve every module.
 export const emails = {
   'Welcome': '../../../resources/emails/Welcome.stx',
-  'email-verification': '../defaults/resources/emails/email-verification.stx',
-  'password-changed': '../defaults/resources/emails/password-changed.stx',
-  'password-reset': '../defaults/resources/emails/password-reset.stx',
-  'subscription-confirmation': '../defaults/resources/emails/subscription-confirmation.stx',
-  'team-invitation': '../defaults/resources/emails/team-invitation.stx',
-  'welcome': '../defaults/resources/emails/welcome.stx',
-  'layouts/base': '../defaults/resources/emails/layouts/base.html',
+  'email-verification': '../../../node_modules/@stacksjs/defaults/resources/emails/email-verification.stx',
+  'password-changed': '../../../node_modules/@stacksjs/defaults/resources/emails/password-changed.stx',
+  'password-reset': '../../../node_modules/@stacksjs/defaults/resources/emails/password-reset.stx',
+  'subscription-confirmation': '../../../node_modules/@stacksjs/defaults/resources/emails/subscription-confirmation.stx',
+  'team-invitation': '../../../node_modules/@stacksjs/defaults/resources/emails/team-invitation.stx',
+  'welcome': '../../../node_modules/@stacksjs/defaults/resources/emails/welcome.stx',
+  'layouts/base': '../../../node_modules/@stacksjs/defaults/resources/emails/layouts/base.html',
 } as const

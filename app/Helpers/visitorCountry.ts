@@ -104,3 +104,86 @@ export function visitorCountry(request: any): string | undefined {
 
   return countryFromAcceptLanguage(headerValue(request, 'accept-language'))
 }
+
+/**
+ * An approximate position for the request, when the edge knows one.
+ *
+ * A country is enough to stop showing a Munich visitor a list of Colorado
+ * trails, but it is nowhere near enough to answer "what is good near me right
+ * now" — the United States is 2,800 miles wide. Several CDNs resolve the
+ * client IP to a city centroid and pass it down as headers; where they do,
+ * that is a usable starting point that costs no permission prompt and no round
+ * trip to a geocoder.
+ *
+ * IP geolocation is approximate by nature — a VPN or a mobile carrier's
+ * gateway can be a state away — so this is only ever the *first* answer. The
+ * browser's own Geolocation API is the precise one, and the UI asks for it
+ * when the visitor asks to be located precisely. Callers must treat a null as
+ * "no idea", never as "nowhere".
+ */
+export interface VisitorLocation {
+  latitude: number
+  longitude: number
+  /** City name, when the edge sends one. */
+  city?: string
+  /** Region/state code or name, when the edge sends one. */
+  region?: string
+  country?: string
+}
+
+/** Latitude/longitude header spellings, paired, most trustworthy first. */
+const GEO_COORDINATE_HEADERS: Array<[string, string]> = [
+  ['cf-iplatitude', 'cf-iplongitude'], // Cloudflare
+  ['x-vercel-ip-latitude', 'x-vercel-ip-longitude'], // Vercel
+  ['x-geo-latitude', 'x-geo-longitude'], // rpx / generic reverse proxies
+  ['cloudfront-viewer-latitude', 'cloudfront-viewer-longitude'], // AWS CloudFront
+]
+
+const GEO_CITY_HEADERS = ['cf-ipcity', 'x-vercel-ip-city', 'x-geo-city', 'cloudfront-viewer-city']
+const GEO_REGION_HEADERS = [
+  'cf-region-code',
+  'cf-region',
+  'x-vercel-ip-country-region',
+  'x-geo-region',
+  'cloudfront-viewer-country-region',
+]
+
+/** A finite coordinate inside the real range, or null. */
+function coordinate(raw: string | undefined, limit: number): number | null {
+  if (!raw)
+    return null
+  const value = Number.parseFloat(raw)
+  return Number.isFinite(value) && Math.abs(value) <= limit ? value : null
+}
+
+function firstHeader(request: any, names: string[]): string | undefined {
+  for (const name of names) {
+    const value = headerValue(request, name)
+    if (value)
+      // Vercel percent-encodes city names with spaces ("San%20Francisco").
+      return decodeURIComponent(value)
+  }
+  return undefined
+}
+
+export function visitorLocation(request: any): VisitorLocation | null {
+  for (const [latName, lngName] of GEO_COORDINATE_HEADERS) {
+    const latitude = coordinate(headerValue(request, latName), 90)
+    const longitude = coordinate(headerValue(request, lngName), 180)
+
+    // 0,0 is Null Island: the value an unresolved lookup writes, not a place
+    // anybody is standing.
+    if (latitude === null || longitude === null || (latitude === 0 && longitude === 0))
+      continue
+
+    return {
+      latitude,
+      longitude,
+      city: firstHeader(request, GEO_CITY_HEADERS),
+      region: firstHeader(request, GEO_REGION_HEADERS),
+      country: visitorCountry(request),
+    }
+  }
+
+  return null
+}

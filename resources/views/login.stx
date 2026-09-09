@@ -4,7 +4,7 @@
 
 @section('content')
 <script client>
-  import { isSignedIn, redirectAfterAuth, signIn } from '../assets/scripts/auth'
+  import { isSignedIn, postAuthDestination, redirectAfterAuth, signIn } from '../assets/scripts/auth'
 
   useHead({ title: 'Log In - WildLoop' })
 
@@ -17,7 +17,7 @@
 
   onMount(() => {
     // Already signed in: nothing to do on a sign-in page.
-    if (isSignedIn()) navigate('/')
+    if (isSignedIn()) navigate(postAuthDestination('/'))
   })
 
   async function handleLogin(e) {
@@ -48,7 +48,7 @@
 
     if (result.ok) {
       success.set('Signed in. Taking you to your feed.')
-      redirectAfterAuth('/')
+      redirectAfterAuth(postAuthDestination('/'))
       return
     }
 

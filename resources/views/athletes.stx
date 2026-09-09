@@ -3,10 +3,44 @@
 @section('title', 'Find Athletes - WildLoop')
 
 @section('content')
-<script client>
-  import { searchAthletes, toggleFollow } from '../assets/scripts/game-api'
+<script server>
+  /*
+   * SEO for this page.
+   *
+   * `<script server>` because a crawler reads the HTML it is served and never
+   * runs the client script — tags set after hydration are tags nobody indexes.
+   * `useSeoMeta` rather than `useHead` because only the former reaches the
+   * composed document head from a page. And written out here rather than
+   * wrapped in a composable: the engine injects `useSeoMeta` into a page's own
+   * script scope and not into a module it imports, where it is simply
+   * undefined and the call fails without a word.
+   *
+   * URLs are absolute. A crawler resolves `og:image` against nothing, so a
+   * relative path is dropped and the link previews as a bare URL.
+   */
+  useSeoMeta({
+    title: 'Athletes — WildLoop',
+    description: 'Search WildLoop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
+    canonical: 'https://wildloop.org/athletes',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Athletes — WildLoop',
+    ogDescription: 'Search WildLoop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/athletes',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Athletes — WildLoop',
+    twitterDescription: 'Search WildLoop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
 
-  useHead({ title: 'Find Athletes - WildLoop' })
+<script client>
+  import { searchAthletes } from '../assets/scripts/game-api'
+  import { followAthlete } from '../composables/useSocialActions'
+
 
   const wl = useStore('wl')
   const query = state('')
@@ -47,13 +81,10 @@
   // Load the discover list (most active athletes) on first visit.
   onMount(() => { void runSearch('') })
 
-  async function onFollow(userId: number) {
-    if (!wl || userId === wl.currentUserId()) return
-    const wasFollowing = wl.isFollowing(userId)
-    wl.setFollowing(userId, !wasFollowing) // optimistic
-    const res = await toggleFollow(userId)
-    if (res && res.success) wl.setFollowing(userId, !!res.following)
-    else wl.setFollowing(userId, wasFollowing) // rollback
+  // Shared with the feed, so a Follow button behaves the same wherever it is
+  // and a signed-out visitor gets the sign-in gate rather than a dead control.
+  function onFollow(userId: number) {
+    void followAthlete(wl, userId)
   }
 
   function areaKm2(m2: number): string {
@@ -61,74 +92,96 @@
   }
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-3xl">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="mb-6">
-      <h1 class="font-bold text-2xl dark:text-white">Find Athletes</h1>
-      <p class="text-sm text-gray-500 dark:text-slate-400">Search by name, or browse the most active runners</p>
+      <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Athletes</h1>
+      <p class="mt-1 text-slate-600 dark:text-slate-400">
+        <span :if="!query">The most active people on WildLoop right now.</span>
+        <span :else>{{ athletes.length === 1 ? 'One match' : athletes.length + ' matches' }}{{ ' for “' + query + '”' }}</span>
+      </p>
     </div>
 
     <div class="relative mb-6">
-      <Icon name="search" size="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+        <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
+      </span>
       <input
-        type="text"
-        placeholder="Search athletes…"
+        type="search"
+        placeholder="Search by name"
         x-value="query"
         @input="onQueryInput($event.target.value)"
-        class="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition"
+        class="w-full rounded-full border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
       />
     </div>
 
-    <!-- Loading -->
-    <div :if="searching" class="py-16 text-center text-sm text-gray-500 dark:text-slate-400">
-      <svg class="mx-auto mb-3 h-6 w-6 text-emerald-500 animate-spin" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-      </svg>
-      Searching athletes…
-    </div>
-
-    <!-- Error (distinct from empty) -->
-    <div :if="error && !searching" class="py-16 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="alert-triangle" size="28" class="text-red-400" />
+    <!-- Loading. Row-shaped skeletons rather than a spinner, so the list does
+         not jump when the results land. -->
+    <div :if="searching" class="space-y-2">
+      <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+        <div class="h-11 w-11 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+        <div class="flex-1 space-y-2"><div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div>
       </div>
-      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Couldn't load athletes</h3>
-      <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">{{ error }}</p>
-      <button @click="retrySearch()" class="px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Try again</button>
+      <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+        <div class="h-11 w-11 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+        <div class="flex-1 space-y-2"><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div></div>
+      </div>
+      <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+        <div class="h-11 w-11 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+        <div class="flex-1 space-y-2"><div class="h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div></div>
+      </div>
     </div>
 
-    <div :if="!searching && !error" class="space-y-3">
+    <!-- Error, kept distinct from empty: a network failure is not "no athletes
+         found", and offering "try another name" to somebody who is offline
+         sends them looking for a problem that is not theirs. -->
+    <div :if="error && !searching" class="py-16 text-center">
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-rose-50 dark:bg-rose-500/10">
+        <Icon name="alert-triangle" size="26" class="text-rose-500" />
+      </div>
+      <h3 class="mb-1 text-base font-semibold text-slate-900 dark:text-white">Couldn't load athletes</h3>
+      <p class="mx-auto mb-4 max-w-sm text-sm text-slate-500 dark:text-slate-400">{{ error }}</p>
+      <button @click="retrySearch()" class="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
+    </div>
+
+    <div :if="!searching && !error" class="space-y-2">
       <template :for="athlete in athletes">
-        <div class="card flex items-center gap-4">
-          <StxLink x-to="'/athlete/' + athlete.id" class="flex items-center gap-3 flex-1 min-w-0 group">
-            <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 text-lg font-bold shrink-0">{{ athlete.name.charAt(0) }}</div>
+        <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
+          <StxLink x-to="'/athlete/' + athlete.id" class="group flex min-w-0 flex-1 items-center gap-3">
+            <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-100 text-base font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ athlete.name.charAt(0) }}</div>
             <div class="min-w-0">
-              <p class="font-bold dark:text-white group-hover:text-emerald-600 transition truncate">{{ athlete.name }}</p>
-              <p class="text-xs text-gray-500 dark:text-slate-400">
-                <span>{{ athlete.activityCount + ' activities' }}</span>
-                <span class="mx-1">·</span>
-                <span>{{ athlete.followerCount + ' followers' }}</span>
-                <span :if="athlete.territoriesOwned > 0" class="mx-1">·</span>
-                <span :if="athlete.territoriesOwned > 0">{{ athlete.territoriesOwned + ' territories (' + areaKm2(athlete.totalAreaOwned) + ' km²)' }}</span>
+              <p class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-600 dark:text-white">{{ athlete.name }}</p>
+              <!-- Territory is the number that distinguishes this app from a
+                   run tracker, so it earns a place on the row whenever the
+                   athlete holds any. -->
+              <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <span class="tabular-nums">{{ athlete.activityCount === 1 ? '1 activity' : athlete.activityCount + ' activities' }}</span>
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span class="tabular-nums">{{ athlete.followerCount === 1 ? '1 follower' : athlete.followerCount + ' followers' }}</span>
+                <span :if="athlete.territoriesOwned > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span :if="athlete.territoriesOwned > 0" class="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400">
+                  <i class="i-lucide-flag h-3 w-3" aria-hidden="true"></i>
+                  {{ athlete.territoriesOwned + ' held · ' + areaKm2(athlete.totalAreaOwned) + ' km²' }}
+                </span>
               </p>
             </div>
           </StxLink>
+
           <button
             :if="wl && athlete.id !== wl.currentUserId()"
             @click="onFollow(athlete.id)"
-            x-class="wl.isFollowing(athlete.id) ? 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'"
-            class="px-4 py-2 font-semibold text-xs rounded-lg transition shrink-0"
->{{ wl.isFollowing(athlete.id) ? 'Following' : 'Follow' }}</button>
-          <span :if="wl && athlete.id === wl.currentUserId()" class="px-3 py-2 text-xs text-gray-400 shrink-0">That's you</span>
+            x-class="wl.isFollowing(athlete.id) ? 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300' : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'"
+            class="shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition active:scale-[0.98]"
+          >{{ wl.isFollowing(athlete.id) ? 'Following' : 'Follow' }}</button>
+          <span :if="wl && athlete.id === wl.currentUserId()" class="shrink-0 px-3 py-1.5 text-xs font-medium text-slate-400">You</span>
         </div>
       </template>
 
       <div :if="searched && athletes.length === 0" class="py-16 text-center">
-        <div class="w-16 h-16 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-          <Icon name="search" size="28" class="text-emerald-400" />
+        <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+          <Icon name="search" size="26" class="text-emerald-500" />
         </div>
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">No athletes found</h3>
-        <p class="text-sm text-gray-500 dark:text-slate-400">{{ 'Nothing matched “' + query + '”. Try another name.' }}</p>
+        <h3 class="mb-1 text-base font-semibold text-slate-900 dark:text-white">No athletes found</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">{{ 'Nothing matched “' + query + '”. Try another name.' }}</p>
       </div>
     </div>
   </div>

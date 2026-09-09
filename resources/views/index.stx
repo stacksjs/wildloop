@@ -4,6 +4,40 @@
 
 @section('content')
 <script server>
+  /*
+   * SEO for this page.
+   *
+   * `<script server>` because a crawler reads the HTML it is served and never
+   * runs the client script — tags set after hydration are tags nobody indexes.
+   * `useSeoMeta` rather than `useHead` because only the former reaches the
+   * composed document head from a page. And written out here rather than
+   * wrapped in a composable: the engine injects `useSeoMeta` into a page's own
+   * script scope and not into a module it imports, where it is simply
+   * undefined and the call fails without a word.
+   *
+   * URLs are absolute. A crawler resolves `og:image` against nothing, so a
+   * relative path is dropped and the link previews as a bare URL.
+   */
+  useSeoMeta({
+    title: 'Find your next adventure — WildLoop',
+    description: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
+    canonical: 'https://wildloop.org/',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Find your next adventure — WildLoop',
+    ogDescription: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Find your next adventure — WildLoop',
+    twitterDescription: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
+<script server>
   import { qrBrandedMarkup } from '../functions/qr'
 
   // Built once at render time. The address never changes, so there is nothing
@@ -14,9 +48,9 @@
 <script client>
   import { fetchCoverage, queryTrails } from '../composables/useTrailCatalog'
   import { useAppInstall } from '../composables/useAppInstall'
+  import { locatePrecisely, locating as nearbyLocating, resolveNearby } from '../composables/useNearby'
   import { activitySharePreview } from '../functions/activity-share'
 
-  useHead({ title: 'WildLoop - Find your next adventure' })
 
   const { canPrompt, installed, platform, promptInstall } = useAppInstall()
 
@@ -35,11 +69,22 @@
     sources: [],
   })
 
+  /**
+   * Mirrored through `derived` because the template's expression scope only
+   * resolves declarations made in this script — an imported signal called
+   * straight from the markup never evaluates.
+   *
+   * The name matters. A local that collides with an imported binding is
+   * renamed when the page is bundled (`locating` became `locating2`), and the
+   * markup keeps asking for the original — so the expression resolves to
+   * nothing and the button silently loses its label.
+   */
+  const findingMe = derived(() => nearbyLocating())
+
   const search = state('')
   const featured = state([])
   const featuredLabel = state('Popular right now')
   const featuredLoading = state(true)
-  const locating = state(false)
   const topTrails = state([])
 
   const trailCount = derived(() => coverage().total)
@@ -80,23 +125,22 @@
     featuredLoading.set(false)
   }
 
-  // Ask for a position only when someone asks for one. A location prompt on
-  // first paint is the fastest way to get told no for the rest of the session.
-  function findNearMe() {
-    if (typeof navigator === 'undefined' || !navigator.geolocation)
-      return
-    locating.set(true)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        locating.set(false)
-        void loadFeatured(
-          { lat: position.coords.latitude, lng: position.coords.longitude, radius: 40 },
-          'Local favorites near you',
-        )
-      },
-      () => locating.set(false),
-      { enableHighAccuracy: false, maximumAge: 600000, timeout: 8000 },
+  /** Load the shelf for a place, however that place was arrived at. */
+  function loadFeaturedNear(place) {
+    return loadFeatured(
+      { lat: place.lat, lng: place.lng, radius: 40, sort: 'rating' },
+      place.source === 'gps' ? 'Local favorites near you' : `Local favorites near ${place.label}`,
     )
+  }
+
+  // A precise position costs a permission prompt, so it is only ever asked for
+  // when somebody presses the button. The coarse fix behind `resolveNearby`
+  // needs no prompt and is resolved on mount, which is why the shelf is
+  // usually already local before anyone clicks anything.
+  async function findNearMe() {
+    const place = await locatePrecisely()
+    if (place)
+      await loadFeaturedNear(place)
   }
 
   const sampleActivity = {
@@ -126,7 +170,13 @@
   const sampleStory = activitySharePreview(sampleActivity, sampleRoute, 'story')
 
   onMount(() => {
-    void loadFeatured({}, 'Popular right now')
+    // Resolve where the visitor is before choosing what to put on the shelf.
+    // A remembered or edge-derived fix costs no prompt, so the first thing
+    // most people see is already their own area rather than a national list
+    // they then have to narrow by hand.
+    void resolveNearby().then((place) => {
+      return place ? loadFeaturedNear(place) : loadFeatured({}, 'Popular right now')
+    })
 
     // Keep the catalog refresh behind the hero/runtime critical path. The
     // snapshot above is already useful and the live value is supplementary.
@@ -178,8 +228,8 @@
       </form>
 
       <div class="hero-links">
-        <button type="button" @click="findNearMe()" x-disabled="locating()">
-          {{ locating ? 'Finding you…' : 'Explore nearby trails' }}
+        <button type="button" @click="findNearMe()" x-disabled="findingMe()">
+          {{ findingMe() ? 'Finding you…' : 'Explore nearby trails' }}
         </button>
         <StxLink to="/routes">Create a route</StxLink>
       </div>

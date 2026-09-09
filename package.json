@@ -34,6 +34,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "build:brand": "bun scripts/build-brand-assets.ts",
     "build:maps": "bun scripts/build-maps.ts",
     "build:mobile-associations": "bun scripts/generate-mobile-associations.ts",
     "build:reset": "rm -rf node_modules pantry.lock && bun install && ./buddy generate:types && ./buddy lint:fix",

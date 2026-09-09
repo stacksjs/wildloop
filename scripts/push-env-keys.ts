@@ -84,6 +84,32 @@ function runtimeSiteDirectories(): string[] {
     .map(([key]) => `/var/www/${slug}-${key}`)
 }
 
+/**
+ * A keys file that does not carry the target environment's private key is
+ * worse than a missing one: the copy succeeds, the release symlinks it in, and
+ * every `encrypted:v2:` value in `.env.production` quietly falls back to its
+ * default — which is how an app boots with the wrong APP_KEY and signs out
+ * everybody. `@stacksjs/env` looks up `DOTENV_PRIVATE_KEY_<ENVIRONMENT>` and
+ * falls back to `DOTENV_PRIVATE_KEY`, so accept either, but require one of
+ * them to be present and non-empty.
+ */
+function assertKeyFor(keys: string, environment: string): void {
+  const names = [`DOTENV_PRIVATE_KEY_${environment.toUpperCase()}`, 'DOTENV_PRIVATE_KEY']
+
+  for (const name of names) {
+    const match = keys.match(new RegExp(`^\\s*${name}\\s*=\\s*(.*)$`, 'm'))
+    const value = match?.[1]?.trim().replace(/^["']|["']$/g, '')
+    if (value)
+      return
+  }
+
+  fail(
+    `${KEYS_FILE} has no private key for "${environment}". Set ${names[0]} `
+    + `(the GitHub secret of the same name) before deploying — without it the box `
+    + `cannot decrypt .env.${environment} and every encrypted value falls back to its default.`,
+  )
+}
+
 async function main(): Promise<void> {
   const environment = process.argv.includes('--env')
     ? process.argv[process.argv.indexOf('--env') + 1]
@@ -96,10 +122,11 @@ async function main(): Promise<void> {
   if (directories.length === 0)
     fail('No sites with a `start` command are configured, so there is nothing to copy to.')
 
+  const keys = await Bun.file(KEYS_FILE).text()
+  assertKeyFor(keys, environment)
+
   const ip = await resolveServerIp(environment)
   console.log(`→ ${ip} (${environment})`)
-
-  const keys = await Bun.file(KEYS_FILE).text()
 
   // Written over ssh rather than scp so the mode is set in the same step: the
   // file is only readable by root, and never exists world-readable even

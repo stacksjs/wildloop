@@ -190,7 +190,10 @@
         <span :if="activity.visibility && activity.visibility !== 'public'" class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">{{ activity.visibility === 'private' ? '🔒 Private' : '👥 Followers' }}</span>
       </div>
       <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="text-sm text-emerald-600 hover:underline">{{ '→ ' + activity.trail_name }}</StxLink>
-      <p :if="activity.notes && !editing" class="mt-3 text-sm text-gray-600 dark:text-slate-300">{{ activity.notes }}</p>
+      <!-- Hidden when the note IS the title. With no title column on an
+           activity, the feed uses what the athlete wrote as its heading,
+           and printing it again underneath reads as a rendering bug. -->
+      <p :if="activity.notes && !editing && activity.notes.trim() !== activity.title" class="mt-3 text-sm text-gray-600 dark:text-slate-300">{{ activity.notes }}</p>
       <p :if="editorError && !editing" class="mt-2 text-sm text-red-500">{{ editorError }}</p>
 
       <!-- Owner edit panel (#954) -->

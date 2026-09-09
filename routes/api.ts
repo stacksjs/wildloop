@@ -394,6 +394,18 @@ route.group({ prefix: '/shipping' }, () => {
   route.delete('/license-keys/{id}', 'Actions/Commerce/Shipping/LicenseKeyDestroyAction')
 })
 
+// Sitemaps, including the trail catalog the framework's route-derived
+// /sitemap.xml cannot know about. Under /api because that is the prefix the
+// frontend proxies here; robots.txt points at it and allows the path.
+route.get('/sitemap.xml', async () => (await import('../app/Actions/Seo/SitemapAction')).sitemapIndex())
+route.get('/sitemap-pages.xml', async () => (await import('../app/Actions/Seo/SitemapAction')).sitemapPages())
+route.get('/sitemap-trails-{page}.xml', async (request: any) =>
+  (await import('../app/Actions/Seo/SitemapAction')).sitemapTrails(request?.params?.page ?? request?.get?.('page')))
+
+// Where the request appears to be coming from, so the catalog can open on
+// somewhere useful without asking for a location permission first.
+route.get('/geo/here', 'Actions/Geo/VisitorLocationAction')
+
 // Trail catalog (explore map + OSM geometry)
 route.get('/trails', 'Actions/Trail/TrailIndexAction')
 // Registered BEFORE `/trails/{id}/...` so `stats` is not captured as an id.

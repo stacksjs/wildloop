@@ -1,0 +1,28 @@
+# WildLoop — https://wildloop.org
+#
+# The catalog is the point: every trail page is a page worth indexing, and the
+# sitemap below is what tells a crawler they exist without it having to walk
+# half a million links to find them.
+
+User-agent: *
+Allow: /
+
+# Signed-in surfaces. Nothing here is reachable without a session, so a crawler
+# following one gets a login page — an indexed copy of which is worse than no
+# copy at all.
+Disallow: /settings
+Disallow: /notifications
+Disallow: /profile
+Disallow: /stats
+Disallow: /admin
+Disallow: /record
+Disallow: /api/
+# …except the sitemaps, which are served from this prefix.
+Allow: /api/sitemap
+
+# A filtered catalog is the same page with a different view of it. Indexing
+# each combination splits one page's authority across every filter anyone has
+# ever linked to.
+Disallow: /trails?*
+
+Sitemap: https://wildloop.org/api/sitemap.xml

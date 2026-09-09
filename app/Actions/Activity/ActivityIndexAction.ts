@@ -21,11 +21,65 @@ function parseSplits(raw: string | null): Array<{ mile: number, pace: string, el
   }
 }
 
-function titleFor(activityType: string, trailName: string | null, completedAt: string | null): string {
+/** Longest title the feed lays out on one line before it has to clamp. */
+const MAX_TITLE_LENGTH = 80
+
+/**
+ * The part of the day a run happened in, from its local hour.
+ *
+ * A feed is read in reverse-chronological order, so the date is already
+ * established by position and by the "3h ago" under the name. What is missing
+ * is the character of the run, and "Evening" carries more of that than
+ * "9/9/2026" ever did.
+ */
+function timeOfDay(completedAt: string | null): string {
+  if (!completedAt)
+    return ''
+
+  const hour = new Date(completedAt).getHours()
+  if (!Number.isFinite(hour))
+    return ''
+
+  if (hour < 5)
+    return 'Night'
+  if (hour < 12)
+    return 'Morning'
+  if (hour < 17)
+    return 'Afternoon'
+  if (hour < 21)
+    return 'Evening'
+  return 'Night'
+}
+
+/**
+ * What the activity is called in the feed.
+ *
+ * In order of preference:
+ *
+ *  1. What the athlete wrote. A note is a title someone chose, and no rule
+ *     here will ever beat "Marin Headlands long run".
+ *  2. Where it happened. A trail name is the next most useful thing.
+ *  3. When it happened, as a part of the day.
+ *
+ * The previous version skipped straight to `Trail Run, 9/9/2026` for anything
+ * without a trail, which is a row in a database rather than a title — and it
+ * repeated a date the feed had already shown as "3h ago" directly above it.
+ */
+function titleFor(
+  activityType: string,
+  trailName: string | null,
+  completedAt: string | null,
+  notes: string | null,
+): string {
+  const note = (notes ?? '').split('\n')[0]?.trim() ?? ''
+  if (note)
+    return note.length > MAX_TITLE_LENGTH ? `${note.slice(0, MAX_TITLE_LENGTH - 1).trimEnd()}…` : note
+
   if (trailName)
     return `${activityType} at ${trailName}`
-  const when = completedAt ? new Date(completedAt).toLocaleDateString() : ''
-  return when ? `${activityType}, ${when}` : `${activityType}`
+
+  const when = timeOfDay(completedAt)
+  return when ? `${when} ${activityType}` : activityType
 }
 
 export default new Action({
@@ -73,7 +127,7 @@ export default new Action({
           userName: userName.get(a.user_id),
           trailId: a.trail_id,
           trailName: tName,
-          title: titleFor(a.activity_type, tName, a.completed_at),
+          title: titleFor(a.activity_type, tName, a.completed_at, a.notes),
           activityType: a.activity_type,
           distance: a.distance,
           duration: a.duration,

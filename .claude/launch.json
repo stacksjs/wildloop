@@ -7,6 +7,12 @@
       "runtimeArgs": ["dev:frontend"],
       "port": 3100,
       "autoPort": true
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "./buddy",
+      "runtimeArgs": ["dev", "--api"],
+      "port": 3008
     }
   ]
 }

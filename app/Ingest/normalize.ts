@@ -10,6 +10,7 @@
 import type { Coordinate } from '../../resources/functions/geo'
 import type { TrailDifficulty, TrailRouteType } from './types'
 import { haversineDistance } from '../../resources/functions/geo'
+import { formatTrailTime } from '../../resources/functions/trail-time'
 
 export const METERS_PER_MILE = 1609.344
 export const FEET_PER_METER = 3.280_84
@@ -179,19 +180,13 @@ export function deriveRouteType(closed: boolean, named: boolean): TrailRouteType
 
 /**
  * Naismith's rule with Tranter-style flattening: 3 mph on the level plus an
- * hour per 2000 ft of ascent. Formatted the way the UI shows it.
+ * hour per 2000 ft of ascent. Formatted the way the UI shows it, which for a
+ * thru-hike means days rather than the three-figure hour count the raw rule
+ * produces (see resources/functions/trail-time).
  */
 export function estimateTime(distanceMiles: number, ascentFeet: number): string {
   const hours = distanceMiles / 3 + ascentFeet / 2000
-  const minutes = Math.max(5, Math.round(hours * 60))
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-
-  if (h === 0)
-    return `${m}m`
-  if (m === 0)
-    return `${h}h`
-  return `${h}h ${m}m`
+  return formatTrailTime(Math.max(5, Math.round(hours * 60)))
 }
 
 /**

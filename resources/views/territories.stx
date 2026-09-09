@@ -3,11 +3,44 @@
 @section('title', 'Territory Map - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * SEO for this page.
+   *
+   * `<script server>` because a crawler reads the HTML it is served and never
+   * runs the client script — tags set after hydration are tags nobody indexes.
+   * `useSeoMeta` rather than `useHead` because only the former reaches the
+   * composed document head from a page. And written out here rather than
+   * wrapped in a composable: the engine injects `useSeoMeta` into a page's own
+   * script scope and not into a module it imports, where it is simply
+   * undefined and the call fails without a word.
+   *
+   * URLs are absolute. A crawler resolves `og:image` against nothing, so a
+   * relative path is dropped and the link previews as a bare URL.
+   */
+  useSeoMeta({
+    title: 'Territory — WildLoop',
+    description: 'Every closed loop you run claims the ground inside it. See who holds what, and what is being contested right now.',
+    canonical: 'https://wildloop.org/territories',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Territory — WildLoop',
+    ogDescription: 'Every closed loop you run claims the ground inside it. See who holds what, and what is being contested right now.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/territories',
+    ogImage: 'https://wildloop.org/images/social/og-territory.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Territory — WildLoop',
+    twitterDescription: 'Every closed loop you run claims the ground inside it. See who holds what, and what is being contested right now.',
+    twitterImage: 'https://wildloop.org/images/social/og-territory.jpg',
+  })
+</script>
+
 <script client>
   import { useTerritoryExplorer } from '../composables/useTerritoryExplorer'
   import { territoryError } from '../composables/useTerritoryCatalog'
 
-  useHead({ title: 'Territory Game - WildLoop' })
 
   const wl = useStore('wl')
   const {

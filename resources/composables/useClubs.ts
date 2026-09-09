@@ -1,5 +1,6 @@
 import { onMount, state } from 'stx'
 import { createClub, fetchClubs, toggleClubMembership } from '../assets/scripts/game-api'
+import { requireAuth } from './useAuthGate'
 
 /**
  * Clubs (#964): hydrate the club list from the API, toggle membership
@@ -53,6 +54,12 @@ export function useClubs(wl: ClubStoreLike | null) {
   async function onToggleMembership(club: any) {
     if (!wl)
       return
+
+    // Joining writes a membership row against the signed-in user, so ask
+    // before the optimistic count moves.
+    if (!requireAuth('Join a club to train with its crew.', () => { void onToggleMembership(club) }))
+      return
+
     const club2 = wl.clubs().find(c => c.id === club.id) ?? club
     const was = isMember(club2)
     // Capture the ORIGINAL count before the optimistic mutation - applyClub-
@@ -69,6 +76,9 @@ export function useClubs(wl: ClubStoreLike | null) {
   }
 
   function openCreate() {
+    if (!requireAuth('Create a club to bring your crew onto WildLoop.', () => openCreate()))
+      return
+
     fName.set('')
     fType.set('Running')
     fLocation.set('')

@@ -4,7 +4,7 @@
 
 @section('content')
 <script client>
-  import { isSignedIn, redirectAfterAuth, signUp } from '../assets/scripts/auth'
+  import { isSignedIn, postAuthDestination, redirectAfterAuth, signUp } from '../assets/scripts/auth'
 
   useHead({ title: 'Sign Up - WildLoop' })
 
@@ -41,7 +41,7 @@
 
   onMount(() => {
     // Already signed in: nothing to do on a sign-up page.
-    if (isSignedIn()) navigate('/')
+    if (isSignedIn()) navigate(postAuthDestination('/'))
   })
 
   async function handleRegister(e) {
@@ -82,7 +82,7 @@
 
     if (result.ok) {
       success.set('Account created. Taking you to your feed.')
-      redirectAfterAuth('/')
+      redirectAfterAuth(postAuthDestination('/'))
       return
     }
 

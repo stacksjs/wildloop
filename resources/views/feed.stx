@@ -3,12 +3,45 @@
 @section('title', 'Activity Feed - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * SEO for this page.
+   *
+   * `<script server>` because a crawler reads the HTML it is served and never
+   * runs the client script — tags set after hydration are tags nobody indexes.
+   * `useSeoMeta` rather than `useHead` because only the former reaches the
+   * composed document head from a page. And written out here rather than
+   * wrapped in a composable: the engine injects `useSeoMeta` into a page's own
+   * script scope and not into a module it imports, where it is simply
+   * undefined and the call fails without a word.
+   *
+   * URLs are absolute. A crawler resolves `og:image` against nothing, so a
+   * relative path is dropped and the link previews as a bare URL.
+   */
+  useSeoMeta({
+    title: 'Activity feed — WildLoop',
+    description: 'Runs, hikes, kudos and turf changing hands — the WildLoop community as it happens.',
+    canonical: 'https://wildloop.org/feed',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Activity feed — WildLoop',
+    ogDescription: 'Runs, hikes, kudos and turf changing hands — the WildLoop community as it happens.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/feed',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Activity feed — WildLoop',
+    twitterDescription: 'Runs, hikes, kudos and turf changing hands — the WildLoop community as it happens.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   import { routePreviewDataUri } from '../composables/useRoutePreview'
   import { useManualActivity } from '../composables/useManualActivity'
-  import { toggleFollow, toggleKudos } from '../assets/scripts/game-api'
+  import { followAthlete, giveKudos } from '../composables/useSocialActions'
 
-  useHead({ title: 'Activity Feed - WildLoop' })
 
   const wl = useStore('wl')
 
@@ -21,30 +54,15 @@
   const scope = state<'all' | 'following'>('all')
   const kudosed = state<Record<number, boolean>>({})
 
-  async function onFollow(userId: number) {
-    if (!wl || userId === wl.currentUserId()) return
-    const wasFollowing = wl.isFollowing(userId)
-    wl.setFollowing(userId, !wasFollowing) // optimistic
-    const res = await toggleFollow(userId)
-    if (res && res.success) wl.setFollowing(userId, !!res.following)
-    else wl.setFollowing(userId, wasFollowing) // rollback
+  // Both live in useSocialActions, shared with the athlete directory, so
+  // "what does Follow do" and "what happens when you are signed out" have one
+  // answer rather than one per page.
+  function onFollow(userId: number) {
+    void followAthlete(wl, userId)
   }
 
-  async function onKudos(activity: { id: number, kudos_count: number }) {
-    if (!wl) return
-    const wasKudosed = kudosed()[activity.id] ?? false
-    // Optimistic toggle for a snappy UI.
-    kudosed.set({ ...kudosed(), [activity.id]: !wasKudosed })
-    wl.setActivityKudos(activity.id, Math.max(0, activity.kudos_count + (wasKudosed ? -1 : 1)))
-    const res = await toggleKudos(activity.id, wl.currentUserId())
-    if (res && res.success) {
-      kudosed.set({ ...kudosed(), [activity.id]: !!res.kudosed })
-      if (typeof res.kudosCount === 'number') wl.setActivityKudos(activity.id, res.kudosCount)
-    }
-    else {
-      kudosed.set({ ...kudosed(), [activity.id]: wasKudosed })
-      wl.setActivityKudos(activity.id, activity.kudos_count)
-    }
+  function onKudos(activity: { id: number, kudos_count: number }) {
+    void giveKudos(wl, activity, kudosed(), next => kudosed.set(next))
   }
 
   const filtered = derived(() => {
@@ -67,117 +85,146 @@
   }
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-3xl">
-    <div class="flex items-center justify-between mb-6">
+  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 class="font-bold text-2xl dark:text-white">Activity Feed</h1>
-        <p class="text-sm text-gray-500 dark:text-slate-400">Runs, kudos, and conquest highlights</p>
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Feed</h1>
+        <p class="mt-1 text-slate-600 dark:text-slate-400">Runs, kudos and turf changing hands.</p>
       </div>
-      <div class="flex items-center gap-2">
-        <button @click="openManualEntry()" class="px-4 py-2 font-semibold text-sm text-emerald-700 dark:text-emerald-400 border border-emerald-600/40 hover:border-emerald-600 rounded-lg transition">Log activity</button>
-        <StxLink to="/record" class="px-4 py-2 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition">Capture run</StxLink>
+      <div class="flex shrink-0 items-center gap-2">
+        <button @click="openManualEntry()" class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">Log activity</button>
+        <StxLink to="/record" class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record</StxLink>
       </div>
     </div>
 
-    <div :if="wl && wl.liveConquests().length > 0" class="mb-6 p-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/40 rounded-xl">
-      <p class="flex gap-2 items-center mb-2 font-semibold text-sm text-orange-800 dark:text-orange-300">
-        <span class="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
-        Live turf battles
-      </p>
-      <StxLink to="/battles" class="text-sm font-semibold text-emerald-600">See who's attacking →</StxLink>
+    <StxLink :if="wl && wl.liveConquests().length > 0" to="/battles" class="mb-6 flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 transition hover:border-orange-300 dark:border-orange-500/30 dark:bg-orange-500/10">
+      <span class="relative flex h-2.5 w-2.5 shrink-0">
+        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
+        <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"></span>
+      </span>
+      <span class="flex-1 text-sm font-semibold text-orange-900 dark:text-orange-200">Turf is being taken right now</span>
+      <span class="text-sm font-semibold text-orange-700 dark:text-orange-300">See who →</span>
+    </StxLink>
+
+    <!-- Two controls, two jobs: scope is whose runs, filter is which sport.
+         They used to be two identical-looking pill rows stacked on each other,
+         which made the page look like it had one filter applied twice. -->
+    <div class="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700">
+      <div class="flex gap-1">
+        <button @click="scope.set('all')" x-class="scope === 'all' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Everyone</button>
+        <button @click="scope.set('following')" x-class="scope === 'following' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Following</button>
+      </div>
+      <StxLink to="/athletes" class="pb-2 text-sm font-medium text-emerald-600 transition hover:text-emerald-700">Find athletes</StxLink>
     </div>
 
-    <!-- Scope: Following vs Everyone -->
-    <div class="flex gap-2 mb-4">
-      <button @click="scope.set('all')" x-class="scope === 'all' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-3 py-1.5 font-semibold text-sm border-b-2 transition">Everyone</button>
-      <button @click="scope.set('following')" x-class="scope === 'following' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-3 py-1.5 font-semibold text-sm border-b-2 transition">Following</button>
-    </div>
-
-    <!-- Filter tabs -->
-    <div class="flex overflow-x-auto gap-2 mb-6 pb-2">
-      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-lg transition">All</button>
-      <button @click="filter.set('Trail Run')" x-class="filter === 'Trail Run' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-lg transition">Runs</button>
-      <button @click="filter.set('Hike')" x-class="filter === 'Hike' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-lg transition">Hikes</button>
-      <button @click="filter.set('Walk')" x-class="filter === 'Walk' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-lg transition">Walks</button>
-      <button @click="filter.set('Bike')" x-class="filter === 'Bike' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-lg transition">Rides</button>
+    <div class="mb-6 flex gap-2 overflow-x-auto pb-2">
+      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">All</button>
+      <button @click="filter.set('Trail Run')" x-class="filter === 'Trail Run' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Runs</button>
+      <button @click="filter.set('Hike')" x-class="filter === 'Hike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Hikes</button>
+      <button @click="filter.set('Walk')" x-class="filter === 'Walk' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Walks</button>
+      <button @click="filter.set('Bike')" x-class="filter === 'Bike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Rides</button>
     </div>
 
     <!-- Activity cards -->
-    <div class="space-y-6">
+    <div class="space-y-5">
       <template :for="activity in filtered">
-        <div class="card">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex gap-3 items-center">
-              <div class="flex items-center justify-center h-10 w-10 font-bold text-emerald-600 text-sm bg-emerald-100 dark:bg-emerald-900/30 rounded-full">{{ activity.userName.charAt(0) }}</div>
-              <div>
-                <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="font-semibold text-sm dark:text-white hover:text-emerald-600 transition">{{ activity.userName }}</StxLink>
-                <span :else class="font-semibold text-sm dark:text-white">Deleted athlete</span>
-                <p class="text-gray-500 text-xs dark:text-slate-400">
-                  <span>{{ activity.activityType }}</span>
-                  <span class="mx-1">·</span>
-                  <span>{{ wl.timeAgo(activity.created_at) }}</span>
-                </p>
-              </div>
+        <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
+          <div class="flex items-start gap-3 p-4 pb-3">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ activity.userName.charAt(0) }}</div>
+
+            <div class="min-w-0 flex-1">
+              <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white">{{ activity.userName }}</StxLink>
+              <span :else class="font-semibold text-slate-900 dark:text-white">Deleted athlete</span>
+              <p class="flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <span class="inline-flex items-center gap-1">
+                  <i x-class="activity.activityType === 'Hike' ? 'i-lucide-mountain h-3 w-3' : activity.activityType === 'Bike' ? 'i-lucide-bike h-3 w-3' : activity.activityType === 'Walk' ? 'i-lucide-footprints h-3 w-3' : 'i-lucide-footprints h-3 w-3'" aria-hidden="true"></i>
+                  {{ activity.activityType }}
+                </span>
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span>{{ wl.timeAgo(activity.created_at) }}</span>
+              </p>
             </div>
+
             <button
               :if="activity.user_id && activity.user_id !== wl.currentUserId()"
               @click="onFollow(activity.user_id)"
-              x-class="wl.isFollowing(activity.user_id) ? 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'"
-              class="px-3 py-1.5 font-semibold text-xs rounded-lg transition"
->{{ wl.isFollowing(activity.user_id) ? 'Following' : 'Follow' }}</button>
+              x-class="wl.isFollowing(activity.user_id) ? 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300' : 'border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10'"
+              class="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition active:scale-[0.98]"
+            >{{ wl.isFollowing(activity.user_id) ? 'Following' : 'Follow' }}</button>
           </div>
 
-          <StxLink x-to="'/activity/' + activity.id" class="font-bold text-gray-900 text-lg dark:text-white hover:text-emerald-600 transition block">{{ activity.title }}</StxLink>
-          <p :if="activity.title.includes('Capture')" class="mt-1 text-xs text-purple-600 font-medium">Territory capture run</p>
-
-          <Image :if="activityRoutePreview(activity)" x-src="activityRoutePreview(activity)" x-alt="'Route preview for ' + activity.title" width="800" height="320" sizes="(max-width: 768px) 100vw, 640px" placeholder="blur" class="mt-3 h-40 w-full rounded-xl object-cover" />
-          <div :else class="mt-3 rounded-xl overflow-hidden h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-            <div class="text-center text-gray-400 dark:text-slate-500">
-              <Icon name="map" size="32" class="mx-auto mb-1" />
-              <p class="text-xs">Route Map</p>
-            </div>
+          <div class="px-4 pb-3">
+            <StxLink x-to="'/activity/' + activity.id" class="block font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white">{{ activity.title }}</StxLink>
+            <p :if="activity.title.includes('Capture')" class="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+              <i class="i-lucide-flag h-3 w-3" aria-hidden="true"></i>Territory capture
+            </p>
           </div>
 
-          <div class="grid gap-3 grid-cols-2 sm:grid-cols-4 mt-4">
-            <div class="text-center">
-              <p class="font-bold text-lg dark:text-white">{{ activity.distance.toFixed(1) }}</p>
-              <p class="metric-label">Miles</p>
+          <StxLink x-to="'/activity/' + activity.id" class="block">
+            <Image :if="activityRoutePreview(activity)" x-src="activityRoutePreview(activity)" x-alt="'Route preview for ' + activity.title" width="800" height="320" sizes="(max-width: 768px) 100vw, 640px" placeholder="blur" class="h-44 w-full bg-slate-100 object-cover dark:bg-slate-900" />
+            <div :else class="flex h-44 items-center justify-center bg-slate-50 dark:bg-slate-900/60">
+              <div class="text-center text-slate-400 dark:text-slate-500">
+                <i class="i-lucide-map mx-auto mb-1 block h-7 w-7" aria-hidden="true"></i>
+                <p class="text-xs">No route recorded</p>
+              </div>
             </div>
-            <div class="text-center">
-              <p class="font-bold text-lg dark:text-white">{{ activity.duration }}</p>
-              <p class="metric-label">Time</p>
-            </div>
-            <div class="text-center">
-              <p class="font-bold text-lg dark:text-white">{{ activity.pace }}</p>
-              <p class="metric-label">Pace</p>
-            </div>
-            <div class="text-center">
-              <p class="font-bold text-lg dark:text-white">{{ activity.elevation_gain.toLocaleString() }}</p>
-              <p class="metric-label">Elev (ft)</p>
-            </div>
-          </div>
+          </StxLink>
 
-          <div class="flex gap-6 items-center mt-4 pt-4 border-gray-100 border-t dark:border-slate-700">
-            <button @click="onKudos(activity)" x-class="kudosed[activity.id] ? 'text-red-500' : 'text-gray-500 dark:text-slate-400 hover:text-red-500'" class="flex items-center gap-1 transition text-sm">
-              <Icon name="heart" size="20" />
-              <span>{{ activity.kudos_count + ' Kudos' }}</span>
+          <!-- The four numbers, on one baseline. A run is compared by these,
+               so they get equal weight and tabular figures that line up
+               between cards as you scroll. -->
+          <dl class="grid grid-cols-4 divide-x divide-slate-100 border-y border-slate-100 dark:divide-slate-700 dark:border-slate-700">
+            <div class="px-2 py-3 text-center">
+              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.distance.toFixed(1) }}</dd>
+              <dt class="metric-label">Miles</dt>
+            </div>
+            <div class="px-2 py-3 text-center">
+              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.duration }}</dd>
+              <dt class="metric-label">Time</dt>
+            </div>
+            <div class="px-2 py-3 text-center">
+              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.pace }}</dd>
+              <dt class="metric-label">Pace</dt>
+            </div>
+            <div class="px-2 py-3 text-center">
+              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.elevation_gain.toLocaleString() }}</dd>
+              <dt class="metric-label">Elev ft</dt>
+            </div>
+          </dl>
+
+          <div class="flex items-center gap-1 p-2">
+            <button @click="onKudos(activity)" x-class="kudosed[activity.id] ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400'" class="flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-slate-50 dark:hover:bg-slate-700/50">
+              <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="kudosed[activity.id] ? 'currentColor' : 'none'" aria-hidden="true">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+              </svg>
+              <span class="tabular-nums">{{ activity.kudos_count }}</span>
+              <span>{{ activity.kudos_count === 1 ? 'kudo' : 'kudos' }}</span>
             </button>
-            <StxLink x-to="'/activity/' + activity.id" class="flex items-center gap-1 text-gray-500 dark:text-slate-400 hover:text-emerald-500 transition text-sm">
-              <Icon name="message-circle" size="20" />
+            <StxLink x-to="'/activity/' + activity.id" class="flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-slate-700/50">
+              <i class="i-lucide-message-circle h-4 w-4" aria-hidden="true"></i>
               Comment
             </StxLink>
           </div>
-        </div>
+        </article>
       </template>
 
-      <!-- Empty state -->
+      <!-- Empty state. Which one depends on why it is empty: an athlete with
+           no runs needs a different sentence from somebody who follows nobody
+           yet, and telling the second one to "head outside" is useless. -->
       <div :if="filtered.length === 0" class="py-20 text-center">
-        <div class="w-20 h-20 mx-auto mb-6 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-          <Icon name="zap" size="40" class="text-emerald-400" />
+        <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+          <Icon name="zap" size="36" class="text-emerald-500" />
         </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No activities yet</h3>
-        <p class="text-gray-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Your feed is empty. Head outside and record your first trail run!</p>
-        <StxLink to="/record" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Record Activity</StxLink>
+        <h3 class="mb-2 text-lg font-semibold text-slate-900 dark:text-white">
+          <span :if="scope === 'following'">Nothing from the people you follow</span>
+          <span :else>No activities yet</span>
+        </h3>
+        <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">
+          <span :if="scope === 'following'">Follow a few athletes and their runs land here.</span>
+          <span :else>Record a run and it shows up here — yours and everyone else's.</span>
+        </p>
+        <StxLink :if="scope === 'following'" to="/athletes" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Find athletes</StxLink>
+        <StxLink :else to="/record" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
       </div>
     </div>
   </div>

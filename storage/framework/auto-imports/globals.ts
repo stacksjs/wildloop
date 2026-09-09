@@ -56,12 +56,7 @@ declare global {
   const STANDARD_YARD_MINUTES: typeof autoImports.STANDARD_YARD_MINUTES
   const shapeChallenge: typeof autoImports.shapeChallenge
   const computeConquestRecord: typeof autoImports.computeConquestRecord
-  const increment: typeof autoImports.increment
-  const count: typeof autoImports.count
   const computeCounterFixes: typeof autoImports.computeCounterFixes
-  const isDark: typeof autoImports.isDark
-  const toggleDark: typeof autoImports.toggleDark
-  const preferredDark: typeof autoImports.preferredDark
   const territoryFreshnessMs: typeof autoImports.territoryFreshnessMs
   const computeTerritoryDecay: typeof autoImports.computeTerritoryDecay
   const DECAY_STALE_DAYS: typeof autoImports.DECAY_STALE_DAYS
@@ -137,6 +132,9 @@ declare global {
   const formatTerritoryArea: typeof autoImports.formatTerritoryArea
   const diffTerritories: typeof autoImports.diffTerritories
   const OWN_TERRITORY_COLOR: typeof autoImports.OWN_TERRITORY_COLOR
+  const formatTrailTime: typeof autoImports.formatTrailTime
+  const parseTrailTime: typeof autoImports.parseTrailTime
+  const displayTrailTime: typeof autoImports.displayTrailTime
   const computeTrainingStats: typeof autoImports.computeTrainingStats
   const positiveInt: typeof autoImports.positiveInt
   const boundedNumber: typeof autoImports.boundedNumber

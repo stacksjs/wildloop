@@ -31,6 +31,10 @@
     @include('../components/footer')
   </div>
 
+  <!-- The sign-in wall, mounted once so every gated control on every page
+       shares one modal and one queued intent (see useAuthGate). -->
+  <AuthGate />
+
   <template #tab-bar>
     <div class="lg:hidden">
       <NativeTabBar label="WildLoop navigation">

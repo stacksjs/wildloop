@@ -2,6 +2,8 @@
  * Trail API ↔ UI normalization (Stacks ORM uses camelCase in JSON).
  */
 
+import { displayTrailTime } from '../../functions/trail-time'
+
 export type LatLng = [number, number]
 
 export interface UiTrail {
@@ -102,7 +104,10 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     difficulty: diff,
     distance: Math.round(distanceMiles * 10) / 10,
     elevation: Math.round(elevationFeet),
-    estimatedTime: String(row.estimatedTime ?? row.estimated_time ?? ''),
+    // Re-formatted rather than passed through: rows ingested before the day
+    // scale existed hold `388h 18m`, which is the same duration written in a
+    // unit nobody reads.
+    estimatedTime: displayTrailTime(String(row.estimatedTime ?? row.estimated_time ?? '')),
     rating: Number(row.rating) || 0,
     reviewCount: Number(row.reviewCount ?? row.review_count) || 0,
     description: String(row.description ?? ''),

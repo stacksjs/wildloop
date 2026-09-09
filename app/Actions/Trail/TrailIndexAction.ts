@@ -1,3 +1,4 @@
+import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
 
 const DIFFICULTIES = new Set(['easy', 'moderate', 'hard'])
@@ -7,6 +8,21 @@ const SORTS = new Set(['featured', 'distance', 'longest', 'rating', 'name'])
 
 /** Degrees of latitude per mile. Longitude is narrowed by cos(lat) at use. */
 const DEGREES_PER_MILE = 1 / 69
+
+/** Default "near me" radius, in miles. */
+const DEFAULT_RADIUS = 25
+
+/** Hard ceiling, so a hand-written `?radius=99999` cannot ask for a table scan. */
+const MAX_RADIUS = 300
+
+/**
+ * Enough results for a page to be worth showing. Below this a "near me" search
+ * widens instead of rendering an empty state the visitor cannot act on.
+ */
+const MIN_NEARBY_RESULTS = 12
+
+/** Radii to try, in order, when the requested one is too thin. */
+const WIDER_RADII = [60, 150, MAX_RADIUS]
 
 /**
  * List trails for the explore map and catalog.
@@ -27,22 +43,47 @@ export default new Action({
 
   async handle(request) {
     const page = readPageParams(request, { defaultLimit: 200, maxLimit: 500 })
+    const origin = readOrigin(request)
 
     try {
       // Built twice: once to count the matches, once to fetch the window.
       // A count over an indexed predicate is cheap, and it is the only way to
       // give the UI an honest "N trails match" without fetching all of them.
-      const fetchPage = async (skipInferredCountry: boolean) => {
-        const rows = await applyFilters(Trail.query(), request, skipInferredCountry)
+      const fetchPage = async (skipInferredCountry: boolean, radius?: number) => {
+        const rows = await applyFilters(Trail.query(), request, skipInferredCountry, radius)
           .orderBy(...sortColumns(request))
           .limit(page.limit)
           .offset(page.offset)
           .get()
-        const total = await applyFilters(Trail.query(), request, skipInferredCountry).count()
+        const total = await applyFilters(Trail.query(), request, skipInferredCountry, radius).count()
         return { rows, total }
       }
 
       let { rows, total } = await fetchPage(false)
+      let radius = origin ? requestedRadius(request) : null
+
+      /*
+       * "Near me" widens rather than coming back empty.
+       *
+       * A 25-mile box is generous in the Bay Area and nearly empty in eastern
+       * Oregon, and the visitor cannot tell those two cases apart: both render
+       * as "no trails found" under a filter they did not set. So the search
+       * grows outward until it has enough to show, and the response reports
+       * the radius it actually used so the page can say "within 150 miles"
+       * instead of quietly answering a different question.
+       */
+      if (origin && total < MIN_NEARBY_RESULTS) {
+        for (const wider of WIDER_RADII) {
+          if (wider <= (radius ?? 0))
+            continue
+          const attempt = await fetchPage(false, wider)
+          radius = wider
+          rows = attempt.rows
+          total = attempt.total
+          if (total >= MIN_NEARBY_RESULTS)
+            break
+        }
+      }
 
       /*
        * An INFERRED country must never be able to empty the page.
@@ -76,6 +117,9 @@ export default new Action({
           limit: page.limit,
           total,
           hasMore: page.offset + trails.length < total,
+          // Present only for a "near me" query, and only ever the radius the
+          // answer was actually computed at.
+          ...(radius !== null ? { radius } : {}),
         },
       })
     }
@@ -97,7 +141,13 @@ export default new Action({
  * Shared by the page query and the count query so the two can never disagree
  * about what "matching" means.
  */
-function applyFilters(query: any, request: { get: (key: string) => any }, skipInferredCountry = false): any {
+function applyFilters(
+  query: any,
+  request: { get: (key: string) => any },
+  skipInferredCountry = false,
+  /** Overrides `?radius=` — set when a "near me" search has widened. */
+  radiusOverride?: number,
+): any {
   const search = readString(request, 'q') ?? readString(request, 'search')
   if (search) {
     // Matched through the FTS index rather than three `LIKE '%term%'`
@@ -125,7 +175,7 @@ function applyFilters(query: any, request: { get: (key: string) => any }, skipIn
   // which is already more precise than a country and legitimately crosses
   // borders — a bounding box around Basel covers three of them.
   const explicitCountry = readString(request, 'country')
-  const hasCoordinates = readNumber(request, 'lat') !== null && readNumber(request, 'lng') !== null
+  const hasCoordinates = readOrigin(request) !== null
   const country = explicitCountry ?? (skipInferredCountry || hasCoordinates ? undefined : visitorCountry(request))
 
   if (country && /^[a-z]{2}$/i.test(country))
@@ -170,11 +220,11 @@ function applyFilters(query: any, request: { get: (key: string) => any }, skipIn
   // "Near me": a bounding box, not a radius. It is an index range scan rather
   // than a full-table haversine, and at the zoom a map actually renders the
   // difference between a box and a circle is not visible.
-  const lat = readNumber(request, 'lat')
-  const lng = readNumber(request, 'lng')
-  const radius = readNumber(request, 'radius') ?? 25
+  const origin = readOrigin(request)
+  const radius = radiusOverride ?? requestedRadius(request)
 
-  if (lat !== null && lng !== null) {
+  if (origin) {
+    const { lat, lng } = origin
     const latSpan = radius * DEGREES_PER_MILE
     // A degree of longitude shrinks toward the poles; without the cosine the
     // box would be far too wide in Alaska and slightly too narrow in Florida.
@@ -246,6 +296,30 @@ function toFtsQuery(input: string): string | null {
       return index === tokens.length - 1 ? `${quoted}*` : quoted
     })
     .join(' ')
+}
+
+interface Origin {
+  lat: number
+  lng: number
+}
+
+/** The caller's position, when they gave one. Both halves or neither. */
+function readOrigin(request: { get: (key: string) => any }): Origin | null {
+  const lat = readNumber(request, 'lat')
+  const lng = readNumber(request, 'lng')
+
+  if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+    return null
+
+  return { lat, lng }
+}
+
+/** The requested radius, clamped. Miles. */
+function requestedRadius(request: { get: (key: string) => any }): number {
+  const raw = readNumber(request, 'radius')
+  if (raw === null || !(raw > 0))
+    return DEFAULT_RADIUS
+  return Math.min(raw, MAX_RADIUS)
 }
 
 function readString(request: { get: (key: string) => any }, key: string): string | null {

@@ -46,7 +46,6 @@ stacks.log
 .stx
 .stx-serve
 /storage/framework/stx
-.env.keys
 /storage/framework/frontend-dist
 /storage/framework/mobile
 
