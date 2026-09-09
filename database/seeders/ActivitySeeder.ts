@@ -231,8 +231,11 @@ export default class ActivitySeeder extends Seeder {
      */
     const trailBySourceId = new Map((trails as any[]).map(t => [t.source_id, t]))
     const trailById = new Map((trails as any[]).map(t => [t.id, t]))
+    // The adoption map first: it is TrailSeeder's own answer about which row
+    // represents this trail, and it is the only one that knows about a
+    // superseded copy still sitting in the table under the same source id.
     const resolveTrail = (sourceId: string) =>
-      trailBySourceId.get(sourceId) ?? trailById.get(trailIdBySeedSourceId.get(sourceId) as number) ?? null
+      trailById.get(trailIdBySeedSourceId.get(sourceId) as number) ?? trailBySourceId.get(sourceId) ?? null
 
 
     const now = Date.now()

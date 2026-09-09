@@ -60,9 +60,12 @@ export async function seededTrails(sourceIds: string[]): Promise<any[]> {
     .filter((id): id is number => typeof id === 'number')
 
   const byId = await trailsByIds(known)
-  const found = new Set(byId.map(trail => trail.source_id))
 
-  const missing = [...new Set(sourceIds)].filter(sourceId => !found.has(sourceId))
+  // Only look up source ids the map could not answer. Fetching one it HAS
+  // answered drags the superseded row back in — the seeder's own pre-ingest
+  // copy still carries that source id, and a caller checking source ids first
+  // would then resolve to the row we are trying to retire.
+  const missing = [...new Set(sourceIds)].filter(sourceId => !trailIdBySeedSourceId.has(sourceId))
   if (missing.length === 0)
     return byId
 

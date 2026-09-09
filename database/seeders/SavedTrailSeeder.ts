@@ -74,8 +74,11 @@ export default class SavedTrailSeeder extends Seeder {
      */
     const bySourceId = new Map(trails.map(t => [t.source_id, t]))
     const byId = new Map(trails.map((t: any) => [t.id, t]))
+    // The adoption map first: it is TrailSeeder's own answer about which row
+    // represents this trail, and it is the only one that knows about a
+    // superseded copy still sitting in the table under the same source id.
     const resolveTrail = (sourceId: string) =>
-      bySourceId.get(sourceId) ?? byId.get(trailIdBySeedSourceId.get(sourceId) as number) ?? null
+      byId.get(trailIdBySeedSourceId.get(sourceId) as number) ?? bySourceId.get(sourceId) ?? null
 
     if (!byName.size || !bySourceId.size) {
       console.warn('[seed] no users or trails yet; skipping saved trails')

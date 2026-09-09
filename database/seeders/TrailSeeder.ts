@@ -759,6 +759,23 @@ function estimatedTime(distanceMiles: number, elevationFeet: number): string {
  */
 export const trailIdBySeedSourceId = new Map<string, number>()
 
+/**
+ * Rows THIS seeder created on an earlier run that the catalog has since made
+ * redundant.
+ *
+ * An environment seeded before the ingest arrived carries a seeded copy of
+ * every trail in this file — no geometry, so it draws nothing on a map — and
+ * the ingest later added the real one beside it. Matching on (source,
+ * source_id) finds the seeder's own copy first and never notices, which is how
+ * production ended up with 25 duplicates and a feed whose cards could not draw
+ * a route.
+ *
+ * Keyed by the redundant row's id, valued by the id of the ingested row that
+ * replaces it. TrailDuplicateCleanupSeeder uses the pair to move anything
+ * pointing at the old row onto the real one before removing it.
+ */
+export const supersededTrailIds = new Map<number, number>()
+
 export default class TrailSeeder extends Seeder {
   // Before anything that hangs off a trail id: activities, reviews, saved
   // trails and the territories claimed on them.
@@ -814,34 +831,44 @@ export default class TrailSeeder extends Seeder {
         .first()
         .catch(() => null)
 
-      if (existing) {
-        await Trail.forceUpdate(existing.id, payload)
-        trailIdBySeedSourceId.set(seed.sourceId, existing.id)
-        continue
-      }
-
       /*
-       * Adopt the catalog's own row rather than adding a second one.
+       * The catalog's own row always wins, including over this seeder's.
        *
        * These are real trails, and on any environment the national ingest has
-       * run against, they are ALREADY in the table — Angels Landing arrives as
+       * run against they are ALREADY in the table — Angels Landing arrives as
        * `nps/ZION|ANGELS LANDING`, this file calls it `zion-angels-landing`.
-       * Two different source ids for one path, so the unique index above does
-       * not fire and the catalog quietly grows a twin of every seeded trail.
+       * Two source ids for one path, so the unique index never fires and the
+       * catalog grows a twin of every seeded trail.
        *
-       * The seeded row is the poorer of the two: it has no geometry, so it
-       * draws nothing on the map. So where the ingest already knows the trail,
-       * the seed defers to it and simply remembers which row it meant.
+       * Checked BEFORE the seeder's own row, not after. An environment seeded
+       * once before the ingest arrived already holds that twin, and matching
+       * on (source, source_id) finds it first — so the seed kept adopting its
+       * own empty-geometry copy and the duplicate survived every re-seed.
+       *
+       * The ingested row is strictly better: it carries geometry, so it draws
+       * on a map, and it is what search and the catalog pages already return.
        */
-      const alreadyInCatalog = await Trail
+      const ingested = await Trail
         .where('name', '=', seed.name)
         .where('state', '=', seed.state)
+        .where('source_id', '!=', seed.sourceId)
         .first()
         .catch(() => null)
 
-      if (alreadyInCatalog) {
-        trailIdBySeedSourceId.set(seed.sourceId, alreadyInCatalog.id)
+      if (ingested) {
+        trailIdBySeedSourceId.set(seed.sourceId, ingested.id)
         adopted += 1
+        // The seeder's own copy, if it made one before the ingest existed, is
+        // now redundant. It cannot be deleted here — activities and reviews
+        // still point at it until their own seeders re-point them.
+        if (existing && existing.id !== ingested.id)
+          supersededTrailIds.set(existing.id, ingested.id)
+        continue
+      }
+
+      if (existing) {
+        await Trail.forceUpdate(existing.id, payload)
+        trailIdBySeedSourceId.set(seed.sourceId, existing.id)
         continue
       }
 
