@@ -1,9 +1,9 @@
 import { Seeder } from '@stacksjs/database'
 import { calculatePerimeter } from '../../resources/functions/geo'
 import Activity from '../../app/Models/Activity'
-import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
 import { trailIdBySeedSourceId } from './TrailSeeder'
+import { seededTrails } from '../support/trails'
 
 /**
  * Activities for the seeded athletes.
@@ -216,7 +216,10 @@ export default class ActivitySeeder extends Seeder {
       return
     }
 
-    const trails = await Trail.all().catch(() => [])
+    // Only the trails these sessions name — see support/trails.
+    const trails = await seededTrails(
+      Object.values(SESSIONS).flat().map(session => session.trail).filter((t): t is string => !!t),
+    )
     /**
      * Resolve a seeded trail reference to the row that represents it.
      *

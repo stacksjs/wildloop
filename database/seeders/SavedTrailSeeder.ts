@@ -1,9 +1,9 @@
 import { Seeder } from '@stacksjs/database'
 import Activity from '../../app/Models/Activity'
 import SavedTrail from '../../app/Models/SavedTrail'
-import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
 import { trailIdBySeedSourceId } from './TrailSeeder'
+import { seededTrails } from '../support/trails'
 
 /**
  * The trails each athlete has bookmarked.
@@ -58,7 +58,10 @@ export default class SavedTrailSeeder extends Seeder {
 
   async run(): Promise<void> {
     const users = (await User.all().catch(() => [])) as any[]
-    const trails = (await Trail.all().catch(() => [])) as any[]
+    // Only the trails these bookmarks name — see support/trails.
+    const trails = await seededTrails(
+      Object.values(SAVED).flat().map(bookmark => bookmark.trail),
+    )
     const byName = new Map(users.map(u => [u.name, u]))
     /**
      * Resolve a seeded trail reference to the row that represents it.

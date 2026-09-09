@@ -1,8 +1,8 @@
 import { Seeder } from '@stacksjs/database'
 import Review from '../../app/Models/Review'
-import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
 import { trailIdBySeedSourceId } from './TrailSeeder'
+import { seededTrails } from '../support/trails'
 
 /**
  * Trail reviews from the seeded athletes.
@@ -366,7 +366,8 @@ export default class ReviewSeeder extends Seeder {
 
   async run(): Promise<void> {
     const users = (await User.all().catch(() => [])) as any[]
-    const trails = (await Trail.all().catch(() => [])) as any[]
+    // Only the trails these reviews name — see support/trails.
+    const trails = await seededTrails(REVIEWS.map(review => review.trail))
     const byName = new Map(users.map(u => [u.name, u]))
     /**
      * Resolve a seeded trail reference to the row that represents it.

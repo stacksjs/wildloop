@@ -15,7 +15,7 @@ import { validateGpsDataForClaim, validateTrackRealism } from '../../resources/f
 import Activity from '../../app/Models/Activity'
 import Territory from '../../app/Models/Territory'
 import TerritoryHistory from '../../app/Models/TerritoryHistory'
-import Trail from '../../app/Models/Trail'
+import { trailsByIds } from '../support/trails'
 
 /**
  * The land the seeded athletes hold.
@@ -82,7 +82,8 @@ export default class TerritorySeeder extends Seeder {
       live.push({ id: row.id, coordinates: geoJsonToCoordinates(row.polygon_data) })
     }
 
-    const trails = await Trail.all().catch(() => [])
+    // Only the trails these recorded activities were run on.
+    const trails = await trailsByIds((activities as any[]).map(activity => activity.trail_id))
     const trailById = new Map((trails as any[]).map(t => [t.id, t]))
 
     for (const activity of activities as any[]) {

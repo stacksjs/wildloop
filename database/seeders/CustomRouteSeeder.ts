@@ -3,7 +3,7 @@ import { haversineDistance } from '../../resources/functions/geo'
 import { parseGpsData } from '../../resources/functions/gpx'
 import Activity from '../../app/Models/Activity'
 import CustomRoute from '../../app/Models/CustomRoute'
-import Trail from '../../app/Models/Trail'
+import { trailsByIds } from '../support/trails'
 
 /**
  * Saved routes, so `/routes` is not a permanent "No saved routes yet."
@@ -36,7 +36,8 @@ export default class CustomRouteSeeder extends Seeder {
       return
     }
 
-    const trails = (await Trail.all().catch(() => [])) as any[]
+    // Only the trails these recorded activities were run on.
+    const trails = await trailsByIds((activities as any[]).map(activity => activity.trail_id))
     const trailById = new Map(trails.map(t => [t.id, t]))
 
     for (const activity of activities) {

@@ -4,6 +4,7 @@ import Activity from '../../app/Models/Activity'
 import Kudos from '../../app/Models/Kudos'
 import Review from '../../app/Models/Review'
 import Trail from '../../app/Models/Trail'
+import { trailsByIds } from '../support/trails'
 
 /**
  * Reconcile the denormalized counters at the end of a seed.
@@ -26,12 +27,35 @@ export default class CounterSeeder extends Seeder {
   static override order = 100
 
   async run(): Promise<void> {
-    const [activities, kudos, trails, reviews] = await Promise.all([
+    const [activities, kudos, reviews] = await Promise.all([
       Activity.all().catch(() => []),
       Kudos.all().catch(() => []),
-      Trail.all().catch(() => []),
       Review.all().catch(() => []),
     ])
+
+    /*
+     * The trails worth reconciling, rather than every trail there is.
+     *
+     * `computeCounterFixes` derives a trail's rating and review count from the
+     * reviews pointing at it, so a trail with no reviews and a stored count of
+     * zero produces no fix — it is already correct. Loading the whole table to
+     * establish that is what made this unrunnable against a real catalog: the
+     * deployed environment holds ~593,000 trails.
+     *
+     * Two sets are genuinely in question. Trails somebody has reviewed, and
+     * trails whose stored counter claims reviews they no longer have — the
+     * stale case, which is the one worth catching and the only reason this
+     * ever needed to look beyond the reviews table.
+     */
+    const reviewedTrailIds = (reviews as any[])
+      .map(review => review.trail_id)
+      .filter((id): id is number => typeof id === 'number')
+
+    const staleCounters = (await Trail.where('review_count', '>', 0).get().catch(() => [])) as any[]
+
+    const reviewed = await trailsByIds(reviewedTrailIds)
+    const seen = new Set(reviewed.map(trail => trail.id))
+    const trails = [...reviewed, ...staleCounters.filter(trail => !seen.has(trail.id))]
 
     const fixes = computeCounterFixes({
       activities: activities as any[],
