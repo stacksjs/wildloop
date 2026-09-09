@@ -198,7 +198,9 @@
        One photograph, one promise, one search box. Everything else on this
        page is below the fold on purpose: the first thing a visitor wants is
        somewhere to go this weekend, not a feature list. -->
-  <section class="hero-stage">
+  <!-- `data-nav-overlay` tells the nav it is sitting on a photograph, so it
+       draws itself transparent until the first scroll. See components/nav. -->
+  <section class="hero-stage" data-nav-overlay>
     <Image
       src="/images/marketing/wildloop-ridge-runner.jpg"
       alt=""
@@ -689,6 +691,32 @@
     isolation: isolate;
   }
 
+  /*
+   * Slide the photograph up under the nav.
+   *
+   * The bar is a sticky sibling ABOVE this section in flow, so making it
+   * transparent on its own would just reveal the white page behind it — the
+   * strip across the top of the image would still be there, now without a
+   * border to explain it. Pulling this section up by the bar's height is what
+   * puts the photograph behind it; the matching padding keeps the headline and
+   * search field centred in the part you can actually see.
+   *
+   * Only from `lg`, which is where the layout swaps the mobile header for this
+   * nav (see layouts/default). The mobile header is its own opaque bar and has
+   * no transparent state to blend into.
+   */
+  @media (min-width: 1024px) {
+    .hero-stage[data-nav-overlay] {
+      /* The bar is `h-14` plus its 1px hairline, and the hairline stays in the
+         box in both states so nothing shifts by a pixel when it turns solid.
+         Pull by the whole 57px or a white line is left across the very top. */
+      --wl-nav-height: calc(3.5rem + 1px);
+
+      margin-top: calc(var(--wl-nav-height) * -1);
+      padding-top: var(--wl-nav-height);
+    }
+  }
+
   .hero-photo {
     position: absolute;
     inset: 0;
@@ -700,15 +728,23 @@
   }
 
   /* The scrim exists for the text, not the mood: white type over a bright sky
-     is the single most common way a hero like this becomes unreadable. */
+     is the single most common way a hero like this becomes unreadable.
+     
+     Lightened, because it was doing more than that job — the photograph was
+     reading as murky rather than as first light. What is left is the minimum
+     each piece of type needs: a short, steeper band at the very top for the
+     nav that now sits transparent over it, almost nothing through the middle
+     where the sky is already dark, and a band at the bottom under the search
+     field. The radial vignette stays, at about half its previous weight, to
+     keep the eye in the middle. */
   .hero-stage::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
     background:
-      linear-gradient(180deg, rgb(6 17 14 / 55%) 0%, rgb(6 17 14 / 18%) 38%, rgb(6 17 14 / 62%) 100%),
-      radial-gradient(120% 80% at 50% 50%, transparent 35%, rgb(6 17 14 / 45%) 100%);
+      linear-gradient(180deg, rgb(6 17 14 / 42%) 0%, rgb(6 17 14 / 10%) 22%, rgb(6 17 14 / 6%) 45%, rgb(6 17 14 / 40%) 100%),
+      radial-gradient(120% 80% at 50% 50%, transparent 45%, rgb(6 17 14 / 24%) 100%);
   }
 
   .hero-inner {
