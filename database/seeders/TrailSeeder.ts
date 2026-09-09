@@ -748,12 +748,25 @@ function estimatedTime(distanceMiles: number, elevationFeet: number): string {
   return hours > 0 ? `${hours}h ${String(rest).padStart(2, '0')}m` : `${rest}m`
 }
 
+/**
+ * Seed `sourceId` → the id of the trail row that actually represents it.
+ *
+ * Dependent seeders (activities, reviews, saved trails) refer to trails by the
+ * source id declared in this file. That is only a real key when this seeder
+ * inserted the row; where it adopted the catalog's own copy instead, the id
+ * lives here and nowhere else. Seeders run in one process, in order, so a
+ * module-level map is the whole mechanism.
+ */
+export const trailIdBySeedSourceId = new Map<string, number>()
+
 export default class TrailSeeder extends Seeder {
   // Before anything that hangs off a trail id: activities, reviews, saved
   // trails and the territories claimed on them.
   static override order = -92
 
   async run(): Promise<void> {
+    let adopted = 0
+
     const syncedAt = new Date().toISOString()
 
     for (const seed of TRAILS) {
@@ -801,10 +814,43 @@ export default class TrailSeeder extends Seeder {
         .first()
         .catch(() => null)
 
-      if (existing)
+      if (existing) {
         await Trail.forceUpdate(existing.id, payload)
-      else
-        await Trail.forceCreate(payload)
+        trailIdBySeedSourceId.set(seed.sourceId, existing.id)
+        continue
+      }
+
+      /*
+       * Adopt the catalog's own row rather than adding a second one.
+       *
+       * These are real trails, and on any environment the national ingest has
+       * run against, they are ALREADY in the table — Angels Landing arrives as
+       * `nps/ZION|ANGELS LANDING`, this file calls it `zion-angels-landing`.
+       * Two different source ids for one path, so the unique index above does
+       * not fire and the catalog quietly grows a twin of every seeded trail.
+       *
+       * The seeded row is the poorer of the two: it has no geometry, so it
+       * draws nothing on the map. So where the ingest already knows the trail,
+       * the seed defers to it and simply remembers which row it meant.
+       */
+      const alreadyInCatalog = await Trail
+        .where('name', '=', seed.name)
+        .where('state', '=', seed.state)
+        .first()
+        .catch(() => null)
+
+      if (alreadyInCatalog) {
+        trailIdBySeedSourceId.set(seed.sourceId, alreadyInCatalog.id)
+        adopted += 1
+        continue
+      }
+
+      const created = await Trail.forceCreate(payload)
+      if (created?.id)
+        trailIdBySeedSourceId.set(seed.sourceId, created.id)
     }
+
+    if (adopted > 0)
+      console.warn(`[seed] ${adopted} seeded trail(s) already in the catalog; used the ingested row instead of adding a duplicate`)
   }
 }

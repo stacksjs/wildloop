@@ -2,6 +2,7 @@ import { Seeder } from '@stacksjs/database'
 import Review from '../../app/Models/Review'
 import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
+import { trailIdBySeedSourceId } from './TrailSeeder'
 
 /**
  * Trail reviews from the seeded athletes.
@@ -367,7 +368,20 @@ export default class ReviewSeeder extends Seeder {
     const users = (await User.all().catch(() => [])) as any[]
     const trails = (await Trail.all().catch(() => [])) as any[]
     const byName = new Map(users.map(u => [u.name, u]))
+    /**
+     * Resolve a seeded trail reference to the row that represents it.
+     *
+     * TrailSeeder inserts a trail only when the catalog does not already have it;
+     * on an environment where the national ingest has run, it adopts the ingested
+     * row instead and records the id. So the source id declared in the seed data
+     * is not always a key in the table, and looking only there silently left every
+     * seeded activity, review and bookmark unlinked.
+     */
     const bySourceId = new Map(trails.map(t => [t.source_id, t]))
+    const byId = new Map(trails.map((t: any) => [t.id, t]))
+    const resolveTrail = (sourceId: string) =>
+      bySourceId.get(sourceId) ?? byId.get(trailIdBySeedSourceId.get(sourceId) as number) ?? null
+
 
     if (!byName.size || !bySourceId.size) {
       console.warn('[seed] no users or trails yet; skipping reviews')
@@ -378,7 +392,7 @@ export default class ReviewSeeder extends Seeder {
 
     for (const seed of REVIEWS) {
       const author = byName.get(seed.author)
-      const trail = bySourceId.get(seed.trail)
+      const trail = resolveTrail(seed.trail)
       if (!author || !trail) {
         console.warn(`[seed] review by ${seed.author} on ${seed.trail} has no author or trail; skipping`)
         continue

@@ -3,6 +3,7 @@ import { calculatePerimeter } from '../../resources/functions/geo'
 import Activity from '../../app/Models/Activity'
 import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
+import { trailIdBySeedSourceId } from './TrailSeeder'
 
 /**
  * Activities for the seeded athletes.
@@ -216,7 +217,20 @@ export default class ActivitySeeder extends Seeder {
     }
 
     const trails = await Trail.all().catch(() => [])
+    /**
+     * Resolve a seeded trail reference to the row that represents it.
+     *
+     * TrailSeeder inserts a trail only when the catalog does not already have it;
+     * on an environment where the national ingest has run, it adopts the ingested
+     * row instead and records the id. So the source id declared in the seed data
+     * is not always a key in the table, and looking only there silently left every
+     * seeded activity, review and bookmark unlinked.
+     */
     const trailBySourceId = new Map((trails as any[]).map(t => [t.source_id, t]))
+    const trailById = new Map((trails as any[]).map(t => [t.id, t]))
+    const resolveTrail = (sourceId: string) =>
+      trailBySourceId.get(sourceId) ?? trailById.get(trailIdBySeedSourceId.get(sourceId) as number) ?? null
+
 
     const now = Date.now()
 
@@ -248,7 +262,7 @@ export default class ActivitySeeder extends Seeder {
         dayOffset += 1
         const completedAt = new Date(now - dayOffset * DAY).toISOString()
 
-        const trail = session.trail ? trailBySourceId.get(session.trail) : null
+        const trail = session.trail ? resolveTrail(session.trail) : null
         if (session.trail && !trail)
           console.warn(`[seed] activity references unknown trail "${session.trail}"; leaving it unlinked`)
 

@@ -3,6 +3,7 @@ import Activity from '../../app/Models/Activity'
 import SavedTrail from '../../app/Models/SavedTrail'
 import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
+import { trailIdBySeedSourceId } from './TrailSeeder'
 
 /**
  * The trails each athlete has bookmarked.
@@ -59,7 +60,20 @@ export default class SavedTrailSeeder extends Seeder {
     const users = (await User.all().catch(() => [])) as any[]
     const trails = (await Trail.all().catch(() => [])) as any[]
     const byName = new Map(users.map(u => [u.name, u]))
+    /**
+     * Resolve a seeded trail reference to the row that represents it.
+     *
+     * TrailSeeder inserts a trail only when the catalog does not already have it;
+     * on an environment where the national ingest has run, it adopts the ingested
+     * row instead and records the id. So the source id declared in the seed data
+     * is not always a key in the table, and looking only there silently left every
+     * seeded activity, review and bookmark unlinked.
+     */
     const bySourceId = new Map(trails.map(t => [t.source_id, t]))
+    const byId = new Map(trails.map((t: any) => [t.id, t]))
+    const resolveTrail = (sourceId: string) =>
+      bySourceId.get(sourceId) ?? byId.get(trailIdBySeedSourceId.get(sourceId) as number) ?? null
+
     if (!byName.size || !bySourceId.size) {
       console.warn('[seed] no users or trails yet; skipping saved trails')
       return
@@ -76,7 +90,7 @@ export default class SavedTrailSeeder extends Seeder {
         continue
 
       for (const bookmark of bookmarks) {
-        const trail = bySourceId.get(bookmark.trail)
+        const trail = resolveTrail(bookmark.trail)
         if (!trail) {
           console.warn(`[seed] ${name} bookmarked unknown trail "${bookmark.trail}"; skipping`)
           continue
