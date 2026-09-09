@@ -776,18 +776,11 @@ export const trailIdBySeedSourceId = new Map<string, number>()
  */
 export const supersededTrailIds = new Map<number, number>()
 
-/** Metres. Two trailheads further apart than this are two different trails. */
+/**
+ * Metres of slack around a seed's point when testing it against a candidate
+ * trail's bounding box. Covers a trailhead marked just off the line itself.
+ */
 const SAME_TRAIL_METRES = 2000
-
-/** Great-circle distance, in metres. */
-function metresBetween(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const radius = 6371000
-  const dLat = (bLat - aLat) * Math.PI / 180
-  const dLng = (bLng - aLng) * Math.PI / 180
-  const h = Math.sin(dLat / 2) ** 2
-    + Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) * Math.sin(dLng / 2) ** 2
-  return 2 * radius * Math.asin(Math.sqrt(h))
-}
 
 /** Lowercased, punctuation folded, diacritics stripped — for comparing names. */
 function foldName(name: string): string {
@@ -825,8 +818,9 @@ function richest(candidates: any[]): any | null {
  *
  *  1. The same OSM object under the ingest's spelling of its id. Exact.
  *  2. The same name in the same region. Exact.
- *  3. The same region, within 2km, and one name containing the other —
- *     "Alum Cave Trail" for this file's "Alum Cave Trail to Mount LeConte".
+ *  3. The same region, the seed's point inside the candidate's extent, and
+ *     one name containing the other — "Alum Cave Trail" for this file's
+ *     "Alum Cave Trail to Mount LeConte".
  *
  * Rule 3 is the only one doing any inference, and all three of its conditions
  * have to hold at once. That matters: "Lands End Trail" is in California here
@@ -856,35 +850,43 @@ async function findIngestedTrail(seed: SeedTrail): Promise<any | null> {
     return exact
 
   /*
-   * Rule 3, as a bounding box in SQL rather than a filter in JavaScript.
+   * Rule 3, against the candidate's EXTENT rather than its centre.
    *
-   * Loading every trail in the region and sifting it here would mean pulling
-   * tens of thousands of rows, geometry included, twenty-five times over —
-   * the same mistake the seeders' `Trail.all()` calls used to make. The box is
-   * a range scan over the latitude/longitude index, and the circle is applied
-   * to whatever few rows come back.
+   * A trail is a line, and one representative point says little about where
+   * it runs. "Sky Pond via Glacier Gorge" is named for its trailhead and this
+   * file records that; the catalog records the pond at the far end. The same
+   * nine-mile path, 2.3km apart as points, so a centre-to-centre test rejected
+   * it — and widening that test would start matching genuinely different
+   * trails in dense areas.
+   *
+   * Every ingested trail carries a bounding box (`trails_bbox_index` exists
+   * for exactly this). Asking whether the seed's point lies within a candidate
+   * trail's extent is both stricter in dense areas and more forgiving along a
+   * long route, which is the right shape for the question.
+   *
+   * The box is a range scan over that index rather than a filter in
+   * JavaScript: loading a region and sifting it here would pull tens of
+   * thousands of rows with their geometry, twenty-five times over.
    */
-  const latSpan = SAME_TRAIL_METRES / 111_320
-  const lngSpan = latSpan / Math.max(0.15, Math.cos((seed.latitude * Math.PI) / 180))
+  const slack = SAME_TRAIL_METRES / 111_320
+  const lngSlack = slack / Math.max(0.15, Math.cos((seed.latitude * Math.PI) / 180))
 
-  const inBox = (await Trail
+  const overlapping = (await Trail
     .where('state', '=', seed.state)
     .where('source_id', '!=', seed.sourceId)
-    .where('latitude', '>=', seed.latitude - latSpan)
-    .where('latitude', '<=', seed.latitude + latSpan)
-    .where('longitude', '>=', seed.longitude - lngSpan)
-    .where('longitude', '<=', seed.longitude + lngSpan)
+    .where('min_lat', '<=', seed.latitude + slack)
+    .where('max_lat', '>=', seed.latitude - slack)
+    .where('min_lng', '<=', seed.longitude + lngSlack)
+    .where('max_lng', '>=', seed.longitude - lngSlack)
     .get()
     .catch(() => [])) as any[]
 
   const seedName = foldName(seed.name)
-  const near = inBox.filter((row) => {
-    if (typeof row.latitude !== 'number' || typeof row.longitude !== 'number')
-      return false
-    if (metresBetween(seed.latitude, seed.longitude, row.latitude, row.longitude) > SAME_TRAIL_METRES)
-      return false
-
+  const near = overlapping.filter((row) => {
     const rowName = foldName(String(row.name ?? ''))
+    // A name of one or two words matches far too much. "Sky Pond" inside "Sky
+    // Pond via Glacier Gorge" is the case worth having; a row called "Trail"
+    // inside anything is not.
     if (rowName.length < 4)
       return false
 
