@@ -337,12 +337,19 @@ export const tsCloud: TsCloudConfig = {
     // This project attaches to an existing compute owner, but it still declares
     // its runtime/proxy contract so the deploy command takes the compute path
     // and the shared gateway renders WildLoop routes with rpx.
+    //
+    // Deliberately NO `proxy.version`. The gateway is the box's, not this
+    // tenant's: every deploy reinstalls and recompiles it, so a version pinned
+    // here is imposed on all eight tenants sharing the server. This pin held
+    // rpx at 0.11.45 and silently rolled the box back from 0.11.52 twice in one
+    // evening, re-breaking a clean-URL redirect fix that shipped in 0.11.53.
+    // Unset means the owner's `latest`, which is the only version this project
+    // has any business asking for.
     compute: {
       runtime: 'bun',
       webServer: 'rpx',
       proxy: {
         engine: 'rpx',
-        version: '0.11.45',
       },
     },
     dns: {
