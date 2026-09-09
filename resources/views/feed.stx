@@ -169,10 +169,20 @@
 
           <StxLink x-to="'/activity/' + activity.id" class="block">
             <Image :if="activityRoutePreview(activity)" x-src="activityRoutePreview(activity)" x-alt="'Route preview for ' + activity.title" width="800" height="320" sizes="(max-width: 768px) 100vw, 640px" placeholder="blur" class="h-44 w-full bg-slate-100 object-cover dark:bg-slate-900" />
+            <!-- Nothing to draw. Two different reasons, and the card should
+                 say which: an activity logged by hand has no route at all,
+                 while one on a named trail has a place even when the catalog
+                 holds no line for it. "No route recorded" under a run that is
+                 plainly attached to a trail reads as a bug. -->
             <div :else class="flex h-44 items-center justify-center bg-slate-50 dark:bg-slate-900/60">
-              <div class="text-center text-slate-400 dark:text-slate-500">
-                <i class="i-lucide-map mx-auto mb-1 block h-7 w-7" aria-hidden="true"></i>
-                <p class="text-xs">No route recorded</p>
+              <div class="px-6 text-center text-slate-400 dark:text-slate-500">
+                <!-- `trail_id`, not `trail_name`: the store fills the name
+                     with "<Type> Activity" when there is no trail, so it is
+                     never empty and cannot be used to tell the two apart. -->
+                <i x-class="activity.trail_id ? 'i-lucide-mountain mx-auto mb-1.5 block h-7 w-7' : 'i-lucide-pencil-line mx-auto mb-1.5 block h-7 w-7'" aria-hidden="true"></i>
+                <p :if="activity.trail_id" class="text-xs font-medium text-slate-500 dark:text-slate-400 line-clamp-1">{{ activity.trail_name }}</p>
+                <p :if="activity.trail_id" class="text-[11px]">No mapped route for this trail</p>
+                <p :else class="text-xs">Logged by hand — no route recorded</p>
               </div>
             </div>
           </StxLink>
