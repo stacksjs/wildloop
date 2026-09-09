@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.130",
+    "@stacksjs/mobile": "^0.74.32",
     "stacks": "^0.74.32",
     "ts-health": "^0.1.0",
     "ts-maps": "^0.3.7",
