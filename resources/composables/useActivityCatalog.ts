@@ -30,6 +30,15 @@ interface ApiActivity {
   splits?: Array<{ mile: number, pace: string, elev: number }>
   notes?: string | null
   hasGps?: boolean
+  /**
+   * The shape of the run, thinned for a card-sized preview and with the start
+   * and end blurred when it belongs to somebody else. Served by the activity
+   * index — the browser cannot derive it, because the trail geometry it would
+   * need is not in the store.
+   *
+   * `[lat, lng]` pairs, which is what the preview renderer indexes.
+   */
+  route?: Array<[number, number]>
   visibility?: string
   completedAt: string | null
   createdAt: string | null
@@ -84,6 +93,7 @@ export async function loadActivities(wl: ActivityStoreLike): Promise<void> {
       notes: a.notes ?? '',
       visibility: a.visibility ?? 'public',
       hasGps: a.hasGps ?? false,
+      route: Array.isArray(a.route) ? a.route : [],
       created_at: a.createdAt ?? a.completedAt ?? new Date().toISOString(),
     }))
 

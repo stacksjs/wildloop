@@ -78,10 +78,17 @@
     return list
   })
 
-  function activityRoutePreview(activity: { trail_id?: number | null }): string | null {
-    if (!wl || !activity.trail_id) return null
-    const coords = wl.trailRoutes()[activity.trail_id]
-    return coords ? routePreviewDataUri(coords) : null
+  /**
+   * The little route drawing on a card.
+   *
+   * The route arrives with the activity. This used to look it up in the
+   * store's trail geometry, which holds the two hundred featured trails the
+   * catalog page loads — against a catalog of ~600,000 that never matched, so
+   * every card in the feed rendered the "no route" placeholder instead.
+   */
+  function activityRoutePreview(activity: { route?: Array<[number, number]> }): string | null {
+    const coords = activity.route
+    return coords && coords.length > 1 ? routePreviewDataUri(coords) : null
   }
 </script>
 
