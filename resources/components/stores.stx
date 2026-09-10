@@ -429,6 +429,17 @@
       currentUserId: 0,
       users: seedUsers,
       trails: seedTrails,
+      /**
+       * Ids of trails fetched one at a time, by a detail page.
+       *
+       * The catalog is ~600k rows and the bootstrap loads the featured 200, so
+       * a trail reached directly — every result from search, every shared
+       * link, every one of the sitemap's URLs — is almost never in that set.
+       * It arrives through `upsertTrailFromApi`, and without a record of that
+       * the next `hydrateTrailsFromApi` cannot tell it apart from the demo
+       * fixtures it is there to throw away.
+       */
+      apiTrailIds: [] as number[],
       activities: seedActivities,
       territories: seedTerritories,
       conquests: seedConquests,
@@ -483,15 +494,31 @@
       clearAuthenticatedUser() {
         this.currentUserId = 0
       },
-      /** Replace seed trails with API/OSM data when available. */
+      /**
+       * Replace seed trails with API/OSM data when available.
+       *
+       * Everything the seed shipped goes; individually-fetched trails stay.
+       * Both loads run on a detail page — the layout bootstraps the featured
+       * list on every route — and this one usually lands second, so a plain
+       * `this.trails = trails` silently deleted the very trail the page was
+       * opened to show. It looked like a missing record: the fetch returned
+       * 200, the upsert ran, and the page still rendered "Trail not found",
+       * for every trail outside the featured 200.
+       */
       hydrateTrailsFromApi(trails: Trail[], routes: Record<number, [number, number][]>) {
-        this.trails = trails
+        const incoming = new Set(trails.map((trail: Trail) => trail.id))
+        const kept = this.trails.filter((trail: Trail) =>
+          this.apiTrailIds.includes(trail.id) && !incoming.has(trail.id))
+
+        this.trails = [...trails, ...kept]
         this.trailRoutes = { ...this.trailRoutes, ...routes }
       },
       upsertTrailFromApi(trail: Trail, route?: [number, number][]) {
         const index = this.trails.findIndex((candidate: Trail) => candidate.id === trail.id)
         if (index >= 0) this.trails[index] = trail
         else this.trails.push(trail)
+        if (!this.apiTrailIds.includes(trail.id))
+          this.apiTrailIds = [...this.apiTrailIds, trail.id]
         if (route && route.length >= 2)
           this.trailRoutes = { ...this.trailRoutes, [trail.id]: route }
       },
