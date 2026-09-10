@@ -5,6 +5,7 @@
 @section('content')
 <script client>
   import { useLiveEvent } from '../../composables/useLiveEvent'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { formatClock } from '../../functions/backyard'
@@ -98,6 +99,26 @@
   onDestroy(() => {
     loopMap?.destroy()
     loopMap = null
+  })
+
+  // The record's own identity, once it loads. Without it every event page
+  // serves one title and no canonical. Applied on the client rather than in
+  // a `<script server>` block — see usePageSeo for why that is forced.
+  effect(() => {
+    const record = event()
+    if (!record)
+      return
+
+    const name = String(record.name ?? 'Event')
+    const where = record.location ? String(record.location) : null
+    const blurb = typeof record.description === 'string' ? record.description.trim() : ''
+    const host = record.hostName ? ` Hosted by ${record.hostName}.` : ''
+
+    setPageSeo({
+      title: recordTitle(name, where),
+      description: `${blurb ? `${blurb} ` : ''}${String(record.type ?? 'event')} event${where ? ` in ${where}` : ''} on WildLoop.${host}`.slice(0, 200),
+      canonical: `/event/${record.id}`,
+    })
   })
 </script>
 

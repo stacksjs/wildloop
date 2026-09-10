@@ -5,6 +5,7 @@
 @section('content')
 <script client>
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { useActivityEditor } from '../../composables/useActivityEditor'
   import { useActivityShare } from '../../composables/useActivityShare'
   import { useMentions } from '../../composables/useMentions'
@@ -136,6 +137,32 @@
   onDestroy(() => {
     activityMap?.destroy()
     activityMap = null
+  })
+
+  // The record's own identity, once it loads. Without it every activity page
+  // serves one title and no canonical. Applied on the client rather than in
+  // a `<script server>` block — see usePageSeo for why that is forced.
+  effect(() => {
+    const record = activity()
+    if (!record)
+      return
+
+    const who = String(record.userName ?? record.user?.name ?? 'An athlete')
+    const kind = String(record.activityType ?? 'Activity')
+    const facts: string[] = []
+    if (typeof record.distance === 'number' && record.distance > 0) facts.push(`${record.distance.toFixed(1)} mi`)
+    if (record.duration) facts.push(String(record.duration))
+    if (record.pace) facts.push(`${record.pace}/mi`)
+
+    // The athlete's own note is the only part of an activity that is about this
+    // one rather than any other, so it leads when there is one.
+    const note = typeof record.notes === 'string' ? record.notes.trim() : ''
+
+    setPageSeo({
+      title: recordTitle(note || `${kind} by ${who}`),
+      description: `${note ? `${note} ` : ''}${kind} by ${who}${facts.length ? ` — ${facts.join(' · ')}` : ''}.`.slice(0, 200),
+      canonical: `/activity/${record.id}`,
+    })
   })
 </script>
 

@@ -7,6 +7,7 @@
   import { deleteClub, fetchClubDetail, toggleClubMembership } from '../../assets/scripts/game-api'
   import { fetchClubInvites, inviteToClub, redeemClubInvite } from '../../assets/scripts/events-api'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
 
   useHead({ title: 'Club - WildLoop' })
 
@@ -142,6 +143,26 @@
     busy.set(false)
     if (ok) navigate('/clubs')
   }
+
+  // The record's own identity, once it loads. Without it every club page
+  // serves one title and no canonical. Applied on the client rather than in
+  // a `<script server>` block — see usePageSeo for why that is forced.
+  effect(() => {
+    const record = club()
+    if (!record)
+      return
+
+    const name = String(record.name ?? 'Club')
+    const where = record.location ? String(record.location) : null
+    const members = record.memberCount === 1 ? '1 member' : `${record.memberCount ?? 0} members`
+    const blurb = typeof record.description === 'string' ? record.description.trim() : ''
+
+    setPageSeo({
+      title: recordTitle(name, where),
+      description: `${blurb ? `${blurb} ` : ''}${name} is a ${String(record.type ?? 'running').toLowerCase()} club on WildLoop with ${members}.`.slice(0, 200),
+      canonical: `/club/${record.id}`,
+    })
+  })
 </script>
 
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

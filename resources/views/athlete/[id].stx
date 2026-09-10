@@ -7,6 +7,7 @@
   import { fetchAthlete, reportContent, toggleBlock, toggleFollow } from '../../assets/scripts/game-api'
   import { fetchRecords } from '../../assets/scripts/records-api'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../../functions/route-records'
 
   useHead({ title: 'Athlete - WildLoop' })
@@ -105,6 +106,29 @@
     safetyMessage.set(result.success ? 'Report received. Thank you.' : result.error ?? 'Could not submit report')
     if (result.success) safetyOpen.set(false)
   }
+
+  // The record's own identity, once it loads. Without it every athlete page
+  // serves one title and no canonical. Applied on the client rather than in
+  // a `<script server>` block — see usePageSeo for why that is forced.
+  effect(() => {
+    const record = profile()
+    if (!record)
+      return
+
+    const name = String(record.name ?? 'Athlete')
+    const facts: string[] = []
+    if (record.activityCount) facts.push(record.activityCount === 1 ? '1 activity' : `${record.activityCount} activities`)
+    if (record.followerCount) facts.push(record.followerCount === 1 ? '1 follower' : `${record.followerCount} followers`)
+    if (record.territoriesOwned) facts.push(`${record.territoriesOwned} territories held`)
+
+    setPageSeo({
+      title: recordTitle(name),
+      description: facts.length
+        ? `${name} on WildLoop — ${facts.join(', ')}. Recent runs, territory and records.`
+        : `${name} on WildLoop. Recent runs, territory and records.`,
+      canonical: `/athlete/${record.id}`,
+    })
+  })
 </script>
 
   <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-4xl">

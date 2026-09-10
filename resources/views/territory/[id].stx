@@ -5,6 +5,7 @@
 @section('content')
 <script client>
   import { createTrailMap, drawTerritoryPolygon, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
 
   useHead({ title: 'Territory Details - WildLoop' })
@@ -47,6 +48,25 @@
   onDestroy(() => {
     detailMap?.destroy()
     detailMap = null
+  })
+
+  // The record's own identity, once it loads. Without it every territory page
+  // serves one title and no canonical. Applied on the client rather than in
+  // a `<script server>` block — see usePageSeo for why that is forced.
+  effect(() => {
+    const record = territory()
+    if (!record)
+      return
+
+    const name = String(record.name ?? 'Territory')
+    const owner = record.ownerName ? `Held by ${record.ownerName}.` : 'Unclaimed.'
+    const km2 = typeof record.areaSize === 'number' ? (record.areaSize / 1000000).toFixed(2) : null
+
+    setPageSeo({
+      title: recordTitle(name),
+      description: `${name} on WildLoop. ${owner}${km2 ? ` ${km2} km² of ground.` : ''} See who holds it and how it changed hands.`,
+      canonical: `/territory/${record.id}`,
+    })
   })
 </script>
 

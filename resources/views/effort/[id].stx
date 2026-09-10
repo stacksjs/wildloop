@@ -5,6 +5,7 @@
 @section('content')
 <script client>
   import { useEffortDetail, toLocalInputValue, CATEGORY_LABELS, DIRECTION_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
 
   useHead({ title: 'Record Attempt - WildLoop' })
@@ -61,6 +62,24 @@
     const current = effort()
     if (!current || !current.rank) return ''
     return current.rank + ' of ' + current.bucketSize + ' on this board'
+  })
+
+  // The record's own identity, once it loads. Without it every effort page
+  // serves one title and no canonical. Applied on the client rather than in
+  // a `<script server>` block — see usePageSeo for why that is forced.
+  effect(() => {
+    const record = effort()
+    if (!record)
+      return
+
+    const route = String(record.trailName ?? record.routeName ?? 'a route')
+    const who = String(record.userName ?? 'An athlete')
+
+    setPageSeo({
+      title: recordTitle(`${who} on ${route}`),
+      description: `${who}'s record attempt on ${route}, with its evidence and verification status on WildLoop.`,
+      canonical: `/effort/${record.id}`,
+    })
   })
 </script>
 
