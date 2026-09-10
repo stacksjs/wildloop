@@ -391,6 +391,28 @@ export const tsCloud: TsCloudConfig = {
           'www.dashboard.wildloop.org',
         ],
       },
+
+      /*
+       * Settings the deploy keeps true, rather than a state of the dashboard
+       * that nobody can reconstruct six months from now.
+       *
+       * `strict` is the only correct mode for this origin: the server holds a
+       * real certificate, so the edge should both encrypt to it and verify it.
+       * Cloudflare hands a new zone `full`, which encrypts without checking who
+       * it is talking to; `flexible`, one click away in the same dropdown,
+       * sends plaintext to an origin that redirects to HTTPS and produces an
+       * infinite redirect loop — the usual way a Cloudflare migration appears
+       * to take a site down.
+       *
+       * These are reconciled on every deploy, not once at delegation, because
+       * this is exactly the kind of setting somebody changes by hand while
+       * debugging something else and never changes back.
+       */
+      zone: {
+        ssl: 'strict',
+        alwaysUseHttps: true,
+        minTlsVersion: '1.2',
+      },
     },
   },
 }
