@@ -128,13 +128,18 @@ export const tsCloud: TsCloudConfig = {
     // `ExecStart=/usr/local/bin/bun <start>`. Pointing it at the root `buddy`
     // script made bun parse a shell script as JavaScript, and the service
     // crash-looped on `ROOT_DIR=$(...)` before it ever bound a port.
+    //
+    // So the server is buddy's own `serve-entry` — the dedicated production
+    // entry it publishes for exactly this, which calls `startProductionServer`
+    // with no command parser attached. Bundled below rather than run out of
+    // node_modules so the release starts from one file it owns.
     main: {
       root: '.',
       exclude: SOURCE_RELEASE_EXCLUDES,
       deploy: 'server',
       path: '/',
       domain: 'wildloop.org',
-      start: './buddy serve',
+      start: 'bun storage/framework/runtime/production/serve.js',
       port: 3049,
       // The release ships without dependencies, so nothing resolves until
       // install runs here.
@@ -199,6 +204,8 @@ export const tsCloud: TsCloudConfig = {
         LINK_ENV_KEYS,
         INSTALL_DEPS,
         PREPARE_PRODUCTION_BUNFIG,
+        'mkdir -p storage/framework/runtime/production',
+        'bun build --production --target=bun --packages=external node_modules/@stacksjs/buddy/dist/serve-entry.js --outfile storage/framework/runtime/production/serve.js',
         // The database lives OUTSIDE the release, so create its directory
         // before migrate runs — on a fresh box nothing else would.
         'mkdir -p /var/www/wildloop-shared/database',
@@ -233,12 +240,14 @@ export const tsCloud: TsCloudConfig = {
       root: '.',
       exclude: SOURCE_RELEASE_EXCLUDES,
       deploy: 'server',
-      start: './buddy serve:api',
+      start: 'bun storage/framework/runtime/production/api.js',
       port: 3050,
       preStart: [
         LINK_ENV_KEYS,
         INSTALL_DEPS,
         PREPARE_PRODUCTION_BUNFIG,
+        'mkdir -p storage/framework/runtime/production',
+        'bun build --production --target=bun --packages=external node_modules/@stacksjs/actions/dist/serve/api.js --outfile storage/framework/runtime/production/api.js',
         'mkdir -p /var/www/wildloop-shared/database',
       ],
       env: {
