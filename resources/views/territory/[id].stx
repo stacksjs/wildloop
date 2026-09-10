@@ -59,7 +59,10 @@
       return
 
     const seoName = String(seoTerritory.name ?? 'Territory')
-    const seoHolder = seoTerritory.ownerName ? `Held by ${seoTerritory.ownerName}.` : 'Unclaimed.'
+    // The store's territory carries `user_id`, not a name — the page resolves
+    // the holder through `owner()` and so must this, or every owned territory
+    // describes itself as unclaimed.
+    const seoHolder = owner()?.name ? `Held by ${owner()?.name}.` : 'Unclaimed.'
     const seoArea = typeof seoTerritory.areaSize === 'number' ? (seoTerritory.areaSize / 1000000).toFixed(2) : null
 
     setPageSeo({
