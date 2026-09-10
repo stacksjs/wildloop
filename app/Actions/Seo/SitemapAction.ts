@@ -13,7 +13,7 @@
  * trails — and each is fetched separately.
  *
  * Registered in `routes/api.ts`, so the handlers live under that file's `/api`
- * prefix, and served at the ROOT — `app/ProductionServer.ts` rewrites the root
+ * prefix, and served at the ROOT — `config/server.ts#rewrites` maps the root
  * paths onto them. The root is not a preference: Google probes `/sitemap.xml`
  * directly and Search Console will not accept a submission it cannot fetch
  * there, so an index reachable only under `/api/` is one most crawlers never

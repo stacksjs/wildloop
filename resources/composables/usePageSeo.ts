@@ -4,10 +4,9 @@
  * ## Why this is client-side
  *
  * The obvious place is a `<script server>` block, the way the static pages do
- * it. It does not work for a detail page. `app/ProductionServer.ts` runs the
- * views server with `renderCacheVary: 'source'`, which keys the render cache
- * by FILE PATH alone — one cached render of `trail/[id].stx` is served for
- * every trail. Per-record meta in that render would mean whichever trail
+ * it. It does not work for a detail page. `config/server.ts` declares
+ * `cache.renderVary: 'source'`, which keys the render cache by FILE PATH
+ * alone — one cached render of `trail/[id].stx` is served for every trail. Per-record meta in that render would mean whichever trail
  * happened to be rendered first supplying the title for all ~600k of them,
  * which is worse than a generic title, not better. Varying by request instead
  * keys on the whole request context (cookies and IP included), so it caches

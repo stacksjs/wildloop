@@ -134,7 +134,7 @@ export const tsCloud: TsCloudConfig = {
       deploy: 'server',
       path: '/',
       domain: 'wildloop.org',
-      start: 'bun storage/framework/runtime/production/serve.js',
+      start: './buddy serve',
       port: 3049,
       // The release ships without dependencies, so nothing resolves until
       // install runs here.
@@ -199,8 +199,6 @@ export const tsCloud: TsCloudConfig = {
         LINK_ENV_KEYS,
         INSTALL_DEPS,
         PREPARE_PRODUCTION_BUNFIG,
-        'mkdir -p storage/framework/runtime/production',
-        'bun build --production --target=bun --packages=external app/ProductionServer.ts --outfile storage/framework/runtime/production/serve.js',
         // The database lives OUTSIDE the release, so create its directory
         // before migrate runs — on a fresh box nothing else would.
         'mkdir -p /var/www/wildloop-shared/database',
@@ -235,14 +233,12 @@ export const tsCloud: TsCloudConfig = {
       root: '.',
       exclude: SOURCE_RELEASE_EXCLUDES,
       deploy: 'server',
-      start: 'bun storage/framework/runtime/production/api.js',
+      start: './buddy serve:api',
       port: 3050,
       preStart: [
         LINK_ENV_KEYS,
         INSTALL_DEPS,
         PREPARE_PRODUCTION_BUNFIG,
-        'mkdir -p storage/framework/runtime/production',
-        'bun build --production --target=bun --packages=external node_modules/@stacksjs/actions/dist/serve/api.js --outfile storage/framework/runtime/production/api.js',
         'mkdir -p /var/www/wildloop-shared/database',
       ],
       env: {
