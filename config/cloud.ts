@@ -353,27 +353,44 @@ export const tsCloud: TsCloudConfig = {
       },
     },
     dns: {
-      // wildloop.org is registered and DNS-managed at Porkbun, so records are
-      // written through their API. ts-cloud reads PORKBUN_API_KEY and
-      // PORKBUN_SECRET_KEY from the environment. There is deliberately no
-      // hostedZoneId: nothing hosts this zone on Route53.
-      //
-      // MOVING THE ZONE TO CLOUDFLARE: change `provider` to 'cloudflare' in
-      // the same commit as the nameserver switch. The deploy writes records
-      // through whichever provider is named here, so leaving it on Porkbun
-      // after the nameservers move means every deploy writes correct records
-      // into a zone that no longer answers for the domain — and nothing fails
-      // loudly, because the write itself succeeds. CLOUDFLARE_API_TOKEN is
-      // already passed by .github/workflows/deploy.yml.
-      //
-      // The app is ready for it either way: `visitorLocation` in
-      // app/Helpers/visitorCountry.ts already reads cf-iplatitude /
-      // cf-iplongitude / cf-ipcity, so proxied traffic makes the catalog open
-      // on the visitor's own area with no code change. Without an edge in
-      // front, /api/geo/here answers `located: false` and the catalog falls
-      // back to the whole thing plus a "Trails near me" button.
-      provider: 'porkbun',
+      /*
+       * The zone lives on Cloudflare; the domain is registered at Porkbun.
+       *
+       * Cloudflare is not a preference here, it is a feature: it adds
+       * `cf-iplatitude` / `cf-ipcity` to every proxied request, and
+       * `app/Helpers/visitorCountry.ts` reads them so the catalog opens on
+       * "Popular trails near <your city>" instead of on six hundred thousand
+       * trails sorted by length. Without an edge in front, /api/geo/here
+       * answers `located: false` and the page falls back to the whole catalog.
+       *
+       * `registrar` is what makes the move happen on deploy rather than by
+       * hand at two dashboards: ts-cloud creates the zone, copies Porkbun's
+       * records across, verifies record for record that they arrived, and only
+       * then repoints the nameservers. It will not delegate into a zone it
+       * could not verify — see packages/ts-cloud/src/dns/delegation.ts.
+       */
+      provider: 'cloudflare',
       domain: 'wildloop.org',
+
+      registrar: {
+        provider: 'porkbun',
+
+        /*
+         * Only the web hosts go through the proxy.
+         *
+         * `mail.wildloop.org` is deliberately absent and must stay that way.
+         * Cloudflare does not proxy SMTP, and the proxy would replace the
+         * origin address that this domain's own SPF record authorises — so a
+         * proxied mail host degrades delivery some hours later with nothing
+         * visibly broken to explain it. This domain runs its own mail.
+         */
+        proxied: [
+          'wildloop.org',
+          'www.wildloop.org',
+          'dashboard.wildloop.org',
+          'www.dashboard.wildloop.org',
+        ],
+      },
     },
   },
 }

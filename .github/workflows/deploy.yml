@@ -88,4 +88,9 @@ jobs:
           # fails loudly instead of reaching for another provider's keys.
           PORKBUN_API_KEY: ${{ secrets.PORKBUN_API_KEY }}
           PORKBUN_SECRET_KEY: ${{ secrets.PORKBUN_SECRET_KEY }}
+          # Cloudflare serves the zone (config/cloud.ts infrastructure.dns).
+          # The account id is needed as well as the token: creating a zone is an
+          # account-level call, and without it ts-cloud refuses rather than
+          # letting Cloudflare pick an account on your behalf.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
