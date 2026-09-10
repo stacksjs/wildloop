@@ -73,6 +73,8 @@ export { default as SiteDomain } from '../../../node_modules/@stacksjs/defaults/
 export { default as SmsOptOut } from '../../../node_modules/@stacksjs/defaults/app/Models/SmsOptOut'
 export { default as SocialAccount } from '../../../node_modules/@stacksjs/defaults/app/Models/SocialAccount'
 export { default as SocialPost } from '../../../node_modules/@stacksjs/defaults/app/Models/SocialPost'
+export { default as StorageItem } from '../../../node_modules/@stacksjs/defaults/app/Models/StorageItem'
+export { default as StorageItemTask } from '../../../node_modules/@stacksjs/defaults/app/Models/StorageItemTask'
 export { default as Subscriber } from '../../../node_modules/@stacksjs/defaults/app/Models/Subscriber'
 export { default as SubscriberEmail } from '../../../node_modules/@stacksjs/defaults/app/Models/SubscriberEmail'
 export { default as Subscription } from '../../../node_modules/@stacksjs/defaults/app/Models/Subscription'
