@@ -82,15 +82,21 @@ jobs:
           # fall back to defaults, which is how an app deploys with the wrong
           # APP_KEY and invalidates every session it had.
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
-          # DNS records are written through the registrar that administers the
-          # zone, declared in config/cloud.ts. Keep these in the environment
-          # even when they are also in .env.production — a missing one now
-          # fails loudly instead of reaching for another provider's keys.
-          PORKBUN_API_KEY: ${{ secrets.PORKBUN_API_KEY }}
-          PORKBUN_SECRET_KEY: ${{ secrets.PORKBUN_SECRET_KEY }}
-          # Cloudflare serves the zone (config/cloud.ts infrastructure.dns).
-          # The account id is needed as well as the token: creating a zone is an
-          # account-level call, and without it ts-cloud refuses rather than
-          # letting Cloudflare pick an account on your behalf.
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          #
+          # Nothing else belongs here.
+          #
+          # Every other credential lives encrypted in .env.production and is
+          # decrypted by the key above — one secret guarding all of them, and
+          # the values reviewable in git rather than typed into a settings page.
+          #
+          # Naming one here does not merely duplicate it, it OVERRIDES it. A
+          # repository secret that does not exist expands to an empty string,
+          # GitHub sets the variable to "", and the env loader skips any key
+          # already present in the environment — so the decrypted value never
+          # wins. That is not hypothetical: PORKBUN_API_KEY, PORKBUN_SECRET_KEY
+          # and CLOUDFLARE_API_TOKEN were all listed here against secrets that
+          # were never created, and every deploy reported "no DNS provider
+          # credentials found" while the real keys sat in .env.production the
+          # whole time. DNS has not been reconciled on a deploy since.
+          #
+          # Add a credential with `buddy env:set KEY value --file .env.production`.
