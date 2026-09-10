@@ -412,6 +412,20 @@ export const tsCloud: TsCloudConfig = {
         ssl: 'strict',
         alwaysUseHttps: true,
         minTlsVersion: '1.2',
+
+        /*
+         * Send the visitor's city and coordinates to the origin.
+         *
+         * This is the setting the Cloudflare migration was actually for.
+         * `CF-IPCountry` is the only geo header a zone sends by default, so
+         * `app/Helpers/visitorCountry.ts` — which reads `cf-ipcity` and
+         * `cf-iplatitude` — got nothing, `/api/geo/here` answered
+         * `located: false`, and the catalog fell back to the whole six hundred
+         * thousand trails instead of the ones near you. Nothing about that is
+         * visible at the edge: the request arrives correctly proxied, simply
+         * without the headers the application was written against.
+         */
+        visitorLocationHeaders: true,
       },
     },
   },
