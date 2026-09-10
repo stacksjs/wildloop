@@ -17,7 +17,9 @@ Disallow: /stats
 Disallow: /admin
 Disallow: /record
 Disallow: /api/
-# …except the sitemaps, which are served from this prefix.
+# …except the sitemaps. They are served at the root, and the /api paths the
+# handlers are registered at answer too; allowing both keeps an already-indexed
+# link working rather than turning it into a disallowed URL.
 Allow: /api/sitemap
 
 # A filtered catalog is the same page with a different view of it. Indexing
@@ -25,4 +27,4 @@ Allow: /api/sitemap
 # ever linked to.
 Disallow: /trails?*
 
-Sitemap: https://wildloop.org/api/sitemap.xml
+Sitemap: https://wildloop.org/sitemap.xml

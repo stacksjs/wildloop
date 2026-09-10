@@ -12,17 +12,22 @@
  * therefore lists children — one for the static pages, one per chunk of
  * trails — and each is fetched separately.
  *
- * Served under `/api/sitemap…` (see routes/api.ts) because that prefix is what
- * the frontend proxies to this server. The framework already answers the bare
- * `/sitemap.xml` with a list derived from the route table — useful, but it
- * cannot know about trails, which are rows rather than routes. robots.txt
- * points at this one, and allows the path explicitly since `/api/` is
- * otherwise disallowed.
+ * Registered in `routes/api.ts`, so the handlers live under that file's `/api`
+ * prefix, and served at the ROOT — `app/ProductionServer.ts` rewrites the root
+ * paths onto them. The root is not a preference: Google probes `/sitemap.xml`
+ * directly and Search Console will not accept a submission it cannot fetch
+ * there, so an index reachable only under `/api/` is one most crawlers never
+ * see. Both paths answer; the root is the canonical one and the only one
+ * robots.txt and the index itself name.
  *
- * Routes:
- *   /api/sitemap.xml               the index
- *   /api/sitemap-pages.xml         everything that is not a database row
- *   /api/sitemap-trails-{page}.xml one chunk of trail pages, 1-based
+ * The framework already answers a bare `/sitemap.xml` with a list derived from
+ * the route table — useful, but it cannot know about trails, which are rows
+ * rather than routes.
+ *
+ * Routes (public path → handler):
+ *   /sitemap.xml               → /api/sitemap.xml               the index
+ *   /sitemap-pages.xml         → /api/sitemap-pages.xml         everything that is not a database row
+ *   /sitemap-trails-{page}.xml → /api/sitemap-trails-{page}.xml one chunk of trail pages, 1-based
  */
 
 const SITE_URL = 'https://wildloop.org'
@@ -97,8 +102,8 @@ export async function sitemapIndex(): Promise<Response> {
   // document invalid, which is why the static pages get a child of their own
   // rather than being inlined here.
   const children = [
-    `${SITE_URL}/api/sitemap-pages.xml`,
-    ...Array.from({ length: chunks }, (_, i) => `${SITE_URL}/api/sitemap-trails-${i + 1}.xml`),
+    `${SITE_URL}/sitemap-pages.xml`,
+    ...Array.from({ length: chunks }, (_, i) => `${SITE_URL}/sitemap-trails-${i + 1}.xml`),
   ]
 
   const body = children

@@ -10,6 +10,22 @@ const port = Number(process.env.PORT) || 3049
 const defaultResources = join(process.cwd(), 'storage/framework/defaults/resources')
 const apiBase = process.env.API_URL || `http://127.0.0.1:${Number(process.env.PORT_API) || 3050}`
 
+/**
+ * Sitemap paths, which belong at the root even though the handler does not.
+ *
+ * `routes/api.ts` carries an `/api` prefix, so the handlers register as
+ * `/api/sitemap.xml` and friends. A crawler does not know that: Google probes
+ * `/sitemap.xml` directly and Search Console will not accept a submission it
+ * cannot fetch there, so the root path answering 404 loses most of the value
+ * of having built the sitemap at all.
+ *
+ * Declaring these in `config/server.ts` under `proxy` would not fix it —
+ * that matches paths to forward, and forwards them unchanged, which reaches
+ * the API process at a path it has not registered. The rewrite has to happen
+ * where both halves are known, which is here.
+ */
+const SITEMAP_PATH = /^\/sitemap(?:-pages|-trails-\d+)?\.xml$/
+
 // Local framework development uses the checked-out Tools source. A deployed
 // release uses the exact npm versions in package.json, so production never
 // silently falls back to the stale generated pantry copy.
@@ -78,6 +94,14 @@ await serve({
       return gated
 
     const url = new URL(request.url)
+
+    // Rewritten rather than redirected: a 301 costs every crawler an extra
+    // round trip per chunk, and the catalog is chunked into a lot of them.
+    if (SITEMAP_PATH.test(url.pathname)) {
+      const target = new URL(`/api${url.pathname}${url.search}`, url.origin)
+      return await serverModule.proxyToBackend(new Request(target, request), apiBase)
+    }
+
     if (!serverModule.isApiBoundRequest(request, url.pathname))
       return
 
