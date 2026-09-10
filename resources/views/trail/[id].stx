@@ -11,7 +11,10 @@
   import { normalizeTrailsPayload } from '../../assets/scripts/trail-data'
   import { isTrailOffline, offlineTrail, removeOfflineTrail, saveTrailOffline } from '../../assets/scripts/offline-trails'
   import { useRecordSubmission, useTrailRecords, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
+  import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
 
+  // The served shell's title. Replaced with the trail's own once it loads —
+  // see the effect below, and usePageSeo for why that happens on the client.
   useHead({ title: 'Trail Details - WildLoop' })
 
   const wl = useStore('wl')
@@ -152,11 +155,52 @@
       trail()
       void mountDetailMap()
     })
+
+    // Give the page the trail's own identity.
+    //
+    // Every trail page served the same title and description, so ~600k URLs in
+    // the sitemap looked like one page repeated — which is how a catalog gets
+    // dropped as thin or duplicate content rather than ranked.
+    const stopSeo = effect(() => {
+      const current = trail()
+      if (!current)
+        return
+
+      setPageSeo({
+        title: recordTitle(current.name, current.location),
+        description: trailDescription(current),
+        canonical: `/trail/${current.id}`,
+      })
+    })
+
     return () => {
       cancelMap()
       stop()
+      stopSeo()
     }
   })
+
+  /**
+   * A sentence a search result can stand on, built from what makes this trail
+   * different from the next one: where it is, how long, how hard, how steep.
+   */
+  function trailDescription(current: any): string {
+    const parts: string[] = []
+
+    if (current.difficulty)
+      parts.push(`${String(current.difficulty).charAt(0).toUpperCase()}${String(current.difficulty).slice(1)}`)
+    if (typeof current.distance === 'number' && current.distance > 0)
+      parts.push(`${current.distance.toFixed(1)} mi`)
+    if (typeof current.elevation === 'number' && current.elevation > 0)
+      parts.push(`${Math.round(current.elevation).toLocaleString()} ft elevation gain`)
+
+    const facts = parts.join(' · ')
+    const where = current.location ? ` in ${current.location}` : ''
+
+    return facts
+      ? `${current.name}${where}. ${facts}. Route map, records and recent conditions on WildLoop.`
+      : `${current.name}${where}. Route map, records and recent conditions on WildLoop.`
+  }
 
   async function toggleOfflineDownload() {
     const current = trail()

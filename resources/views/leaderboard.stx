@@ -3,6 +3,34 @@
 @section('title', 'Leaderboard - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Leaderboard — WildLoop',
+    description: 'Who is covering the most ground and holding the most territory on WildLoop this week, and all time.',
+    canonical: 'https://wildloop.org/leaderboard',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Leaderboard — WildLoop',
+    ogDescription: 'Who is covering the most ground and holding the most territory on WildLoop this week, and all time.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/leaderboard',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Leaderboard — WildLoop',
+    twitterDescription: 'Who is covering the most ground and holding the most territory on WildLoop this week, and all time.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   import { token } from '../assets/scripts/auth'
   useHead({ title: 'Leaderboard - WildLoop' })

@@ -3,6 +3,34 @@
 @section('title', 'Route Planner - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Route Planner — WildLoop',
+    description: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
+    canonical: 'https://wildloop.org/routes',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Route Planner — WildLoop',
+    ogDescription: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/routes',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Route Planner — WildLoop',
+    twitterDescription: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   import { readyToken } from '../assets/scripts/auth'
 

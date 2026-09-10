@@ -3,6 +3,34 @@
 @section('title', 'Records - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Trail Records — WildLoop',
+    description: 'Fastest known times on trails across the catalog: current records, recent claims, and how each one was verified.',
+    canonical: 'https://wildloop.org/records',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Trail Records — WildLoop',
+    ogDescription: 'Fastest known times on trails across the catalog: current records, recent claims, and how each one was verified.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/records',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Trail Records — WildLoop',
+    twitterDescription: 'Fastest known times on trails across the catalog: current records, recent claims, and how each one was verified.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   import { useRecordsFeed, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../composables/useRouteRecords'
   import { MIN_RECORD_DISTANCE_MI, MIN_RECORD_ELEVATION_FT } from '../functions/route-records'

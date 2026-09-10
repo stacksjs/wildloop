@@ -3,6 +3,22 @@
 @section('title', 'Conquests - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Your Conquests — WildLoop',
+    description: 'Every territory you have taken, and every attempt on the ground you hold.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
 <script client>
   useHead({ title: 'Conquests - WildLoop' })
 

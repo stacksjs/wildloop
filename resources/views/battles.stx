@@ -3,6 +3,34 @@
 @section('title', 'Live Battles - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Live Battles — WildLoop',
+    description: 'Territory changing hands in real time — every capture, defence and contested claim as it happens.',
+    canonical: 'https://wildloop.org/battles',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Live Battles — WildLoop',
+    ogDescription: 'Territory changing hands in real time — every capture, defence and contested claim as it happens.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/battles',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Live Battles — WildLoop',
+    twitterDescription: 'Territory changing hands in real time — every capture, defence and contested claim as it happens.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   useHead({ title: 'Live Battles - WildLoop' })
 

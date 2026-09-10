@@ -3,6 +3,34 @@
 @section('title', 'Challenges - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Challenges — WildLoop',
+    description: 'Challenge other athletes for the ground they hold, and see which territories are contested right now.',
+    canonical: 'https://wildloop.org/challenges',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Challenges — WildLoop',
+    ogDescription: 'Challenge other athletes for the ground they hold, and see which territories are contested right now.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/challenges',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Challenges — WildLoop',
+    twitterDescription: 'Challenge other athletes for the ground they hold, and see which territories are contested right now.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   import { useChallenges } from '../composables/useChallenges'
 

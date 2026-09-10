@@ -3,6 +3,34 @@
 @section('title', 'Privacy Policy - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning; the short version is that `useSeoMeta` is the only one
+   * of the head helpers that reaches the composed document head from a page,
+   * and it has to be written inline because the engine injects it into the
+   * page's own scope and not into a module it imports.
+   */
+  useSeoMeta({
+    title: 'Privacy Policy — WildLoop',
+    description: 'What WildLoop collects, why, how long it is kept, and the choices you have over your location and activity data.',
+    canonical: 'https://wildloop.org/privacy',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Privacy Policy — WildLoop',
+    ogDescription: 'What WildLoop collects, why, how long it is kept, and the choices you have over your location and activity data.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/privacy',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Privacy Policy — WildLoop',
+    twitterDescription: 'What WildLoop collects, why, how long it is kept, and the choices you have over your location and activity data.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
 <script client>
   useHead({ title: 'Privacy Policy - WildLoop' })
 </script>
