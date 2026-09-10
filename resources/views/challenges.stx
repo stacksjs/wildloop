@@ -34,7 +34,7 @@
 <script client>
   import { useChallenges } from '../composables/useChallenges'
 
-  useHead({ title: 'Challenges - WildLoop' })
+  useHead({ title: 'Challenges — WildLoop' })
 
   const wl = useStore('wl')
   const tab = state<'active' | 'sent' | 'received' | 'completed'>('active')

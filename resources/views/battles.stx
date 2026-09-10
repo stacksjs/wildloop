@@ -32,7 +32,7 @@
 </script>
 
 <script client>
-  useHead({ title: 'Live Battles - WildLoop' })
+  useHead({ title: 'Live Battles — WildLoop' })
 
   const wl = useStore('wl')
   const period = state<'today' | 'week' | 'all'>('today')

@@ -20,7 +20,7 @@
 </script>
 
 <script client>
-  useHead({ title: 'Training Stats - WildLoop' })
+  useHead({ title: 'Training Stats — WildLoop' })
 
   const wl = useStore('wl')
   const period = state<'weekly' | 'monthly' | 'alltime'>('weekly')

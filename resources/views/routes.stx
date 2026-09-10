@@ -34,7 +34,7 @@
 <script client>
   import { readyToken } from '../assets/scripts/auth'
 
-  useHead({ title: 'Route Planner - WildLoop' })
+  useHead({ title: 'Route Planner — WildLoop' })
   const wl = useStore('wl')
 
   // The catalog itself is hydrated by the layout, which decides per path what

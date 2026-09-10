@@ -34,7 +34,7 @@
 <script client>
   import { useEvents } from '../composables/useEvents'
 
-  useHead({ title: 'Events - WildLoop' })
+  useHead({ title: 'Events — WildLoop' })
 
   const {
     events, loading, loadError, typeFilter, statusFilter, applyFilter,

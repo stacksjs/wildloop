@@ -24,7 +24,7 @@
   import { isSignedIn, redirectTo, token } from '../assets/scripts/auth'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
 
-  useHead({ title: 'Settings - WildLoop' })
+  useHead({ title: 'Settings — WildLoop' })
 
   const loading = state(true)
   const error = state('')

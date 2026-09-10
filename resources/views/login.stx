@@ -34,7 +34,7 @@
 <script client>
   import { isSignedIn, postAuthDestination, redirectAfterAuth, signIn } from '../assets/scripts/auth'
 
-  useHead({ title: 'Log In - WildLoop' })
+  useHead({ title: 'Log In — WildLoop' })
 
   const email = state('')
   const password = state('')

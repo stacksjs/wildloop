@@ -33,7 +33,7 @@
 
 <script client>
   import { token } from '../assets/scripts/auth'
-  useHead({ title: 'Leaderboard - WildLoop' })
+  useHead({ title: 'Leaderboard — WildLoop' })
 
   interface LeaderEntry {
     userId: number

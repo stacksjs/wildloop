@@ -22,7 +22,7 @@
 <script client>
   import { markNotificationsRead } from '../assets/scripts/game-api'
 
-  useHead({ title: 'Notifications - WildLoop' })
+  useHead({ title: 'Notifications — WildLoop' })
 
   const wl = useStore('wl')
   const filter = state<'all' | 'unread' | 'conquest' | 'kudos' | 'challenge'>('all')

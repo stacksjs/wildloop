@@ -24,7 +24,7 @@
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
   import { useSavedTrails } from '../composables/useSavedTrails'
 
-  useHead({ title: 'Profile - WildLoop' })
+  useHead({ title: 'Your Profile — WildLoop' })
 
   const wl = useStore('wl')
   useAchievementCatalog(wl)

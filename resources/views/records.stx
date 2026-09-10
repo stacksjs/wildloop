@@ -35,7 +35,7 @@
   import { useRecordsFeed, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../composables/useRouteRecords'
   import { MIN_RECORD_DISTANCE_MI, MIN_RECORD_ELEVATION_FT } from '../functions/route-records'
 
-  useHead({ title: 'Records - WildLoop' })
+  useHead({ title: 'Trail Records — WildLoop' })
 
   const {
     tab, records, tracking, loading, loadError,

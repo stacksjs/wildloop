@@ -20,7 +20,7 @@
 </script>
 
 <script client>
-  useHead({ title: 'Conquests - WildLoop' })
+  useHead({ title: 'Your Conquests — WildLoop' })
 
   const wl = useStore('wl')
   const filter = state<'all' | 'attacks' | 'defenses' | 'lost'>('all')

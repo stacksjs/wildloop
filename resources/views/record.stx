@@ -24,7 +24,7 @@
   import { useActivityImport } from '../composables/useActivityImport'
   import { useMyLiveEvent } from '../composables/useMyLiveEvent'
 
-  useHead({ title: 'Record - WildLoop' })
+  useHead({ title: 'Record a Run — WildLoop' })
 
   const wl = useStore('wl')
   const { importing, importMessage, importError, importFile } = useActivityImport(wl)
