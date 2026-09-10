@@ -1,5 +1,5 @@
 import { useStore } from 'stx'
-import { initializeAuthSession, readyToken, signOut } from '../assets/scripts/auth'
+import { currentUser, initializeAuthSession, isSignedIn } from '../assets/scripts/auth'
 import { useActivityCatalog } from './useActivityCatalog'
 import { useBattleFeed } from './useBattleFeed'
 import { useFollows } from './useFollows'
@@ -45,27 +45,8 @@ function cachedUser(): BootstrapUser | null {
 }
 
 async function serverUser(): Promise<BootstrapUser | null> {
-  const bearer = await readyToken()
-  if (!bearer)
-    return null
-  try {
-    const response = await fetch('/api/me', { headers: { Authorization: `Bearer ${bearer}` } })
-    if (response.status === 401) {
-      await signOut()
-      return null
-    }
-    if (!response.ok)
-      return cachedUser()
-    const payload = await response.json().catch(() => null)
-    const user = payload?.user as BootstrapUser | undefined
-    if (!user?.id)
-      return cachedUser()
-    localStorage.setItem('auth_user', JSON.stringify(user))
-    return user
-  }
-  catch {
-    return cachedUser()
-  }
+  await initializeAuthSession()
+  return currentUser()
 }
 
 export interface AppDataNeeds {
@@ -98,7 +79,7 @@ export function useWildLoopApp(): void {
   void initializeAuthSession()
   const wl = useStore('wl') as WildLoopAppStore
   const localUser = cachedUser()
-  const hasSession = Boolean(localUser)
+  const hasSession = Boolean(localUser) || isSignedIn()
   const pathname = typeof location === 'undefined' ? '/' : location.pathname
   const needs = dataNeedsForPath(pathname)
 

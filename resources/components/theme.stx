@@ -1,3 +1,6 @@
 <script client>
-  if (typeof dark === 'undefined') var dark = useDark()
+  useDark()
 </script>
+
+<!-- STX needs a concrete root to hydrate this client-only partial. -->
+<div class="contents" aria-hidden="true"></div>

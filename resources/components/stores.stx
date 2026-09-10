@@ -842,3 +842,6 @@
     persist: { key: 'wildloop-v5' },
   })
 </script>
+
+<!-- STX needs a concrete root to hydrate this client-only store bootstrap. -->
+<div class="contents" aria-hidden="true"></div>

@@ -40,69 +40,19 @@
     navigate('/')
   }
 
-  /**
-   * Whether the bar is currently drawn over a photograph.
-   *
-   * A page whose first element is a full-bleed image wants the nav to be part
-   * of that image, not a white strip cutting the top off it. But the moment
-   * you scroll, the bar is over ordinary page content and has to become opaque
-   * or it is unreadable. So it is two states, not one, and the switch is
-   * scroll position.
-   *
-   * The page opts in by marking the element the bar sits over with
-   * `data-nav-overlay`; a page without one (every catalog and list screen) is
-   * simply always in the solid state. Detecting it rather than hardcoding "the
-   * homepage" means a second hero page gets the behaviour for free, and a page
-   * that loses its hero cannot leave the nav invisible over white.
-   */
-  const overHero = state(false)
-  const atTop = state(true)
-
-  const navClear = derived(() => overHero() && atTop())
-
-  function detectHero() {
-    overHero.set(!!document.querySelector('[data-nav-overlay]'))
-  }
-
-  function onScroll() {
-    // A few pixels of tolerance: elastic scroll on macOS reports fractional
-    // negative offsets, and a threshold of exactly 0 makes the bar flicker.
-    atTop.set((globalThis.scrollY || 0) <= 8)
-  }
-
   onMount(() => {
     applyAccount()
     void initializeAuthSession().then(applyAccount)
     // A native sign-in resolves out of the Keychain after first paint.
     globalThis.addEventListener('wildloop:auth-ready', applyAccount)
-
-    detectHero()
-    onScroll()
-    globalThis.addEventListener('scroll', onScroll, { passive: true })
-    // The client router swaps the contents of `main` and leaves this bar in
-    // place, so the hero can appear or disappear underneath it without a page
-    // load. Re-check when it does.
-    globalThis.addEventListener('stx:swap-complete', detectHero)
-    globalThis.addEventListener('stx:load', detectHero)
   })
 
   onDestroy(() => {
     globalThis.removeEventListener('wildloop:auth-ready', applyAccount)
-    globalThis.removeEventListener('scroll', onScroll)
-    globalThis.removeEventListener('stx:swap-complete', detectHero)
-    globalThis.removeEventListener('stx:load', detectHero)
   })
 </script>
 
-<!--
-  The solid appearance stays in the static `class`, and the transparent state
-  is one class that overrides it. Putting the solid utilities in `x-class`
-  instead looked tidier and did not work: the CSS scanner only reads literal
-  class attributes, so `bg-white/90` was never generated and the bar stayed
-  see-through over the page it had scrolled onto.
--->
 <nav
-  x-class="navClear() ? 'wl-nav-clear' : ''"
   class="wl-nav sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/90">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex h-14 items-center justify-between">
@@ -161,7 +111,7 @@
               <i class="i-lucide-chevron-down h-3.5 w-3.5" aria-hidden="true"></i>
             </button>
 
-            <div :show="accountOpen()" x-cloak role="menu" class="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div :show="accountOpen()" x-cloak role="menu" class="wl-account-menu absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
               <p class="truncate px-4 pb-2 pt-1.5 text-xs text-slate-400 dark:text-slate-500">{{ accountName || 'Signed in' }}</p>
               <StxLink to="/profile" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Profile</StxLink>
               <StxLink to="/stats" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Stats</StxLink>
@@ -207,51 +157,4 @@
 </nav>
 
 <style>
-  /*
-   * The transparent state.
-   *
-   * Only the colours change — layout, height and stickiness are identical in
-   * both states, so the switch is a cross-fade rather than a jump that shifts
-   * the page under the pointer.
-   *
-   * Everything inside inherits white, including the links' hover colour and
-   * the dark-mode variants the utility classes set: over a photograph there is
-   * no light or dark mode, there is only the photograph. `!important` is
-   * needed for exactly that reason — these are overriding utilities that are
-   * doing their job correctly in every other context.
-   */
-  .wl-nav-clear {
-    background: transparent !important;
-    border-bottom-color: transparent !important;
-    backdrop-filter: none !important;
-  }
-
-  .wl-nav-clear a,
-  .wl-nav-clear button,
-  .wl-nav-clear span {
-    color: #fff !important;
-  }
-
-  /* The two calls to action keep their fills: they are the point of the bar
-     for a signed-out visitor, and a white ghost button on a bright sky is
-     an invitation nobody can see. */
-  .wl-nav-clear .wl-nav-cta {
-    color: #fff !important;
-    background: #059669 !important;
-  }
-
-  .wl-nav-clear .wl-nav-cta:hover {
-    background: #047857 !important;
-  }
-
-  /* A photograph can be bright anywhere, so the type carries its own contrast
-     rather than relying on the scrim underneath it. */
-  .wl-nav-clear a,
-  .wl-nav-clear button {
-    text-shadow: 0 1px 12px rgb(4 12 10 / 45%);
-  }
-
-  .wl-nav-clear .wl-nav-cta {
-    text-shadow: none;
-  }
 </style>

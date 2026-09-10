@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { signIn, signOut } from '../../resources/assets/scripts/auth'
+import { refreshCurrentUser, signIn, signOut } from '../../resources/assets/scripts/auth'
 
 /**
  * The sign-in page called a bare `auth` global that nothing defined, so
@@ -146,5 +146,36 @@ describe('signOut', () => {
 
     expect(store.has('auth_token')).toBe(false)
     expect(store.has('auth_user')).toBe(false)
+  })
+})
+
+describe('restored sessions', () => {
+  it('hydrates the cached user from the restored bearer token', async () => {
+    store.set('auth_token', 'restored-token')
+    const { calls } = stubFetch({
+      body: { user: { id: 7, email: 'alex@wildloop.org', name: 'Alex', roles: ['admin'] } },
+    })
+
+    const user = await refreshCurrentUser()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].url).toBe('/api/me')
+    expect(calls[0].init.headers.Authorization).toBe('Bearer restored-token')
+    expect(JSON.parse(store.get('auth_user') ?? '{}')).toMatchObject({
+      id: 7,
+      name: 'Alex',
+      roles: ['admin'],
+    })
+    expect(user).toMatchObject({ id: 7, name: 'Alex' })
+  })
+
+  it('accepts the framework default bare-user response', async () => {
+    store.set('auth_token', 'restored-token')
+    stubFetch({ body: { id: 8, email: 'sam@wildloop.org', name: 'Sam' } })
+
+    const user = await refreshCurrentUser()
+
+    expect(user).toMatchObject({ id: 8, name: 'Sam' })
+    expect(JSON.parse(store.get('auth_user') ?? '{}')).toMatchObject({ id: 8, name: 'Sam' })
   })
 })

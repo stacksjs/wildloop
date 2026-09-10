@@ -25,6 +25,15 @@ const SESSION_TOKEN_KEY = 'wildloop_auth_token'
 let memoryToken: string | null = null
 let sessionInitialization: Promise<void> | null = null
 
+function announceAuthReady(user: AuthUser | null): void {
+  if (typeof globalThis.dispatchEvent !== 'function' || typeof CustomEvent === 'undefined')
+    return
+
+  globalThis.dispatchEvent(new CustomEvent('wildloop:auth-ready', {
+    detail: { signedIn: Boolean(token()), user },
+  }))
+}
+
 function isCraftHost(): boolean {
   if (typeof globalThis === 'undefined') return false
   const host = globalThis as typeof globalThis & {
@@ -53,16 +62,21 @@ export function initializeAuthSession(): Promise<void> {
     if (typeof localStorage === 'undefined') return
     if (!isCraftHost()) {
       memoryToken = localStorage.getItem(TOKEN_KEY)
-      return
     }
-    await waitForCraftReady()
-    const legacy = localStorage.getItem(TOKEN_KEY)
-    const secured = await secureStorage.get(TOKEN_KEY).catch(() => null)
-    memoryToken = secured ?? legacy
-    if (legacy && !secured) await secureStorage.set(TOKEN_KEY, legacy)
-    localStorage.removeItem(TOKEN_KEY)
-    if (memoryToken && typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, memoryToken)
-    globalThis.dispatchEvent(new CustomEvent('wildloop:auth-ready', { detail: { signedIn: Boolean(memoryToken) } }))
+    else {
+      await waitForCraftReady()
+      const legacy = localStorage.getItem(TOKEN_KEY)
+      const secured = await secureStorage.get(TOKEN_KEY).catch(() => null)
+      memoryToken = secured ?? legacy
+      if (legacy && !secured) await secureStorage.set(TOKEN_KEY, legacy)
+      localStorage.removeItem(TOKEN_KEY)
+      if (memoryToken && typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, memoryToken)
+    }
+
+    // A token alone is not enough to render an account menu. Resolve it before
+    // announcing the session so every mounted component sees the same identity.
+    const user = await refreshCurrentUser()
+    announceAuthReady(user)
   })()
   return sessionInitialization
 }
@@ -200,7 +214,10 @@ export async function refreshCurrentUser(): Promise<AuthUser | null> {
       return currentUser()
 
     const payload = await response.json().catch(() => null)
-    const user = payload?.user as AuthUser | undefined
+    // WildLoop wraps this as `{ user }`; the framework default returns the
+    // user directly. Supporting both keeps a generated action from turning a
+    // valid restored session into an anonymous-looking account menu.
+    const user = (payload?.user ?? payload) as AuthUser | undefined
     if (!user?.id)
       return currentUser()
 
