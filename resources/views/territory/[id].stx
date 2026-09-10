@@ -54,23 +54,18 @@
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
   effect(() => {
-    const record = territory()
-    if (!record)
+    const seoTerritory = territory()
+    if (!seoTerritory?.id)
       return
 
-    // No id, no canonical. A canonical naming the wrong URL is worse than
-    // none: it tells a crawler this page is a copy of something else.
-    if (!record.id)
-      return
-
-    const name = String(record.name ?? 'Territory')
-    const owner = record.ownerName ? `Held by ${record.ownerName}.` : 'Unclaimed.'
-    const km2 = typeof record.areaSize === 'number' ? (record.areaSize / 1000000).toFixed(2) : null
+    const seoName = String(seoTerritory.name ?? 'Territory')
+    const seoHolder = seoTerritory.ownerName ? `Held by ${seoTerritory.ownerName}.` : 'Unclaimed.'
+    const seoArea = typeof seoTerritory.areaSize === 'number' ? (seoTerritory.areaSize / 1000000).toFixed(2) : null
 
     setPageSeo({
-      title: recordTitle(name),
-      description: `${name} on WildLoop. ${owner}${km2 ? ` ${km2} km² of ground.` : ''} See who holds it and how it changed hands.`,
-      canonical: `/territory/${record.id}`,
+      title: recordTitle(seoName),
+      description: `${seoName} on WildLoop. ${seoHolder}${seoArea ? ` ${seoArea} km² of ground.` : ''} Its holder, and how it changed hands.`,
+      canonical: `/territory/${seoTerritory.id}`,
     })
   })
 </script>

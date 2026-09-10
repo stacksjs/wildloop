@@ -111,40 +111,31 @@
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
   effect(() => {
-    const record = profile()
-    if (!record)
+    const seoAthlete = profile()
+    if (!seoAthlete)
       return
 
-    // `/api/users/{id}` answers with an envelope, not a flat athlete: the
-    // identity is under `user`, the numbers under `stats`, and only the follow
-    // counts sit at the top. Reading it flat produced "Athlete | WildLoop" and
-    // a canonical of `/athlete/undefined` — a canonical that names the wrong
-    // URL is worse than none, because it tells a crawler every athlete page is
-    // the same page.
-    const identity = record.user ?? record
-    const stats = record.stats ?? {}
-
-    const name = String(identity.name ?? 'Athlete')
-    const id = identity.id ?? record.id
-    if (!id)
+    // `/api/users/{id}` answers with an envelope, not a flat athlete: identity
+    // under `user`, numbers under `stats`, only the follow counts at the top.
+    const seoWho = seoAthlete.user ?? seoAthlete
+    const seoStats = seoAthlete.stats ?? {}
+    const seoId = seoWho.id ?? seoAthlete.id
+    if (!seoId)
       return
 
-    const count = (value: unknown): number => Number(value ?? 0) || 0
-    const facts: string[] = []
-    const activities = count(stats.activityCount)
-    const followers = count(record.followerCount)
-    const territories = count(stats.territoriesOwned)
-
-    if (activities) facts.push(activities === 1 ? '1 activity' : `${activities} activities`)
-    if (followers) facts.push(followers === 1 ? '1 follower' : `${followers} followers`)
-    if (territories) facts.push(territories === 1 ? '1 territory held' : `${territories} territories held`)
+    const seoName = String(seoWho.name ?? 'Athlete')
+    const seoNum = (value: unknown): number => Number(value ?? 0) || 0
+    const seoParts: string[] = []
+    if (seoNum(seoStats.activityCount)) seoParts.push(seoNum(seoStats.activityCount) === 1 ? '1 activity' : `${seoNum(seoStats.activityCount)} activities`)
+    if (seoNum(seoAthlete.followerCount)) seoParts.push(seoNum(seoAthlete.followerCount) === 1 ? '1 follower' : `${seoNum(seoAthlete.followerCount)} followers`)
+    if (seoNum(seoStats.territoriesOwned)) seoParts.push(seoNum(seoStats.territoriesOwned) === 1 ? '1 territory held' : `${seoNum(seoStats.territoriesOwned)} territories held`)
 
     setPageSeo({
-      title: recordTitle(name),
-      description: facts.length
-        ? `${name} on WildLoop — ${facts.join(', ')}. Recent runs, territory and records.`
-        : `${name} on WildLoop. Recent runs, territory and records.`,
-      canonical: `/athlete/${id}`,
+      title: recordTitle(seoName),
+      description: seoParts.length
+        ? `${seoName} on WildLoop — ${seoParts.join(', ')}. Recent runs, territory and records.`
+        : `${seoName} on WildLoop. Recent runs, territory and records.`,
+      canonical: `/athlete/${seoId}`,
     })
   })
 </script>

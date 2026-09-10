@@ -148,24 +148,19 @@
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
   effect(() => {
-    const record = club()
-    if (!record)
+    const seoClub = club()
+    if (!seoClub?.id)
       return
 
-    // No id, no canonical. A canonical naming the wrong URL is worse than
-    // none: it tells a crawler this page is a copy of something else.
-    if (!record.id)
-      return
-
-    const name = String(record.name ?? 'Club')
-    const where = record.location ? String(record.location) : null
-    const members = record.memberCount === 1 ? '1 member' : `${record.memberCount ?? 0} members`
-    const blurb = typeof record.description === 'string' ? record.description.trim() : ''
+    const seoName = String(seoClub.name ?? 'Club')
+    const seoPlace = seoClub.location ? String(seoClub.location) : null
+    const seoMembers = seoClub.memberCount === 1 ? '1 member' : `${seoClub.memberCount ?? 0} members`
+    const seoBlurb = typeof seoClub.description === 'string' ? seoClub.description.trim() : ''
 
     setPageSeo({
-      title: recordTitle(name, where),
-      description: `${blurb ? `${blurb} ` : ''}${name} is a ${String(record.type ?? 'running').toLowerCase()} club on WildLoop with ${members}.`.slice(0, 200),
-      canonical: `/club/${record.id}`,
+      title: recordTitle(seoName, seoPlace),
+      description: `${seoBlurb ? `${seoBlurb} ` : ''}${seoName} is a ${String(seoClub.type ?? 'running').toLowerCase()} club on WildLoop with ${seoMembers}.`.slice(0, 200),
+      canonical: `/club/${seoClub.id}`,
     })
   })
 </script>

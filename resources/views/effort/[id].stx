@@ -68,22 +68,17 @@
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
   effect(() => {
-    const record = effort()
-    if (!record)
+    const seoEffort = effort()
+    if (!seoEffort?.id)
       return
 
-    // No id, no canonical. A canonical naming the wrong URL is worse than
-    // none: it tells a crawler this page is a copy of something else.
-    if (!record.id)
-      return
-
-    const route = String(record.trailName ?? record.routeName ?? 'a route')
-    const who = String(record.userName ?? 'An athlete')
+    const seoRoute = String(seoEffort.trailName ?? seoEffort.routeName ?? 'a route')
+    const seoBy = String(seoEffort.userName ?? 'An athlete')
 
     setPageSeo({
-      title: recordTitle(`${who} on ${route}`),
-      description: `${who}'s record attempt on ${route}, with its evidence and verification status on WildLoop.`,
-      canonical: `/effort/${record.id}`,
+      title: recordTitle(`${seoBy} on ${seoRoute}`),
+      description: `${seoBy}'s record attempt on ${seoRoute}, with its evidence and verification status on WildLoop.`,
+      canonical: `/effort/${seoEffort.id}`,
     })
   })
 </script>

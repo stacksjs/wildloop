@@ -105,24 +105,19 @@
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
   effect(() => {
-    const record = event()
-    if (!record)
+    const seoEvent = event()
+    if (!seoEvent?.id)
       return
 
-    // No id, no canonical. A canonical naming the wrong URL is worse than
-    // none: it tells a crawler this page is a copy of something else.
-    if (!record.id)
-      return
-
-    const name = String(record.name ?? 'Event')
-    const where = record.location ? String(record.location) : null
-    const blurb = typeof record.description === 'string' ? record.description.trim() : ''
-    const host = record.hostName ? ` Hosted by ${record.hostName}.` : ''
+    const seoName = String(seoEvent.name ?? 'Event')
+    const seoPlace = seoEvent.location ? String(seoEvent.location) : null
+    const seoBlurb = typeof seoEvent.description === 'string' ? seoEvent.description.trim() : ''
+    const seoHost = seoEvent.hostName ? ` Hosted by ${seoEvent.hostName}.` : ''
 
     setPageSeo({
-      title: recordTitle(name, where),
-      description: `${blurb ? `${blurb} ` : ''}${String(record.type ?? 'event')} event${where ? ` in ${where}` : ''} on WildLoop.${host}`.slice(0, 200),
-      canonical: `/event/${record.id}`,
+      title: recordTitle(seoName, seoPlace),
+      description: `${seoBlurb ? `${seoBlurb} ` : ''}${String(seoEvent.type ?? 'event')} event${seoPlace ? ` in ${seoPlace}` : ''} on WildLoop.${seoHost}`.slice(0, 200),
+      canonical: `/event/${seoEvent.id}`,
     })
   })
 </script>

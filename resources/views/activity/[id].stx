@@ -143,30 +143,25 @@
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
   effect(() => {
-    const record = activity()
-    if (!record)
+    const seoActivity = activity()
+    if (!seoActivity?.id)
       return
 
-    // No id, no canonical. A canonical naming the wrong URL is worse than
-    // none: it tells a crawler this page is a copy of something else.
-    if (!record.id)
-      return
+    const seoBy = String(seoActivity.userName ?? seoActivity.user?.name ?? 'An athlete')
+    const seoType = String(seoActivity.activityType ?? 'Activity')
+    const seoParts: string[] = []
+    if (typeof seoActivity.distance === 'number' && seoActivity.distance > 0) seoParts.push(`${seoActivity.distance.toFixed(1)} mi`)
+    if (seoActivity.duration) seoParts.push(String(seoActivity.duration))
+    if (seoActivity.pace) seoParts.push(`${seoActivity.pace}/mi`)
 
-    const who = String(record.userName ?? record.user?.name ?? 'An athlete')
-    const kind = String(record.activityType ?? 'Activity')
-    const facts: string[] = []
-    if (typeof record.distance === 'number' && record.distance > 0) facts.push(`${record.distance.toFixed(1)} mi`)
-    if (record.duration) facts.push(String(record.duration))
-    if (record.pace) facts.push(`${record.pace}/mi`)
-
-    // The athlete's own note is the only part of an activity that is about this
-    // one rather than any other, so it leads when there is one.
-    const note = typeof record.notes === 'string' ? record.notes.trim() : ''
+    // The athlete's own note is the only part of an activity that is about
+    // this one rather than any other, so it leads when there is one.
+    const seoNote = typeof seoActivity.notes === 'string' ? seoActivity.notes.trim() : ''
 
     setPageSeo({
-      title: recordTitle(note || `${kind} by ${who}`),
-      description: `${note ? `${note} ` : ''}${kind} by ${who}${facts.length ? ` — ${facts.join(' · ')}` : ''}.`.slice(0, 200),
-      canonical: `/activity/${record.id}`,
+      title: recordTitle(seoNote || `${seoType} by ${seoBy}`),
+      description: `${seoNote ? `${seoNote} ` : ''}${seoType} by ${seoBy}${seoParts.length ? ` — ${seoParts.join(' · ')}` : ''}.`.slice(0, 200),
+      canonical: `/activity/${seoActivity.id}`,
     })
   })
 </script>
