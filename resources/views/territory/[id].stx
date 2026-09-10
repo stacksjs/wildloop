@@ -58,6 +58,11 @@
     if (!record)
       return
 
+    // No id, no canonical. A canonical naming the wrong URL is worse than
+    // none: it tells a crawler this page is a copy of something else.
+    if (!record.id)
+      return
+
     const name = String(record.name ?? 'Territory')
     const owner = record.ownerName ? `Held by ${record.ownerName}.` : 'Unclaimed.'
     const km2 = typeof record.areaSize === 'number' ? (record.areaSize / 1000000).toFixed(2) : null

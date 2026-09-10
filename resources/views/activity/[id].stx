@@ -147,6 +147,11 @@
     if (!record)
       return
 
+    // No id, no canonical. A canonical naming the wrong URL is worse than
+    // none: it tells a crawler this page is a copy of something else.
+    if (!record.id)
+      return
+
     const who = String(record.userName ?? record.user?.name ?? 'An athlete')
     const kind = String(record.activityType ?? 'Activity')
     const facts: string[] = []

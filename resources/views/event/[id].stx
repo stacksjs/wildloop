@@ -109,6 +109,11 @@
     if (!record)
       return
 
+    // No id, no canonical. A canonical naming the wrong URL is worse than
+    // none: it tells a crawler this page is a copy of something else.
+    if (!record.id)
+      return
+
     const name = String(record.name ?? 'Event')
     const where = record.location ? String(record.location) : null
     const blurb = typeof record.description === 'string' ? record.description.trim() : ''

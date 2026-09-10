@@ -115,18 +115,36 @@
     if (!record)
       return
 
-    const name = String(record.name ?? 'Athlete')
+    // `/api/users/{id}` answers with an envelope, not a flat athlete: the
+    // identity is under `user`, the numbers under `stats`, and only the follow
+    // counts sit at the top. Reading it flat produced "Athlete | WildLoop" and
+    // a canonical of `/athlete/undefined` — a canonical that names the wrong
+    // URL is worse than none, because it tells a crawler every athlete page is
+    // the same page.
+    const identity = record.user ?? record
+    const stats = record.stats ?? {}
+
+    const name = String(identity.name ?? 'Athlete')
+    const id = identity.id ?? record.id
+    if (!id)
+      return
+
+    const count = (value: unknown): number => Number(value ?? 0) || 0
     const facts: string[] = []
-    if (record.activityCount) facts.push(record.activityCount === 1 ? '1 activity' : `${record.activityCount} activities`)
-    if (record.followerCount) facts.push(record.followerCount === 1 ? '1 follower' : `${record.followerCount} followers`)
-    if (record.territoriesOwned) facts.push(`${record.territoriesOwned} territories held`)
+    const activities = count(stats.activityCount)
+    const followers = count(record.followerCount)
+    const territories = count(stats.territoriesOwned)
+
+    if (activities) facts.push(activities === 1 ? '1 activity' : `${activities} activities`)
+    if (followers) facts.push(followers === 1 ? '1 follower' : `${followers} followers`)
+    if (territories) facts.push(territories === 1 ? '1 territory held' : `${territories} territories held`)
 
     setPageSeo({
       title: recordTitle(name),
       description: facts.length
         ? `${name} on WildLoop — ${facts.join(', ')}. Recent runs, territory and records.`
         : `${name} on WildLoop. Recent runs, territory and records.`,
-      canonical: `/athlete/${record.id}`,
+      canonical: `/athlete/${id}`,
     })
   })
 </script>
