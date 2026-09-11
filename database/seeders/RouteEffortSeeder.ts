@@ -66,7 +66,12 @@ interface SeedEffort {
   category: Category
   direction?: Direction
   status: Status
-  /** Days ago the attempt started. */
+  /**
+   * Days ago the attempt started. Fractional for an attempt still running —
+   * an `in_progress` effort started at the instant of seeding reads "0m 41s
+   * on the course", which is not what a live attempt looks like to anyone
+   * opening the tracking board.
+   */
   startedDaysAgo: number
   /** Elapsed time. Omitted for an attempt still out there, or a DNF. */
   durationSeconds?: number
@@ -232,7 +237,7 @@ const EFFORTS: SeedEffort[] = [
     style: 'unsupported',
     category: 'mens',
     status: 'in_progress',
-    startedDaysAgo: 0,
+    startedDaysAgo: 2.1 / 24,
     trackerUrl: 'https://track.rtwr.live/pawel-sky-pond',
     tripReport: 'Going for the standard line before the afternoon storms build. Tracker is live.',
   },
@@ -243,7 +248,7 @@ const EFFORTS: SeedEffort[] = [
     style: 'self_supported',
     category: 'womens',
     status: 'in_progress',
-    startedDaysAgo: 0,
+    startedDaysAgo: 0.8 / 24,
     trackerUrl: 'https://track.rtwr.live/kim-steep-ravine',
     tripReport: 'Out and back before the fog lifts. Water at the Stinson end.',
   },
