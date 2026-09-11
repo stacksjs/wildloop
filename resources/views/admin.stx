@@ -3,13 +3,32 @@
 @section('title', 'Admin overview - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * Page metadata, in `<script server>` so it is in the HTML a crawler is
+   * served rather than something only hydration produces. See athletes.stx for
+   * the full reasoning.
+   *
+   * robots.txt disallows /admin, but a Disallow only asks a crawler not to
+   * FETCH a URL — it cannot retract one already reached from a link, and a
+   * disallowed URL can still be listed from anchor text alone. The meta tag is
+   * the half that says "do not index this", and it is the half that was
+   * missing here while every other signed-in surface had it.
+   */
+  useSeoMeta({
+    title: 'Admin — WildLoop',
+    description: 'WildLoop administration.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
 <script client>
   import { isSignedIn, token } from '../assets/scripts/auth'
   import { fetchRecords, reviewEffort } from '../assets/scripts/records-api'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../functions/route-records'
 
-  useHead({ title: 'Admin overview - WildLoop' })
+  useHead({ title: 'Admin — WildLoop' })
 
   const loading = state(true)
   const error = state('')

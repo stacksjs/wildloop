@@ -32,6 +32,8 @@
 </script>
 
 <script client>
+  import { formatTerritoryArea } from '../functions/territory-style'
+
   useHead({ title: 'Live Battles — WildLoop' })
 
   const wl = useStore('wl')
@@ -135,7 +137,7 @@
                 </p>
                 <div class="flex gap-3 mt-1 text-xs text-gray-500 dark:text-slate-400">
                   <span>{{ wl.timeAgo(battle.created_at) }}</span>
-                  <span>{{ battle.areaCaptured.toLocaleString() + ' m²' }}</span>
+                  <span>{{ formatTerritoryArea(battle.areaCaptured) }}</span>
                 </div>
               </div>
               <span class="shrink-0 text-xs px-2 py-1 rounded-full font-medium" x-class="battle.status === 'conquered' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'">{{ battle.status === 'conquered' ? 'Conquered' : 'Defended' }}</span>

@@ -3,8 +3,21 @@
 @section('title', 'Offline - WildLoop')
 
 @section('content')
+<script server>
+  /*
+   * The service worker's fallback shell, not a destination. An indexed
+   * "You're offline" page is a genuinely bad search result for a real query,
+   * so this is the one page here that should never be indexed on its own.
+   */
+  useSeoMeta({
+    title: 'Offline — WildLoop',
+    description: 'WildLoop is offline. Saved trails and routes are still available.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
 <script client>
-  useHead({ title: 'Offline - WildLoop' })
+  useHead({ title: 'Offline — WildLoop' })
 </script>
 
 <div class="mx-auto px-4 py-20 max-w-xl text-center">

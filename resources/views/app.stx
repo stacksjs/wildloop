@@ -6,6 +6,29 @@
 <script server>
   import { qrBrandedMarkup } from '../functions/qr'
 
+  /*
+   * Page metadata. See athletes.stx for why this is a `<script server>` block
+   * and why `useSeoMeta` is the only head helper that reaches the document
+   * from a page.
+   */
+  useSeoMeta({
+    title: 'Get the WildLoop App — WildLoop',
+    description: 'Install WildLoop from the web in two taps — no store account, no download queue. Live GPS, offline maps, background tracking and lap reporting on your home screen.',
+    canonical: 'https://wildloop.org/app',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Get the WildLoop App',
+    ogDescription: 'Install WildLoop from the web in two taps — no store account, no download queue. Live GPS, offline maps and background tracking.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/app',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'WildLoop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Get the WildLoop App',
+    twitterDescription: 'Install WildLoop from the web in two taps. Live GPS, offline maps and background tracking.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+
   // The address is fixed, so the code is built once at render time rather than
   // shipped as an encoder the browser has to run.
   const installQr = qrBrandedMarkup('https://wildloop.org', { title: 'Scan to open wildloop.org' })
@@ -14,7 +37,7 @@
 <script client>
   import { useAppInstall } from '../composables/useAppInstall'
 
-  useHead({ title: 'Get the WildLoop app' })
+  useHead({ title: 'Get the WildLoop App — WildLoop' })
 
   const { canPrompt, installed, platform, outcome, promptInstall } = useAppInstall()
 
