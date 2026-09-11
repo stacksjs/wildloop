@@ -303,6 +303,20 @@ export default class RouteEffortSeeder extends Seeder {
   // the other social seeders that decorate an already-populated world.
   static override order = -55
 
+  /**
+   * Runs on every deploy.
+   *
+   * Fifteen fixture rows, verified idempotent by running it twice and
+   * counting (15 rows either way). Cheap enough that a deploy does not
+   * notice it, and without it the records boards render their empty state.
+   *
+   * The bar for this tag is both halves: idempotent, so a re-run changes
+   * nothing, AND cheap, so a deploy does not wait for it. A seeder that
+   * builds the demo corpus — trails, activities, the land derived from them
+   * — is neither, and stays a deliberate one-off.
+   */
+  static override tags = ['deploy']
+
   async run(): Promise<void> {
     const users = (await User.all().catch(() => [])) as any[]
     const byName = new Map(users.map(user => [user.name, user]))

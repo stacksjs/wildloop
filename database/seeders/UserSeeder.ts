@@ -151,6 +151,19 @@ export default class UserSeeder extends Seeder {
   // owner to attach a club to.
   static override order = -100
 
+  /**
+   * Runs on every deploy.
+   *
+   * The test accounts the environment is signed into. Already ran on
+   * every deploy before tags existed; this is that same decision, declared.
+   *
+   * The bar for this tag is both halves: idempotent, so a re-run changes
+   * nothing, AND cheap, so a deploy does not wait for it. A seeder that
+   * builds the demo corpus — trails, activities, the land derived from them
+   * — is neither, and stays a deliberate one-off.
+   */
+  static override tags = ['deploy']
+
   async run(): Promise<void> {
     for (const seed of USERS) {
       // Idempotent by email: re-seeding updates in place rather than filling

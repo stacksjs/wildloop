@@ -211,11 +211,21 @@ export const tsCloud: TsCloudConfig = {
         // before migrate runs — on a fresh box nothing else would.
         'mkdir -p /var/www/wildloop-shared/database',
         './buddy migrate --no-generate',
-        // This is an active test deployment with no real users. Run only the
-        // idempotent account seeders here; the remaining application seeders
-        // generate the large demo trail/activity corpus and do not belong in
-        // every production release.
-        './buddy seed --skip-models --only-seeders UserSeeder,AdminSeeder --verbose',
+        // This is an active test deployment with no real users, so the
+        // fixtures it is browsed with are kept current on every release.
+        //
+        // Selected by tag rather than by name. The list used to be spelled out
+        // here — `--only-seeders UserSeeder,AdminSeeder` — and a name list in
+        // a deploy config rots: a seeder gets added, it is cheap and safe to
+        // run, nobody remembers this string exists, and the surface it fills
+        // stays empty. That is exactly what happened to the records boards,
+        // which were populated by a one-off manual run and would not have
+        // survived a rebuilt database.
+        //
+        // A seeder earns `deploy` by being idempotent AND cheap; the ones that
+        // build the demo corpus (trails, activities, the land derived from
+        // them) are neither and stay a deliberate one-off.
+        './buddy seed --skip-models --tag deploy --verbose',
       ],
       // Pin the proxy target. `buddy serve` otherwise falls back to
       // 127.0.0.1:3008, which on this SHARED box is the `stacks` project's own

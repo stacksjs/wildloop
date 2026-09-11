@@ -45,6 +45,19 @@ export default class AdminSeeder extends Seeder {
   // After UserSeeder (-100), so the athletes it promotes already exist.
   static override order = -95
 
+  /**
+   * Runs on every deploy.
+   *
+   * The admin account and its role. Same as UserSeeder: already ran on
+   * every deploy, now said out loud.
+   *
+   * The bar for this tag is both halves: idempotent, so a re-run changes
+   * nothing, AND cheap, so a deploy does not wait for it. A seeder that
+   * builds the demo corpus — trails, activities, the land derived from them
+   * — is neither, and stays a deliberate one-off.
+   */
+  static override tags = ['deploy']
+
   async run(): Promise<void> {
     const { createBqbRbacStore, Rbac, seedDefaultRoles } = await import('@stacksjs/auth')
     Rbac.setStore(createBqbRbacStore())
