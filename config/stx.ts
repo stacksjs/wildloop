@@ -1,3 +1,6 @@
+import { tsAnalyticsStxConfig } from '@ts-analytics/tracking/stx'
+import { env } from '@stacksjs/env'
+
 /**
  * The canonical origin.
  *
@@ -26,6 +29,11 @@ export default {
   partialsDir: 'resources/components',
 
   css: './crosswind.ts',
+
+  analytics: tsAnalyticsStxConfig({
+    appId: env.ANALYTICSHQ_APP_ID,
+    apiEndpoint: 'https://analyticshq.org',
+  }),
 
   app: {
     head: {

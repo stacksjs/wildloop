@@ -197,4 +197,9 @@ export default {
     validation: schema.string(),
     default: '',
   },
+
+  ANALYTICSHQ_APP_ID: {
+    validation: schema.string(),
+    default: '',
+  },
 } satisfies EnvConfig
