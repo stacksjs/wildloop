@@ -74,7 +74,7 @@ const className = useReactiveProp<string>('class', '')
    */
   @media (max-width: 767.98px) {
     .native-app-shell:has(.native-app-tab-slot) .native-app-content {
-      padding-bottom: calc(5rem + var(--native-safe-area-bottom));
+      padding-bottom: calc(4rem + var(--native-safe-area-bottom));
     }
   }
 

@@ -475,46 +475,47 @@
           <!-- Reviews -->
           <div>
             <div class="flex gap-1 mb-4 border-b border-gray-200 dark:border-slate-700">
-              <button @click="reviewTab.set('reviews')" x-class="reviewTab === 'reviews' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'" class="px-4 py-3 text-sm font-medium border-b-2 transition">{{ 'Reviews (' + reviews.length + ')' }}</button>
-              <button @click="reviewTab.set('conditions')" x-class="reviewTab === 'conditions' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'" class="px-4 py-3 text-sm font-medium border-b-2 transition">Conditions</button>
+              <button type="button" @click="reviewTab.set('reviews')" x-class="reviewTab() === 'reviews' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'" class="px-4 py-3 text-sm font-medium border-b-2 transition">{{ 'Reviews (' + reviews().length + ')' }}</button>
+              <button type="button" @click="reviewTab.set('conditions')" x-class="reviewTab() === 'conditions' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'" class="px-4 py-3 text-sm font-medium border-b-2 transition">Conditions</button>
             </div>
 
-            <div :if="reviewTab === 'reviews'" class="space-y-4">
+            <div :if="reviewTab() === 'reviews'" class="space-y-4">
               <!-- Review form (#981) - one review per user per trail, resubmitting updates it -->
               <div class="card">
                 <h3 class="font-semibold text-sm dark:text-white mb-3">Rate this trail</h3>
                 <div class="flex items-center gap-1 mb-3">
                   <template :for="star in [1, 2, 3, 4, 5]">
                     <button
+                      type="button"
                       @click="formRating.set(star)"
                       class="text-2xl leading-none transition"
-                      x-class="star <= formRating ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-300'"
+                      x-class="star <= formRating() ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-300'"
+                      :aria-pressed="star <= formRating()"
                       x-aria-label="'Rate ' + star + ' stars'">★</button>
                   </template>
-                  <span :if="formRating > 0" class="ml-2 text-xs text-gray-500">{{ formRating + '/5' }}</span>
+                  <span :if="formRating() > 0" class="ml-2 text-xs text-gray-500">{{ formRating() + '/5' }}</span>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 mb-3">
                   <textarea
                     rows="2"
                     placeholder="How was the trail? (10+ characters)"
-                    x-value="formContent"
-                    @input="formContent.set($event.target.value)"
+                    x-model.trim="formContent"
                     class="flex-1 px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-emerald-500 transition"></textarea>
-                  <select @change="formConditions.set($event.target.value)" class="sm:w-40 px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm h-fit">
+                  <select x-model="formConditions" class="sm:w-40 px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm h-fit">
                     <option value="">Conditions…</option>
                     <template :for="opt in conditionOptions">
-                      <option x-value="opt" x-selected="opt === formConditions" :text="opt"></option>
+                      <option x-value="opt" :text="opt"></option>
                     </template>
                   </select>
                 </div>
-                <p :if="reviewError" class="text-sm text-red-500 mb-2">{{ reviewError }}</p>
+                <p :if="reviewError()" class="text-sm text-red-500 mb-2">{{ reviewError() }}</p>
                 <div class="flex items-center gap-3">
-                  <button @click="submitReview()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">{{ submittingReview ? 'Saving…' : 'Post review' }}</button>
-                  <span :if="reviewSaved" class="text-sm text-emerald-600 font-medium">Saved, thanks!</span>
+                  <button type="button" @click="submitReview()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">{{ submittingReview() ? 'Saving…' : 'Post review' }}</button>
+                  <span :if="reviewSaved()" class="text-sm text-emerald-600 font-medium">Saved, thanks!</span>
                 </div>
               </div>
 
-              <template :for="review in reviews">
+              <template :for="review in reviews()">
                 <div class="card">
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-3">
@@ -530,12 +531,12 @@
                   <p :if="review.conditions" class="mt-2 text-xs text-gray-400 capitalize">{{ 'Conditions: ' + review.conditions }}</p>
                 </div>
               </template>
-              <div :if="reviews.length === 0" class="text-center py-6 text-gray-400 text-sm">
+              <div :if="reviews().length === 0" class="text-center py-6 text-gray-400 text-sm">
                 <p>No reviews yet. Be the first!</p>
               </div>
             </div>
 
-            <div :if="reviewTab === 'conditions'" class="card">
+            <div :if="reviewTab() === 'conditions'" class="card">
               <h3 class="font-semibold text-sm dark:text-white mb-2">Current Conditions</h3>
               <p class="text-sm text-gray-600 dark:text-slate-400">{{ trail.conditions }}</p>
             </div>

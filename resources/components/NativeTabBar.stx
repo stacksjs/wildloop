@@ -23,7 +23,7 @@ function selectTab(): void {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    min-height: 4.5rem;
+    min-height: 4rem;
     border-top: 1px solid rgb(148 163 184 / 0.22);
     background: rgb(255 255 255 / 0.9);
     backdrop-filter: blur(24px) saturate(160%);
