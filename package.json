@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.131",
-    "@stacksjs/mobile": "^0.74.45",
+    "@stacksjs/mobile": "^0.74.46",
     "@ts-analytics/tracking": "^0.1.15",
     "bun-query-builder": "0.2.69",
     "stacks": "^0.74.46",
