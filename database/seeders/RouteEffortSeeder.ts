@@ -1,5 +1,6 @@
 import { Seeder } from '@stacksjs/database'
 import RouteEffort from '../../app/Models/RouteEffort'
+import Trail from '../../app/Models/Trail'
 import User from '../../app/Models/User'
 import { routeIsRankable } from '../../resources/functions/route-records'
 import { seededTrails } from '../support/trails'
@@ -48,8 +49,18 @@ type Direction = 'standard' | 'reverse' | 'yo_yo'
 type Status = 'in_progress' | 'dnf' | 'pending' | 'verified' | 'rejected'
 
 interface SeedEffort {
-  /** Seed source id of the route — stable across a reseed that renumbers ids. */
+  /**
+   * Seed source id of the route.
+   *
+   * Resolved by source id first and by name second, because TrailSeeder does
+   * not always insert its own row: where the catalog already held the trail it
+   * ADOPTS it, and an adopted trail keeps the catalog's source id. Looking up
+   * only the seeder's id finds nothing for those, which is silent — the effort
+   * is skipped and the board it belonged to stays empty.
+   */
   route: string
+  /** The route's name, for the adopted case. */
+  routeName: string
   athlete: string
   style: Style
   category: Category
@@ -75,98 +86,107 @@ interface SeedEffort {
  * a list. Dipsea and Skyline carry the shorter, faster end.
  */
 const EFFORTS: SeedEffort[] = [
-  // ── Half Dome via the Mist Trail — 14.2 mi, 5,250 ft ──────────────────────
-  // The record: unsupported, and comfortably clear of the field.
+  // ── Sky Pond via Glacier Gorge — 9.0 mi, 1,780 ft ─────────────────────────
+  // The marquee board: an alpine route long enough and steep enough to be
+  // worth racing, carrying times in more than one bucket.
   {
-    route: 'yose-half-dome',
+    route: 'romo-sky-pond',
+    routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'Harvey Lewis',
     style: 'unsupported',
     category: 'mens',
     status: 'verified',
     startedDaysAgo: 46,
-    durationSeconds: 2 * HOUR + 51 * MINUTE + 12,
+    durationSeconds: 2 * HOUR + 11 * MINUTE + 24,
     evidenceUrl: 'https://www.strava.com/activities/10482910031',
-    tripReport: 'Left the trailhead at 4:40 and had the subdome to myself. Cables were up and dry, which is the whole game on this route — I have turned round twice in three years for wet granite. Ran the Mist steps on the way down, which is either a good idea or the reason my quads are finished.',
+    tripReport: 'Left Glacier Gorge at first light and had the Loch to myself. The scramble beside Timberline Falls is the whole route — wet rock there costs more than any amount of fitness on the runnable miles below it. Dry today, so I took it at a jog and kept going.',
   },
-  // Second on the same board, same bucket: this is what makes it a ranking.
+  // Second in the same bucket: this is what makes it a ranking rather than a
+  // single time on a page.
   {
-    route: 'yose-half-dome',
+    route: 'romo-sky-pond',
+    routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'Chris Breuer',
     style: 'unsupported',
     category: 'mens',
     status: 'verified',
     startedDaysAgo: 31,
-    durationSeconds: 3 * HOUR + 14 * MINUTE + 38,
+    durationSeconds: 2 * HOUR + 34 * MINUTE + 8,
     evidenceUrl: 'https://www.strava.com/activities/10611204778',
-    tripReport: 'Went out too hard to Nevada Fall and paid for it on the switchbacks. Cables were a queue by the time I got there — nine minutes standing still, which I have not deducted because you do not get to deduct the mountain being busy.',
+    tripReport: 'Went out hard to Mills Junction and had nothing left for the falls. Lost four or five minutes picking a line up the wet slab, which is exactly where this route is won.',
   },
   // A different bucket on the same route: supported does not compete with
   // unsupported, so this is its own record despite the slower time.
   {
-    route: 'yose-half-dome',
+    route: 'romo-sky-pond',
+    routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'Kim Gottwald',
     style: 'supported',
     category: 'womens',
     status: 'verified',
     startedDaysAgo: 24,
-    durationSeconds: 3 * HOUR + 38 * MINUTE + 5,
-    teamSize: 1,
+    durationSeconds: 2 * HOUR + 48 * MINUTE + 51,
     evidenceUrl: 'https://www.strava.com/activities/10702551190',
-    tripReport: 'Mark met me at Little Yosemite with water and a flask of coffee, which is why this is filed supported. Worth every second of the penalty.',
+    tripReport: 'Mark met me at the Loch with water on the way back through, so this is filed supported. Worth the penalty at altitude.',
   },
-  // Reverse direction is a separate board again.
+  // Reverse is a separate board again.
   {
-    route: 'yose-half-dome',
+    route: 'romo-sky-pond',
+    routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'Mark Dowdle',
     style: 'self_supported',
     category: 'mens',
     direction: 'reverse',
     status: 'pending',
     startedDaysAgo: 6,
-    durationSeconds: 3 * HOUR + 2 * MINUTE + 44,
+    durationSeconds: 2 * HOUR + 29 * MINUTE + 2,
     evidenceUrl: 'https://www.strava.com/activities/10884412206',
-    tripReport: 'Up the John Muir, down the Mist. Slower on paper than the standard line but the descent is far more runnable, and I think this is the honest way round for anyone who values their knees.',
+    tripReport: 'Up past Sky Pond first and out via Loch Vale. Slower on paper but far more runnable coming down, and I think it is the honest way round for anyone who likes their knees.',
   },
 
-  // ── Dipsea Trail — 7.4 mi, 2,200 ft ───────────────────────────────────────
+  // ── Matt Davis – Steep Ravine Loop — 7.4 mi, 1,700 ft ─────────────────────
   {
-    route: 'osm-relation-2698343',
+    route: 'osm-way-24417702',
+    routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'Kim Gottwald',
     style: 'unsupported',
     category: 'womens',
     status: 'verified',
     startedDaysAgo: 18,
-    durationSeconds: 58 * MINUTE + 41,
+    durationSeconds: 1 * HOUR + 12 * MINUTE + 41,
     evidenceUrl: 'https://www.strava.com/activities/10761200554',
-    tripReport: 'Under the hour at last. The stairs are the whole route — 671 of them and they decide it before Muir Woods.',
+    tripReport: 'Down Matt Davis to Stinson and back up Steep Ravine. The ladder is the only place you cannot run, and everyone queues there on a Saturday — went early and did not see anyone until the redwoods.',
   },
   {
-    route: 'osm-relation-2698343',
+    route: 'osm-way-24417702',
+    routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'Pawel Dregan',
     style: 'unsupported',
     category: 'mens',
     status: 'verified',
     startedDaysAgo: 12,
-    durationSeconds: 1 * HOUR + 4 * MINUTE + 9,
+    durationSeconds: 1 * HOUR + 19 * MINUTE + 9,
     evidenceUrl: 'https://www.strava.com/activities/10809334410',
-    tripReport: 'First time on the Dipsea and I took the road at Cardiac like a tourist. Faster line exists and I did not run it.',
+    tripReport: 'First time round this loop and I ran the Dipsea connector by mistake, which cost me a couple of minutes and a lot of dignity.',
   },
-  // Non-binary category, so all three buckets are represented somewhere.
+  // Non-binary category, so all three are represented somewhere on the boards.
   {
-    route: 'osm-relation-2698343',
+    route: 'osm-way-24417702',
+    routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'WildLoop User',
     style: 'self_supported',
     category: 'nonbinary',
     status: 'verified',
     startedDaysAgo: 9,
-    durationSeconds: 1 * HOUR + 11 * MINUTE + 26,
+    durationSeconds: 1 * HOUR + 27 * MINUTE + 26,
     evidenceUrl: 'https://www.strava.com/activities/10838117702',
-    tripReport: 'Carried my own water and went steady. Happy with it — the stairs did not beat me this time.',
+    tripReport: 'Carried my own water and went steady. The fog came in over the ridge and it was the best hour of the week.',
   },
 
   // ── Skyline Loop Trail — 5.5 mi, 1,700 ft ─────────────────────────────────
   {
     route: 'mora-skyline-loop',
+    routeName: 'Skyline Loop Trail',
     athlete: 'Mark Dowdle',
     style: 'unsupported',
     category: 'mens',
@@ -178,6 +198,7 @@ const EFFORTS: SeedEffort[] = [
   },
   {
     route: 'mora-skyline-loop',
+    routeName: 'Skyline Loop Trail',
     athlete: 'Harvey Lewis',
     style: 'unsupported',
     category: 'mens',
@@ -187,9 +208,10 @@ const EFFORTS: SeedEffort[] = [
     evidenceUrl: 'https://www.strava.com/activities/10788440190',
     tripReport: 'Hiked in cold and never found the rhythm. The loop deserves better than I gave it.',
   },
-  // A team effort: two runners together files on the team board.
+  // A pair who started and finished together files on the team board.
   {
     route: 'mora-skyline-loop',
+    routeName: 'Skyline Loop Trail',
     athlete: 'Chris Breuer',
     style: 'self_supported',
     category: 'mens',
@@ -204,50 +226,55 @@ const EFFORTS: SeedEffort[] = [
   // ── Attempts that are not records ─────────────────────────────────────────
   // Out on the course right now: this is the tracking board.
   {
-    route: 'yose-half-dome',
+    route: 'romo-sky-pond',
+    routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'Pawel Dregan',
     style: 'unsupported',
     category: 'mens',
     status: 'in_progress',
     startedDaysAgo: 0,
-    trackerUrl: 'https://track.rtwr.live/pawel-half-dome',
-    tripReport: 'Going for the standard line before the cables get busy. Tracker is live.',
+    trackerUrl: 'https://track.rtwr.live/pawel-sky-pond',
+    tripReport: 'Going for the standard line before the afternoon storms build. Tracker is live.',
   },
   {
-    route: 'grca-bright-angel',
+    route: 'osm-way-24417702',
+    routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'Kim Gottwald',
     style: 'self_supported',
     category: 'womens',
     status: 'in_progress',
     startedDaysAgo: 0,
-    trackerUrl: 'https://track.rtwr.live/kim-bright-angel',
-    tripReport: 'Down and back before the heat. Water at Indian Garden is on.',
+    trackerUrl: 'https://track.rtwr.live/kim-steep-ravine',
+    tripReport: 'Out and back before the fog lifts. Water at the Stinson end.',
   },
   // Filed and waiting on a human: the verification queue.
   {
-    route: 'osm-relation-2698343',
+    route: 'osm-way-24417702',
+    routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'Mark Dowdle',
     style: 'unsupported',
     category: 'mens',
     status: 'pending',
     startedDaysAgo: 3,
-    durationSeconds: 1 * HOUR + 1 * MINUTE + 52,
+    durationSeconds: 1 * HOUR + 16 * MINUTE + 52,
     evidenceUrl: 'https://www.strava.com/activities/10901776621',
     tripReport: 'Clean run, GPS the whole way. Happy for anyone to pick the trace apart.',
   },
-  // Ended early. No finish, no time, and it must not appear on a board.
+  // Ended early. No finish, no time, and it must not reach a board.
   {
-    route: 'yose-half-dome',
+    route: 'romo-sky-pond',
+    routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'WildLoop Paid User',
     style: 'unsupported',
     category: 'mens',
     status: 'dnf',
     startedDaysAgo: 27,
-    tripReport: 'Turned round below the subdome. Thunder over Clouds Rest and the cables are not the place to argue with that.',
+    tripReport: 'Turned round at Timberline Falls. Graupel on the slab and nobody needs to argue with that at 10,000 feet.',
   },
   // Not accepted, with the reason the athlete has to answer.
   {
     route: 'mora-skyline-loop',
+    routeName: 'Skyline Loop Trail',
     athlete: 'WildLoop User',
     style: 'unsupported',
     category: 'mens',
@@ -263,6 +290,9 @@ const EFFORTS: SeedEffort[] = [
 /** Source ids of every route named above, for one scoped trail load. */
 const ROUTE_SOURCE_IDS = [...new Set(EFFORTS.map(effort => effort.route))]
 
+/** The same routes by name, for the ones the catalog already held. */
+const ROUTE_NAMES = [...new Set(EFFORTS.map(effort => effort.routeName))]
+
 export default class RouteEffortSeeder extends Seeder {
   // After the athletes and the trails they are filed against, and alongside
   // the other social seeders that decorate an already-populated world.
@@ -274,6 +304,17 @@ export default class RouteEffortSeeder extends Seeder {
 
     const trails = await seededTrails(ROUTE_SOURCE_IDS).catch(() => [] as any[])
     const bySourceId = new Map(trails.map(trail => [trail.source_id, trail]))
+    const byTrailName = new Map(trails.map(trail => [trail.name, trail]))
+
+    // Anything the source ids did not answer is an adopted route: look it up
+    // by the name instead, which is what survives adoption.
+    for (const name of ROUTE_NAMES) {
+      if (byTrailName.has(name))
+        continue
+      const found = await Trail.where('name', '=', name).first().catch(() => null)
+      if (found)
+        byTrailName.set(name, found)
+    }
 
     if (!byName.size || !bySourceId.size) {
       console.warn('[seed] no athletes or routes yet; skipping route efforts')
@@ -293,7 +334,7 @@ export default class RouteEffortSeeder extends Seeder {
 
     for (const seed of EFFORTS) {
       const athlete = byName.get(seed.athlete)
-      const trail = bySourceId.get(seed.route)
+      const trail = bySourceId.get(seed.route) ?? byTrailName.get(seed.routeName)
 
       if (!athlete || !trail) {
         console.warn(`[seed] effort by ${seed.athlete} on ${seed.route} is missing a side; skipping`)
@@ -347,13 +388,22 @@ export default class RouteEffortSeeder extends Seeder {
         review_note: seed.reviewNote ?? null,
       }
 
-      // One effort per athlete, route and start. A second row for the same
-      // attempt is a duplicate record, which is the one thing a board must
-      // never show.
+      // One effort per athlete, route and bucket.
+      //
+      // NOT keyed on `started_at`: it is derived from `startedDaysAgo` against
+      // the clock, so it moves every time the seeder runs and the row would
+      // never be recognised again — each reseed would file the whole board a
+      // second time, which is the one thing a board must never show. The
+      // bucket is what identifies the claim anyway: the same athlete's second
+      // unsupported standard run on the same route is a new time for the same
+      // record, not a separate one.
       const existing = await RouteEffort
         .where('trail_id', '=', trail.id)
         .where('user_id', '=', athlete.id)
-        .where('started_at', '=', payload.started_at)
+        .where('style', '=', payload.style)
+        .where('category', '=', payload.category)
+        .where('direction', '=', payload.direction)
+        .where('status', '=', payload.status)
         .first()
         .catch(() => null)
 
