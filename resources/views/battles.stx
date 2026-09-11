@@ -36,6 +36,19 @@
 
   useHead({ title: 'Live Battles — WildLoop' })
 
+  /**
+   * A local wrapper, because the template cannot call the import directly.
+   *
+   * stx resolves template expressions against the script's own declarations —
+   * an imported binding referenced from markup evaluates to nothing, and the
+   * value simply vanishes from the page rather than erroring. Declaring it
+   * here is what every other view does with a formatter (see `areaKm2` in
+   * athletes.stx).
+   */
+  function battleArea(squareMetres: number): string {
+    return formatTerritoryArea(squareMetres)
+  }
+
   const wl = useStore('wl')
   const period = state<'today' | 'week' | 'all'>('today')
 
@@ -137,7 +150,7 @@
                 </p>
                 <div class="flex gap-3 mt-1 text-xs text-gray-500 dark:text-slate-400">
                   <span>{{ wl.timeAgo(battle.created_at) }}</span>
-                  <span>{{ formatTerritoryArea(battle.areaCaptured) }}</span>
+                  <span>{{ battleArea(battle.areaCaptured) }}</span>
                 </div>
               </div>
               <span class="shrink-0 text-xs px-2 py-1 rounded-full font-medium" x-class="battle.status === 'conquered' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'">{{ battle.status === 'conquered' ? 'Conquered' : 'Defended' }}</span>
