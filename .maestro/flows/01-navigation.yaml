@@ -14,7 +14,7 @@ tags:
 - takeScreenshot: home
 - tapOn: "^Feed$"
 - extendedWaitUntil:
-    visible: Activity Feed
+    visible: Runs, kudos and turf changing hands.
     timeout: 30000
 - takeScreenshot: feed
 - tapOn: "^Trails$"

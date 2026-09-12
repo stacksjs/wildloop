@@ -24,7 +24,7 @@ tags:
     enabled: true
 - tapOn: "^Feed$"
 - extendedWaitUntil:
-    visible: Activity Feed
+    visible: Runs, kudos and turf changing hands.
     timeout: 30000
 - tapOn: "^Record$"
 - extendedWaitUntil:
