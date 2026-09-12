@@ -1,6 +1,6 @@
 import { derived, onDestroy, onMount, state, useStore } from 'stx'
 import { formatTerritoryArea } from '../functions/territory-style'
-import { appReview, device, haptics, health, isNativeMobile, keepAwake, lifecycle, liveActivities, location, permissions, secureStorage, watchConnectivity } from '@stacksjs/mobile'
+import { appReview, device, haptics, health, isNativeMobile, keepAwake, lifecycle, liveActivities, location, secureStorage, watchConnectivity } from '@stacksjs/mobile'
 import type { CircleMarker as CircleMarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { TsMap as TsMapType } from 'ts-maps'
@@ -577,18 +577,6 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       recordingError.set('Location is not available on this device. Use Preview instead.')
       return
     }
-    if (isNativeMobile()) {
-      let access = await permissions.check('location').catch(() => 'undetermined')
-      if (access === 'undetermined')
-        access = await permissions.request('location').catch(() => 'undetermined')
-      if (access !== 'granted') {
-        gpsStatus.set('stopped')
-        recordingError.set(access === 'denied' || access === 'restricted'
-          ? 'Location access is off. Open device settings above to allow precise location.'
-          : 'Allow precise location above before starting a recording.')
-        return
-      }
-    }
     if (!refs.map) {
       recordingError.set('The map is still loading. Try again in a moment.')
       return
@@ -637,7 +625,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
         }
         const code = typeof error === 'object' && error !== null && 'code' in error ? Number(error.code) : 0
         recordingError.set(code === 1
-          ? 'Location access is off. Open device settings above to allow precise location.'
+          ? 'Location access is off. Allow location for WildLoop in device settings, then try again.'
           : 'Could not get your location. Try again in a moment.')
       })
   }
