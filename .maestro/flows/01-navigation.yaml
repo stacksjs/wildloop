@@ -27,6 +27,7 @@ tags:
     visible: "Close a loop.*"
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
+- tapOn: Allow precise location
 - extendedWaitUntil:
     visible: Location ready
     timeout: 30000

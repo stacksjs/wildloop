@@ -1,6 +1,6 @@
 import { derived, onDestroy, onMount, state, useStore } from 'stx'
 import { formatTerritoryArea } from '../functions/territory-style'
-import { appReview, device, haptics, health, isNativeMobile, keepAwake, lifecycle, liveActivities, location, secureStorage, watchConnectivity } from '@stacksjs/mobile'
+import { appReview, device, haptics, health, isNativeMobile, keepAwake, lifecycle, liveActivities, location, permissions, secureStorage, watchConnectivity } from '@stacksjs/mobile'
 import type { CircleMarker as CircleMarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { TsMap as TsMapType } from 'ts-maps'
@@ -171,6 +171,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   const conquestToast = state<string | null>(null)
   const saveStatus = state<'idle' | 'saving' | 'saved' | 'queued' | 'error'>('idle')
   const saveMessage = state<string | null>(null)
+  const recordingError = state<string | null>(null)
   const wrongTurn = state(false)
 
   onMount(async () => {
@@ -492,6 +493,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     conquestToast.set(null)
     saveStatus.set('idle')
     saveMessage.set(null)
+    recordingError.set(null)
     wrongTurn.set(false)
     paused.set(false)
     if (wl) wl.resetCaptureSamples()
@@ -524,7 +526,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   async function simulate() {
     if (!wl || !refs.map) return
     if (!wl.currentUserId()) {
-      alert('Sign in before recording an activity.')
+      recordingError.set('Sign in before recording an activity.')
       return
     }
     const id = selectedTrailId()
@@ -564,13 +566,30 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
 
   async function startManual() {
     if (!refs.map) return
+    recordingError.set(null)
     if (!wl?.currentUserId()) {
-      alert('Sign in before recording an activity.')
+      recordingError.set('Sign in before recording an activity.')
       return
     }
     if (!isNativeMobile() && !navigator.geolocation) {
       gpsStatus.set('stopped')
-      alert('Geolocation is not available on this device. Use Simulate Trail Run instead.')
+      recordingError.set('Location is not available on this device. Use Preview instead.')
+      return
+    }
+    if (isNativeMobile()) {
+      let access = await permissions.check('location').catch(() => 'undetermined')
+      if (access === 'undetermined')
+        access = await permissions.request('location').catch(() => 'undetermined')
+      if (access !== 'granted') {
+        gpsStatus.set('stopped')
+        recordingError.set(access === 'denied' || access === 'restricted'
+          ? 'Location access is off. Open device settings above to allow precise location.'
+          : 'Allow precise location above before starting a recording.')
+        return
+      }
+    }
+    if (!refs.map) {
+      recordingError.set('The map is still loading. Try again in a moment.')
       return
     }
     resetRun()
@@ -616,8 +635,8 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
           refs.routeLine = null
         }
         const code = typeof error === 'object' && error !== null && 'code' in error ? Number(error.code) : 0
-        alert(code === 1
-          ? 'Location permission denied. Enable Location for WildLoop in Settings to record a run.'
+        recordingError.set(code === 1
+          ? 'Location access is off. Open device settings above to allow precise location.'
           : 'Could not get your location. Try again in a moment.')
       })
   }
@@ -966,6 +985,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     conquestToast,
     saveStatus,
     saveMessage,
+    recordingError,
     wrongTurn,
     trailOptions,
     simulate,

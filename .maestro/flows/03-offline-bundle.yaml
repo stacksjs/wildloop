@@ -17,6 +17,7 @@ onFlowComplete:
 - tapOn: "^Record$"
 - assertVisible: "Close a loop.*"
 - assertNotVisible: "would like to use your current location"
+- tapOn: Allow precise location
 - extendedWaitUntil:
     visible: Location ready
     timeout: 30000
