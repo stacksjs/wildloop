@@ -49,6 +49,6 @@ tags:
 - takeScreenshot: profile
 - tapOn: "^Settings$"
 - extendedWaitUntil:
-    visible: Log In - WildLoop
+    visible: Welcome Back
     timeout: 30000
 - takeScreenshot: sign-in
