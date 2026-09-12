@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
+import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectAndroidHomePackage, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
@@ -78,6 +78,11 @@ describe('mobile E2E runner', () => {
     const output = '2 activities found:\ncom.android.browser/.BrowserActivity\norg.wildloop.app/org.wildloop.app.MainActivity\n'
     expect(selectAndroidDeepLinkActivity(output, 'org.wildloop.app')).toBe('org.wildloop.app/org.wildloop.app.MainActivity')
     expect(selectAndroidDeepLinkActivity(output, 'org.missing.app')).toBeNull()
+  })
+
+  it('selects the Android home package without assuming a launcher vendor', () => {
+    expect(selectAndroidHomePackage('com.google.android.apps.nexuslauncher/.NexusLauncherActivity\n')).toBe('com.google.android.apps.nexuslauncher')
+    expect(selectAndroidHomePackage('')).toBeNull()
   })
 
   it('accepts only supported platform arguments', () => {

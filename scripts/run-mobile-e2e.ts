@@ -76,6 +76,12 @@ export function selectAndroidDeepLinkActivity(output: string, packageName: strin
   return null
 }
 
+export function selectAndroidHomePackage(output: string): string | null {
+  const component = output.split(/\s+/).find(value => value.includes('/'))
+  const packageName = component?.split('/')[0]
+  return packageName || null
+}
+
 export function selectIosSimulator(payload: SimctlDevices): IosDevice | null {
   const candidates = Object.entries(payload.devices ?? {})
     .filter(([runtime]) => runtime.toLowerCase().includes('ios'))
@@ -291,6 +297,21 @@ function seedTestLocation(platform: MobilePlatform, deviceId: string): void {
   ])
 }
 
+/**
+ * Google APIs images occasionally leave Pixel Launcher in an ANR state while
+ * WildLoop is foregrounded. The launcher is not part of this journey, so stop
+ * that background process before Maestro launches the app under test.
+ */
+function stopAndroidHomeLauncher(deviceId: string): void {
+  const home = execute([
+    'adb', '-s', deviceId, 'shell', 'cmd', 'package', 'resolve-activity', '--brief',
+    '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME',
+  ], { capture: true })
+  const packageName = selectAndroidHomePackage(home)
+  if (packageName)
+    execute(['adb', '-s', deviceId, 'shell', 'am', 'force-stop', packageName])
+}
+
 function appId(platform: MobilePlatform): string {
   return platform === 'ios'
     ? process.env.IOS_BUNDLE_ID ?? 'org.wildloop.app'
@@ -312,6 +333,7 @@ function runAndroid(preview: boolean): void {
     console.log(`WildLoop is open on Android device ${devices[0]}.`)
   }
   else {
+    stopAndroidHomeLauncher(devices[0])
     seedTestLocation('android', devices[0])
     runMaestroJourneys('android', devices[0])
   }
