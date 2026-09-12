@@ -8,12 +8,16 @@ interface NativeTabItemProps {
 const { href, icon, label } = defineProps<NativeTabItemProps>()
 </script>
 
-<StxLink
-  to="{{ href }}"
+<!--
+  Native tabs deliberately use document navigation. Craft's Android WebView
+  loads each bundled fallback page reliably, while an SPA fragment swap can
+  leave a client module unexecuted after a cold start.
+-->
+<a
+  href="{{ href }}"
   aria-label="{{ label }}"
-  activeClass="is-active"
   class="native-tab-item"
 >
   <i aria-hidden="true" class="{{ icon }} native-tab-icon"></i>
   <span>{{ label }}</span>
-</StxLink>
+</a>

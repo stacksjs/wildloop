@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateBundledFrontend, validateIosAppBundle } from '../../scripts/run-mobile-e2e'
+import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateBundledFrontend, validateIosAppBundle, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 describe('mobile E2E runner', () => {
@@ -98,6 +98,19 @@ describe('mobile E2E runner', () => {
     writeFileSync(join(output, 'record.html'), '<main>Record</main>')
 
     expect(() => validateBundledFrontend(output)).toThrow('record.html is missing its reactive STX page setup')
+  })
+
+  it('rejects native tabs that would be intercepted by the SPA router', () => {
+    const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-tabs-'))
+    writeFileSync(join(output, 'index.html'), [
+      '<a href="/feed" class="native-tab-item" data-stx-link>',
+      '<a href="/trails" class="native-tab-item">',
+      '<a href="/record" class="native-tab-item">',
+      '<a href="/territories" class="native-tab-item">',
+      '<a href="/profile" class="native-tab-item">',
+    ].join(''))
+
+    expect(() => validateNativeTabLinks(output)).toThrow('Built native /feed tab must use document navigation')
   })
 
   it('locates the bundled iOS entry point before simulator installation', () => {

@@ -115,6 +115,21 @@ export function validateBundledFrontend(outputRoot: string): void {
   }
 }
 
+/**
+ * Native bottom tabs must perform document navigation. The Android WebView
+ * can load a bundled page directly after a cold start, whereas an SPA fragment
+ * swap may leave that page's client module unexecuted.
+ */
+export function validateNativeTabLinks(outputRoot: string): void {
+  const index = readFileSync(join(outputRoot, 'index.html'), 'utf8')
+  for (const route of ['/feed', '/trails', '/record', '/territories', '/profile']) {
+    const link = index.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")(?=[^>]*\\bclass="[^"]*\\bnative-tab-item\\b")[^>]*>`, 'i'))?.[0]
+    if (!link) throw new Error(`Built index.html is missing the native ${route} tab link`)
+    if (/\bdata-stx-link\b/i.test(link))
+      throw new Error(`Built native ${route} tab must use document navigation`)
+  }
+}
+
 export function validateIosAppBundle(app: string): string {
   const index = readdirSync(app, { recursive: true })
     .map(path => path.toString())
@@ -151,6 +166,7 @@ function buildGeneratedApp(platform: MobilePlatform): void {
     },
   })
   validateBundledFrontend(join(projectRoot, 'dist'))
+  validateNativeTabLinks(join(projectRoot, 'dist'))
   execute(['bun', 'run', `build:${platform}`], {
     env: {
       MOBILE_E2E: '1',
