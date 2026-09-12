@@ -64,7 +64,7 @@ jobs:
       - name: Checkout Craft
         uses: actions/checkout@v5
         with:
-          repository: home-lang/craft
+          repository: craft-native/craft
           ref: ${{ env.CRAFT_REVISION }}
           path: .craft
       - name: Run iOS E2E flows
@@ -117,7 +117,7 @@ jobs:
       - name: Checkout Craft
         uses: actions/checkout@v5
         with:
-          repository: home-lang/craft
+          repository: craft-native/craft
           ref: ${{ env.CRAFT_REVISION }}
           path: .craft
       - name: Build Android E2E app

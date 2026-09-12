@@ -92,10 +92,12 @@ describe('mobile E2E runner', () => {
 
   it('rejects a mobile bundle that lost reactive page setup', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-dist-'))
-    writeFileSync(join(output, 'feed.html'), '<script>window.__stx_latestSetup = () => ({})</script>')
-    writeFileSync(join(output, 'trails.html'), '<main>Trails</main>')
+    const reactivePage = '<script>window.__stx_latestSetup = () => ({})</script>'
+    for (const page of ['index.html', 'feed.html', 'trails.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])
+      writeFileSync(join(output, page), reactivePage)
+    writeFileSync(join(output, 'record.html'), '<main>Record</main>')
 
-    expect(() => validateBundledFrontend(output)).toThrow('trails.html is missing its reactive STX page setup')
+    expect(() => validateBundledFrontend(output)).toThrow('record.html is missing its reactive STX page setup')
   })
 
   it('locates the bundled iOS entry point before simulator installation', () => {

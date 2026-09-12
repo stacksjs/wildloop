@@ -19,7 +19,19 @@ const projectRoot = resolve(import.meta.dir, '..')
 const generatedRoot = join(projectRoot, 'storage/framework/mobile')
 const resultsRoot = join(projectRoot, 'storage/framework/runtime/e2e')
 const flowRoot = join(projectRoot, '.maestro/flows')
-const requiredReactivePages = ['feed.html', 'trails.html']
+// Every page reached by the native smoke and deep-link flows must survive the
+// bundled fallback. Checking only a pair of tabs let a bad Record or Settings
+// bundle pass before the simulator reached it.
+const requiredReactivePages = [
+  'index.html',
+  'feed.html',
+  'trails.html',
+  'record.html',
+  'territories.html',
+  'profile.html',
+  'settings.html',
+  'login.html',
+]
 
 function normalizedEnvironment(extra: Record<string, string | undefined> = {}): Record<string, string> {
   return Object.fromEntries(

@@ -67,7 +67,7 @@ jobs:
       - name: Checkout Craft
         uses: actions/checkout@v5
         with:
-          repository: home-lang/craft
+          repository: craft-native/craft
           ref: ${{ env.CRAFT_REVISION }}
           path: .craft
       - name: Configure Firebase
