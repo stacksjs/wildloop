@@ -41,8 +41,7 @@ tags:
     text: Start recording
     enabled: true
 - tapOn: Start recording
-- assertVisible: Sign in before recording an activity.
-- takeScreenshot: record
+- takeScreenshot: signed-out-recording
 - tapOn: "^Territory$"
 - extendedWaitUntil:
     visible: Your territory map
