@@ -13,6 +13,22 @@ bundled cold-start path because iOS Simulator does not expose airplane mode.
 - For iOS: Xcode, XcodeGen, and an installed iPhone Simulator
 - For Android: Android SDK tools and exactly one running emulator
 
+### Install the local iOS test tools
+
+Install XcodeGen and a Java 17 runtime, then use Maestro's mobile CLI
+installer:
+
+```bash
+brew install xcodegen openjdk@17
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+curl -fsSL "https://get.maestro.mobile.dev" | bash
+maestro --version
+```
+
+Do not use `brew install maestro` for this suite. That cask installs a
+different desktop application, not the `mobile-dev-inc/Maestro` CLI used by the
+flows and CI.
+
 ## Test on a physical iPhone
 
 One-time Apple setup is required before macOS can sign an app for a phone:
