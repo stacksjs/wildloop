@@ -36,7 +36,7 @@
   <AuthGate />
 
   <template #tab-bar>
-    <div class="lg:hidden">
+    <div class="native-tab-visibility">
       <NativeTabBar label="WildLoop navigation">
         <NativeTabItem label="Feed" href="/feed" icon="i-lucide-house" />
         <NativeTabItem label="Trails" href="/trails" icon="i-lucide-map" />
@@ -60,13 +60,4 @@
     flex-direction: column;
   }
 
-  @media (min-width: 1024px) {
-    [data-native-app-shell] .native-app-content {
-      padding-bottom: 0;
-    }
-
-    [data-native-app-shell] .native-app-tab-slot {
-      display: none;
-    }
-  }
 </style>

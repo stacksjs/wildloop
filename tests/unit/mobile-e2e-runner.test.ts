@@ -12,11 +12,13 @@ function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
     '<a href="/notifications">',
     `<a href="/settings" ${intercepted}>`,
     '</header>',
+    '<div class="native-tab-visibility"><nav class="native-tab-bar">',
     `<a href="/feed" class="native-tab-item" ${intercepted}>`,
     '<a href="/trails" class="native-tab-item">',
     '<a href="/record" class="native-tab-item">',
     '<a href="/territories" class="native-tab-item">',
     '<a href="/profile" class="native-tab-item">',
+    '</nav></div>',
   ].join('')
 
   for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])

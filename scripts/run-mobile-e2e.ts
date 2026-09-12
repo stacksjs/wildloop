@@ -123,6 +123,9 @@ export function validateBundledFrontend(outputRoot: string): void {
 export function validateNativeTabLinks(outputRoot: string): void {
   for (const page of requiredReactivePages) {
     const output = readFileSync(join(outputRoot, page), 'utf8')
+    if (!/<div\b(?=[^>]*\bclass="[^"]*\bnative-tab-visibility\b")[^>]*>[\s\S]*?\bnative-tab-bar\b/i.test(output))
+      throw new Error(`Built ${page} is missing the native touch-navigation wrapper`)
+
     for (const route of ['/feed', '/trails', '/record', '/territories', '/profile']) {
       const link = output.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")(?=[^>]*\\bclass="[^"]*\\bnative-tab-item\\b")[^>]*>`, 'i'))?.[0]
       if (!link) throw new Error(`Built ${page} is missing the native ${route} tab link`)

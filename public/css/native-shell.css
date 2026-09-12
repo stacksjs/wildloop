@@ -83,6 +83,15 @@
 .native-tab-item.is-active { color: rgb(5 150 105); }
 .native-tab-icon { width: 1.35rem; height: 1.35rem; }
 
+/* A native WebView can report a desktop-sized CSS viewport on a high-density
+ * phone. Width alone therefore cannot decide whether this touch navigation
+ * belongs on screen. Fine-pointer desktops retain the full navigation and
+ * hide the tab bar, while touch-first native shells keep it at every width. */
+@media (min-width: 1024px) and (pointer: fine) {
+  .native-tab-visibility { display: none; }
+  .native-app-shell:has(.native-app-tab-slot) .native-app-content { padding-bottom: 0; }
+}
+
 .dark .native-tab-bar {
   border-color: rgb(71 85 105 / 0.55);
   background: rgb(15 23 42 / 0.9);
