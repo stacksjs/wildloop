@@ -8,6 +8,9 @@ tags:
     clearState: true
     permissions:
       all: allow
+- setLocation:
+    latitude: 37.7749
+    longitude: -122.4194
 - extendedWaitUntil:
     visible: "Find your next adventure"
     timeout: 30000
