@@ -40,6 +40,8 @@ tags:
 - assertVisible:
     text: Start recording
     enabled: true
+- tapOn: Start recording
+- assertVisible: Sign in before recording an activity.
 - takeScreenshot: record
 - tapOn: "^Territory$"
 - extendedWaitUntil:
