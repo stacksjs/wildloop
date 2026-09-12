@@ -128,6 +128,18 @@ export function validateNativeTabLinks(outputRoot: string): void {
     if (/\bdata-stx-link\b/i.test(link))
       throw new Error(`Built native ${route} tab must use document navigation`)
   }
+
+  const header = index.match(/<header\b(?=[^>]*\bnative-app-sticky-top\b)[^>]*>[\s\S]*?<\/header>/i)?.[0]
+  if (!header)
+    throw new Error('Built index.html is missing the native header')
+
+  for (const route of ['/feed', '/notifications', '/settings']) {
+    const link = header.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")[^>]*>`, 'i'))?.[0]
+    if (!link)
+      throw new Error(`Built native header is missing the ${route} link`)
+    if (/\bdata-stx-link\b/i.test(link))
+      throw new Error(`Built native header ${route} link must use document navigation`)
+  }
 }
 
 export function validateIosAppBundle(app: string): string {

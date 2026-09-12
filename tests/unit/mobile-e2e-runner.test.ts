@@ -103,6 +103,11 @@ describe('mobile E2E runner', () => {
   it('rejects native tabs that would be intercepted by the SPA router', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-tabs-'))
     writeFileSync(join(output, 'index.html'), [
+      '<header class="native-app-sticky-top">',
+      '<a href="/feed">',
+      '<a href="/notifications">',
+      '<a href="/settings">',
+      '</header>',
       '<a href="/feed" class="native-tab-item" data-stx-link>',
       '<a href="/trails" class="native-tab-item">',
       '<a href="/record" class="native-tab-item">',
@@ -111,6 +116,24 @@ describe('mobile E2E runner', () => {
     ].join(''))
 
     expect(() => validateNativeTabLinks(output)).toThrow('Built native /feed tab must use document navigation')
+  })
+
+  it('rejects native header links that would be intercepted by the SPA router', () => {
+    const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-header-'))
+    writeFileSync(join(output, 'index.html'), [
+      '<header class="native-app-sticky-top">',
+      '<a href="/feed">',
+      '<a href="/notifications">',
+      '<a href="/settings" data-stx-link>',
+      '</header>',
+      '<a href="/feed" class="native-tab-item">',
+      '<a href="/trails" class="native-tab-item">',
+      '<a href="/record" class="native-tab-item">',
+      '<a href="/territories" class="native-tab-item">',
+      '<a href="/profile" class="native-tab-item">',
+    ].join(''))
+
+    expect(() => validateNativeTabLinks(output)).toThrow('Built native header /settings link must use document navigation')
   })
 
   it('locates the bundled iOS entry point before simulator installation', () => {
