@@ -119,9 +119,10 @@
           <p class="font-semibold text-slate-900 dark:text-white">Location powers every recorded route</p>
           <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Allow precise location before you start so WildLoop can record your route and protect your territory capture.</p>
         </div>
-        <NativeLocationPermissionButton
+        <NativePermissionButton
+          permission="location"
           label="Allow precise location"
-          granted-label="Location ready"
+          granted-label="Location access allowed"
           class="min-h-11 shrink-0 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-default disabled:bg-emerald-100 disabled:text-emerald-700 dark:disabled:bg-emerald-950 dark:disabled:text-emerald-300"
         />
       </div>
