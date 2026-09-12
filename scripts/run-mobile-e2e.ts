@@ -19,6 +19,7 @@ const projectRoot = resolve(import.meta.dir, '..')
 const generatedRoot = join(projectRoot, 'storage/framework/mobile')
 const resultsRoot = join(projectRoot, 'storage/framework/runtime/e2e')
 const flowRoot = join(projectRoot, '.maestro/flows')
+const testLocation = { latitude: '37.7749', longitude: '-122.4194' }
 // Every page reached by the native smoke and deep-link flows must survive the
 // bundled fallback. Checking only a pair of tabs let a bad Record or Settings
 // bundle pass before the simulator reached it.
@@ -270,6 +271,26 @@ function runMaestroJourneys(platform: MobilePlatform, deviceId: string): void {
   runMaestroFlow(platform, deviceId, deepLinkFlow(platform))
 }
 
+/**
+ * Craft reads from the platform location providers directly. Maestro's
+ * coordinate command completes but does not currently populate those bridges,
+ * so seed the emulator provider before each deterministic E2E journey.
+ */
+function seedTestLocation(platform: MobilePlatform, deviceId: string): void {
+  if (platform === 'android') {
+    execute([
+      'adb', '-s', deviceId, 'emu', 'geo', 'fix',
+      testLocation.longitude, testLocation.latitude,
+    ])
+    return
+  }
+
+  execute([
+    'xcrun', 'simctl', 'location', deviceId, 'set',
+    `${testLocation.latitude},${testLocation.longitude}`,
+  ])
+}
+
 function appId(platform: MobilePlatform): string {
   return platform === 'ios'
     ? process.env.IOS_BUNDLE_ID ?? 'org.wildloop.app'
@@ -291,6 +312,7 @@ function runAndroid(preview: boolean): void {
     console.log(`WildLoop is open on Android device ${devices[0]}.`)
   }
   else {
+    seedTestLocation('android', devices[0])
     runMaestroJourneys('android', devices[0])
   }
 }
@@ -334,6 +356,7 @@ function runIos(preview: boolean): void {
     console.log(`WildLoop is open in Simulator on ${device.name}.`)
   }
   else {
+    seedTestLocation('ios', device.udid)
     runMaestroJourneys('ios', device.udid)
   }
 }

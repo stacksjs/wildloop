@@ -129,9 +129,10 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          target: default
+          target: google_apis
           arch: x86_64
           profile: pixel_7
+          ram-size: 4096M
           disable-animations: true
           script: bun scripts/run-mobile-e2e.ts android --skip-build
       - name: Upload Android diagnostics
