@@ -1,9 +1,27 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
+
+function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
+  const markup = [
+    '<header class="native-app-sticky-top">',
+    '<a href="/feed">',
+    '<a href="/notifications">',
+    `<a href="/settings" ${intercepted}>`,
+    '</header>',
+    `<a href="/feed" class="native-tab-item" ${intercepted}>`,
+    '<a href="/trails" class="native-tab-item">',
+    '<a href="/record" class="native-tab-item">',
+    '<a href="/territories" class="native-tab-item">',
+    '<a href="/profile" class="native-tab-item">',
+  ].join('')
+
+  for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])
+    writeFileSync(join(output, page), markup)
+}
 
 describe('mobile E2E runner', () => {
   it('selects a booted iPhone before a shutdown simulator', () => {
@@ -102,38 +120,18 @@ describe('mobile E2E runner', () => {
 
   it('rejects native tabs that would be intercepted by the SPA router', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-tabs-'))
-    writeFileSync(join(output, 'index.html'), [
-      '<header class="native-app-sticky-top">',
-      '<a href="/feed">',
-      '<a href="/notifications">',
-      '<a href="/settings">',
-      '</header>',
-      '<a href="/feed" class="native-tab-item" data-stx-link>',
-      '<a href="/trails" class="native-tab-item">',
-      '<a href="/record" class="native-tab-item">',
-      '<a href="/territories" class="native-tab-item">',
-      '<a href="/profile" class="native-tab-item">',
-    ].join(''))
+    writeNativeNavigationFixtures(output, 'data-stx-link')
 
-    expect(() => validateNativeTabLinks(output)).toThrow('Built native /feed tab must use document navigation')
+    expect(() => validateNativeTabLinks(output)).toThrow('Built index.html native /feed tab must use document navigation')
   })
 
   it('rejects native header links that would be intercepted by the SPA router', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-header-'))
-    writeFileSync(join(output, 'index.html'), [
-      '<header class="native-app-sticky-top">',
-      '<a href="/feed">',
-      '<a href="/notifications">',
-      '<a href="/settings" data-stx-link>',
-      '</header>',
-      '<a href="/feed" class="native-tab-item">',
-      '<a href="/trails" class="native-tab-item">',
-      '<a href="/record" class="native-tab-item">',
-      '<a href="/territories" class="native-tab-item">',
-      '<a href="/profile" class="native-tab-item">',
-    ].join(''))
+    writeNativeNavigationFixtures(output)
+    const settings = join(output, 'settings.html')
+    writeFileSync(settings, readFileSync(settings, 'utf8').replace('href="/settings" ', 'href="/settings" data-stx-link '))
 
-    expect(() => validateNativeTabLinks(output)).toThrow('Built native header /settings link must use document navigation')
+    expect(() => validateNativeTabLinks(output)).toThrow('Built settings.html native header /settings link must use document navigation')
   })
 
   it('rejects a bundle that loads analytics from every rendered component', () => {

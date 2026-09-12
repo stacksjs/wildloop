@@ -121,24 +121,26 @@ export function validateBundledFrontend(outputRoot: string): void {
  * swap may leave that page's client module unexecuted.
  */
 export function validateNativeTabLinks(outputRoot: string): void {
-  const index = readFileSync(join(outputRoot, 'index.html'), 'utf8')
-  for (const route of ['/feed', '/trails', '/record', '/territories', '/profile']) {
-    const link = index.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")(?=[^>]*\\bclass="[^"]*\\bnative-tab-item\\b")[^>]*>`, 'i'))?.[0]
-    if (!link) throw new Error(`Built index.html is missing the native ${route} tab link`)
-    if (/\bdata-stx-link\b/i.test(link))
-      throw new Error(`Built native ${route} tab must use document navigation`)
-  }
+  for (const page of requiredReactivePages) {
+    const output = readFileSync(join(outputRoot, page), 'utf8')
+    for (const route of ['/feed', '/trails', '/record', '/territories', '/profile']) {
+      const link = output.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")(?=[^>]*\\bclass="[^"]*\\bnative-tab-item\\b")[^>]*>`, 'i'))?.[0]
+      if (!link) throw new Error(`Built ${page} is missing the native ${route} tab link`)
+      if (/\bdata-stx-link\b/i.test(link))
+        throw new Error(`Built ${page} native ${route} tab must use document navigation`)
+    }
 
-  const header = index.match(/<header\b(?=[^>]*\bnative-app-sticky-top\b)[^>]*>[\s\S]*?<\/header>/i)?.[0]
-  if (!header)
-    throw new Error('Built index.html is missing the native header')
+    const header = output.match(/<header\b(?=[^>]*\bnative-app-sticky-top\b)[^>]*>[\s\S]*?<\/header>/i)?.[0]
+    if (!header)
+      throw new Error(`Built ${page} is missing the native header`)
 
-  for (const route of ['/feed', '/notifications', '/settings']) {
-    const link = header.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")[^>]*>`, 'i'))?.[0]
-    if (!link)
-      throw new Error(`Built native header is missing the ${route} link`)
-    if (/\bdata-stx-link\b/i.test(link))
-      throw new Error(`Built native header ${route} link must use document navigation`)
+    for (const route of ['/feed', '/notifications', '/settings']) {
+      const link = header.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")[^>]*>`, 'i'))?.[0]
+      if (!link)
+        throw new Error(`Built ${page} is missing the native header ${route} link`)
+      if (/\bdata-stx-link\b/i.test(link))
+        throw new Error(`Built ${page} native header ${route} link must use document navigation`)
+    }
   }
 }
 
