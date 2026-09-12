@@ -90,6 +90,11 @@
 @media (min-width: 1024px) and (pointer: fine) {
   .native-tab-visibility { display: none; }
   .native-app-shell:has(.native-app-tab-slot) .native-app-content { padding-bottom: 0; }
+
+  .native-app-shell.native-mobile .native-tab-visibility { display: block; }
+  .native-app-shell.native-mobile .native-app-content {
+    padding-bottom: calc(4rem + var(--native-safe-area-bottom));
+  }
 }
 
 .dark .native-tab-bar {
