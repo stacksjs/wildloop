@@ -30,6 +30,7 @@ import { loadTerritories } from './useTerritoryCatalog'
 import { loadActivityVisibilityDefault } from '../assets/scripts/privacy-defaults'
 import {
   clearRecordingCheckpoint,
+  isRecordingCheckpointStale,
   loadRecordingCheckpoint,
   mergeNativeLocationSamples,
   saveRecordingCheckpoint,
@@ -811,7 +812,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     if (isNativeMobile())
       nativeState = await location.getRecordingState().catch(() => null)
     if (!checkpoint && !nativeState?.active) return
-    if (checkpoint && Date.now() - checkpoint.savedAt > 24 * 60 * 60 * 1000 && !nativeState?.active) {
+    if (checkpoint && isRecordingCheckpointStale(checkpoint) && !nativeState?.active) {
       await clearRecordingCheckpoint().catch(() => undefined)
       return
     }

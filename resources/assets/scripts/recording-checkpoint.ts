@@ -4,6 +4,7 @@ const DATABASE_NAME = 'wildloop-offline'
 const DATABASE_VERSION = 3
 const STORE_NAME = 'recording-checkpoints'
 const ACTIVE_RECORDING_ID = 'active'
+export const RECORDING_CHECKPOINT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 export interface RecordingCheckpoint {
   id: typeof ACTIVE_RECORDING_ID
@@ -71,6 +72,11 @@ export async function loadRecordingCheckpoint(): Promise<RecordingCheckpoint | n
 
 export async function clearRecordingCheckpoint(): Promise<void> {
   await request('readwrite', store => store.delete(ACTIVE_RECORDING_ID))
+}
+
+/** A future timestamp is retained so a device clock correction cannot discard a live run. */
+export function isRecordingCheckpointStale(checkpoint: Pick<RecordingCheckpoint, 'savedAt'>, now = Date.now()): boolean {
+  return now - checkpoint.savedAt > RECORDING_CHECKPOINT_MAX_AGE_MS
 }
 
 function sampleKey(sample: Pick<RecorderSample, 'lat' | 'lng' | 't'>): string {
