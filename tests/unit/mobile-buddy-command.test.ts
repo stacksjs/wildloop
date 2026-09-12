@@ -48,4 +48,15 @@ describe('mobile Buddy commands', () => {
     expect(clientSources.some(source => source.includes("from '@stacksjs/mobile'"))).toBe(true)
     expect(clientSources.every(source => !source.includes('storage/framework/core'))).toBe(true)
   })
+
+  it('checks location authorization without treating a GPS fix as permission', async () => {
+    const recordView = await Bun.file(new URL('../../resources/views/record.stx', import.meta.url)).text()
+
+    // A simulator can have authorization but no usable satellite fix. The
+    // canonical component asks Craft for permission status; recording itself
+    // still obtains a coordinate when the user presses Start recording.
+    expect(recordView).toContain('<NativePermissionButton')
+    expect(recordView).toContain('permission="location"')
+    expect(recordView).not.toContain('<NativeLocationPermissionButton')
+  })
 })
