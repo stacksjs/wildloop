@@ -150,7 +150,7 @@ jobs:
   publish-commit:
     runs-on: ubuntu-latest
     env:
-      STX_REVISION: cc0604b4e8bd5ff22ffbeaedf2c108fdd277bbb2
+      STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
 
     steps:
       - uses: actions/checkout@v6

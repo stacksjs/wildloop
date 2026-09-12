@@ -25,7 +25,7 @@ jobs:
     env:
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
       CRAFT_REVISION: 26d927f7f927e4db2c85c3df89368d3f3b745dba
-      STX_REVISION: cc0604b4e8bd5ff22ffbeaedf2c108fdd277bbb2
+      STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
     strategy:
       fail-fast: false
       matrix:
