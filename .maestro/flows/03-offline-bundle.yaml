@@ -17,4 +17,7 @@ onFlowComplete:
 - tapOn: "^Record$"
 - assertVisible: "Close a loop.*"
 - assertNotVisible: "would like to use your current location"
+- extendedWaitUntil:
+    visible: Location ready
+    timeout: 30000
 - takeScreenshot: offline-bundle

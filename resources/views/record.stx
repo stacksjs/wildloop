@@ -113,6 +113,19 @@
         </div>
       </div>
 
+      <div :if="!recording" class="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="font-semibold text-slate-900 dark:text-white">Location powers every recorded route</p>
+          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Allow precise location before you start so WildLoop can record your route and protect your territory capture.</p>
+        </div>
+        <NativePermissionButton
+          permission="location"
+          label="Allow precise location"
+          granted-label="Location ready"
+          class="min-h-11 shrink-0 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-default disabled:bg-emerald-100 disabled:text-emerald-700 dark:disabled:bg-emerald-950 dark:disabled:text-emerald-300"
+        />
+      </div>
+
       <!-- ── Live event ──────────────────────────────────────────────────── -->
       <div :if="liveEvent" class="yard-strip">
         <div class="min-w-0">

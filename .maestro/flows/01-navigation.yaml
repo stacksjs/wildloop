@@ -27,6 +27,9 @@ tags:
     visible: "Close a loop.*"
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
+- extendedWaitUntil:
+    visible: Location ready
+    timeout: 30000
 - scrollUntilVisible:
     element:
       text: Start recording
