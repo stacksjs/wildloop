@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
+import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
@@ -132,6 +132,15 @@ describe('mobile E2E runner', () => {
     writeFileSync(settings, readFileSync(settings, 'utf8').replace('href="/settings" ', 'href="/settings" data-stx-link '))
 
     expect(() => validateNativeTabLinks(output)).toThrow('Built settings.html native header /settings link must use document navigation')
+  })
+
+  it('rejects a bundle with shell styles emitted after the document head', () => {
+    const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-shell-css-'))
+    for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])
+      writeFileSync(join(output, page), '<head><link rel="stylesheet" href="/css/native-shell.css"></head>')
+    writeFileSync(join(output, 'trails.html'), '<head></head><link rel="stylesheet" href="/css/native-shell.css">')
+
+    expect(() => validateNativeShellStyles(output)).toThrow('Built trails.html is missing native shell styles in its document head')
   })
 
   it('rejects a bundle that loads analytics from every rendered component', () => {

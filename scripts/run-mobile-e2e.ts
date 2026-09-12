@@ -144,6 +144,16 @@ export function validateNativeTabLinks(outputRoot: string): void {
   }
 }
 
+/** Shell CSS must arrive in the document head before a bundled WebView paints. */
+export function validateNativeShellStyles(outputRoot: string): void {
+  for (const page of requiredReactivePages) {
+    const output = readFileSync(join(outputRoot, page), 'utf8')
+    const head = output.split('</head>', 1)[0]
+    if (!head.includes('href="/css/native-shell.css"'))
+      throw new Error(`Built ${page} is missing native shell styles in its document head`)
+  }
+}
+
 /** A document may load analytics once, never once per rendered component. */
 export function validateAnalyticsScriptCount(outputRoot: string): void {
   for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html']) {
@@ -191,6 +201,7 @@ function buildGeneratedApp(platform: MobilePlatform): void {
   })
   validateBundledFrontend(join(projectRoot, 'dist'))
   validateNativeTabLinks(join(projectRoot, 'dist'))
+  validateNativeShellStyles(join(projectRoot, 'dist'))
   validateAnalyticsScriptCount(join(projectRoot, 'dist'))
   execute(['bun', 'run', `build:${platform}`], {
     env: {

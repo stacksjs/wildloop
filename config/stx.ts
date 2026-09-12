@@ -79,6 +79,10 @@ export default {
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Outfit:wght@700;800;900&display=swap' },
+        // Native shell rules must be in the initial document head. Component
+        // stylesheet links are emitted in the body and load too late for some
+        // bundled WebViews.
+        { rel: 'stylesheet', href: '/css/native-shell.css' },
       ],
       // This STX release injects `analytics` once per rendered fragment. Head
       // scripts are composed once for the final document, which keeps the
