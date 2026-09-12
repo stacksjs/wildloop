@@ -19,10 +19,14 @@ onFlowComplete:
 - assertNotVisible: "would like to use your current location"
 - runFlow:
     when:
-      visible: Allow precise location
+      platform: Android
     commands:
       - tapOn: Allow precise location
-- extendedWaitUntil:
-    visible: Location access allowed
-    timeout: 30000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: Location ready
+          timeout: 30000
 - takeScreenshot: offline-bundle

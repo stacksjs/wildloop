@@ -49,14 +49,13 @@ describe('mobile Buddy commands', () => {
     expect(clientSources.every(source => !source.includes('storage/framework/core'))).toBe(true)
   })
 
-  it('checks location authorization without treating a GPS fix as permission', async () => {
+  it('keeps recording behind a real location sample', async () => {
     const recordView = await Bun.file(new URL('../../resources/views/record.stx', import.meta.url)).text()
 
-    // A simulator can have authorization but no usable satellite fix. The
-    // canonical component asks Craft for permission status; recording itself
-    // still obtains a coordinate when the user presses Start recording.
-    expect(recordView).toContain('<NativePermissionButton')
-    expect(recordView).toContain('permission="location"')
-    expect(recordView).not.toContain('<NativeLocationPermissionButton')
+    // Craft's generic permission bridge does not currently report Android
+    // location correctly. The app asks the dedicated location bridge for a
+    // real sample, which is also what recording needs to begin safely.
+    expect(recordView).toContain('<NativeLocationPermissionButton')
+    expect(recordView).not.toContain('<NativePermissionButton')
   })
 })
