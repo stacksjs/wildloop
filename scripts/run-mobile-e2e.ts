@@ -142,6 +142,16 @@ export function validateNativeTabLinks(outputRoot: string): void {
   }
 }
 
+/** A document may load analytics once, never once per rendered component. */
+export function validateAnalyticsScriptCount(outputRoot: string): void {
+  for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html']) {
+    const output = readFileSync(join(outputRoot, page), 'utf8')
+    const scripts = output.match(/<script\b(?=[^>]*\bsrc="https:\/\/analyticshq\.org\/script\.js")[^>]*>/gi) ?? []
+    if (scripts.length > 1)
+      throw new Error(`Built ${page} loads analytics ${scripts.length} times`)
+  }
+}
+
 export function validateIosAppBundle(app: string): string {
   const index = readdirSync(app, { recursive: true })
     .map(path => path.toString())
@@ -179,6 +189,7 @@ function buildGeneratedApp(platform: MobilePlatform): void {
   })
   validateBundledFrontend(join(projectRoot, 'dist'))
   validateNativeTabLinks(join(projectRoot, 'dist'))
+  validateAnalyticsScriptCount(join(projectRoot, 'dist'))
   execute(['bun', 'run', `build:${platform}`], {
     env: {
       MOBILE_E2E: '1',

@@ -1,4 +1,4 @@
-import { tsAnalyticsStxConfig } from '@ts-analytics/tracking/stx'
+import { tsAnalytics } from '@ts-analytics/tracking/stx'
 import { env } from '@stacksjs/env'
 
 /**
@@ -29,11 +29,6 @@ export default {
   partialsDir: 'resources/components',
 
   css: './crosswind.ts',
-
-  analytics: tsAnalyticsStxConfig({
-    appId: env.ANALYTICSHQ_APP_ID,
-    apiEndpoint: 'https://analyticshq.org',
-  }),
 
   app: {
     head: {
@@ -85,6 +80,13 @@ export default {
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Outfit:wght@700;800;900&display=swap' },
       ],
+      // This STX release injects `analytics` once per rendered fragment. Head
+      // scripts are composed once for the final document, which keeps the
+      // tracker to one load and one initial page view in native WebViews.
+      script: tsAnalytics({
+        appId: env.ANALYTICSHQ_APP_ID,
+        apiEndpoint: 'https://analyticshq.org',
+      }),
       bodyClass: 'min-h-screen flex flex-col bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100',
     },
     router: {

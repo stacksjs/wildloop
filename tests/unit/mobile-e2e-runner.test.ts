@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateBundledFrontend, validateIosAppBundle, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
+import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 describe('mobile E2E runner', () => {
@@ -134,6 +134,14 @@ describe('mobile E2E runner', () => {
     ].join(''))
 
     expect(() => validateNativeTabLinks(output)).toThrow('Built native header /settings link must use document navigation')
+  })
+
+  it('rejects a bundle that loads analytics from every rendered component', () => {
+    const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-analytics-'))
+    for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html'])
+      writeFileSync(join(output, page), '<script src="https://analyticshq.org/script.js"></script><script src="https://analyticshq.org/script.js"></script>')
+
+    expect(() => validateAnalyticsScriptCount(output)).toThrow('Built index.html loads analytics 2 times')
   })
 
   it('locates the bundled iOS entry point before simulator installation', () => {
