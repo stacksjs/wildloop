@@ -566,7 +566,6 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   }
 
   async function startManual() {
-    if (!refs.map) return
     recordingError.set(null)
     if (!wl?.currentUserId()) {
       recordingError.set('Sign in before recording an activity.')
