@@ -306,8 +306,8 @@
     <span>{{ notice }}</span>
   </div>
 
-  <section class="mb-6 p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
-    <div class="flex gap-4 items-start">
+  <section class="mb-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" aria-hidden="true">
         <i class="i-hugeicons-shield-02 h-6 w-6 text-emerald-700 dark:text-emerald-300"></i>
       </span>
@@ -351,8 +351,8 @@
     </div>
   </section>
 
-  <section class="p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
-    <div class="flex gap-4 items-start">
+  <section class="p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700" aria-hidden="true">
         <i class="i-hugeicons-watch-01 h-6 w-6 text-slate-700 dark:text-slate-200"></i>
       </span>
@@ -408,8 +408,8 @@
     </div>
   </section>
 
-  <section :if="nativeHealthAvailable" class="mt-6 p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
-    <div class="flex gap-4 items-start">
+  <section :if="nativeHealthAvailable" class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-rose-50 dark:bg-rose-900/20" aria-hidden="true">
         <i class="i-hugeicons-heart-check h-6 w-6 text-rose-600 dark:text-rose-300"></i>
       </span>
@@ -424,8 +424,8 @@
     </div>
   </section>
 
-  <section :if="nativePushAvailable" class="mt-6 p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
-    <div class="flex gap-4 items-start">
+  <section :if="nativePushAvailable" class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" aria-hidden="true">
         <i class="i-hugeicons-notification-02 h-6 w-6 text-emerald-600 dark:text-emerald-300"></i>
       </span>
