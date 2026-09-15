@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroReportSummary, parseAdbDevices, prepareIosSimulatorBundle, requestedPlatform, selectAndroidDeepLinkActivity, selectAndroidHomePackage, selectIosSimulator, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
-import { inferDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
+import { deepLinkFlow, maestroEnvironment, maestroReportSummary, parseAdbDevices, requestedPlatform, resolveJavaHome, selectAndroidDeepLinkActivity, selectAndroidHomePackage, selectIosSimulator, signedInTargetURL, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
+import { inferDevelopmentTeam, requiredIosAppPaths, requiresDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
   const markup = [
@@ -74,6 +74,18 @@ describe('mobile E2E runner', () => {
     expect(inferDevelopmentTeam('0 valid identities found')).toBeNull()
   })
 
+  it('does not require a signing team for an explicitly unsigned compile', () => {
+    expect(requiresDevelopmentTeam(['--compile-only'])).toBe(false)
+    expect(requiresDevelopmentTeam(['--build-only'])).toBe(true)
+  })
+
+  it('does not require Craft’s disabled Watch artifact from an iPhone build', () => {
+    const required = requiredIosAppPaths('/tmp/WildLoop.app')
+
+    expect(required).toContain('/tmp/WildLoop.app/PlugIns/WildLoopLiveActivity.appex')
+    expect(required).not.toContain('/tmp/WildLoop.app/Watch/WildLoopWatch.app')
+  })
+
   it('selects the app activity registered for an Android deep link', () => {
     const output = '2 activities found:\ncom.android.browser/.BrowserActivity\norg.wildloop.app/org.wildloop.app.MainActivity\n'
     expect(selectAndroidDeepLinkActivity(output, 'org.wildloop.app')).toBe('org.wildloop.app/org.wildloop.app.MainActivity')
@@ -96,6 +108,26 @@ describe('mobile E2E runner', () => {
     expect(deepLinkFlow('ios')).toBe('02-deep-link-ios.yaml')
   })
 
+  it('opts out of third-party Maestro telemetry for every local and CI run', () => {
+    expect(maestroEnvironment()).toEqual({
+      MAESTRO_CLI_NO_ANALYTICS: '1',
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
+    })
+  })
+
+  it('uses an explicit Java home or the Homebrew JDK available to local Maestro', () => {
+    expect(resolveJavaHome({ JAVA_HOME: '/custom/jdk' }, () => false)).toBe('/custom/jdk')
+    expect(resolveJavaHome({}, path => path.startsWith('/opt/homebrew/'))).toBe('/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home')
+    expect(resolveJavaHome({}, () => false)).toBeUndefined()
+  })
+
+  it('requires an explicit HTTP target for the signed-in journey', () => {
+    expect(signedInTargetURL({})).toBeNull()
+    expect(() => signedInTargetURL({ MOBILE_E2E_SIGNED_IN: 'true' })).toThrow('Set MOBILE_E2E_URL')
+    expect(() => signedInTargetURL({ MOBILE_E2E_SIGNED_IN: 'true', MOBILE_E2E_URL: 'wildloop.org' })).toThrow('absolute http or https')
+    expect(signedInTargetURL({ MOBILE_E2E_SIGNED_IN: 'true', MOBILE_E2E_URL: 'https://wildloop.org/' })).toBe('https://wildloop.org')
+  })
+
   it('reads failures from Maestro JUnit even when its process exits successfully', () => {
     expect(maestroReportSummary(`
       <testsuite tests="2" failures="1">
@@ -103,16 +135,6 @@ describe('mobile E2E runner', () => {
         <testcase name="fail"><failure>not visible</failure></testcase>
       </testsuite>
     `)).toEqual({ failures: 1, tests: 2 })
-  })
-
-  it('removes only the embedded Watch app from simulator products', () => {
-    const app = mkdtempSync(join(tmpdir(), 'wildloop-ios-simulator-'))
-    mkdirSync(join(app, 'Watch'))
-    mkdirSync(join(app, 'PlugIns'))
-
-    expect(prepareIosSimulatorBundle(app)).toBe(app)
-    expect(existsSync(join(app, 'Watch'))).toBe(false)
-    expect(existsSync(join(app, 'PlugIns'))).toBe(true)
   })
 
   it('rejects a mobile bundle that lost reactive page setup', () => {
@@ -148,6 +170,28 @@ describe('mobile E2E runner', () => {
     writeFileSync(join(output, 'trails.html'), '<head></head><link rel="stylesheet" href="/css/native-shell.css">')
 
     expect(() => validateNativeShellStyles(output)).toThrow('Built trails.html is missing native shell styles in its document head')
+  })
+
+  it('paints the native tab safe-area wrapper so page content cannot show below the bar', () => {
+    const styles = readFileSync(new URL('../../public/css/native-shell.css', import.meta.url), 'utf8')
+
+    expect(styles).toContain('.native-app-tab-slot')
+    expect(styles).toContain('background: rgb(255 255 255 / 0.9);')
+    expect(styles).toContain('.native-app-shell.native-mobile:has(.native-app-tab-slot) .native-app-content')
+    expect(styles).toContain('.dark .native-app-tab-slot { background: rgb(15 23 42 / 0.9); }')
+    expect(styles).toContain('.dark .native-app-tab-slot { background: rgb(15 23 42); }')
+  })
+
+  it('centers native tab items within a stable touch target', () => {
+    const styles = readFileSync(new URL('../../public/css/native-shell.css', import.meta.url), 'utf8')
+
+    expect(styles).toContain('grid-auto-rows: minmax(0, 1fr);')
+    expect(styles).toContain('height: calc(4rem + var(--native-safe-area-bottom));')
+    expect(styles).toContain('height: 100%;')
+    expect(styles).toContain('.native-tab-bar > [data-stx-scope]')
+    expect(styles).toContain('flex: 1;')
+    expect(styles).toContain('transform: translateY(0.25rem);')
+    expect(styles).toContain('translateY(0.25rem) scale(0.96)')
   })
 
   it('rejects a bundle that loads analytics from every rendered component', () => {

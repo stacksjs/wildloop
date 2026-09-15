@@ -33,6 +33,13 @@
   padding-bottom: var(--native-safe-area-bottom);
 }
 
+/* Native WebViews can be wide and use either coarse or fine pointer media
+ * characteristics. Do not make clearance for a fixed native tab bar depend
+ * on those browser heuristics, or login and form actions can end up behind it. */
+.native-app-shell.native-mobile:has(.native-app-tab-slot) .native-app-content {
+  padding-bottom: calc(4rem + var(--native-safe-area-bottom));
+}
+
 @media (max-width: 767.98px) {
   .native-app-shell:has(.native-app-tab-slot) .native-app-content {
     padding-bottom: calc(4rem + var(--native-safe-area-bottom));
@@ -47,24 +54,46 @@
   bottom: 0;
   left: 0;
   z-index: 30;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(4rem + var(--native-safe-area-bottom));
   padding-right: var(--native-safe-area-right);
-  padding-bottom: var(--native-safe-area-bottom);
   padding-left: var(--native-safe-area-left);
+  background: rgb(255 255 255 / 0.9);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
 }
 
 .native-tab-bar {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  min-height: 4rem;
+  /* A grid's implicit row is content-sized by default. That left the labels
+   * pinned to the top of the native bar and made the unused lower half look
+   * like a large spacing error, especially in landscape. Make its sole row
+   * fill the fixed touch target instead. */
+  grid-auto-rows: minmax(0, 1fr);
+  /* The safe-area inset belongs to the tab row, not below it. This lets the
+   * controls center across the whole visible bar on devices with a home
+   * indicator instead of appearing pinned toward the top. */
+  height: 100%;
   border-top: 1px solid rgb(148 163 184 / 0.22);
   background: rgb(255 255 255 / 0.9);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
 }
 
+/* STX places each slotted tab component inside a scope wrapper. Stretch both
+ * that wrapper and its link so flex centering applies to the full tab height,
+ * rather than to a content-sized link at the top of the bar. */
+.native-tab-bar > [data-stx-scope] {
+  display: flex;
+  min-width: 0;
+}
+
 .native-tab-item {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.2rem;
   align-items: center;
@@ -75,11 +104,12 @@
   font-weight: 600;
   line-height: 1;
   text-decoration: none;
+  transform: translateY(0.25rem);
   transition: color 150ms ease, transform 150ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.native-tab-item:active { transform: scale(0.96); }
+.native-tab-item:active { transform: translateY(0.25rem) scale(0.96); }
 .native-tab-item.is-active { color: rgb(5 150 105); }
 .native-tab-icon { width: 1.35rem; height: 1.35rem; }
 
@@ -102,6 +132,8 @@
   background: rgb(15 23 42 / 0.9);
 }
 
+.dark .native-app-tab-slot { background: rgb(15 23 42 / 0.9); }
+
 .dark .native-tab-item { color: rgb(148 163 184); }
 .dark .native-tab-item.is-active { color: rgb(52 211 153); }
 
@@ -113,4 +145,5 @@
   }
 
   .dark .native-tab-bar { background: rgb(15 23 42); }
+  .dark .native-app-tab-slot { background: rgb(15 23 42); }
 }
