@@ -319,11 +319,18 @@
         <div :if="!privacyLoading" class="grid gap-5 mt-5 sm:grid-cols-2">
           <label class="text-sm text-slate-700 dark:text-slate-300">
             <span class="block mb-1 font-medium">Default activity visibility</span>
-            <select x-value="defaultVisibility" @change="defaultVisibility.set($event.target.value)" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg">
-              <option value="public">Public</option>
-              <option value="followers">Followers</option>
-              <option value="private">Only me</option>
-            </select>
+            <!-- The native select arrow is the OS control and reads as a
+                 foreign object against this dark, rounded UI. Suppress it and
+                 overlay the app's own chevron; `pointer-events-none` keeps the
+                 whole field clickable and the native picker intact. -->
+            <span class="relative block">
+              <select x-value="defaultVisibility" @change="defaultVisibility.set($event.target.value)" class="w-full appearance-none px-3 py-2 pr-10 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg">
+                <option value="public">Public</option>
+                <option value="followers">Followers</option>
+                <option value="private">Only me</option>
+              </select>
+              <i class="i-lucide-chevron-down pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" aria-hidden="true"></i>
+            </span>
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
             <span class="block mb-1 font-medium">Hide each route end (metres)</span>
