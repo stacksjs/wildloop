@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
 
@@ -20,6 +20,12 @@ const generatedRoot = join(projectRoot, 'storage/framework/mobile')
 const resultsRoot = join(projectRoot, 'storage/framework/runtime/e2e')
 const flowRoot = join(projectRoot, '.maestro/flows')
 const testLocation = { latitude: '37.7749', longitude: '-122.4194' }
+const localJavaHomes = [
+  '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
+  '/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home',
+  '/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
+  '/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home',
+]
 // Every page reached by the native smoke and deep-link flows must survive the
 // bundled fallback. Checking only a pair of tabs let a bad Record or Settings
 // bundle pass before the simulator reached it.
@@ -34,9 +40,23 @@ const requiredReactivePages = [
   'login.html',
 ]
 
+export function resolveJavaHome(
+  environment: Record<string, string | undefined>,
+  available: (path: string) => boolean = existsSync,
+): string | undefined {
+  return environment.JAVA_HOME ?? localJavaHomes.find(available)
+}
+
 function normalizedEnvironment(extra: Record<string, string | undefined> = {}): Record<string, string> {
+  const environment = { ...process.env, ...extra }
+  const javaHome = resolveJavaHome(environment)
+  const path = [javaHome ? join(javaHome, 'bin') : undefined, environment.PATH].filter(Boolean).join(':')
+
   return Object.fromEntries(
-    Object.entries({ ...process.env, ...extra }).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+    Object.entries({
+      ...environment,
+      ...(javaHome ? { JAVA_HOME: javaHome, PATH: path } : {}),
+    }).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
   )
 }
 
@@ -103,12 +123,12 @@ export function deepLinkFlow(platform: MobilePlatform): string {
   return platform === 'ios' ? '02-deep-link-ios.yaml' : '02-deep-link.yaml'
 }
 
-export function prepareIosSimulatorBundle(app: string): string {
-  // CoreSimulator can reject an otherwise valid iOS app when an embedded
-  // watchOS companion is present. The phone app itself is unchanged; only the
-  // generated simulator product loses its separately-tested Watch directory.
-  rmSync(join(app, 'Watch'), { force: true, recursive: true })
-  return app
+export function maestroEnvironment(): Record<string, string> {
+  return {
+    // Test runs must not send device or test metadata to a third-party service.
+    MAESTRO_CLI_NO_ANALYTICS: '1',
+    MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
+  }
 }
 
 export function validateBundledFrontend(outputRoot: string): void {
@@ -198,7 +218,26 @@ function stxSourceRoot(): string | undefined {
   return existsSync(join(local, 'packages/stx/src/build.ts')) ? local : undefined
 }
 
-function buildGeneratedApp(platform: MobilePlatform): void {
+export function signedInTargetURL(environment: Record<string, string | undefined> = process.env): string | null {
+  if (environment.MOBILE_E2E_SIGNED_IN !== 'true') return null
+
+  const value = environment.MOBILE_E2E_URL
+  if (!value) throw new Error('Set MOBILE_E2E_URL before running the signed-in mobile journey.')
+
+  let url: URL
+  try {
+    url = new URL(value)
+  }
+  catch {
+    throw new Error('MOBILE_E2E_URL must be an absolute http or https URL.')
+  }
+  if (!['http:', 'https:'].includes(url.protocol))
+    throw new Error('MOBILE_E2E_URL must be an absolute http or https URL.')
+
+  return url.toString().replace(/\/$/, '')
+}
+
+function buildGeneratedApp(platform: MobilePlatform, remoteURL: string | null = signedInTargetURL()): void {
   const envName = platform === 'ios' ? 'CRAFT_IOS_SRC' : 'CRAFT_ANDROID_SRC'
   const source = craftSource(platform)
   // Use the project script so Bun applies the checked-in STX patch. `bunx
@@ -215,13 +254,23 @@ function buildGeneratedApp(platform: MobilePlatform): void {
   validateAnalyticsScriptCount(join(projectRoot, 'dist'))
   execute(['bun', 'run', `build:${platform}`], {
     env: {
-      MOBILE_E2E: '1',
+      // Anonymous smoke and offline journeys need the deterministic bundle.
+      // The authenticated flow instead loads its explicitly supplied server,
+      // which is the only way credentials, API persistence, and secure
+      // storage can be tested together.
+      MOBILE_E2E: remoteURL ? '0' : '1',
+      ...(remoteURL ? { MOBILE_URL: remoteURL } : {}),
       ...(source ? { [envName]: source } : {}),
     },
   })
 }
 
-function runMaestroFlow(platform: MobilePlatform, deviceId: string, flow: string): void {
+function runMaestroFlow(
+  platform: MobilePlatform,
+  deviceId: string,
+  flow: string,
+  variables: Record<string, string> = {},
+): void {
   requireCommand('maestro')
   requirePath(flowRoot, 'Maestro flow directory')
 
@@ -229,13 +278,14 @@ function runMaestroFlow(platform: MobilePlatform, deviceId: string, flow: string
   const slug = flow.replace(/\.yaml$/, '')
   const report = join(platformResults, `${slug}.xml`)
   mkdirSync(platformResults, { recursive: true })
+  const flowVariables = { APP_ID: appId(platform), ...variables }
+  const variableArguments = Object.entries(flowVariables).flatMap(([name, value]) => ['--env', `${name}=${value}`])
   execute([
     'maestro',
     `--device=${deviceId}`,
     '--no-ansi',
     'test',
-    '--env',
-    `APP_ID=${appId(platform)}`,
+    ...variableArguments,
     '--format',
     'junit',
     '--output',
@@ -245,14 +295,26 @@ function runMaestroFlow(platform: MobilePlatform, deviceId: string, flow: string
     '--test-output-dir',
     join(platformResults, 'tests', slug),
     join(flowRoot, flow),
-  ])
+  ], { env: maestroEnvironment() })
 
   const summary = maestroReportSummary(readFileSync(report, 'utf8'))
   if (summary.tests === 0) throw new Error(`Maestro ran no ${platform} tests`)
   if (summary.failures > 0) throw new Error(`Maestro reported ${summary.failures} failed ${platform} test(s)`)
 }
 
-function runMaestroJourneys(platform: MobilePlatform, deviceId: string): void {
+function runMaestroJourneys(platform: MobilePlatform, deviceId: string, signedInURL: string | null): void {
+  if (platform === 'ios' && signedInURL) {
+    const email = process.env.MOBILE_E2E_EMAIL
+    const password = process.env.MOBILE_E2E_PASSWORD
+    if (!email || !password)
+      throw new Error('Set MOBILE_E2E_EMAIL and MOBILE_E2E_PASSWORD before running the signed-in mobile journey.')
+    runMaestroFlow(platform, deviceId, '04-signed-in-recording-ios.yaml', {
+      E2E_EMAIL: email,
+      E2E_PASSWORD: password,
+    })
+    return
+  }
+
   runMaestroFlow(platform, deviceId, '01-navigation.yaml')
   runMaestroFlow(platform, deviceId, '03-offline-bundle.yaml')
 
@@ -275,6 +337,7 @@ function runMaestroJourneys(platform: MobilePlatform, deviceId: string): void {
   }
 
   runMaestroFlow(platform, deviceId, deepLinkFlow(platform))
+
 }
 
 /**
@@ -339,7 +402,7 @@ function runAndroid(preview: boolean): void {
   }
 }
 
-function runIos(preview: boolean): void {
+function runIos(preview: boolean, signedInURL: string | null): void {
   requireCommand('xcodebuild')
   requireCommand('xcrun')
 
@@ -370,7 +433,7 @@ function runIos(preview: boolean): void {
     ?? join(derivedData, 'Build/Products/Debug-iphonesimulator/WildLoop.app')
   requirePath(app, 'iOS E2E app')
   validateIosAppBundle(app)
-  execute(['xcrun', 'simctl', 'install', device.udid, prepareIosSimulatorBundle(app)])
+  execute(['xcrun', 'simctl', 'install', device.udid, app])
   if (preview) {
     requireCommand('open')
     execute(['open', '-a', 'Simulator'])
@@ -379,7 +442,7 @@ function runIos(preview: boolean): void {
   }
   else {
     seedTestLocation('ios', device.udid)
-    runMaestroJourneys('ios', device.udid)
+    runMaestroJourneys('ios', device.udid, signedInURL)
   }
 }
 
@@ -403,8 +466,11 @@ if (import.meta.main) {
     if (preview && buildOnly) throw new Error('--preview and --build-only cannot be combined')
     if (!preview && !buildOnly) requireCommand('maestro')
 
-    if (!skipBuild) buildGeneratedApp(platform)
-    if (!buildOnly) platform === 'ios' ? runIos(preview) : runAndroid(preview)
+    const remoteURL = signedInTargetURL()
+    if (platform === 'android' && remoteURL)
+      throw new Error('The signed-in recording journey is currently available for iOS only.')
+    if (!skipBuild) buildGeneratedApp(platform, remoteURL)
+    if (!buildOnly) platform === 'ios' ? runIos(preview, remoteURL) : runAndroid(preview)
   }
   catch (error) {
     console.error(error instanceof Error ? error.message : error)

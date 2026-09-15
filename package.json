@@ -97,6 +97,7 @@
     "check:iphone": "bun scripts/run-ios-device.ts --compile-only",
     "test:e2e:android": "bun scripts/run-mobile-e2e.ts android",
     "test:e2e:ios": "bun scripts/run-mobile-e2e.ts ios",
+    "test:e2e:ios:signed": "MOBILE_E2E_SIGNED_IN=true bun scripts/run-mobile-e2e.ts ios",
     "test:ui": "./buddy test:ui",
     "test:coverage": "./buddy test:coverage",
     "test:types": "./buddy test:types",

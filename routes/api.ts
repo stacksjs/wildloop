@@ -527,6 +527,7 @@ route.group({ middleware: 'auth' }, () => {
     route.get('/notifications', 'Actions/Social/NotificationIndexAction')
     route.post('/notifications/read', 'Actions/Social/NotificationReadAction')
     route.post('/notifications/push-token', 'Actions/Notification/RegisterPushTokenAction')
+    route.delete('/notifications/push-token', 'Actions/Notification/UnregisterPushTokenAction')
     // Route records - file an attempt, close it out, withdraw it. Reviewing is
     // the one write here that is not the athlete's own: it changes what the
     // site publicly asserts, so it carries `role:admin` on top of `auth`.

@@ -186,6 +186,7 @@ export async function signOut(): Promise<void> {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)
   if (isCraftHost()) await secureStorage.delete(TOKEN_KEY).catch(() => undefined)
+  announceAuthReady(null)
 }
 
 /**

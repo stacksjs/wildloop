@@ -5,14 +5,21 @@ tags:
   - ios
   - mobile
 ---
-- extendedWaitUntil:
-    visible: Open
-    timeout: 30000
-- tapOn: "^Open$"
+# iOS may either show an app-switch confirmation or open the registered scheme
+# directly. In both cases the required assertion below proves the deep link.
+- runFlow:
+    when:
+      visible: "^Open$"
+    commands:
+      - tapOn: "^Open$"
 - extendedWaitUntil:
     visible: "Close a loop.*"
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
+- tapOn: Allow precise location
+- extendedWaitUntil:
+    visible: WildLoop could not get a current location.*
+    timeout: 20000
 - scrollUntilVisible:
     element:
       text: Start recording

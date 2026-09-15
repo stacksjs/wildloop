@@ -8,6 +8,23 @@ interface NativeTabItemProps {
 const { href, icon, label } = defineProps<NativeTabItemProps>()
 </script>
 
+<script client>
+import { device, isNativeMobile } from '@stacksjs/mobile'
+
+// Craft currently installs its iOS bridge after the document has started.
+// Keeping an iPhone tab change inside the existing document therefore retains
+// the already-resolved Keychain session. Android deliberately keeps the href
+// navigation below: its packaged fallback needs document loads after a cold
+// start. This is a narrow client-side resilience measure, not auth enforcement.
+const usesIosNativeRouting = state(isNativeMobile() && device.isIOS())
+
+function followTab(event: MouseEvent): void {
+  if (!usesIosNativeRouting()) return
+  event.preventDefault()
+  navigate(href)
+}
+</script>
+
 <!--
   Native tabs deliberately use document navigation. Craft's Android WebView
   loads each bundled fallback page reliably, while an SPA fragment swap can
@@ -17,6 +34,7 @@ const { href, icon, label } = defineProps<NativeTabItemProps>()
   href="{{ href }}"
   aria-label="{{ label }}"
   class="native-tab-item"
+  @click="followTab"
 >
   <i aria-hidden="true" class="{{ icon }} native-tab-icon"></i>
   <span>{{ label }}</span>

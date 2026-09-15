@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
+import mobileConfig from '../config/mobile'
 
 interface CoreDevice {
   identifier: string
@@ -26,6 +27,7 @@ const projectRoot = resolve(import.meta.dir, '..')
 const generatedRoot = join(projectRoot, 'storage/framework/mobile/ios')
 const runtimeRoot = join(projectRoot, 'storage/framework/runtime/ios-device')
 const bundleId = process.env.IOS_BUNDLE_ID ?? 'org.wildloop.app'
+const watchAppEnabled = mobileConfig.ios.capabilities?.watchApp === true
 
 function normalizedEnvironment(extra: Record<string, string | undefined> = {}): Record<string, string> {
   const localBin = join(homedir(), '.local/bin')
@@ -62,6 +64,10 @@ function developerDir(): string {
 export function inferDevelopmentTeam(identityOutput: string): string | null {
   const teams = new Set([...identityOutput.matchAll(/Apple Development:.*\(([A-Z0-9]{10})\)/g)].map(match => match[1]))
   return teams.size === 1 ? [...teams][0] : null
+}
+
+export function requiresDevelopmentTeam(args: string[]): boolean {
+  return !args.includes('--compile-only')
 }
 
 function developmentTeam(): string {
@@ -126,13 +132,17 @@ function generateProject(xcode: string, teamId: string, bundled: boolean): void 
   })
 }
 
-function validateApp(app: string, xcode: string, signed: boolean): void {
-  const required = [
+export function requiredIosAppPaths(app: string, includeWatchApp = watchAppEnabled): string[] {
+  return [
     join(app, 'WildLoop'),
     join(app, 'dist/index.html'),
     join(app, 'PlugIns/WildLoopLiveActivity.appex'),
-    join(app, 'Watch/WildLoopWatch.app'),
+    ...(includeWatchApp ? [join(app, 'Watch/WildLoopWatch.app')] : []),
   ]
+}
+
+function validateApp(app: string, xcode: string, signed: boolean): void {
+  const required = requiredIosAppPaths(app)
   for (const path of required) {
     if (!existsSync(path)) throw new Error(`Device build is incomplete: ${path}`)
   }
@@ -160,7 +170,9 @@ function buildForDevice(xcode: string, teamId: string, phone: IosPhone | null, u
   }
   catch (error) {
     if (!unsigned) {
-      throw new Error(`${error instanceof Error ? error.message : error}\n\nSigning needs an Apple account in Xcode > Settings > Accounts and automatic profiles for ${bundleId}, ${bundleId}.liveactivity, and ${bundleId}.watchkitapp.`)
+      const targets = [bundleId, `${bundleId}.liveactivity`]
+      if (watchAppEnabled) targets.push(`${bundleId}.watchkitapp`)
+      throw new Error(`${error instanceof Error ? error.message : error}\n\nSigning needs an Apple account in Xcode > Settings > Accounts and automatic profiles for ${targets.join(', ')}.`)
     }
     throw error
   }
@@ -184,7 +196,7 @@ if (import.meta.main) {
     const compileOnly = args.has('--compile-only')
     const buildOnly = args.has('--build-only') || compileOnly
     const xcode = developerDir()
-    const teamId = developmentTeam()
+    const teamId = requiresDevelopmentTeam([...args]) ? developmentTeam() : ''
     const phone = buildOnly ? null : availableIphone(xcode)
     if (!args.has('--skip-generate')) generateProject(xcode, teamId, args.has('--bundled'))
     const app = buildForDevice(xcode, teamId, phone, compileOnly)

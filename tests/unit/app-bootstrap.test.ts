@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { dataNeedsForPath } from '../../resources/composables/useWildLoopApp'
+import { authReadyUser, dataNeedsForPath } from '../../resources/composables/useWildLoopApp'
 
 describe('route-aware app bootstrap', () => {
   it('keeps the marketing route free of unrelated catalog requests', () => {
@@ -38,5 +38,13 @@ describe('route-aware app bootstrap', () => {
   it('loads social data for feed and athlete pages', () => {
     expect(dataNeedsForPath('/feed')).toMatchObject({ activities: true, follows: true })
     expect(dataNeedsForPath('/athlete/42')).toMatchObject({ activities: true, follows: true })
+  })
+
+  it('accepts only a complete authenticated identity from the cross-bundle event', () => {
+    expect(authReadyUser({ user: { id: 7, email: 'runner@wildloop.test', name: 'Runner' } }))
+      .toMatchObject({ id: 7, email: 'runner@wildloop.test' })
+    expect(authReadyUser({ user: { id: 0, email: 'runner@wildloop.test' } })).toBeNull()
+    expect(authReadyUser({ user: { id: 7 } })).toBeNull()
+    expect(authReadyUser(null)).toBeNull()
   })
 })

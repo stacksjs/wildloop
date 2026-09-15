@@ -49,13 +49,34 @@ describe('mobile Buddy commands', () => {
     expect(clientSources.every(source => !source.includes('storage/framework/core'))).toBe(true)
   })
 
+  it('exposes the local-server signed-in iOS journey without adding credentials to package scripts', async () => {
+    const packageJson = await Bun.file(new URL('../../package.json', import.meta.url)).json()
+
+    expect(packageJson.scripts['test:e2e:ios:signed']).toContain('MOBILE_E2E_SIGNED_IN=true')
+    expect(packageJson.scripts['test:e2e:ios:signed']).not.toContain('MOBILE_E2E_PASSWORD=')
+  })
+
   it('keeps recording behind a real location sample', async () => {
     const recordView = await Bun.file(new URL('../../resources/views/record.stx', import.meta.url)).text()
+    const locationButton = await Bun.file(new URL('../../resources/components/NativeLocationPermissionButton.stx', import.meta.url)).text()
 
     // Craft's generic permission bridge does not currently report Android
     // location correctly. The app asks the dedicated location bridge for a
     // real sample, which is also what recording needs to begin safely.
     expect(recordView).toContain('<NativeLocationPermissionButton')
+    expect(locationButton).toContain('withLocationRequestTimeout(location.getCurrentPosition')
+    expect(await Bun.file(new URL('../../resources/composables/useRecorder.ts', import.meta.url)).text()).toContain('withLocationRequestTimeout(location.getCurrentPosition')
     expect(recordView).not.toContain('<NativePermissionButton')
+  })
+
+  it('keeps Android fallback tabs as document navigation while preserving the iOS session', async () => {
+    const nativeTabs = await Bun.file(new URL('../../resources/components/NativeTabItem.stx', import.meta.url)).text()
+
+    expect(nativeTabs).toContain('href="{{ href }}"')
+    expect(nativeTabs).not.toContain('data-stx-link')
+    expect(nativeTabs).toContain("import { device, isNativeMobile } from '@stacksjs/mobile'")
+    expect(nativeTabs).toContain('device.isIOS()')
+    expect(nativeTabs).toContain('@click="followTab"')
+    expect(nativeTabs).toContain('navigate(href)')
   })
 })

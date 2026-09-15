@@ -1,9 +1,9 @@
-import { useStore } from 'stx'
+import { onDestroy, useStore } from 'stx'
 import { currentUser, initializeAuthSession, isSignedIn } from '../assets/scripts/auth'
 import { useActivityCatalog } from './useActivityCatalog'
 import { useBattleFeed } from './useBattleFeed'
-import { useFollows } from './useFollows'
-import { useNotifications } from './useNotifications'
+import { hydrateFollows, useFollows } from './useFollows'
+import { hydrateNotifications, useNotifications } from './useNotifications'
 import { useRunUploadQueue } from './useRunUploadQueue'
 import { useTerritoryCatalog } from './useTerritoryCatalog'
 import { useTrailCatalog } from './useTrailCatalog'
@@ -14,6 +14,17 @@ interface BootstrapUser {
   name?: string
   avatar?: string | null
   roles?: string[]
+}
+
+/** Parse the cross-bundle auth event defensively before changing shared state. */
+export function authReadyUser(detail: unknown): BootstrapUser | null {
+  if (!detail || typeof detail !== 'object') return null
+  const user = (detail as { user?: unknown }).user
+  if (!user || typeof user !== 'object') return null
+  const candidate = user as Partial<BootstrapUser>
+  if (!Number.isSafeInteger(candidate.id) || Number(candidate.id) <= 0 || typeof candidate.email !== 'string')
+    return null
+  return candidate as BootstrapUser
 }
 
 type WildLoopAppStore =
@@ -94,12 +105,31 @@ export function useWildLoopApp(): void {
     useActivityCatalog(wl)
   if (needs.battles)
     useBattleFeed(wl)
-  if (hasSession && needs.follows)
-    useFollows(wl)
+  function hydrateAuthenticatedSources() {
+    if (needs.follows)
+      void hydrateFollows(wl)
+    void hydrateNotifications(wl)
+  }
+
   if (hasSession) {
+    if (needs.follows)
+      useFollows(wl)
     useNotifications(wl)
     useRunUploadQueue(wl)
   }
+
+  const onAuthReady = (event: Event) => {
+    const user = authReadyUser((event as CustomEvent).detail)
+    if (user) {
+      wl.hydrateAuthenticatedUser(user)
+      hydrateAuthenticatedSources()
+    }
+    else {
+      wl.clearAuthenticatedUser()
+    }
+  }
+  globalThis.addEventListener('wildloop:auth-ready', onAuthReady)
+  onDestroy(() => globalThis.removeEventListener('wildloop:auth-ready', onAuthReady))
 
   // The server remains authoritative. Local identity only prevents a flash
   // of signed-out UI while the current bearer token is checked.
@@ -107,9 +137,12 @@ export function useWildLoopApp(): void {
     return
   identityStarted = true
   serverUser().then((user) => {
-    if (user)
+    if (user) {
       wl.hydrateAuthenticatedUser(user)
-    else
+      hydrateAuthenticatedSources()
+    }
+    else {
       wl.clearAuthenticatedUser()
+    }
   })
 }

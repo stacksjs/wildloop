@@ -57,7 +57,9 @@ export default {
       healthKit: true,
       keepAwake: true,
       liveActivities: true,
-      watchApp: true,
+      // Craft currently emits an incomplete WatchKit target graph. Keep the
+      // iPhone app installable until craft-native/craft#195 is resolved.
+      watchApp: false,
       localDatabase: true,
       orientationLock: true,
       pushNotifications: true,

@@ -88,6 +88,8 @@ declare global {
   const generateSampleLoopJson: typeof autoImports.generateSampleLoopJson
   const validateGpsDataForClaim: typeof autoImports.validateGpsDataForClaim
   const validateTrackRealism: typeof autoImports.validateTrackRealism
+  const formatHealthSummary: typeof autoImports.formatHealthSummary
+  const createHealthWorkout: typeof autoImports.createHealthWorkout
   const extractMentionQuery: typeof autoImports.extractMentionQuery
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention

@@ -21,8 +21,10 @@
 
 <script client>
   import { device, health, isNativeMobile, secureStorage } from '@stacksjs/mobile'
-  import { isSignedIn, redirectTo, token } from '../assets/scripts/auth'
+  import { readyToken, redirectTo, token } from '../assets/scripts/auth'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
+  import { disableNativePushNotifications, enableNativePushNotifications } from '../composables/useNativeServices'
+  import { formatHealthSummary } from '../functions/health-summary'
 
   useHead({ title: 'Settings — WildLoop' })
 
@@ -47,6 +49,9 @@
   const nativeHealthConnected = state(false)
   const nativeHealthWorking = state(false)
   const nativeHealthSummary = state('')
+  const nativePushAvailable = state(false)
+  const nativePushEnabled = state(false)
+  const nativePushWorking = state(false)
   const nativeHealthProvider = derived(() => device.isIOS() ? 'Apple Health' : 'Health Connect')
   const nativeHealthButtonLabel = derived(() => nativeHealthConnected() ? 'Refresh health summary' : `Connect ${nativeHealthProvider()}`)
 
@@ -137,8 +142,8 @@
     notice.set('Privacy and location-safety settings saved.')
   }
 
-  onMount(() => {
-    if (!isSignedIn()) {
+  onMount(async () => {
+    if (!await readyToken()) {
       navigate('/login')
       return
     }
@@ -153,12 +158,40 @@
     loadStatus()
     loadPrivacy()
     nativeHealthAvailable.set(isNativeMobile() && (device.isIOS() || device.isAndroid()))
+    nativePushAvailable.set(isNativeMobile() && (device.isIOS() || device.isAndroid()))
     if (nativeHealthAvailable()) {
       secureStorage.get('wildloop_health_connected')
         .then(value => nativeHealthConnected.set(value === 'true'))
         .catch(() => undefined)
     }
+    if (nativePushAvailable()) {
+      secureStorage.get('wildloop_push_enabled')
+        .then(value => nativePushEnabled.set(value === 'true'))
+        .catch(() => undefined)
+    }
   })
+
+  async function toggleNativePush() {
+    nativePushWorking.set(true)
+    error.set('')
+    notice.set('')
+    try {
+      const enabled = nativePushEnabled()
+        ? await disableNativePushNotifications()
+        : await enableNativePushNotifications()
+      if (!enabled) throw new Error(nativePushEnabled()
+        ? 'Could not turn off device notifications. Try again in a moment.'
+        : 'Notifications were not enabled. Check your device settings and try again.')
+      nativePushEnabled.set(!nativePushEnabled())
+      notice.set(nativePushEnabled() ? 'Device notifications are on.' : 'Device notifications are off.')
+    }
+    catch (err) {
+      error.set(err instanceof Error ? err.message : 'Could not update device notifications.')
+    }
+    finally {
+      nativePushWorking.set(false)
+    }
+  }
 
   async function connectNativeHealth() {
     nativeHealthWorking.set(true)
@@ -173,7 +206,11 @@
         health.getData('distance', { startDate }),
         health.getData('activeEnergy', { startDate }),
       ])
-      nativeHealthSummary.set(`${Math.round(steps.value).toLocaleString()} steps · ${(distance.value / 1000).toFixed(1)} km · ${Math.round(energy.value)} kcal today`)
+      nativeHealthSummary.set(formatHealthSummary({
+        steps: steps?.value,
+        distanceMetres: distance?.value,
+        activeEnergy: energy?.value,
+      }))
       nativeHealthConnected.set(true)
       await secureStorage.set('wildloop_health_connected', 'true')
       notice.set(`${nativeHealthProvider()} connected. Completed phone recordings can now be saved as workouts.`)
@@ -382,6 +419,21 @@
         <p :if="nativeHealthSummary" class="mt-3 font-medium text-slate-700 text-sm dark:text-slate-200">{{ nativeHealthSummary }}</p>
         <button type="button" @click="connectNativeHealth()" x-disabled="nativeHealthWorking" class="mt-4 px-5 py-2.5 font-semibold text-sm text-white bg-rose-600 hover:bg-rose-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]">
           {{ nativeHealthButtonLabel }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section :if="nativePushAvailable" class="mt-6 p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+    <div class="flex gap-4 items-start">
+      <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" aria-hidden="true">
+        <i class="i-hugeicons-notification-02 h-6 w-6 text-emerald-600 dark:text-emerald-300"></i>
+      </span>
+      <div class="min-w-0 flex-1">
+        <h2 class="font-semibold text-slate-900 dark:text-white">Device notifications</h2>
+        <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Choose whether WildLoop can send activity, club and territory updates to this phone.</p>
+        <button type="button" @click="toggleNativePush()" x-disabled="nativePushWorking" class="mt-4 px-5 py-2.5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]">
+          {{ nativePushWorking ? 'Updating notifications' : nativePushEnabled ? 'Turn off notifications' : 'Turn on notifications' }}
         </button>
       </div>
     </div>

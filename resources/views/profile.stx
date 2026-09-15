@@ -21,6 +21,7 @@
 
 <script client>
   import { fetchFollows } from '../assets/scripts/game-api'
+  import { signOut } from '../assets/scripts/auth'
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
   import { useSavedTrails } from '../composables/useSavedTrails'
 
@@ -40,6 +41,11 @@
   const achievements = derived(() => wl ? wl.achievements() : [])
   const savedTrails = derived(() => wl ? wl.trails().filter((t: any) => wl.isTrailSaved(t.id)) : [])
 
+  async function handleSignOut(): Promise<void> {
+    await signOut()
+    navigate('/')
+  }
+
   onMount(async () => {
     if (!wl) return
     try {
@@ -58,7 +64,8 @@
 
   <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-4xl">
     <!-- Profile header -->
-    <div class="mb-6 card">
+    <div class="relative mb-6 card">
+      <button :if="currentUser" type="button" @click="handleSignOut()" class="absolute right-4 top-4 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Log out</button>
       <div class="flex flex-col gap-6 items-center sm:flex-row">
         <div class="flex items-center justify-center h-24 w-24 font-bold text-3xl text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">{{ (currentUser?.name || 'U').charAt(0) }}</div>
         <div class="flex-1 text-center sm:text-left">

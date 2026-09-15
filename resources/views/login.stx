@@ -32,7 +32,7 @@
 </script>
 
 <script client>
-  import { isSignedIn, postAuthDestination, redirectAfterAuth, signIn } from '../assets/scripts/auth'
+  import { postAuthDestination, readyToken, redirectAfterAuth, signIn } from '../assets/scripts/auth'
 
   useHead({ title: 'Log In — WildLoop' })
 
@@ -43,9 +43,9 @@
   const error = state('')
   const success = state('')
 
-  onMount(() => {
+  onMount(async () => {
     // Already signed in: nothing to do on a sign-in page.
-    if (isSignedIn()) navigate(postAuthDestination('/'))
+    if (await readyToken()) navigate(postAuthDestination('/'))
   })
 
   async function handleLogin(e) {

@@ -49,7 +49,8 @@ tags:
     text: Start recording
     enabled: true
 - tapOn: Start recording
-- takeScreenshot: signed-out-recording
+- assertVisible: Sign in before recording an activity.
+- takeScreenshot: signed-out-recording-gate
 - tapOn: "^Territory$"
 - extendedWaitUntil:
     visible: Your territory map
@@ -60,7 +61,7 @@ tags:
     visible: Activities
     timeout: 30000
 - takeScreenshot: profile
-- tapOn: "^Settings$"
+- tapOn: "^Log in$"
 - extendedWaitUntil:
     visible: Welcome Back
     timeout: 30000

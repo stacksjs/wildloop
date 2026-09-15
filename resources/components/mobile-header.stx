@@ -3,6 +3,7 @@ import { haptics } from '@stacksjs/mobile'
 import { currentUser, initializeAuthSession, token } from '../assets/scripts/auth'
 
 const isAdmin = state(false)
+const signedIn = state(false)
 
 function tap(): void {
   void haptics.selection()
@@ -10,13 +11,18 @@ function tap(): void {
 
 function applyAccount(): void {
   const account = currentUser()
-  isAdmin.set(Boolean(token() && account?.roles?.includes('admin')))
+  const hasSession = Boolean(token())
+  signedIn.set(hasSession)
+  isAdmin.set(Boolean(hasSession && account?.roles?.includes('admin')))
 }
 
 onMount(() => {
   applyAccount()
   void initializeAuthSession().then(applyAccount)
+  globalThis.addEventListener('wildloop:auth-ready', applyAccount)
 })
+
+onDestroy(() => globalThis.removeEventListener('wildloop:auth-ready', applyAccount))
 </script>
 
 <header class="native-app-sticky-top sticky z-40 flex h-13 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 backdrop-blur-xl lg:hidden dark:border-slate-700/70 dark:bg-slate-950/90">
@@ -27,14 +33,18 @@ onMount(() => {
   </a>
 
   <div class="flex items-center gap-1">
-    <a href="/notifications" aria-label="Notifications" class="relative grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()">
+    <div :if="!signedIn" class="flex items-center gap-1" x-cloak>
+      <a href="/login" class="rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition active:scale-95 dark:text-slate-200" @click="tap()">Log in</a>
+      <a href="/register" class="rounded-full bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition active:scale-95" @click="tap()">Sign up</a>
+    </div>
+    <a :if="signedIn" href="/notifications" aria-label="Notifications" class="relative grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()" x-cloak>
       <i class="i-lucide-bell h-5 w-5" aria-hidden="true"></i>
       <span class="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-950"></span>
     </a>
     <a :if="isAdmin" href="/admin" aria-label="Admin" class="grid h-11 w-11 place-items-center rounded-full text-emerald-600 transition active:scale-95 dark:text-emerald-400" @click="tap()">
       <i class="i-lucide-shield-check h-5 w-5" aria-hidden="true"></i>
     </a>
-    <a href="/settings" aria-label="Settings" class="grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()">
+    <a :if="signedIn" href="/settings" aria-label="Settings" class="grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()" x-cloak>
       <i class="i-lucide-settings-2 h-5 w-5" aria-hidden="true"></i>
     </a>
   </div>

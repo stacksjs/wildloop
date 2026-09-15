@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { isRecordingCheckpointStale, mergeNativeLocationSamples, RECORDING_CHECKPOINT_MAX_AGE_MS } from '../../resources/assets/scripts/recording-checkpoint'
+import { isRecordingCheckpointStale, mergeNativeLocationSamples, ownsRecordingCheckpoint, RECORDING_CHECKPOINT_MAX_AGE_MS } from '../../resources/assets/scripts/recording-checkpoint'
 
 describe('durable recording samples', () => {
   it('merges background locations in timestamp order without duplicates', () => {
@@ -15,6 +15,19 @@ describe('durable recording samples', () => {
     expect(merged[0].eleFt).toBeCloseTo(6.56168)
   })
 
+  it('ignores malformed native samples so a bridge payload cannot poison route metrics', () => {
+    const merged = mergeNativeLocationSamples([], [
+      { latitude: Number.NaN, longitude: -122, timestamp: 1_000, accuracy: 4 },
+      { latitude: 37, longitude: -122, timestamp: 0, accuracy: 4 },
+      { latitude: 37, longitude: -122, timestamp: 2_000, altitude: Number.NaN, accuracy: Number.NaN },
+      { latitude: 91, longitude: -122, timestamp: 3_000, accuracy: 4 },
+    ])
+
+    expect(merged).toEqual([
+      { lat: 37, lng: -122, t: 2_000, eleFt: null, movingS: 0, accuracy: null },
+    ])
+  })
+
   it('retains a checkpoint at its recovery boundary and expires only older drafts', () => {
     const now = 2_000_000_000
 
@@ -24,5 +37,12 @@ describe('durable recording samples', () => {
 
   it('retains a checkpoint when a corrected device clock is earlier than the save', () => {
     expect(isRecordingCheckpointStale({ savedAt: 2_000 }, 1_000)).toBe(false)
+  })
+
+  it('only recovers checkpoints owned by the active authenticated account', () => {
+    expect(ownsRecordingCheckpoint({ userId: 42 }, 42)).toBe(true)
+    expect(ownsRecordingCheckpoint({ userId: 42 }, 7)).toBe(false)
+    expect(ownsRecordingCheckpoint({ userId: 42 }, 0)).toBe(false)
+    expect(ownsRecordingCheckpoint(null, 42)).toBe(false)
   })
 })

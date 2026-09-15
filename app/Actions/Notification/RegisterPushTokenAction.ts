@@ -35,6 +35,11 @@ export default new Action({
       last_seen_at: new Date().toISOString(),
     }
     const existing = await DevicePushToken.where('token', '=', token).first()
+    // A device token must not become an account-switch primitive. The account
+    // that registered it can remove it from Settings; another authenticated
+    // account cannot silently redirect that device's notifications.
+    if (existing && existing.user_id !== user.id)
+      return response.json({ success: false, error: 'This device is registered to another account. Turn off notifications before switching accounts.' }, 409)
     const saved = existing
       ? await DevicePushToken.forceUpdate(existing.id, values)
       : await DevicePushToken.forceCreate(values)

@@ -577,6 +577,9 @@ export interface RunResult {
   activityId: number | null
   claim?: ClaimResult
   conquest?: ConquestResult
+  /** The activity was saved, but server-side telemetry verification excluded it from capture. */
+  captureIneligible?: boolean
+  integrityReason?: string | null
   queued?: boolean
   error?: string
 }
@@ -601,7 +604,8 @@ export async function persistRunAndProcess(
     if (!activity.captureEligible) {
       return {
         activityId: activity.id,
-        error: activity.integrityReason || 'Run saved, but its telemetry was not capture eligible',
+        captureIneligible: true,
+        integrityReason: activity.integrityReason || 'Route telemetry was not eligible for territory capture',
       }
     }
 
@@ -621,6 +625,15 @@ export async function persistRunAndProcess(
     }
     throw error
   }
+}
+
+/** Explain a completed recording without treating an integrity exclusion as a failed save. */
+export function runSaveMessage(result: RunResult): string {
+  if (!result.activityId)
+    return result.error || 'Activity could not be saved'
+  if (result.captureIneligible)
+    return `Activity saved, but territory capture did not count: ${result.integrityReason || 'Route telemetry was not eligible'}`
+  return 'Activity saved'
 }
 
 /** Build a short toast message from a run result, or null if nothing happened. */

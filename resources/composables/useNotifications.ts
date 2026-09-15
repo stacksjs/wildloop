@@ -21,29 +21,31 @@ interface NotificationStoreLike {
 
 let notificationsStarted = false
 
-export function useNotifications(wl: NotificationStoreLike | null) {
-  onMount(async () => {
-    if (!wl || notificationsStarted)
+export async function hydrateNotifications(wl: NotificationStoreLike | null): Promise<void> {
+  if (!wl || notificationsStarted)
+    return
+  notificationsStarted = true
+  try {
+    const data = await fetchNotifications()
+    if (!data || !Array.isArray(data.notifications))
       return
-    notificationsStarted = true
-    try {
-      const data = await fetchNotifications()
-      if (!data || !Array.isArray(data.notifications))
-        return
-      // Map the API shape to the store's Notification shape.
-      const mapped = data.notifications.map((n: any) => ({
-        id: n.id,
-        type: n.type,
-        title: n.actorName || 'WildLoop',
-        message: n.body,
-        link: n.link || '#',
-        read: !!n.read,
-        created_at: n.createdAt,
-      }))
-      wl.hydrateNotifications(mapped)
-    }
-    catch {
-      // keep seed notifications
-    }
-  })
+    // Map the API shape to the store's Notification shape.
+    const mapped = data.notifications.map((n: any) => ({
+      id: n.id,
+      type: n.type,
+      title: n.actorName || 'WildLoop',
+      message: n.body,
+      link: n.link || '#',
+      read: !!n.read,
+      created_at: n.createdAt,
+    }))
+    wl.hydrateNotifications(mapped)
+  }
+  catch {
+    // keep seed notifications
+  }
+}
+
+export function useNotifications(wl: NotificationStoreLike | null) {
+  onMount(() => void hydrateNotifications(wl))
 }

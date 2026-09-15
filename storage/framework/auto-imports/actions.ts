@@ -54,6 +54,7 @@ export const actions = {
   'Actions/Integration/IntegrationStatusAction': '../../../app/Actions/Integration/IntegrationStatusAction.ts',
   'Actions/Maintenance/RecomputeCountersAction': '../../../app/Actions/Maintenance/RecomputeCountersAction.ts',
   'Actions/Notification/RegisterPushTokenAction': '../../../app/Actions/Notification/RegisterPushTokenAction.ts',
+  'Actions/Notification/UnregisterPushTokenAction': '../../../app/Actions/Notification/UnregisterPushTokenAction.ts',
   'Actions/Privacy/PrivacySettingsShowAction': '../../../app/Actions/Privacy/PrivacySettingsShowAction.ts',
   'Actions/Privacy/PrivacySettingsUpdateAction': '../../../app/Actions/Privacy/PrivacySettingsUpdateAction.ts',
   'Actions/Record/RouteEffortDestroyAction': '../../../app/Actions/Record/RouteEffortDestroyAction.ts',

@@ -1,11 +1,22 @@
 import { onDestroy, onMount } from 'stx'
-import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications } from '@stacksjs/mobile'
+import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications, secureStorage } from '@stacksjs/mobile'
 import { readyToken } from '../assets/scripts/auth'
 
-export function deepLinkPath(value: string): string | null {
+const PUSH_ENABLED_KEY = 'wildloop_push_enabled'
+const PUSH_TOKEN_KEY = 'wildloop_push_token'
+
+type NativeDeepLink = string | { url?: unknown }
+
+function deepLinkURL(value: NativeDeepLink): string | null {
+  if (typeof value === 'string') return value
+  return typeof value?.url === 'string' ? value.url : null
+}
+
+export function deepLinkPath(value: NativeDeepLink): string | null {
   try {
-    if (!value.startsWith('/') && !/^[a-z][a-z0-9+.-]*:/i.test(value)) return null
-    const url = new URL(value, 'https://wildloop.org')
+    const rawURL = deepLinkURL(value)
+    if (!rawURL || (!rawURL.startsWith('/') && !/^[a-z][a-z0-9+.-]*:/i.test(rawURL))) return null
+    const url = new URL(rawURL, 'https://wildloop.org')
     if (url.hostname !== 'wildloop.org' && url.protocol !== 'wildloop:') return null
     if (url.protocol !== 'wildloop:') return `${url.pathname}${url.search}${url.hash}` || '/'
 
@@ -17,12 +28,71 @@ export function deepLinkPath(value: string): string | null {
   }
 }
 
-function openDeepLink(value: string): void {
+function openDeepLink(value: NativeDeepLink): void {
   const path = deepLinkPath(value)
   if (!path || typeof location === 'undefined') return
   const current = `${location.pathname}${location.search}${location.hash}`
   if (current.replace(/\/$/, '') === path.replace(/\/$/, '')) return
   location.assign(path)
+}
+
+/** Register only after the person has opted in from Settings. */
+export async function enableNativePushNotifications(): Promise<boolean> {
+  if (!isNativeMobile()) return false
+  const bearer = await readyToken()
+  if (!bearer) return false
+  const [pushToken, info] = await Promise.all([
+    pushNotifications.register(),
+    device.getInfo(),
+  ])
+  const response = await fetch('/api/notifications/push-token', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: pushToken,
+      platform: info.platform,
+      device_id: info.deviceId,
+      environment: location.hostname === 'wildloop.org' ? 'production' : 'development',
+    }),
+  })
+  if (!response.ok) return false
+  await Promise.all([
+    secureStorage.set(PUSH_ENABLED_KEY, 'true'),
+    secureStorage.set(PUSH_TOKEN_KEY, pushToken),
+  ])
+  return true
+}
+
+/** Stop delivery to this device and clear the local opt-in. */
+export async function disableNativePushNotifications(): Promise<boolean> {
+  if (!isNativeMobile()) return false
+  const [bearer, pushToken] = await Promise.all([
+    readyToken(),
+    secureStorage.get(PUSH_TOKEN_KEY),
+  ])
+  if (!bearer || !pushToken) {
+    await Promise.all([
+      secureStorage.delete(PUSH_ENABLED_KEY),
+      secureStorage.delete(PUSH_TOKEN_KEY),
+    ])
+    return true
+  }
+  const response = await fetch('/api/notifications/push-token', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: pushToken }),
+  })
+  if (!response.ok) return false
+  await Promise.all([
+    secureStorage.delete(PUSH_ENABLED_KEY),
+    secureStorage.delete(PUSH_TOKEN_KEY),
+  ])
+  return true
+}
+
+async function syncOptedInNativePushNotifications(): Promise<void> {
+  if (await secureStorage.get(PUSH_ENABLED_KEY).catch(() => null) !== 'true') return
+  await enableNativePushNotifications().catch(() => false)
 }
 
 export function useNativeServices(): void {
@@ -41,23 +111,7 @@ export function useNativeServices(): void {
         if (link) openDeepLink(link)
       })
 
-      const bearer = await readyToken()
-      if (!bearer) return
-      const [pushToken, info] = await Promise.all([
-        pushNotifications.register().catch(() => null),
-        device.getInfo().catch(() => null),
-      ])
-      if (!pushToken || !info) return
-      await fetch('/api/notifications/push-token', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: pushToken,
-          platform: info.platform,
-          device_id: info.deviceId,
-          environment: location.hostname === 'wildloop.org' ? 'production' : 'development',
-        }),
-      }).catch(() => null)
+      await syncOptedInNativePushNotifications()
     })
   })
 

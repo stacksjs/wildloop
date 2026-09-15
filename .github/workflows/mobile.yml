@@ -7,16 +7,20 @@ on:
     paths:
       - 'app/**'
       - 'config/mobile.ts'
+      - 'package.json'
       - 'bun.lock'
       - 'resources/**'
+      - 'scripts/**'
       - 'storage/framework/defaults/resources/components/Native*.stx'
       - '.github/workflows/mobile.yml'
   pull_request:
     paths:
       - 'app/**'
       - 'config/mobile.ts'
+      - 'package.json'
       - 'bun.lock'
       - 'resources/**'
+      - 'scripts/**'
       - 'storage/framework/defaults/resources/components/Native*.stx'
       - '.github/workflows/mobile.yml'
 
@@ -24,7 +28,7 @@ jobs:
   source-projects:
     env:
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
-      CRAFT_REVISION: 26d927f7f927e4db2c85c3df89368d3f3b745dba
+      CRAFT_REVISION: 4fe86f05fa98680094b17afa3311e68f5ef29395
       STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
     strategy:
       fail-fast: false
@@ -90,9 +94,6 @@ jobs:
       - name: Compile unsigned iPhone release app
         if: matrix.platform == 'ios'
         run: xcodebuild -project storage/framework/mobile/ios/WildLoop.xcodeproj -scheme WildLoop -destination 'generic/platform=iOS' -configuration Release CODE_SIGNING_ALLOWED=NO build
-      - name: Compile watchOS simulator companion
-        if: matrix.platform == 'ios'
-        run: xcodebuild -project storage/framework/mobile/ios/WildLoop.xcodeproj -target WildLoopWatch -sdk watchsimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Generate Android project
         if: matrix.platform == 'android'
         run: CRAFT_ANDROID_SRC="$PWD/.craft/packages/android/src/index.ts" bun run build:android

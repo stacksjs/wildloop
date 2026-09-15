@@ -1,5 +1,6 @@
 <script client>
 import { haptics, location } from '@stacksjs/mobile'
+import { withLocationRequestTimeout } from '../assets/scripts/location-request'
 
 const label = useReactiveProp<string>('label', 'Allow precise location')
 const grantedLabel = useReactiveProp<string>('grantedLabel', 'Location ready')
@@ -12,9 +13,10 @@ async function requestLocation(): Promise<void> {
   if (status() === 'checking' || status() === 'granted') return
   status.set('checking')
   message.set('')
-  await haptics.selection()
+
   try {
-    await location.getCurrentPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 15000 })
+    await haptics.selection()
+    await withLocationRequestTimeout(location.getCurrentPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 }))
     status.set('granted')
     emit('change', 'granted')
     await haptics.notification('success')
@@ -23,7 +25,12 @@ async function requestLocation(): Promise<void> {
     status.set('denied')
     message.set('WildLoop could not get a current location. Check your device settings and try again.')
     emit('change', 'denied')
-    await haptics.notification('warning')
+    try {
+      await haptics.notification('warning')
+    }
+    catch {
+      // Haptics are optional and must not hide the location error.
+    }
   }
 }
 </script>

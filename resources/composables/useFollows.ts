@@ -13,18 +13,20 @@ interface FollowStoreLike {
 
 let followsStarted = false
 
+export async function hydrateFollows(wl: FollowStoreLike | null): Promise<void> {
+  if (!wl || followsStarted)
+    return
+  followsStarted = true
+  try {
+    const data = await fetchFollows(wl.currentUserId())
+    if (data && Array.isArray(data.followingIds))
+      wl.hydrateFollowing(data.followingIds)
+  }
+  catch {
+    // ignore - keep empty following list
+  }
+}
+
 export function useFollows(wl: FollowStoreLike | null) {
-  onMount(async () => {
-    if (!wl || followsStarted)
-      return
-    followsStarted = true
-    try {
-      const data = await fetchFollows(wl.currentUserId())
-      if (data && Array.isArray(data.followingIds))
-        wl.hydrateFollowing(data.followingIds)
-    }
-    catch {
-      // ignore - keep empty following list
-    }
-  })
+  onMount(() => void hydrateFollows(wl))
 }
