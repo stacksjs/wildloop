@@ -1016,6 +1016,11 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     togglePause,
     stop,
     resetRun,
+    // record.stx destructures this to render the ELAPSED clock. It was never
+    // returned, so the template's `fmtDuration` was undefined, the call threw,
+    // and stx swallowed it into an empty <span> -- a permanently blank timer
+    // that reading the template alone could not explain.
+    fmtDuration,
     mountRecordMap: () => runWhenMapReady(mapElId, initRecordMap),
   }
 }

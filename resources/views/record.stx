@@ -238,7 +238,7 @@
       <!-- ── Live numbers ────────────────────────────────────────────────── -->
       <div class="metrics">
         <div class="metric-hero">
-          <p class="metric-clock">{{ fmtDuration(elapsed) }}</p>
+          <p class="metric-clock">{{ fmtDuration(elapsed()) }}</p>
           <p class="metric-caption">Elapsed</p>
         </div>
 
