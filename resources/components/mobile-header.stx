@@ -1,9 +1,29 @@
 <script client>
 import { haptics } from '@stacksjs/mobile'
 import { currentUser, initializeAuthSession, token } from '../assets/scripts/auth'
+import { fetchNotifications } from '../assets/scripts/game-api'
 
 const isAdmin = state(false)
 const signedIn = state(false)
+// The bell's dot used to be markup with no condition, so it lit up for every
+// signed-in account even with an empty notifications page. Drive it from the
+// real unread count instead.
+const unreadCount = state(0)
+
+async function refreshUnread(): Promise<void> {
+  if (!token()) {
+    unreadCount.set(0)
+    return
+  }
+  try {
+    const payload = await fetchNotifications()
+    unreadCount.set(Number(payload?.unreadCount ?? 0))
+  }
+  catch {
+    // A failed poll must not invent a badge.
+    unreadCount.set(0)
+  }
+}
 
 function tap(): void {
   void haptics.selection()
@@ -16,13 +36,18 @@ function applyAccount(): void {
   isAdmin.set(Boolean(hasSession && account?.roles?.includes('admin')))
 }
 
-onMount(() => {
+function applyAccountAndUnread(): void {
   applyAccount()
-  void initializeAuthSession().then(applyAccount)
-  globalThis.addEventListener('wildloop:auth-ready', applyAccount)
+  void refreshUnread()
+}
+
+onMount(() => {
+  applyAccountAndUnread()
+  void initializeAuthSession().then(applyAccountAndUnread)
+  globalThis.addEventListener('wildloop:auth-ready', applyAccountAndUnread)
 })
 
-onDestroy(() => globalThis.removeEventListener('wildloop:auth-ready', applyAccount))
+onDestroy(() => globalThis.removeEventListener('wildloop:auth-ready', applyAccountAndUnread))
 </script>
 
 <header class="native-app-sticky-top sticky z-40 flex h-13 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 backdrop-blur-xl lg:hidden dark:border-slate-700/70 dark:bg-slate-950/90">
@@ -39,7 +64,7 @@ onDestroy(() => globalThis.removeEventListener('wildloop:auth-ready', applyAccou
     </div>
     <a :if="signedIn" href="/notifications" aria-label="Notifications" class="relative grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()" x-cloak>
       <i class="i-lucide-bell h-5 w-5" aria-hidden="true"></i>
-      <span class="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-950"></span>
+      <span :if="unreadCount() > 0" class="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-950"></span>
     </a>
     <a :if="isAdmin" href="/admin" aria-label="Admin" class="grid h-11 w-11 place-items-center rounded-full text-emerald-600 transition active:scale-95 dark:text-emerald-400" @click="tap()">
       <i class="i-lucide-shield-check h-5 w-5" aria-hidden="true"></i>
