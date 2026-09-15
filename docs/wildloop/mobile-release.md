@@ -48,9 +48,10 @@ entitlement. A development entitlement is valid for local testing only.
 
 ## Current external gates
 
-- Current Craft generation writes the development APNs entitlement whenever
-  push notifications are enabled. Do not ship push until Craft supports a
-  production entitlement in its release configuration.
+- Craft v0.0.91 selects the APNs entitlement from the build configuration:
+  Debug uses development and Release uses production. A signed Release archive
+  is still required to verify the entitlement with the Apple provisioning
+  profile before submission.
 - Android runtime permission parity remains gated on the open Craft location
   permission issue. Static project generation is not substitute evidence for a
   device run.
