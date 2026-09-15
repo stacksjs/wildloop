@@ -128,6 +128,17 @@ describe('mobile E2E runner', () => {
     expect(signedInTargetURL({ MOBILE_E2E_SIGNED_IN: 'true', MOBILE_E2E_URL: 'https://wildloop.org/' })).toBe('https://wildloop.org')
   })
 
+  it('covers checkpoint recovery in the signed-in iOS recording journey', () => {
+    const flow = readFileSync(new URL('../../.maestro/flows/04-signed-in-recording-ios.yaml', import.meta.url), 'utf8')
+
+    expect(flow).toContain('- pressKey: Home')
+    expect(flow).toContain('stopApp: false')
+    expect(flow).toContain('- stopApp')
+    expect(flow).toContain('Recovered your in-progress activity')
+    expect(flow).toContain('Resume recording')
+    expect(flow).toContain('Finish recording')
+  })
+
   it('reads failures from Maestro JUnit even when its process exits successfully', () => {
     expect(maestroReportSummary(`
       <testsuite tests="2" failures="1">

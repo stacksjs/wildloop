@@ -1,0 +1,112 @@
+appId: ${APP_ID}
+name: Signed-in native recording on iOS
+tags:
+  - ios
+  - local-server
+  - mobile
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: "Don’t Allow"
+    commands:
+      - tapOn: "Don’t Allow"
+- extendedWaitUntil:
+    visible: "Find your next adventure"
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible: "^Log in$"
+    commands:
+      - tapOn: "^Profile$"
+      - extendedWaitUntil:
+          visible: "^Log out$"
+          timeout: 30000
+      - tapOn: "^Log out$"
+      - extendedWaitUntil:
+          visible: "^Log in$"
+          timeout: 30000
+- tapOn: "^Log in$"
+- extendedWaitUntil:
+    visible: Welcome Back
+    timeout: 30000
+- tapOn: you@example.com
+- eraseText
+- inputText: ${E2E_EMAIL}
+- tapOn: Enter your password
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- tapOn: Sign In
+- extendedWaitUntil:
+    visible: Search
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Don’t Allow"
+    commands:
+      - tapOn: "Don’t Allow"
+- tapOn: "^Record$"
+- extendedWaitUntil:
+    visible: "Close a loop.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Start recording
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn: Start recording
+- runFlow:
+    when:
+      visible: "Allow While Using App"
+    commands:
+      - tapOn: "Allow While Using App"
+- runFlow:
+    when:
+      visible: "Allow Once"
+    commands:
+      - tapOn: "Allow Once"
+# A previous opt-in can make Craft re-register push at app start. This is
+# unrelated to route recording, so keep the journey focused on location.
+- runFlow:
+    when:
+      visible: "Don’t Allow"
+    commands:
+      - tapOn: "Don’t Allow"
+- extendedWaitUntil:
+    visible: Pause recording
+    timeout: 30000
+- tapOn: Pause recording
+- extendedWaitUntil:
+    visible: Resume recording
+    timeout: 30000
+# Background and foreground without a restart. This verifies the lifecycle
+# checkpoint path without relying on a system kill that behaves differently on
+# each iOS Simulator runtime.
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: Resume recording
+    timeout: 30000
+# A full relaunch must restore the account-owned checkpoint. Native background
+# recording can be active or stopped at this point; the web state must still
+# recover the paused draft rather than losing it or assigning it to another
+# account.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Recovered your in-progress activity
+    timeout: 30000
+- assertVisible: Resume recording
+- takeScreenshot: signed-in-recording-recovered
+- tapOn: Resume recording
+- extendedWaitUntil:
+    visible: Pause recording
+    timeout: 30000
+- tapOn: Finish recording
+- extendedWaitUntil:
+    visible: Tap to start GPS capture
+    timeout: 30000
+- takeScreenshot: signed-in-recording-finished
