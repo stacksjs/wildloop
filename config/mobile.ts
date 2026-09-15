@@ -88,7 +88,14 @@ export default {
       haptics: true,
       healthConnect: true,
       keepAwake: true,
-      pushNotifications: true,
+      // Craft hard-fails Android generation when push is enabled without a
+      // google-services.json (packages/android/src/index.ts:371). That file is
+      // written by the workflow only when the ANDROID_GOOGLE_SERVICES_JSON
+      // secret exists, and it is not configured, so generation died on a
+      // credential that is optional for everything else. Gate the capability
+      // on the credential actually being present: add the secret and push
+      // re-enables itself with no code change.
+      pushNotifications: Boolean(envVars.ANDROID_GOOGLE_SERVICES_FILE),
       secureStorage: true,
       share: true,
     },
