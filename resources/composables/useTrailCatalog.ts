@@ -47,6 +47,23 @@ export interface TrailQueryResult {
   radius?: number
 }
 
+/**
+ * A coarse or precise location can be outside the countries the current
+ * catalog covers. In that case, a location-only empty result is not useful:
+ * show the catalog rather than presenting a dead-end search. Deliberate
+ * filters and typed searches still retain their normal empty state.
+ */
+export function shouldFallbackToCatalog(query: TrailQuery, result: TrailQueryResult): boolean {
+  const hasLocation = Number.isFinite(query.lat) && Number.isFinite(query.lng)
+  const locationOnly = !query.q
+    && !query.country
+    && !query.state
+    && (!query.difficulty || query.difficulty === 'all')
+    && (!query.routeType || query.routeType === 'all')
+
+  return hasLocation && locationOnly && result.trails.length === 0
+}
+
 export const catalogLoading = state(false)
 export const catalogLoaded = state(false)
 export const catalogError = state<string | null>(null)

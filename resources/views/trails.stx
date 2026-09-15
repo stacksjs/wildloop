@@ -38,7 +38,7 @@
 </script>
 
 <script client>
-  import { catalogError, EMPTY_COVERAGE, fetchCoverage, queryTrails } from '../composables/useTrailCatalog'
+  import { catalogError, EMPTY_COVERAGE, fetchCoverage, queryTrails, shouldFallbackToCatalog } from '../composables/useTrailCatalog'
   import { useSavedTrails } from '../composables/useSavedTrails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
   import {
@@ -153,9 +153,9 @@
     searchFailed.set(false)
 
     try {
-      const near = nearMeActive() ? nearby() : null
+      let near = nearMeActive() ? nearby() : null
 
-      const res = await queryTrails({
+      const query = {
         q: search(),
         country: activeCountry(),
         state: activeState(),
@@ -168,7 +168,17 @@
         sort: search() ? 'featured' : near ? 'rating' : 'longest',
         ...(near ? { lat: near.lat, lng: near.lng, radius: 25 } : {}),
         limit: 60,
-      })
+      }
+      let res = await queryTrails(query)
+
+      // WildLoop does not yet have catalog coverage everywhere. Do not strand
+      // a visitor whose edge or device location is outside it on an empty
+      // result: a location-only empty answer becomes a global browse instead.
+      if (shouldFallbackToCatalog(query, res)) {
+        res = await queryTrails({ ...query, sort: 'longest', lat: undefined, lng: undefined, radius: undefined })
+        near = null
+        useNearMe.set(false)
+      }
 
       // A slower earlier request must not overwrite a newer result.
       if (token !== searchToken)
