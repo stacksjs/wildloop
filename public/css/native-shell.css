@@ -64,6 +64,16 @@
   -webkit-backdrop-filter: blur(24px) saturate(160%);
 }
 
+/* STX wraps the slotted tab-bar component in an unclassed scope div. Left
+ * block-level it is content-sized, so it collapsed to ~33px and the nav's
+ * `height: 100%` resolved against that instead of the 4rem slot -- the
+ * controls filled half the footer with dead space beneath. Stretch every
+ * wrapper between the slot and the nav. */
+.native-tab-visibility,
+.native-tab-visibility > * {
+  height: 100%;
+}
+
 .native-tab-bar {
   display: grid;
   grid-auto-flow: column;
@@ -95,14 +105,17 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.3rem;
   align-items: center;
   justify-content: center;
   min-width: 2.75rem;
   color: rgb(100 116 139);
-  font-size: 0.6875rem;
+  /* The bar is a fixed 4rem tall, but the icon + label only filled ~36px of
+   * it, leaving the controls looking undersized and stranded. Scale both up so
+   * the row actually occupies its touch target. */
+  font-size: 0.8125rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.1;
   text-decoration: none;
   transform: translateY(0.25rem);
   transition: color 150ms ease, transform 150ms ease;
@@ -111,7 +124,10 @@
 
 .native-tab-item:active { transform: translateY(0.25rem) scale(0.96); }
 .native-tab-item.is-active { color: rgb(5 150 105); }
-.native-tab-icon { width: 1.35rem; height: 1.35rem; }
+/* Iconify's `i-lucide-*` classes set `width: 1em; height: 1em` at the same
+ * specificity and load after this file, so a bare `.native-tab-icon` rule lost
+ * and the glyphs silently tracked font-size. Qualify it to win. */
+.native-tab-item .native-tab-icon { width: 1.65rem; height: 1.65rem; }
 
 /* A native WebView can report a desktop-sized CSS viewport on a high-density
  * phone. Width alone therefore cannot decide whether this touch navigation
