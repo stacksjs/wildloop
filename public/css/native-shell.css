@@ -113,7 +113,7 @@
   /* The bar is a fixed 4rem tall, but the icon + label only filled ~36px of
    * it, leaving the controls looking undersized and stranded. Scale both up so
    * the row actually occupies its touch target. */
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.1;
   text-decoration: none;
@@ -127,7 +127,7 @@
 /* Iconify's `i-lucide-*` classes set `width: 1em; height: 1em` at the same
  * specificity and load after this file, so a bare `.native-tab-icon` rule lost
  * and the glyphs silently tracked font-size. Qualify it to win. */
-.native-tab-item .native-tab-icon { width: 1.65rem; height: 1.65rem; }
+.native-tab-item .native-tab-icon { width: 1.5rem; height: 1.5rem; }
 
 /* A native WebView can report a desktop-sized CSS viewport on a high-density
  * phone. Width alone therefore cannot decide whether this touch navigation
