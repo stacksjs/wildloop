@@ -406,6 +406,10 @@ route.get('/sitemap-trails-{page}.xml', async (request: any) =>
 // somewhere useful without asking for a location permission first.
 route.get('/geo/here', 'Actions/Geo/VisitorLocationAction')
 
+// Autocomplete for the home search: regions, places and trail names, all from
+// the catalog itself. Kept off /trails so it stays cheap enough per keystroke.
+route.get('/search/suggest', 'Actions/Search/SearchSuggestAction')
+
 // Trail catalog (explore map + OSM geometry)
 route.get('/trails', 'Actions/Trail/TrailIndexAction')
 // Registered BEFORE `/trails/{id}/...` so `stats` is not captured as an id.

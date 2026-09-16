@@ -36,6 +36,7 @@
     "types/**/*.d.ts",
     "app/Models/**/*.ts",
     "config/integrations.ts",
+    "app/Support/searchSuggest.ts",
     "resources/assets/scripts/auth.ts",
     "resources/assets/scripts/game-api.ts",
     "resources/assets/scripts/offline-trails.ts",
@@ -50,7 +51,8 @@
     "tests/unit/privacy.test.ts",
     "tests/unit/session-identity.test.ts",
     "tests/unit/territory-battle.test.ts",
-    "tests/unit/game-integrity-schema.test.ts"
+    "tests/unit/game-integrity-schema.test.ts",
+    "tests/unit/search-suggest.test.ts"
   ],
   "exclude": [
     "cloud/**",

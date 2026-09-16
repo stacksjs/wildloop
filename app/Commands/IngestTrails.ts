@@ -4,6 +4,7 @@ import process from 'node:process'
 import { intro, log, outro } from '@stacksjs/cli'
 import { ExitCode } from '@stacksjs/types'
 import { progress, runIngest, seedShards } from '../Ingest/ingest'
+import { rebuildSearchPlaces } from '../Support/searchPlaces'
 import { sourceNames } from '../Ingest/sources'
 
 interface IngestOptions {
@@ -84,6 +85,11 @@ export default function (cli: CLI) {
           log.warn(`  ${key} failed: ${error instanceof Error ? error.message : String(error)}`)
         },
       })
+
+      // The home search suggests places from the trails, so a run that changed
+      // any trail refreshes that list before reporting.
+      if (imported + updated > 0)
+        await rebuildSearchPlaces()
 
       console.log('')
       log.info('--- Summary ---')

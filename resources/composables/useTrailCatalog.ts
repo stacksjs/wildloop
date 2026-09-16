@@ -154,6 +154,32 @@ export function useTrailCatalog(wl: TrailStoreLike | null) {
  * to be in the store, which is what makes searching 40,000 trails possible
  * from a page that only ever holds a couple of hundred.
  */
+export interface SearchSuggestion {
+  kind: 'region' | 'place' | 'trail'
+  label: string
+  detail: string
+  href: string
+}
+
+/**
+ * Autocomplete for the home search (GET /api/search/suggest).
+ *
+ * Never throws. A failed lookup offers nothing, and the plain search the box
+ * submits keeps working without it.
+ */
+export async function fetchSearchSuggestions(query: string): Promise<SearchSuggestion[]> {
+  try {
+    const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(query)}`)
+    if (!res.ok)
+      return []
+    const body = await res.json()
+    return Array.isArray(body?.suggestions) ? body.suggestions : []
+  }
+  catch {
+    return []
+  }
+}
+
 export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> {
   const params = new URLSearchParams()
 

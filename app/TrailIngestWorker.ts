@@ -16,6 +16,7 @@ import process from 'node:process'
 import { db } from '@stacksjs/orm'
 import { progress, runIngest, seedShards } from './Ingest/ingest'
 import { waitForAbortableDelay } from './Ingest/worker-lifecycle'
+import { rebuildSearchPlaces } from './Support/searchPlaces'
 
 process.env.APP_ENV ||= 'production'
 process.env.NODE_ENV ||= 'production'
@@ -40,6 +41,15 @@ const IDLE_SLEEP_MS = 5 * 60 * 1000
  * during a deploy loses at most one shard's work.
  */
 const BATCH_SIZE = 25
+
+/**
+ * Longest the home search's place list may lag an import that changed trails.
+ *
+ * The rebuild groups the whole catalog, a second or two on the shared file,
+ * so it runs when a batch changed something and this long has passed, or when
+ * the ingest goes idle, rather than after every batch.
+ */
+const PLACES_REBUILD_INTERVAL_MS = 60 * 60 * 1000
 
 interface WorkerState {
   startedAt: string
@@ -135,6 +145,13 @@ await waitForSchema()
 const seeded = await seedShards()
 console.log(`[ingest] ${seeded} shards known`)
 
+// Built once before the first batch. A batch can run for a long time, and a
+// catalog that is already fully synced may not change a trail for weeks, so
+// waiting for either would leave a freshly deployed place list empty. If this
+// attempt fails, the flag stays set and the loop retries.
+let placesDirty = !(await rebuildSearchPlaces())
+let placesRebuiltAt = placesDirty ? 0 : Date.now()
+
 while (!stopping) {
   const outcomes = await runIngest({
     maxShards: BATCH_SIZE,
@@ -161,6 +178,16 @@ while (!stopping) {
 
   // Nothing claimable: every shard is done and none is due for re-sync yet.
   state.idle = outcomes.length === 0
+
+  if (outcomes.some(outcome => outcome.imported + outcome.updated > 0))
+    placesDirty = true
+
+  if (placesDirty && (state.idle || Date.now() - placesRebuiltAt >= PLACES_REBUILD_INTERVAL_MS)) {
+    if (await rebuildSearchPlaces()) {
+      placesDirty = false
+      placesRebuiltAt = Date.now()
+    }
+  }
 
   if (state.idle) {
     console.log(`[ingest] nothing to claim, sleeping ${IDLE_SLEEP_MS / 60000}m`)

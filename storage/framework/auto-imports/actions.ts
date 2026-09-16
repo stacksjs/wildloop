@@ -69,6 +69,7 @@ export const actions = {
   'Actions/Route/CustomRouteDestroyAction': '../../../app/Actions/Route/CustomRouteDestroyAction.ts',
   'Actions/Route/CustomRouteIndexAction': '../../../app/Actions/Route/CustomRouteIndexAction.ts',
   'Actions/Route/CustomRouteStoreAction': '../../../app/Actions/Route/CustomRouteStoreAction.ts',
+  'Actions/Search/SearchSuggestAction': '../../../app/Actions/Search/SearchSuggestAction.ts',
   'Actions/Seo/SitemapAction': '../../../app/Actions/Seo/SitemapAction.ts',
   'Actions/Social/AthleteShowAction': '../../../app/Actions/Social/AthleteShowAction.ts',
   'Actions/Social/BlockToggleAction': '../../../app/Actions/Social/BlockToggleAction.ts',

@@ -46,7 +46,7 @@
 </script>
 
 <script client>
-  import { fetchCoverage, queryTrails } from '../composables/useTrailCatalog'
+  import { fetchCoverage, fetchSearchSuggestions, queryTrails } from '../composables/useTrailCatalog'
   import { useAppInstall } from '../composables/useAppInstall'
   import { locatePrecisely, locating as nearbyLocating, resolveNearby } from '../composables/useNearby'
   import { activitySharePreview } from '../functions/activity-share'
@@ -104,6 +104,30 @@
   const topCountries = derived(() => coverage().countries.slice(0, 12))
   const topRegions = derived(() => coverage().states.slice(0, 16))
 
+  /*
+   * Autocomplete. Suggestions come from WildLoop's own records only (regions,
+   * the places trails are recorded at, and trail names) via
+   * GET /api/search/suggest, so every one opens onto trails that exist.
+   *
+   * ARIA state is bound as the strings 'true' and 'false'. stx renders a bound
+   * boolean as a missing or empty attribute, which is not a valid value for
+   * aria-expanded or aria-selected.
+   */
+  const suggestions = state([])
+  const suggestOpen = state(false)
+  const activeSuggestion = state(-1)
+  const suggestionsExpanded = derived(() => (suggestOpen() && suggestions().length > 0 ? 'true' : 'false'))
+  const activeSuggestionId = derived(() => (suggestionsExpanded() === 'true' && activeSuggestion() >= 0 ? `hero-suggestion-${activeSuggestion()}` : ''))
+  const suggestionStatus = derived(() => {
+    if (suggestionsExpanded() !== 'true')
+      return ''
+    const count = suggestions().length
+    return `${count} ${count === 1 ? 'suggestion' : 'suggestions'}. Use the up and down arrows to choose.`
+  })
+
+  let suggestTimer = null
+  let suggestToken = 0
+
   /**
    * A named handler, not `e => search.set(...)` inline. stx dropped that arrow
    * form without a word, so the signal never saw a keystroke and every search
@@ -111,10 +135,104 @@
    */
   function onHeroInput(value) {
     search.set(value)
+    activeSuggestion.set(-1)
+    if (suggestTimer)
+      clearTimeout(suggestTimer)
+
+    if (value.trim().length < 2) {
+      // Invalidate any request still in flight so it cannot reopen the list.
+      suggestToken++
+      suggestions.set([])
+      suggestOpen.set(false)
+      return
+    }
+
+    suggestTimer = setTimeout(() => refreshSuggestions(value), 200)
+  }
+
+  async function refreshSuggestions(value) {
+    const token = ++suggestToken
+    const found = await fetchSearchSuggestions(value)
+    // A slower earlier lookup must not replace the list for newer text.
+    if (token !== suggestToken)
+      return
+    suggestions.set(found)
+    activeSuggestion.set(-1)
+    suggestOpen.set(found.length > 0)
+  }
+
+  function closeSuggestions() {
+    suggestOpen.set(false)
+    activeSuggestion.set(-1)
+  }
+
+  /** One handler for every key, since stx ignores key modifiers it does not know. */
+  function onHeroKeydown(event) {
+    const count = suggestions().length
+    const open = suggestionsExpanded() === 'true'
+
+    if (event.key === 'ArrowDown') {
+      if (!count)
+        return
+      event.preventDefault()
+      suggestOpen.set(true)
+      activeSuggestion.set(open ? (activeSuggestion() + 1) % count : 0)
+    }
+    else if (event.key === 'ArrowUp') {
+      if (!open)
+        return
+      event.preventDefault()
+      activeSuggestion.set(activeSuggestion() <= 0 ? count - 1 : activeSuggestion() - 1)
+    }
+    else if (event.key === 'Enter') {
+      // Handled here rather than left to the form, so Enter on a highlighted
+      // suggestion opens it instead of searching the half-typed text.
+      event.preventDefault()
+      if (open && activeSuggestion() >= 0)
+        pickSuggestion(activeSuggestion())
+      else
+        submitSearch()
+    }
+    else if (event.key === 'Escape' && open) {
+      event.preventDefault()
+      closeSuggestions()
+    }
+  }
+
+  function onHeroFocus() {
+    if (suggestions().length > 0 && search().trim().length >= 2)
+      suggestOpen.set(true)
+  }
+
+  // Closed a beat after blur, so a tap on a suggestion lands before the list
+  // it is in disappears. Tapping moves focus off the input first on touch.
+  function onHeroBlur() {
+    setTimeout(closeSuggestions, 150)
+  }
+
+  /** Bound with `.prevent` on mousedown, which keeps focus in the input on desktop. */
+  function keepHeroFocus() {}
+
+  function suggestionIcon(kind) {
+    if (kind === 'region')
+      return 'i-lucide-map'
+    if (kind === 'place')
+      return 'i-lucide-map-pin'
+    return 'i-lucide-footprints'
+  }
+
+  function pickSuggestion(index) {
+    const item = suggestions()[index]
+    if (!item)
+      return
+    closeSuggestions()
+    search.set(item.label)
+    navigate(item.href)
   }
 
   function submitSearch(event) {
     event?.preventDefault?.()
+    closeSuggestions()
     const term = search().trim()
     navigate(term ? `/trails?q=${encodeURIComponent(term)}` : '/trails')
   }
@@ -232,11 +350,49 @@
           type="search"
           x-value="search"
           @input="onHeroInput($event.target.value)"
+          @keydown="onHeroKeydown($event)"
+          @focus="onHeroFocus()"
+          @blur="onHeroBlur()"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls="hero-suggestions"
+          x-aria-expanded="suggestionsExpanded()"
+          x-aria-activedescendant="activeSuggestionId()"
           placeholder="Search by city, park, or trail name"
           autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          enterkeyhint="search"
         />
         <button type="submit" class="hero-search-go">Search</button>
+
+        <ul
+          id="hero-suggestions"
+          role="listbox"
+          aria-label="Search suggestions"
+          class="hero-suggestions"
+          x-hidden="suggestionsExpanded() !== 'true'"
+        >
+          <template :for="(item, index) in suggestions">
+            <li
+              x-id="'hero-suggestion-' + index"
+              role="option"
+              x-aria-selected="activeSuggestion() === index ? 'true' : 'false'"
+              x-class="activeSuggestion() === index ? 'hero-suggestion is-active' : 'hero-suggestion'"
+              @mousedown.prevent="keepHeroFocus()"
+              @click="pickSuggestion(index)"
+            >
+              <i x-class="suggestionIcon(item.kind)" aria-hidden="true"></i>
+              <span class="hero-suggestion-text">
+                <span class="hero-suggestion-label">{{ item.label }}</span>
+                <span class="hero-suggestion-detail">{{ item.detail }}</span>
+              </span>
+            </li>
+          </template>
+        </ul>
       </form>
+      <p class="sr-only" aria-live="polite">{{ suggestionStatus() }}</p>
 
       <div class="hero-links">
         <button type="button" @click="findNearMe()" x-disabled="findingMe()">
@@ -695,9 +851,15 @@
     /* Tall enough that the photograph is the page, short enough that the row
        of trails below it still peeks in and invites the scroll. */
     min-height: min(78vh, 44rem);
-    overflow: hidden;
+    /* Clipped sideways only. The suggestion list hangs below the search field
+       and has to be able to leave the photograph, and `clip` (unlike
+       `hidden`) lets the other axis stay visible. */
+    overflow-x: clip;
     background: #07110f;
     isolation: isolate;
+    /* Above the section that follows, so that list paints over it. Below the
+       sticky mobile header (z-40) and the native tab bar (z-30). */
+    z-index: 1;
   }
 
   /*
@@ -774,6 +936,7 @@
   }
 
   .hero-search {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -818,6 +981,65 @@
 
   .hero-search-go:hover { background: #047857; }
   .hero-search-go:active { transform: scale(0.98); }
+
+  .hero-suggestions {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    left: 0;
+    z-index: 20;
+    max-height: min(22rem, 50vh);
+    margin: 0;
+    padding: 0.375rem;
+    overflow-y: auto;
+    text-align: left;
+    list-style: none;
+    background: #fff;
+    border-radius: 1.25rem;
+    box-shadow: 0 18px 48px -12px rgb(4 12 10 / 45%);
+  }
+
+  /* The class sets display, which would otherwise override the attribute. */
+  .hero-suggestions[hidden] { display: none; }
+
+  .hero-suggestion {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    /* 44px: the smallest target a thumb reliably hits. */
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    color: #0f172a;
+    border-radius: 0.875rem;
+    cursor: pointer;
+  }
+
+  .hero-suggestion:hover,
+  .hero-suggestion.is-active { background: #ecfdf5; }
+
+  /* Qualified to outrank the icon utility, which sizes itself to 1em. */
+  .hero-suggestion > i {
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    color: #059669;
+  }
+
+  .hero-suggestion-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .hero-suggestion-label,
+  .hero-suggestion-detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hero-suggestion-label { font-size: 0.9375rem; font-weight: 600; }
+  .hero-suggestion-detail { color: #64748b; font-size: 0.8125rem; }
 
   .hero-links {
     display: flex;

@@ -1,6 +1,7 @@
 import { Seeder } from '@stacksjs/database'
 import { db } from '@stacksjs/orm'
 import Trail from '../../app/Models/Trail'
+import { rebuildSearchPlaces } from '../../app/Support/searchPlaces'
 
 /**
  * The trail catalog a staging environment browses.
@@ -997,6 +998,8 @@ export default class TrailSeeder extends Seeder {
       console.warn(`[seed] ${adopted} seeded trail(s) already in the catalog; used the ingested row instead of adding a duplicate`)
 
     await rebuildTrailSearchIndex()
+    // The home search suggests the places these trails are recorded at.
+    await rebuildSearchPlaces()
   }
 }
 
