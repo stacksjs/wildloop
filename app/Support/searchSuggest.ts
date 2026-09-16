@@ -30,6 +30,7 @@ export interface TrailRow {
   id: number
   name: string
   location: string | null
+  state?: string | null
 }
 
 /** Below this, a prefix matches most of the catalog and says nothing. */
@@ -88,13 +89,20 @@ export function placeSuggestionsSql(match: string): string {
     LIMIT ${MAX_PLACES}`
 }
 
+/**
+ * Rows over the cap, because the same trail is often recorded more than once
+ * (an agency's copy and OpenStreetMap's) and buildSuggestions collapses those.
+ * Among equals, a row with a specific location sorts ahead of one that only
+ * names its region, so the copy that survives is the more useful one.
+ */
 export function trailSuggestionsSql(nameMatch: string): string {
-  return `SELECT id, name, location FROM trails
+  return `SELECT id, name, location, state FROM trails
     WHERE id IN (
       SELECT rowid FROM trails_fts WHERE trails_fts MATCH ${sqlString(nameMatch)} LIMIT ${TRAIL_CANDIDATES}
     )
-    ORDER BY review_count DESC, rating DESC, name
-    LIMIT ${MAX_TRAILS}`
+    ORDER BY review_count DESC, rating DESC,
+      (coalesce(location, '') = coalesce(state_name, '')) ASC, name
+    LIMIT ${MAX_TRAILS * 4}`
 }
 
 /**
@@ -147,8 +155,21 @@ export function buildSuggestions(places: PlaceRow[], trails: TrailRow[]): Sugges
     }
   }
 
-  for (const trail of trails)
+  // One suggestion per trail name within a state. The same trail recorded by
+  // two sources read as three identical rows. A same-named trail in another
+  // state is a different trail and stays ("Lost Lake Trail" is in dozens).
+  const seen = new Set<string>()
+  let trailCount = 0
+  for (const trail of trails) {
+    if (trailCount >= MAX_TRAILS)
+      break
+    const key = `${trail.name.trim().toLowerCase()}|${String(trail.state ?? '').toUpperCase()}`
+    if (seen.has(key))
+      continue
+    seen.add(key)
+    trailCount++
     out.push({ kind: 'trail', label: trail.name, detail: trail.location ?? '', href: `/trail/${trail.id}` })
+  }
 
   return out
 }

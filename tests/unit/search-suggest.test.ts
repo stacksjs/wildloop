@@ -61,6 +61,22 @@ describe('buildSuggestions', () => {
     expect(place.href).not.toContain('+')
   })
 
+  it('collapses one trail recorded twice in a state, but keeps same-named trails elsewhere', () => {
+    const out = buildSuggestions([], [
+      { id: 1, name: 'Lower Yosemite Fall Trail', location: 'Yosemite National Park, CA', state: 'CA' },
+      { id: 2, name: 'Lower Yosemite Fall Trail', location: 'California', state: 'CA' },
+      { id: 3, name: 'lower yosemite fall trail ', location: 'California', state: 'ca' },
+      { id: 4, name: 'Lost Lake Trail', location: 'Oregon', state: 'OR' },
+      { id: 5, name: 'Lost Lake Trail', location: 'Colorado', state: 'CO' },
+    ])
+    expect(out.map(s => s.href)).toEqual(['/trail/1', '/trail/4', '/trail/5'])
+  })
+
+  it('still offers a full set of trails after collapsing duplicates', () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, name: `Trail ${Math.floor(i / 2)}`, location: 'X', state: 'CA' }))
+    expect(buildSuggestions([], rows).filter(s => s.kind === 'trail')).toHaveLength(MAX_TRAILS)
+  })
+
   it('skips a region with no code to filter by', () => {
     expect(buildSuggestions([{ kind: 'region', label: 'Nowhere', state: '', country: 'US', trail_count: 3 }], [])).toEqual([])
   })
@@ -107,6 +123,9 @@ async function catalog(): Promise<Database> {
     [6, 'Feldberg Rundweg', 'Feldberg, Baden-Württemberg', 'DE-BW', 'Baden-Württemberg', 'DE', 4.5, 30],
     [7, 'Jenny Lake Loop', 'Moose, WY', 'WY', 'Wyoming', 'US', 4.6, 700],
     [8, 'Unnamed Path', '', 'CO', 'Colorado', 'US', 3.0, 0],
+    // One trail recorded by two sources: the agency copy and a region-only one.
+    [9, 'Lower Yosemite Fall Trail', 'California', 'CA', 'California', 'US', 0, 0],
+    [10, 'Lower Yosemite Fall Trail', 'Yosemite National Park, CA', 'CA', 'California', 'US', 0, 0],
   ]
   for (const row of rows)
     insert.run(...row)
@@ -128,8 +147,10 @@ describe('search places, built from the trails', () => {
       { kind: 'place', label: 'Feldberg, Baden-Württemberg', state: 'DE-BW', country: 'DE', trail_count: 1 },
       { kind: 'place', label: 'Grainau, Bayern', state: 'DE-BY', country: 'DE', trail_count: 1 },
       { kind: 'place', label: 'Moose, WY', state: 'WY', country: 'US', trail_count: 1 },
+      { kind: 'place', label: 'Yosemite National Park, CA', state: 'CA', country: 'US', trail_count: 1 },
       { kind: 'region', label: 'Baden-Württemberg', state: 'DE-BW', country: 'DE', trail_count: 1 },
       { kind: 'region', label: 'Bayern', state: 'DE-BY', country: 'DE', trail_count: 1 },
+      { kind: 'region', label: 'California', state: 'CA', country: 'US', trail_count: 2 },
       { kind: 'region', label: 'Colorado', state: 'CO', country: 'US', trail_count: 5 },
       { kind: 'region', label: 'Wyoming', state: 'WY', country: 'US', trail_count: 1 },
     ])
@@ -182,6 +203,14 @@ describe('suggestion queries', () => {
     expect(trails(database, 'estes')).toEqual([])
   })
 
+  it('offers a trail recorded twice once, under its more specific location', async () => {
+    database = await catalog()
+    const out = buildSuggestions([], trails(database, 'lower yos'))
+    expect(out).toEqual([
+      { kind: 'trail', label: 'Lower Yosemite Fall Trail', detail: 'Yosemite National Park, CA', href: '/trail/10' },
+    ])
+  })
+
   it('caps each group', async () => {
     database = await catalog()
     expect(places(database, 'co').length).toBeLessThanOrEqual(MAX_PLACES)
@@ -191,6 +220,6 @@ describe('suggestion queries', () => {
   it('runs hostile input as plain words and finds nothing, rather than failing', async () => {
     database = await catalog()
     expect(places(database, '\' OR 1=1; DROP TABLE trails; --')).toEqual([])
-    expect(database.query('SELECT count(*) AS n FROM trails').get()).toEqual({ n: 8 })
+    expect(database.query('SELECT count(*) AS n FROM trails').get()).toEqual({ n: 10 })
   })
 })
