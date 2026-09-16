@@ -43,11 +43,14 @@ const IDLE_SLEEP_MS = 5 * 60 * 1000
 const BATCH_SIZE = 25
 
 /**
- * Longest the home search's place list may lag an import that changed trails.
+ * Least time between rebuilds of the home search's place list.
  *
- * The rebuild groups the whole catalog, a second or two on the shared file,
- * so it runs when a batch changed something and this long has passed, or when
- * the ingest goes idle, rather than after every batch.
+ * The rebuild groups the whole catalog, a second or two on the shared file.
+ * It runs only once a batch has written trails and this long has passed, idle
+ * or not. Going idle used to skip the wait, and a monthly re-sync writes
+ * unchanged rows that still count as written, so a caught-up worker trickling
+ * through due shards rebuilt on every five-minute wake. The list can now lag
+ * an import by up to an hour plus one idle sleep.
  */
 const PLACES_REBUILD_INTERVAL_MS = 60 * 60 * 1000
 
@@ -182,7 +185,7 @@ while (!stopping) {
   if (outcomes.some(outcome => outcome.imported + outcome.updated > 0))
     placesDirty = true
 
-  if (placesDirty && (state.idle || Date.now() - placesRebuiltAt >= PLACES_REBUILD_INTERVAL_MS)) {
+  if (placesDirty && Date.now() - placesRebuiltAt >= PLACES_REBUILD_INTERVAL_MS) {
     if (await rebuildSearchPlaces()) {
       placesDirty = false
       placesRebuiltAt = Date.now()

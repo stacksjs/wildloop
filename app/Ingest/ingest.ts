@@ -19,6 +19,7 @@
 import type { NormalizedTrail, TrailSource } from './types'
 import { db } from '@stacksjs/orm'
 import { getSource, sources } from './sources'
+import { inWriteTransaction } from '../Support/writeTransaction'
 
 /** Rows per upsert statement. Large enough to amortise, small enough for SQLite's parameter cap. */
 const WRITE_BATCH = 200
@@ -317,66 +318,76 @@ export async function writeTrails(trails: NormalizedTrail[]): Promise<{ imported
     const now = new Date().toISOString()
 
     const ids = batch.map(trail => `'${trail.sourceId.replace(/'/g, '\'\'')}'`).join(',')
-    // Read the FTS columns as well as the key: the search index has to be
-    // retracted using the values as they are NOW, before the upsert replaces
-    // them. Reading them afterwards would retract the new terms and leave the
-    // old ones matching forever.
-    const existingRows = await db.sql`
-      SELECT id, source_id, name, location, state_name FROM trails
-      WHERE source = ${batch[0].source} AND source_id IN (${db.unsafe(ids)})
-    `.execute() as Array<{ id: number, source_id: string, name: string, location: string, state_name: string }>
 
-    const existing = new Set((existingRows ?? []).map(row => row.source_id))
+    // Read, retract, upsert and re-add as one transaction. Apart, an FTS
+    // 'rebuild' from another process (TrailSeeder does one) could commit
+    // between the retract and the re-add: it re-indexes the old terms the
+    // retract had just removed, the re-add then indexes the new ones, and the
+    // index is left holding terms its content no longer has.
+    const existing = await inWriteTransaction(async () => {
+      // Read the FTS columns as well as the key: the search index has to be
+      // retracted using the values as they are NOW, before the upsert replaces
+      // them. Reading them afterwards would retract the new terms and leave the
+      // old ones matching forever.
+      const existingRows = await db.sql`
+        SELECT id, source_id, name, location, state_name FROM trails
+        WHERE source = ${batch[0].source} AND source_id IN (${db.unsafe(ids)})
+      `.execute() as Array<{ id: number, source_id: string, name: string, location: string, state_name: string }>
 
-    await retractFromSearchIndex(existingRows ?? [])
+      const seen = new Set((existingRows ?? []).map(row => row.source_id))
 
-    const rows = batch.map(trail => ({
-      uuid: crypto.randomUUID(),
-      source: trail.source,
-      source_id: trail.sourceId,
-      source_url: trail.sourceUrl,
-      synced_at: now,
+      await retractFromSearchIndex(existingRows ?? [])
 
-      name: trail.name,
-      location: trail.location,
-      description: trail.description,
+      const rows = batch.map(trail => ({
+        uuid: crypto.randomUUID(),
+        source: trail.source,
+        source_id: trail.sourceId,
+        source_url: trail.sourceUrl,
+        synced_at: now,
 
-      latitude: trail.latitude,
-      longitude: trail.longitude,
-      min_lat: trail.minLat,
-      max_lat: trail.maxLat,
-      min_lng: trail.minLng,
-      max_lng: trail.maxLng,
-      country: trail.country,
-      state: trail.state,
-      state_name: trail.stateName,
-      managed_by: trail.managedBy,
+        name: trail.name,
+        location: trail.location,
+        description: trail.description,
 
-      distance: trail.distance,
-      elevation: trail.elevation,
-      elevation_high: trail.elevationHigh,
-      difficulty: trail.difficulty,
-      route_type: trail.routeType,
-      surface: trail.surface,
-      estimated_time: trail.estimatedTime,
-      geometry: trail.geometry,
+        latitude: trail.latitude,
+        longitude: trail.longitude,
+        min_lat: trail.minLat,
+        max_lat: trail.maxLat,
+        min_lng: trail.minLng,
+        max_lng: trail.maxLng,
+        country: trail.country,
+        state: trail.state,
+        state_name: trail.stateName,
+        managed_by: trail.managedBy,
 
-      allowed_uses: trail.allowedUses,
-      dogs_allowed: trail.dogsAllowed,
-      wheelchair_accessible: trail.wheelchairAccessible,
-      national_trail: trail.nationalTrail,
+        distance: trail.distance,
+        elevation: trail.elevation,
+        elevation_high: trail.elevationHigh,
+        difficulty: trail.difficulty,
+        route_type: trail.routeType,
+        surface: trail.surface,
+        estimated_time: trail.estimatedTime,
+        geometry: trail.geometry,
 
-      image: trail.image,
-      tags: trail.tags,
-      rating: 0,
-      review_count: 0,
+        allowed_uses: trail.allowedUses,
+        dogs_allowed: trail.dogsAllowed,
+        wheelchair_accessible: trail.wheelchairAccessible,
+        national_trail: trail.nationalTrail,
 
-      created_at: now,
-      updated_at: now,
-    }))
+        image: trail.image,
+        tags: trail.tags,
+        rating: 0,
+        review_count: 0,
 
-    await db.upsert('trails', rows, ['source', 'source_id'], MERGE_COLUMNS)
-    await addToSearchIndex(batch[0].source, batch.map(trail => trail.sourceId))
+        created_at: now,
+        updated_at: now,
+      }))
+
+      await db.upsert('trails', rows, ['source', 'source_id'], MERGE_COLUMNS)
+      await addToSearchIndex(batch[0].source, batch.map(trail => trail.sourceId))
+
+      return seen
+    })
 
     for (const trail of batch) {
       if (existing.has(trail.sourceId))
