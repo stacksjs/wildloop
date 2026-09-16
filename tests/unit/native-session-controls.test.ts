@@ -19,7 +19,8 @@ describe('native session controls', () => {
 
     expect(profile).toContain('@click="handleSignOut()"')
     expect(profile).toContain('Log out')
-    expect(header).toContain("globalThis.addEventListener('wildloop:auth-ready', applyAccount)")
-    expect(header).toContain("globalThis.removeEventListener('wildloop:auth-ready', applyAccount)")
+    // The listener also refreshes the unread badge, so it is not plain applyAccount.
+    expect(header).toContain("globalThis.addEventListener('wildloop:auth-ready', applyAccountAndUnread)")
+    expect(header).toContain("globalThis.removeEventListener('wildloop:auth-ready', applyAccountAndUnread)")
   })
 })
