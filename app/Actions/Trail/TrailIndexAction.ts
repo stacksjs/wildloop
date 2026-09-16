@@ -288,9 +288,12 @@ function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | '
 function toFtsQuery(input: string): string | null {
   // Unicode-aware: ä, ö, ü and ß are letters here, not separators. The
   // tokenizer folds the diacritics, but only if the character reaches it.
+  // NFC, with combining marks kept inside a word, so decomposed "Zürich" is
+  // one token rather than "zu" and "rich". See suggestMatch.
   const tokens = input
+    .normalize('NFC')
     .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
+    .split(/[^\p{L}\p{M}\p{N}]+/u)
     .filter(token => token.length > 0)
     .slice(0, 8)
 

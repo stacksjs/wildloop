@@ -62,9 +62,14 @@ export const TRAIL_CANDIDATES = 200
  * parentheses, which is what makes it safe to inline into SQL below.
  */
 export function suggestMatch(input: string, column?: 'name'): string | null {
+  // NFC first, and marks kept inside a word. Text pasted in decomposed form
+  // carries "ü" as "u" plus a combining mark, which the letter class alone
+  // treated as a separator: "Zürich" became "zu" and "rich" and matched
+  // nothing. The tokenizer folds the marks itself.
   const tokens = String(input ?? '')
+    .normalize('NFC')
     .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
+    .split(/[^\p{L}\p{M}\p{N}]+/u)
     .filter(token => token.length > 0)
     .slice(0, 6)
 

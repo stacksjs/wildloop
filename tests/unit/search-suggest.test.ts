@@ -33,6 +33,12 @@ describe('suggestMatch', () => {
     expect(suggestMatch('Höllental')).toBe('"höllental"*')
   })
 
+  it('keeps a decomposed accent inside its word instead of splitting on it', () => {
+    // "Zürich" as "u" plus U+0308, the form some paste sources produce.
+    expect(suggestMatch('Zu\u0308rich')).toBe('"zürich"*')
+    expect(suggestMatch('Zu\u0308rich')).toBe(suggestMatch('Zürich'))
+  })
+
   it('restricts to a column when asked', () => {
     expect(suggestMatch('lost lak', 'name')).toBe('name : ("lost" "lak"*)')
   })
@@ -188,6 +194,11 @@ describe('suggestion queries', () => {
   it('matches without the diacritics a visitor may not type', async () => {
     database = await catalog()
     expect(places(database, 'baden wurt').map(p => p.label)).toContain('Baden-Württemberg')
+  })
+
+  it('finds a trail typed with a decomposed accent', async () => {
+    database = await catalog()
+    expect(trails(database, 'Ho\u0308llen').map(t => t.name)).toEqual(['Höllentalklamm'])
   })
 
   it('suggests trails by name only, most reviewed first', async () => {
