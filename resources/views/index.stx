@@ -136,7 +136,8 @@
    * the results. When a :for drops rows, stx removes their elements but keeps
    * the effects that bound them, and each of those still runs on every later
    * change, so a session of typing got steadily slower. Nine is the most the
-   * endpoint returns: four places and five trails.
+   * endpoint returns: four places and five trails. Once stacksjs/stx#1954 is
+   * fixed this can go back to a :for over `suggestions`.
    */
   const suggestionSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8]
   const NO_SUGGESTION = { kind: '', label: '', detail: '', href: '' }
