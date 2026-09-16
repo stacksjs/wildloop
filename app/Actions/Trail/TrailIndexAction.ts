@@ -163,8 +163,15 @@ function applyFilters(
     // A term that survives sanitising to nothing must match nothing, not
     // everything — dropping the filter would answer "%" with the entire
     // catalog.
+    //
+    // The binding is passed as a plain value, not `[match]`. bun-query-builder
+    // 0.2.69 keeps a whereRaw array nested (`[["term"], "US"]`), which only
+    // works while nothing else binds. Any other filter, including the country
+    // inferred from a browser's Accept-Language or the edge's geo header,
+    // made every text search throw "expected 2 values, received 1" and answer
+    // 500. Browsers send that header, curl does not, which is how it hid.
     query = match
-      ? query.whereRaw('id IN (SELECT rowid FROM trails_fts WHERE trails_fts MATCH ?)', [match])
+      ? query.whereRaw('id IN (SELECT rowid FROM trails_fts WHERE trails_fts MATCH ?)', match as any)
       : query.whereRaw('1 = 0')
   }
 
