@@ -104,8 +104,17 @@
   const topCountries = derived(() => coverage().countries.slice(0, 12))
   const topRegions = derived(() => coverage().states.slice(0, 16))
 
+  /**
+   * A named handler, not `e => search.set(...)` inline. stx dropped that arrow
+   * form without a word, so the signal never saw a keystroke and every search
+   * arrived at /trails with nothing in it.
+   */
+  function onHeroInput(value) {
+    search.set(value)
+  }
+
   function submitSearch(event) {
-    event.preventDefault()
+    event?.preventDefault?.()
     const term = search().trim()
     navigate(term ? `/trails?q=${encodeURIComponent(term)}` : '/trails')
   }
@@ -215,14 +224,14 @@
     <div class="hero-inner">
       <h1 class="hero-title">Find your next adventure</h1>
 
-      <form @submit="submitSearch" class="hero-search" role="search">
+      <form @submit="submitSearch($event)" class="hero-search" role="search">
         <label for="hero-search-input" class="sr-only">Search by city, park, or trail name</label>
         <span class="hero-search-icon" aria-hidden="true"><i class="i-lucide-search h-5 w-5"></i></span>
         <input
           id="hero-search-input"
           type="search"
           x-value="search"
-          @input="e => search.set(e.target.value)"
+          @input="onHeroInput($event.target.value)"
           placeholder="Search by city, park, or trail name"
           autocomplete="off"
         />

@@ -335,7 +335,34 @@
     runSearch()
   }
 
+  /**
+   * Arrive where a link pointed. The home search sends `?q=`, its region and
+   * country shortcuts send `?state=` and `?country=`, and all of them used to
+   * land on the default list with an empty box.
+   *
+   * Any of them turns near-me off. A search for "Yosemite" from Berlin is not
+   * a search for Yosemite within 25 miles of Berlin, and that intersection
+   * returns nothing without ever widening.
+   */
+  function applyUrlQuery() {
+    const query = useRoute().query ?? {}
+    const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
+    const q = text(query.q)
+    const code = text(query.state)
+    const country = text(query.country).toUpperCase()
+
+    if (q)
+      search.set(q)
+    if (code)
+      activeState.set(code)
+    if (country)
+      activeCountry.set(country)
+    if (q || code || country)
+      useNearMe.set(false)
+  }
+
   onMount(() => {
+    applyUrlQuery()
     // Resolve first, then search: opening the national catalog and swapping it
     // for a local one a beat later is two answers to one question.
     resolveNearby().finally(() => runSearch())

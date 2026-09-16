@@ -1,4 +1,5 @@
 import { Seeder } from '@stacksjs/database'
+import { db } from '@stacksjs/orm'
 import Trail from '../../app/Models/Trail'
 
 /**
@@ -994,5 +995,30 @@ export default class TrailSeeder extends Seeder {
 
     if (adopted > 0)
       console.warn(`[seed] ${adopted} seeded trail(s) already in the catalog; used the ingested row instead of adding a duplicate`)
+
+    await rebuildTrailSearchIndex()
+  }
+}
+
+/**
+ * Make the rows written above findable.
+ *
+ * `trails_fts` is an external-content index that does not observe writes to
+ * `trails`, and only the ingest keeps it in step. A seeded catalog was
+ * therefore unsearchable: every trail on the explore page, none of them in the
+ * index, and search answering nothing for a name printed on screen.
+ *
+ * A rebuild rather than the ingest's per-row delete and insert. Those need the
+ * index to already agree with the table, and FTS5 corrupts an index handed a
+ * delete for terms it never held, which is exactly the state a seeded
+ * environment is in. A rebuild is correct from any starting point: instant on
+ * the seed's couple of dozen rows, seconds on a full catalog.
+ */
+async function rebuildTrailSearchIndex(): Promise<void> {
+  try {
+    await db.sql`INSERT INTO trails_fts(trails_fts) VALUES ('rebuild')`.execute()
+  }
+  catch (error) {
+    console.warn(`[seed] trail search index rebuild failed: ${error instanceof Error ? error.message : error}`)
   }
 }
