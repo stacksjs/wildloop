@@ -127,6 +127,23 @@
 
   let suggestTimer = null
   let suggestToken = 0
+  let heroFocused = false
+  /** The text the stored suggestions were fetched for. */
+  let suggestionsFor = ''
+
+  /*
+   * A fixed set of rows, filled from `suggestions`, rather than a :for over
+   * the results. When a :for drops rows, stx removes their elements but keeps
+   * the effects that bound them, and each of those still runs on every later
+   * change, so a session of typing got steadily slower. Nine is the most the
+   * endpoint returns: four places and five trails.
+   */
+  const suggestionSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  const NO_SUGGESTION = { kind: '', label: '', detail: '', href: '' }
+
+  function suggestionAt(slot) {
+    return suggestions()[slot] ?? NO_SUGGESTION
+  }
 
   /**
    * A named handler, not `e => search.set(...)` inline. stx dropped that arrow
@@ -143,6 +160,7 @@
       // Invalidate any request still in flight so it cannot reopen the list.
       suggestToken++
       suggestions.set([])
+      suggestionsFor = ''
       suggestOpen.set(false)
       return
     }
@@ -157,17 +175,45 @@
     if (token !== suggestToken)
       return
     suggestions.set(found)
+    suggestionsFor = value
     activeSuggestion.set(-1)
-    suggestOpen.set(found.length > 0)
+    // Only into a field that still has focus. A lookup that lands after the
+    // visitor tapped away opened the list over the page with nothing left to
+    // close it. The results are kept, so focusing again shows them.
+    suggestOpen.set(found.length > 0 && heroFocused)
+  }
+
+  /** Stop a debounced or in-flight lookup from reopening a list just closed. */
+  function cancelSuggestionLookup() {
+    if (suggestTimer)
+      clearTimeout(suggestTimer)
+    suggestTimer = null
+    suggestToken++
   }
 
   function closeSuggestions() {
+    cancelSuggestionLookup()
     suggestOpen.set(false)
     activeSuggestion.set(-1)
   }
 
+  /**
+   * Keep the highlighted row visible. The list scrolls once there are more
+   * rows than fit, and aria-activedescendant moves the highlight without
+   * scrolling. Reached through the input's own form, not the document.
+   */
+  function revealSuggestion(event, slot) {
+    event?.target?.form?.querySelector?.(`#hero-suggestion-${slot}`)?.scrollIntoView?.({ block: 'nearest' })
+  }
+
   /** One handler for every key, since stx ignores key modifiers it does not know. */
   function onHeroKeydown(event) {
+    // Enter and the arrows belong to an input method while it is composing,
+    // confirming a conversion, not submitting. Safari reports that keydown
+    // after composition ends, as keyCode 229.
+    if (event.isComposing || event.keyCode === 229)
+      return
+
     const count = suggestions().length
     const open = suggestionsExpanded() === 'true'
 
@@ -177,12 +223,14 @@
       event.preventDefault()
       suggestOpen.set(true)
       activeSuggestion.set(open ? (activeSuggestion() + 1) % count : 0)
+      revealSuggestion(event, activeSuggestion())
     }
     else if (event.key === 'ArrowUp') {
       if (!open)
         return
       event.preventDefault()
       activeSuggestion.set(activeSuggestion() <= 0 ? count - 1 : activeSuggestion() - 1)
+      revealSuggestion(event, activeSuggestion())
     }
     else if (event.key === 'Enter') {
       // Handled here rather than left to the form, so Enter on a highlighted
@@ -193,21 +241,38 @@
       else
         submitSearch()
     }
-    else if (event.key === 'Escape' && open) {
-      event.preventDefault()
+    else if (event.key === 'Escape') {
+      // Also when nothing is showing yet: Escape before the first lookup
+      // lands must stop that lookup opening the list.
+      if (open)
+        event.preventDefault()
       closeSuggestions()
     }
   }
 
   function onHeroFocus() {
-    if (suggestions().length > 0 && search().trim().length >= 2)
-      suggestOpen.set(true)
+    heroFocused = true
+    const value = search()
+    if (value.trim().length < 2)
+      return
+    // Reopen what is stored only if it was fetched for this text. Leaving the
+    // field cancels a lookup still pending, so what is stored can belong to
+    // earlier text ("co" results under "yos"), and that is fetched again.
+    if (suggestionsFor === value)
+      suggestOpen.set(suggestions().length > 0)
+    else
+      refreshSuggestions(value)
   }
 
   // Closed a beat after blur, so a tap on a suggestion lands before the list
   // it is in disappears. Tapping moves focus off the input first on touch.
+  // Skipped if focus came straight back, so it cannot cancel new typing.
   function onHeroBlur() {
-    setTimeout(closeSuggestions, 150)
+    heroFocused = false
+    setTimeout(() => {
+      if (!heroFocused)
+        closeSuggestions()
+    }, 150)
   }
 
   /** Bound with `.prevent` on mousedown, which keeps focus in the input on desktop. */
@@ -356,6 +421,7 @@
           role="combobox"
           aria-autocomplete="list"
           aria-controls="hero-suggestions"
+          aria-expanded="false"
           x-aria-expanded="suggestionsExpanded()"
           x-aria-activedescendant="activeSuggestionId()"
           placeholder="Search by city, park, or trail name"
@@ -372,21 +438,26 @@
           role="listbox"
           aria-label="Search suggestions"
           class="hero-suggestions"
+          hidden
           x-hidden="suggestionsExpanded() !== 'true'"
         >
-          <template :for="(item, index) in suggestions">
+          <!-- `hidden` above holds until the script binds, so the empty list
+               does not paint as a white bar under the field while it loads. -->
+          <template :for="slot in suggestionSlots">
             <li
-              x-id="'hero-suggestion-' + index"
+              x-id="'hero-suggestion-' + slot"
               role="option"
-              x-aria-selected="activeSuggestion() === index ? 'true' : 'false'"
-              x-class="activeSuggestion() === index ? 'hero-suggestion is-active' : 'hero-suggestion'"
+              hidden
+              x-hidden="slot >= suggestions().length"
+              x-aria-selected="activeSuggestion() === slot ? 'true' : 'false'"
+              x-class="activeSuggestion() === slot ? 'hero-suggestion is-active' : 'hero-suggestion'"
               @mousedown.prevent="keepHeroFocus()"
-              @click="pickSuggestion(index)"
+              @click="pickSuggestion(slot)"
             >
-              <i x-class="suggestionIcon(item.kind)" aria-hidden="true"></i>
+              <i x-class="suggestionIcon(suggestionAt(slot).kind)" aria-hidden="true"></i>
               <span class="hero-suggestion-text">
-                <span class="hero-suggestion-label">{{ item.label }}</span>
-                <span class="hero-suggestion-detail">{{ item.detail }}</span>
+                <span class="hero-suggestion-label">{{ suggestionAt(slot).label }}</span>
+                <span class="hero-suggestion-detail">{{ suggestionAt(slot).detail }}</span>
               </span>
             </li>
           </template>
@@ -999,8 +1070,9 @@
     box-shadow: 0 18px 48px -12px rgb(4 12 10 / 45%);
   }
 
-  /* The class sets display, which would otherwise override the attribute. */
-  .hero-suggestions[hidden] { display: none; }
+  /* The classes set display, which would otherwise override the attribute. */
+  .hero-suggestions[hidden],
+  .hero-suggestion[hidden] { display: none; }
 
   .hero-suggestion {
     display: flex;

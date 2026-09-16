@@ -71,6 +71,8 @@
    * the visitor's own coordinates would return nothing and blame the region.
    */
   const useNearMe = state(true)
+  /** An explicit `?sort=` from a link, which outranks the page's own choice. */
+  const urlSort = state('')
   /** The radius the API actually answered at, which may be wider than asked. */
   const nearRadius = state(0)
 
@@ -165,7 +167,7 @@
         // of these is good" is the remaining question. Nationally there is no
         // such thing as near, so length is what makes the list impressive
         // rather than arbitrary.
-        sort: search() ? 'featured' : near ? 'rating' : 'longest',
+        sort: urlSort() || (search() ? 'featured' : near ? 'rating' : 'longest'),
         ...(near ? { lat: near.lat, lng: near.lng, radius: 25 } : {}),
         limit: 60,
       }
@@ -337,8 +339,8 @@
 
   /**
    * Arrive where a link pointed. The home search sends `?q=`, its region and
-   * country shortcuts send `?state=` and `?country=`, and all of them used to
-   * land on the default list with an empty box.
+   * country shortcuts send `?state=` and `?country=`, "Top trails" sends
+   * `?sort=rating`, and all of them used to land on the default list.
    *
    * Any of them turns near-me off. A search for "Yosemite" from Berlin is not
    * a search for Yosemite within 25 miles of Berlin, and that intersection
@@ -350,14 +352,18 @@
     const q = text(query.q)
     const code = text(query.state)
     const country = text(query.country).toUpperCase()
+    const sort = text(query.sort)
+    const knownSort = ['featured', 'rating', 'longest', 'distance', 'name'].includes(sort)
 
     if (q)
       search.set(q)
+    if (knownSort)
+      urlSort.set(sort)
     if (code)
       activeState.set(code)
     if (country)
       activeCountry.set(country)
-    if (q || code || country)
+    if (q || code || country || knownSort)
       useNearMe.set(false)
   }
 
