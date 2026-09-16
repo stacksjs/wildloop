@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
 import {
   buildAuthorizeUrl,
   createPkcePair,
+  evaluateImportedAthletes,
   extractDisconnects,
   extractSummaries,
   isConfigured,
@@ -288,5 +289,47 @@ describe('isAuthenticWebhook', () => {
 
   it('rejects a missing header', () => {
     expect(isAuthenticWebhook(null, 'shh')).toBe(false)
+  })
+})
+
+describe('evaluateImportedAthletes', () => {
+  it('evaluates each athlete once, however many runs one push carried', async () => {
+    // A backfill replays history in a single push. Evaluating per activity
+    // would re-read the whole history once for every run in it.
+    const calls: number[] = []
+    const evaluated = await evaluateImportedAthletes([7, 7, 7, 9], async (id) => {
+      calls.push(id)
+    })
+    expect(calls).toEqual([7, 9])
+    expect(evaluated).toBe(2)
+  })
+
+  it('does nothing when the push imported nothing', async () => {
+    let called = false
+    const evaluated = await evaluateImportedAthletes([], async () => {
+      called = true
+    })
+    expect(called).toBe(false)
+    expect(evaluated).toBe(0)
+  })
+
+  it('never throws, and one failure does not cost the next athlete', async () => {
+    // A throw here would turn the response non-2xx and Garmin would redeliver
+    // the whole batch, including every run that already imported.
+    const logged = spyOn(console, 'error').mockImplementation(() => {})
+    const calls: number[] = []
+    try {
+      const evaluated = await evaluateImportedAthletes([1, 2], async (id) => {
+        calls.push(id)
+        if (id === 1)
+          throw new Error('database is locked')
+      })
+      expect(calls).toEqual([1, 2])
+      expect(evaluated).toBe(1)
+      expect(logged).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      logged.mockRestore()
+    }
   })
 })

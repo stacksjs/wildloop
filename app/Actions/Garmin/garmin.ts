@@ -226,6 +226,37 @@ export function extractDisconnects(body: unknown): GarminDeregistration[] {
   return extractDeregistrations(body)
 }
 
+/**
+ * Re-evaluate achievements for every athlete who gained an activity in a push.
+ *
+ * Imports write through `Activity.create`, not ActivityStoreAction, because
+ * that action takes the actor from the session and a webhook has none. So the
+ * unlock hook the recorder runs after every store has to run here too, or a
+ * watch-only athlete's runs count toward nothing until they next do something
+ * in the app.
+ *
+ * Once per athlete, not once per activity: a backfill replays history in one
+ * push, and each evaluation re-reads all of that athlete's activities. Never
+ * throws, because a non-2xx makes Garmin redeliver the whole batch. The
+ * evaluator is passed in so this stays testable without a database.
+ */
+export async function evaluateImportedAthletes(
+  userIds: Iterable<number>,
+  evaluate: (userId: number) => Promise<unknown>,
+): Promise<number> {
+  let evaluated = 0
+  for (const userId of new Set(userIds)) {
+    try {
+      await evaluate(userId)
+      evaluated++
+    }
+    catch (error) {
+      console.error('[garmin] could not evaluate achievements for user', userId, error)
+    }
+  }
+  return evaluated
+}
+
 /** What has to survive the round trip to Garmin and back. */
 export interface OAuthState {
   /** Which WildLoop account is connecting. */

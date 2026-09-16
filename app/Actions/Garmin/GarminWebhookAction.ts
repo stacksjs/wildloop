@@ -13,7 +13,8 @@
 //     unusable, or Garmin will retry the whole batch forever.
 
 import garminConfig from '../../../config/garmin'
-import { extractDisconnects, extractSummaries, isAuthenticWebhook, mapActivity } from './garmin'
+import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
+import { evaluateImportedAthletes, extractDisconnects, extractSummaries, isAuthenticWebhook, mapActivity } from './garmin'
 
 export default new Action({
   name: 'Garmin Webhook',
@@ -46,6 +47,7 @@ export default new Action({
     let imported = 0
     let skipped = 0
     let deregistered = 0
+    const importedFor: number[] = []
 
     // Garmin sends this when an athlete revokes WildLoop from Connect. Delete
     // the local tokens immediately; otherwise a disconnected account still
@@ -120,6 +122,11 @@ export default new Action({
           integrity_status: 'unverified',
           integrity_reason: 'Garmin summary did not include route telemetry',
         })
+        // Collected as soon as the row exists, so a failure in the bookkeeping
+        // below still leaves this athlete's new activity counted. Number()
+        // because some drivers return bigint ids as strings, and "7" and 7
+        // would evaluate the same athlete twice.
+        importedFor.push(Number(connection.user_id))
 
         await db.insertInto('garmin_activity_imports').values({
           user_id: connection.user_id,
@@ -142,6 +149,10 @@ export default new Action({
         skipped++
       }
     }
+
+    // No XP here, deliberately: XP accrues on territory claims, and a summary
+    // without route telemetry cannot claim any (capture_eligible above).
+    await evaluateImportedAthletes(importedFor, evaluateAchievementsForUser)
 
     return response.json({
       received: summaries.length + disconnects.length,
