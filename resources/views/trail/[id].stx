@@ -114,8 +114,8 @@
     if (slot >= galleryCount())
       return 'hidden'
     return slot === photoIndex()
-      ? 'h-2 w-2 rounded-full bg-white transition'
-      : 'h-2 w-2 rounded-full bg-white/50 transition hover:bg-white/80'
+      ? 'h-2.5 w-2.5 rounded-full bg-white shadow ring-1 ring-black/20 transition'
+      : 'h-2.5 w-2.5 rounded-full bg-white/45 shadow ring-1 ring-black/10 transition hover:bg-white/80'
   }
 
   function dotLabel(slot: number) {
@@ -348,14 +348,16 @@
 
       <!-- Gallery controls. Only drawn once a second photo exists: a lone
            arrow over a single picture is a control that does nothing. -->
-      <button :if="hasGallery()" @click="previousPhoto()" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur-sm transition hover:bg-black/55 focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-100">
+      <button :if="hasGallery()" @click="previousPhoto()" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
         <i class="i-lucide-chevron-left h-5 w-5" aria-hidden="true"></i>
       </button>
-      <button :if="hasGallery()" @click="nextPhoto()" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur-sm transition hover:bg-black/55 focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-100">
+      <button :if="hasGallery()" @click="nextPhoto()" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
         <i class="i-lucide-chevron-right h-5 w-5" aria-hidden="true"></i>
       </button>
 
-      <div :if="hasGallery()" class="absolute inset-x-0 bottom-[7.5rem] z-10 flex justify-center gap-1.5">
+      <!-- Bottom right, because the title block owns the bottom left of the
+           photo on every screen size. -->
+      <div :if="hasGallery()" class="absolute bottom-3 right-4 z-10 flex gap-1.5">
         <template :for="slot in photoSlots">
           <button @click="showPhoto(slot)" x-class="dotClass(slot)" x-aria-label="dotLabel(slot)"></button>
         </template>
