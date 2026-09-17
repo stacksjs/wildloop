@@ -256,12 +256,19 @@
 
   function routeThumb(id: number) {
     const cached = thumbnails.get(id)
-    if (cached !== undefined)
+    if (cached)
       return cached
 
     const coords = routes()[id]
-    const uri = (coords && coords.length > 1 ? routePreviewDataUri(coords) : '') || ''
-    thumbnails.set(id, uri)
+    if (!coords || coords.length < 2)
+      return ''
+
+    // Only a drawn line is cached. A miss must stay a miss: the cards render
+    // from `results` and the geometry lands in `routes` a statement later, so
+    // caching the empty answer froze every card's chip out for the session.
+    const uri = routePreviewDataUri(coords) || ''
+    if (uri)
+      thumbnails.set(id, uri)
     return uri
   }
 
@@ -390,8 +397,10 @@
       if (token !== searchToken)
         return
 
-      results.set(res.trails)
+      // Geometry first: the cards read it as they render, and setting the rows
+      // first draws one frame of every card with no route chip.
       routes.set(res.geometryById)
+      results.set(res.trails)
       matchCount.set(res.total)
       nearRadius.set(near ? (res.radius ?? 25) : 0)
     }
@@ -400,8 +409,8 @@
         return
       const fallback = offlineResults()
       searchFailed.set(true)
-      results.set(fallback)
       routes.set(wl?.trailRoutes() ?? {})
+      results.set(fallback)
       matchCount.set(fallback.length)
       catalogError.set('Live trail search is unavailable offline.')
     }
