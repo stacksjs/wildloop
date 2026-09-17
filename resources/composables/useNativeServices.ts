@@ -1,6 +1,7 @@
 import { onDestroy, onMount } from 'stx'
 import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications, secureStorage } from '@stacksjs/mobile'
 import { readyToken } from '../assets/scripts/auth'
+import { donateSiriPhrases, onAppShortcut, registerAppShortcuts } from './useNativeShortcuts'
 
 const PUSH_ENABLED_KEY = 'wildloop_push_enabled'
 const PUSH_TOKEN_KEY = 'wildloop_push_token'
@@ -99,6 +100,7 @@ export function useNativeServices(): void {
   let removeReady: (() => void) | null = null
   let removeLink: (() => void) | null = null
   let removeNotification: (() => void) | null = null
+  let removeShortcut: (() => void) | null = null
 
   onMount(() => {
     removeReady = onMobileReady(async () => {
@@ -111,6 +113,19 @@ export function useNativeServices(): void {
         if (link) openDeepLink(link)
       })
 
+      // A tapped shortcut is a route, and `navigate` is the same trip a deep
+      // link takes — the two paths cannot diverge.
+      removeShortcut = onAppShortcut((route) => {
+        if (typeof location !== 'undefined') location.assign(route)
+      })
+
+      // The home-screen menu is set per launch rather than per install: the
+      // list can change with a release, and the Siri donations expire.
+      // Neither is awaited before the rest of the app starts, and neither can
+      // fail it — see useNativeShortcuts for the guards.
+      void registerAppShortcuts()
+      void donateSiriPhrases()
+
       await syncOptedInNativePushNotifications()
     })
   })
@@ -119,5 +134,6 @@ export function useNativeServices(): void {
     removeReady?.()
     removeLink?.()
     removeNotification?.()
+    removeShortcut?.()
   })
 }
