@@ -58,16 +58,25 @@ export function swiftIdentifier(value: string): string {
 }
 
 /**
- * A phrase with the app's name replaced by the token Apple requires.
+ * A phrase as a Swift literal whose app name is Apple's interpolation token.
  *
- * Every App Shortcut phrase has to carry `\(.applicationName)` — a phrase
- * without it is rejected at build time — and the catalogue writes the name out
- * in full because that is what reads correctly everywhere else.
+ * Every App Shortcut utterance has to carry exactly one `\(.applicationName)`,
+ * and it has to be a real interpolation: run through `swiftString` the token's
+ * backslash is escaped, the literal reads `\\(.applicationName)`, and
+ * `appintentsmetadataprocessor` fails the build with "Invalid Utterance. Every
+ * App Shortcut utterance should have one '${applicationName}' in it." — which
+ * is exactly what happened. So the surrounding text is escaped and the token
+ * is spliced in raw.
  */
-export function sirifyPhrase(phrase: string, appName: string): string {
+export function swiftPhraseLiteral(phrase: string, appName: string): string {
   const token = '\\(.applicationName)'
-  const withToken = phrase.replace(new RegExp(escapeRegExp(appName), 'gi'), token)
-  return withToken.includes(token) ? withToken : `${phrase} with ${token}`
+  const escape = (part: string) => part.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const parts = phrase.split(new RegExp(escapeRegExp(appName), 'i')).map(escape)
+
+  // A phrase that never names the app still has to carry the token.
+  return parts.length > 1
+    ? `"${parts.join(token)}"`
+    : `"${parts[0]} with ${token}"`
 }
 
 function escapeRegExp(value: string): string {
@@ -116,7 +125,7 @@ struct ${name}: AppIntent {
     return `        AppShortcut(
             intent: ${name}(),
             phrases: [
-                ${swiftString(sirifyPhrase(shortcut.phrase, options.appName))}
+                ${swiftPhraseLiteral(shortcut.phrase, options.appName)}
             ],
             shortTitle: ${swiftString(shortcut.title)},
             systemImageName: ${swiftString(shortcut.symbol)}

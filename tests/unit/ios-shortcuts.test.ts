@@ -6,7 +6,7 @@ import {
   conflictingProviders,
   iosShortcutsSwift,
   shortcutsSourcePath,
-  sirifyPhrase,
+  swiftPhraseLiteral,
   swiftIdentifier,
   swiftString,
   writeIosShortcuts,
@@ -27,10 +27,14 @@ describe('Swift building blocks', () => {
     expect(swiftIdentifier('3d-view')).toBe('Shortcut3dView')
   })
 
-  it('carries the application-name token every phrase needs', () => {
-    expect(sirifyPhrase('Show my stats in WildLoop', 'WildLoop')).toBe('Show my stats in \\(.applicationName)')
-    // A phrase that never names the app still has to carry the token.
-    expect(sirifyPhrase('Show my stats', 'WildLoop')).toBe('Show my stats with \\(.applicationName)')
+  it('carries the application-name token as a real interpolation', () => {
+    // One backslash, not two: escaped, the processor rejects the utterance.
+    expect(swiftPhraseLiteral('Show my stats in WildLoop', 'WildLoop')).toBe('"Show my stats in \\(.applicationName)"')
+    expect(swiftPhraseLiteral('Show my stats', 'WildLoop')).toBe('"Show my stats with \\(.applicationName)"')
+  })
+
+  it('still escapes the text around the token', () => {
+    expect(swiftPhraseLiteral('Open "WildLoop" now', 'WildLoop')).toBe('"Open \\"\\(.applicationName)\\" now"')
   })
 })
 
@@ -79,6 +83,13 @@ describe('the generated Swift', () => {
   it('follows the scheme the build registered', () => {
     expect(iosShortcutsSwift({ appName: 'WildLoop', scheme: 'wildloop-dev' }))
       .toContain('URL(string: "wildloop-dev://stats")')
+  })
+
+  it('never doubles the backslash in an utterance, which fails metadata export', () => {
+    // `\\(.applicationName)` in the file is a literal, not an interpolation,
+    // and appintentsmetadataprocessor rejects the whole target for it.
+    expect(swift.includes('\\\\(.applicationName)')).toBe(false)
+    expect(swift.split('\\(.applicationName)').length - 1).toBe(APP_SHORTCUTS.length)
   })
 
   it('says it is generated, and where from', () => {
