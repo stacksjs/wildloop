@@ -58,7 +58,12 @@ export interface NormalizedTrail {
 
   // Access
   allowedUses: string
-  dogsAllowed: boolean
+  /**
+   * Whether dogs are permitted, or null when the source does not say. Null is
+   * the common case, and it must stay distinct from false: the trail page shows
+   * a "No dogs" notice for false.
+   */
+  dogsAllowed: boolean | null
   wheelchairAccessible: boolean
   nationalTrail: boolean
 

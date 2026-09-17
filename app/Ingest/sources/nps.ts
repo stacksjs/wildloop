@@ -307,9 +307,11 @@ function normalizeTrail(
     geometry: encodeGeometry(coords),
 
     allowedUses: deriveUses(primary),
-    // Most NPS units prohibit dogs on backcountry trails, and the layer gives
-    // no per-trail field, so the safe default is the restrictive one.
-    dogsAllowed: false,
+    // The layer has no per-trail pet field. Policy varies by park (Acadia allows
+    // leashed dogs on most trails), and a restrictive default was shown to
+    // visitors as "Dogs are not permitted on this trail", so record it as
+    // unknown.
+    dogsAllowed: null,
     wheelchairAccessible: accessible,
     nationalTrail: false,
 

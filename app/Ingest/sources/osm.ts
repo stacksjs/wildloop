@@ -169,6 +169,20 @@ function parseElevationHighFeet(tags: Record<string, string>): number {
   return Number.isFinite(meters) ? metersToFeet(meters) : 0
 }
 
+/**
+ * OSM's `dog` tag, read as yes, no, or not recorded.
+ *
+ * Most ways carry no `dog` tag at all. Reading that as "no" put a "No dogs"
+ * notice on nearly every OSM trail.
+ */
+export function dogPolicy(tag: string | undefined): boolean | null {
+  if (tag === 'yes' || tag === 'leashed' || tag === 'designated')
+    return true
+  if (tag === 'no')
+    return false
+  return null
+}
+
 function deriveUses(tags: Record<string, string>): string {
   const uses = new Set<string>(['hiking'])
 
@@ -271,7 +285,7 @@ function normalizeElement(element: OverpassElement): NormalizedTrail | null {
     geometry: encodeGeometry(coords),
 
     allowedUses: deriveUses(tags),
-    dogsAllowed: tags.dog === 'yes' || tags.dog === 'leashed',
+    dogsAllowed: dogPolicy(tags.dog),
     wheelchairAccessible: tags.wheelchair === 'yes',
     nationalTrail: tags.network === 'nwn' || tags.network === 'iwn',
 

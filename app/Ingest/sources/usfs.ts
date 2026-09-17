@@ -355,7 +355,9 @@ function normalizeTrail(
     allowedUses: deriveUses(primary),
     // National forests allow leashed dogs on trails as a rule; the layer has
     // no per-trail field to say otherwise.
-    dogsAllowed: true,
+    // No per-trail pet field in this layer either. A blanket true gave every
+    // Forest Service trail a "Dog-friendly" badge.
+    dogsAllowed: null,
     wheelchairAccessible: accessible,
     nationalTrail,
 
