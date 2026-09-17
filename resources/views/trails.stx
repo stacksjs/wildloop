@@ -1007,7 +1007,7 @@
                  and back at a glance. Drawn from the geometry the search
                  already returned, so it costs no request. -->
             <span :if="routeThumb(trail.id) !== ''" class="absolute bottom-3 right-3 h-14 w-14 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md">
-              <img x-src="routeThumb(trail.id)" alt="" width="56" height="56" loading="lazy" class="h-full w-full object-cover" />
+              <Image x-src="routeThumb(trail.id)" x-alt="'Route shape for ' + trail.name" width="56" height="56" sizes="56px" class="h-full w-full object-cover" />
             </span>
           </div>
 

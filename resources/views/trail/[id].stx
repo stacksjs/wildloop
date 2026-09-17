@@ -440,7 +440,7 @@
 
       <!-- The route's shape, and the way down to the map that draws it. -->
       <a :if="routeThumb() !== ''" href="#trail-map" aria-label="See the route on the map" class="absolute bottom-24 right-4 z-10 h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg transition hover:scale-105">
-        <img x-src="routeThumb()" alt="" width="80" height="80" class="h-full w-full object-cover" />
+        <Image x-src="routeThumb()" x-alt="'Route shape for ' + trail.name" width="80" height="80" sizes="80px" class="h-full w-full object-cover" />
       </a>
 
       <div class="relative h-full flex items-end px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 pb-8">
