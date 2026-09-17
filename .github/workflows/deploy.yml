@@ -100,3 +100,22 @@ jobs:
           # whole time. DNS has not been reconciled on a deploy since.
           #
           # Add a credential with `buddy env:set KEY value --file .env.production`.
+
+      # Ask the site whether the deploy worked, rather than trusting that the
+      # deploy command exiting 0 means it did.
+      #
+      # `buddy deploy` reports success once a release is activated and the
+      # services have been asked to restart. It cannot see a process that came
+      # up against the previous release's env, a route that did not register,
+      # or a page serving an older build of the views — all of which leave this
+      # job green and the site wrong. The checks are in scripts/smoke.ts so
+      # they can be run by hand against any environment:
+      #
+      #     bun scripts/smoke.ts https://wildloop.org
+      #
+      # Only production has a public URL today; staging and development deploy
+      # to hosts this runner cannot name, so they skip rather than fail on a
+      # URL that was never going to answer.
+      - name: Smoke check the deployed site
+        if: github.event.inputs.environment == '' || github.event.inputs.environment == 'production'
+        run: bun scripts/smoke.ts https://wildloop.org
