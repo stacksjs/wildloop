@@ -195,6 +195,10 @@
   }
 
   function clearFilters() {
+    // The ordering goes back with the filters: both are reached through the
+    // same panel, and "Clear all" that leaves the list sorted by rating is not
+    // the default list anybody remembers setting.
+    sortChoice.set('')
     difficulty.set('all')
     routeType.set('all')
     lengthBucket.set('any')
