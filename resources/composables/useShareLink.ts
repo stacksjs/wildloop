@@ -42,6 +42,25 @@ function absoluteUrl(url: string): string {
   return new URL(url, location.origin).toString()
 }
 
+/**
+ * Put a link on the clipboard, without offering the share sheet first.
+ *
+ * Separate from `shareLink` because a menu item that reads "Copy link" must
+ * copy the link: opening the OS sheet from it is a different action wearing
+ * the wrong label.
+ */
+export async function copyLink(url: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(absoluteUrl(url))
+    announce('Link copied to your clipboard.')
+    return true
+  }
+  catch {
+    announce('Could not copy this link. Copy it from the address bar.')
+    return false
+  }
+}
+
 export async function shareLink(request: ShareRequest): Promise<ShareOutcome> {
   const url = absoluteUrl(request.url)
 

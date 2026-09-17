@@ -13,7 +13,7 @@
   import { useRecordSubmission, useTrailRecords, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { routePreviewDataUri } from '../../composables/useRoutePreview'
-  import { shareLink, shareNote } from '../../composables/useShareLink'
+  import { copyLink, shareLink, shareNote } from '../../composables/useShareLink'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
   import { trailGallery } from '../../functions/trail-photos'
 
@@ -34,6 +34,8 @@
   const descriptionOpen = state(false)
   /** Which frame of the hero gallery is showing. */
   const photoIndex = state(0)
+  /** The overflow menu on the hero. */
+  const menuOpen = state(false)
 
   // -1 is a deliberate no-match sentinel: if the route param can't be
   // resolved we render a real "not found" instead of silently loading a
@@ -140,7 +142,36 @@
       navigate('/trails')
   }
 
+  function toggleMenu() {
+    menuOpen.set(!menuOpen())
+  }
+
+  function closeMenu() {
+    menuOpen.set(false)
+  }
+
+  /**
+   * Driving directions to the trailhead.
+   *
+   * A maps URL rather than a `geo:` link: phones hand this one to the maps app
+   * they actually have, and on a desktop it opens a route somebody can send to
+   * their phone. The coordinates are the trailhead, which is the only part of
+   * a trail a car can reach.
+   */
+  function directionsUrl() {
+    const current = trail()
+    return current ? `https://www.google.com/maps/dir/?api=1&destination=${current.lat},${current.lng}` : ''
+  }
+
+  function onCopyLink() {
+    const current = trail()
+    closeMenu()
+    if (current)
+      void copyLink(`/trail/${current.id}`)
+  }
+
   async function onShare() {
+    closeMenu()
     const current = trail()
     if (!current)
       return
@@ -382,8 +413,30 @@
               <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
             </svg>
           </button>
+
+          <div class="relative">
+            <button @click="toggleMenu()" aria-label="More actions" x-aria-expanded="menuOpen() ? 'true' : 'false'" class="grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
+              <i class="i-lucide-ellipsis h-5 w-5" aria-hidden="true"></i>
+            </button>
+
+            <!-- The two things that are neither save nor share: getting to the
+                 trailhead, and taking the link somewhere else. -->
+            <div :if="menuOpen()" class="absolute right-0 top-12 z-20 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+              <a x-href="directionsUrl()" target="_blank" rel="noopener noreferrer" @click="closeMenu()" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60">
+                <i class="i-lucide-navigation h-4 w-4 text-emerald-600" aria-hidden="true"></i>
+                Directions to trailhead
+              </a>
+              <button @click="onCopyLink()" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60">
+                <i class="i-lucide-link h-4 w-4 text-emerald-600" aria-hidden="true"></i>
+                Copy link
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Anywhere else closes the menu. -->
+      <div :if="menuOpen()" @click="closeMenu()" class="fixed inset-0 z-10" aria-hidden="true"></div>
 
       <!-- The route's shape, and the way down to the map that draws it. -->
       <a :if="routeThumb() !== ''" href="#trail-map" aria-label="See the route on the map" class="absolute bottom-24 right-4 z-10 h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg transition hover:scale-105">
