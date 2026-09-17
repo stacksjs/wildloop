@@ -88,3 +88,15 @@ export async function offlineTrail(id: number): Promise<OfflineTrail | null> {
 export async function isTrailOffline(id: number): Promise<boolean> {
   return !!await offlineTrail(id)
 }
+
+/**
+ * Every downloaded trail's id, in one read.
+ *
+ * A list of sixty cards each asking `isTrailOffline` is sixty transactions to
+ * answer a question one `getAllKeys` answers, and the download badge has to be
+ * right on first paint rather than sixty promises later.
+ */
+export async function offlineTrailIds(): Promise<number[]> {
+  const keys = await request<IDBValidKey[]>('readonly', store => store.getAllKeys())
+  return (keys ?? []).map(Number).filter(Number.isFinite)
+}
