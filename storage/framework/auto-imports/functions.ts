@@ -14,6 +14,8 @@ export { activityKind, maxSustainableSpeed, maxBurstSpeed, worstSustainedWindow,
 export type { ActivityKind, SpeedSegment } from '../../../resources/functions/activity-physics'
 export { renderActivitySharePng, downloadActivityShareImage, shareActivityImage, activityShareOptions, activityShareSvg, activitySharePreview } from '../../../resources/functions/activity-share'
 export type { ShareableActivity, ActivityShareOutcome } from '../../../resources/functions/activity-share'
+export { appShortcut, appShortcutRoute, appShortcutDeepLink, craftShortcutItems, APP_SHORTCUTS } from '../../../resources/functions/app-shortcuts'
+export type { AppShortcut, CraftShortcutItem } from '../../../resources/functions/app-shortcuts'
 export { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../../../resources/functions/avatars'
 export { yardStartsAt, currentYard, msToNextStart, msIntoCurrentYard, yardsRequiredToBeIn, isStillIn, standings, resolveOutcome, formatClock, STANDARD_YARD_MILES, STANDARD_YARD_MINUTES } from '../../../resources/functions/backyard'
 export type { BackyardSchedule, BackyardEntrantState, BackyardStanding, BackyardOutcome } from '../../../resources/functions/backyard'

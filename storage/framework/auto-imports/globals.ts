@@ -43,6 +43,11 @@ declare global {
   const activityShareOptions: typeof autoImports.activityShareOptions
   const activityShareSvg: typeof autoImports.activityShareSvg
   const activitySharePreview: typeof autoImports.activitySharePreview
+  const appShortcut: typeof autoImports.appShortcut
+  const appShortcutRoute: typeof autoImports.appShortcutRoute
+  const appShortcutDeepLink: typeof autoImports.appShortcutDeepLink
+  const craftShortcutItems: typeof autoImports.craftShortcutItems
+  const APP_SHORTCUTS: typeof autoImports.APP_SHORTCUTS
   const avatarInitial: typeof autoImports.avatarInitial
   const avatarTint: typeof autoImports.avatarTint
   const newReviewsLabel: typeof autoImports.newReviewsLabel
