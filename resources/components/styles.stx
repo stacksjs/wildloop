@@ -199,6 +199,27 @@
   .trail-card:hover .trail-image { transform: scale(1.04); }
   .trail-image { transition: transform 0.5s ease; }
 
+  /* The action bar on a trail page: fixed to the bottom of the viewport, and
+     above the native tab bar rather than behind it. The tab slot is 4rem plus
+     the home-indicator inset and sits at z-index 30, so this clears both. It
+     only ever renders below `lg`, which is exactly where that bar exists. */
+  .trail-action-bar {
+    position: fixed;
+    right: 0;
+    bottom: calc(4rem + var(--native-safe-area-bottom, 0px));
+    left: 0;
+    z-index: 35;
+    border-top: 1px solid #e2e8f0;
+    background: rgb(255 255 255 / 0.95);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
+  .dark .trail-action-bar {
+    border-top-color: #334155;
+    background: rgb(15 23 42 / 0.95);
+  }
+
   /* Map preview */
   .map-preview {
     background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);

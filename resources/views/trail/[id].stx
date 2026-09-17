@@ -12,6 +12,9 @@
   import { isTrailOffline, offlineTrail, removeOfflineTrail, saveTrailOffline } from '../../assets/scripts/offline-trails'
   import { useRecordSubmission, useTrailRecords, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
+  import { routePreviewDataUri } from '../../composables/useRoutePreview'
+  import { shareLink, shareNote } from '../../composables/useShareLink'
+  import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
 
   // The served shell's title. Replaced with the trail's own once it loads —
   // see the effect below, and usePageSeo for why that happens on the client.
@@ -26,6 +29,8 @@
   const trailLoadError = state(false)
   const downloaded = state(false)
   const offlineMessage = state<string | null>(null)
+  /** Long descriptions are clamped until asked for. */
+  const descriptionOpen = state(false)
 
   // -1 is a deliberate no-match sentinel: if the route param can't be
   // resolved we render a real "not found" instead of silently loading a
@@ -39,6 +44,65 @@
     submittingReview, reviewError, reviewSaved, submitReview,
   } = useTrailReviews(wl, trailId)
   const segments = derived(() => wl ? wl.segments().filter((s: any) => s.trail_id === trailId()) : [])
+
+  /** The trail's own route, when the catalog has a line for it. */
+  const routeCoords = derived(() => (wl ? wl.trailRoutes()[trailId()] ?? [] : []))
+  const hasRoute = derived(() => routeCoords().length > 1)
+
+  /**
+   * The route drawn small, as a chip over the photo. It stands in for the map
+   * before the map has loaded, and doubles as the link down to it.
+   */
+  const routeThumb = derived(() => (hasRoute() ? routePreviewDataUri(routeCoords()) ?? '' : ''))
+
+  const routeLabel = derived(() => routeTypeLabel(trail()?.routeType))
+  const routeIcon = derived(() => routeTypeIcon(trail()?.routeType))
+  const features = derived(() => (trail() ? trailFeatures(trail()) : []))
+
+  /**
+   * What to know before driving out there: a ban on dogs, a route line we do
+   * not hold, a walk that is actually a week. Each one comes from a column, so
+   * a trail with nothing to flag shows no row at all rather than a reassuring
+   * line nobody checked.
+   */
+  const notices = derived(() => (trail() ? trailNotices(trail(), { hasRoute: hasRoute() }) : []))
+  const noticeCount = derived(() => notices().length)
+  const noticeLabel = derived(() => {
+    const count = noticeCount()
+    return count === 1 ? '1 alert' : `${count} alerts`
+  })
+
+  const shareMessage = derived(() => shareNote())
+
+  /** A description worth clamping. Shorter ones show whole, with no control. */
+  const descriptionLong = derived(() => String(trail()?.description ?? '').length > 220)
+
+  function toggleDescription() {
+    descriptionOpen.set(!descriptionOpen())
+  }
+
+  /**
+   * Back to wherever this page was opened from, and to the catalog when it was
+   * opened cold — a shared link has no history to go back through.
+   */
+  function goBack() {
+    if (globalThis.history && globalThis.history.length > 1)
+      globalThis.history.back()
+    else
+      navigate('/trails')
+  }
+
+  async function onShare() {
+    const current = trail()
+    if (!current)
+      return
+
+    await shareLink({
+      title: current.name,
+      text: `${current.name}${current.location ? ` — ${current.location}` : ''} on WildLoop`,
+      url: `/trail/${current.id}`,
+    })
+  }
 
   // The route's fastest-known-time board. Read once at mount from the same
   // resolved param the rest of the page uses; the board changes on the scale
@@ -233,6 +297,31 @@
     <section class="relative h-72 sm:h-96 bg-gradient-to-br from-emerald-700 to-teal-800 overflow-hidden">
       <Image x-src="trail.image || 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=1600&h=900&fit=crop'" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
       <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
+      <!-- Floating controls, over the photo rather than under it: on a phone
+           the photo is the whole first screen, and a control below the fold is
+           a control nobody finds. -->
+      <div class="absolute inset-x-0 top-0 z-10 flex items-start justify-between p-4">
+        <button @click="goBack()" aria-label="Go back" class="grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
+          <i class="i-lucide-arrow-left h-5 w-5" aria-hidden="true"></i>
+        </button>
+
+        <div class="flex gap-2">
+          <button @click="onShare()" aria-label="Share this trail" class="grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
+            <i class="i-lucide-share-2 h-5 w-5" aria-hidden="true"></i>
+          </button>
+          <button @click="onToggleSave(trailId())" class="grid h-10 w-10 place-items-center rounded-full backdrop-blur-sm transition active:scale-95" x-class="saved ? 'bg-rose-500 text-white' : 'bg-black/35 text-white hover:bg-black/55'" x-aria-label="saved ? 'Remove from saved trails' : 'Save this trail'">
+            <svg width="19" height="19" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="saved ? 'currentColor' : 'none'" aria-hidden="true">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- The route's shape, and the way down to the map that draws it. -->
+      <a :if="routeThumb() !== ''" href="#trail-map" aria-label="See the route on the map" class="absolute bottom-24 right-4 z-10 h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg transition hover:scale-105">
+        <img x-src="routeThumb()" alt="" width="80" height="80" class="h-full w-full object-cover" />
+      </a>
+
       <div class="relative h-full flex items-end px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 pb-8">
         <div class="flex-1">
           <div class="flex items-center gap-2 mb-3">
@@ -242,10 +331,7 @@
           <h1 class="font-display text-3xl md:text-4xl font-bold text-white mb-2">{{ trail.name }}</h1>
           <p class="text-white/70">{{ trail.location }}</p>
         </div>
-        <div class="flex gap-2">
-          <button @click="onToggleSave(trailId())" class="p-3 rounded-xl backdrop-blur-sm transition" x-class="saved ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'" x-aria-label="saved ? 'Unsave trail' : 'Save trail'">
-            <Icon name="heart" size="20" />
-          </button>
+        <div class="hidden gap-2 lg:flex">
           <button @click="toggleOfflineDownload()" class="p-3 rounded-xl backdrop-blur-sm transition" x-class="downloaded ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'" x-aria-label="downloaded ? 'Remove offline trail' : 'Download trail offline'">
             <Icon name="download" size="20" />
           </button>
@@ -256,37 +342,98 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <p :if="offlineMessage" class="mb-4 px-4 py-3 text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">{{ offlineMessage }}</p>
+      <p :if="shareMessage()" class="mb-4 px-4 py-3 text-sm text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 rounded-xl">{{ shareMessage() }}</p>
       <div class="grid lg:grid-cols-3 gap-8">
         <div class="lg:col-span-2 space-y-8">
-          <!-- Stats -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div class="card text-center">
-              <p class="text-2xl font-bold text-emerald-600">{{ trail.distance }}</p>
-              <p class="metric-label">Miles</p>
+          <!-- What the trail is rated, how hard it is and where it sits, on
+               one line — the three things asked before anything else. -->
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span :if="trail.rating > 0" class="inline-flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
+              <i class="i-lucide-star h-4 w-4 text-yellow-400" aria-hidden="true"></i>
+              <span class="tabular-nums">{{ trail.rating.toFixed(1) }}</span>
+              <span :if="trail.reviewCount > 0" class="font-normal text-slate-400 tabular-nums">{{ '(' + trail.reviewCount.toLocaleString() + ')' }}</span>
+            </span>
+            <span :if="trail.rating > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+            <span class="inline-flex items-center gap-1.5 capitalize text-slate-600 dark:text-slate-300">
+              <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
+              {{ trail.difficulty }}
+            </span>
+            <span :if="trail.managedBy" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+            <span :if="trail.managedBy" class="text-slate-600 dark:text-slate-300">{{ trail.managedBy }}</span>
+          </div>
+
+          <!-- Anything that would change the plan, counted up front and
+               linked to the detail rather than buried below the reviews. -->
+          <a :if="noticeCount() > 0" href="#trail-info" class="-mt-4 flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
+            <i class="i-lucide-info h-5 w-5" aria-hidden="true"></i>
+            <span class="text-slate-700 dark:text-slate-200">Information</span>
+            <span class="underline underline-offset-2">{{ noticeLabel() }}</span>
+          </a>
+
+          <!-- Stats. Route shape sits beside the numbers because it answers
+               the same question they do: what am I committing to. -->
+          <div class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-4 dark:border-slate-700 dark:bg-slate-700">
+            <div class="bg-white p-4 text-center dark:bg-slate-800">
+              <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</p>
+              <p class="metric-label mt-0.5">Length</p>
             </div>
-            <div class="card text-center">
-              <p class="text-2xl font-bold text-blue-600">{{ trail.elevation.toLocaleString() }}</p>
-              <p class="metric-label">Elev (ft)</p>
+            <div class="bg-white p-4 text-center dark:bg-slate-800">
+              <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.elevation.toLocaleString() + ' ft' }}</p>
+              <p class="metric-label mt-0.5">Elev. gain</p>
             </div>
-            <div class="card text-center">
-              <p class="text-2xl font-bold text-orange-600">{{ trail.estimatedTime }}</p>
-              <p class="metric-label">Est. Time</p>
+            <div class="bg-white p-4 text-center dark:bg-slate-800">
+              <p class="text-xl font-bold text-slate-900 dark:text-white">{{ trail.estimatedTime || '—' }}</p>
+              <p class="metric-label mt-0.5">Est. time</p>
             </div>
-            <div class="card text-center">
-              <p class="text-2xl font-bold">{{ trail.rating || '-' }}</p>
-              <p class="metric-label">{{ trail.reviewCount + ' reviews' }}</p>
+            <div class="bg-white p-4 text-center dark:bg-slate-800">
+              <p class="flex items-center justify-center gap-1.5 text-base font-bold text-slate-900 dark:text-white">
+                <i x-class="routeIcon() + ' h-4 w-4 text-emerald-600'" aria-hidden="true"></i>
+                {{ routeLabel() || 'Trail' }}
+              </p>
+              <p class="metric-label mt-0.5">Route</p>
             </div>
           </div>
 
           <!-- Description -->
           <div class="card">
             <h2 class="font-bold text-lg dark:text-white mb-3">About This Trail</h2>
-            <p class="text-gray-600 dark:text-slate-400 leading-relaxed">{{ trail.description }}</p>
-            <div class="flex flex-wrap gap-2 mt-4">
-              <template :for="tag in trail.tags">
-                <span class="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium rounded-full">{{ tag }}</span>
+            <!-- Clamped to three lines until asked for: a catalog description
+                 can run to a page, and it pushed the map and the records off
+                 the screen on a phone. -->
+            <p x-class="descriptionOpen() || !descriptionLong() ? 'text-gray-600 dark:text-slate-400 leading-relaxed' : 'text-gray-600 dark:text-slate-400 leading-relaxed line-clamp-3'">{{ trail.description }}</p>
+            <button :if="descriptionLong()" @click="toggleDescription()" class="mt-2 text-sm font-semibold text-emerald-600 hover:underline">
+              {{ descriptionOpen() ? 'Show less' : 'Show more' }}
+            </button>
+
+            <!-- Tags, read as what they mean: an icon and a phrase rather
+                 than the raw `dog_friendly` the catalog stores. -->
+            <div :if="features().length > 0" class="flex flex-wrap gap-2 mt-4">
+              <template :for="feature in features()">
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                  <i x-class="feature.icon ? feature.icon + ' h-3.5 w-3.5' : 'hidden'" aria-hidden="true"></i>
+                  {{ feature.label }}
+                </span>
               </template>
             </div>
+          </div>
+
+          <!-- Information. Every row is something the catalog actually says,
+               which is why a trail with nothing to flag shows no card. -->
+          <div :if="noticeCount() > 0" id="trail-info" class="card">
+            <h2 class="mb-3 font-bold text-lg dark:text-white">Information</h2>
+            <ul class="space-y-3">
+              <template :for="notice in notices()">
+                <li class="flex gap-3">
+                  <span x-class="notice.tone === 'warn' ? 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">
+                    <i x-class="notice.icon + ' h-4 w-4'" aria-hidden="true"></i>
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block text-sm font-semibold dark:text-white">{{ notice.title }}</span>
+                    <span class="block text-sm text-gray-600 dark:text-slate-400">{{ notice.detail }}</span>
+                  </span>
+                </li>
+              </template>
+            </ul>
           </div>
 
           <!-- Map -->
@@ -552,6 +699,8 @@
               <div class="flex justify-between"><span class="text-sm text-gray-500">Distance</span><span class="text-sm font-medium dark:text-white">{{ trail.distance + ' mi' }}</span></div>
               <div class="flex justify-between"><span class="text-sm text-gray-500">Elevation</span><span class="text-sm font-medium dark:text-white">{{ trail.elevation.toLocaleString() + ' ft' }}</span></div>
               <div class="flex justify-between"><span class="text-sm text-gray-500">Time</span><span class="text-sm font-medium dark:text-white">{{ trail.estimatedTime }}</span></div>
+              <div :if="routeLabel() !== ''" class="flex justify-between"><span class="text-sm text-gray-500">Route</span><span class="text-sm font-medium dark:text-white">{{ routeLabel() }}</span></div>
+              <div :if="trail.surface" class="flex justify-between"><span class="text-sm text-gray-500">Surface</span><span class="text-sm font-medium capitalize dark:text-white">{{ trail.surface }}</span></div>
             </div>
           </div>
 
@@ -564,6 +713,38 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+    <!-- Room for the bar below, which is fixed and would otherwise sit on
+         top of the last card. -->
+    <div class="h-24 lg:hidden" aria-hidden="true"></div>
+
+    <!-- The three things somebody does on this page, always within a thumb's
+         reach: take it offline, keep it, or look at where it goes. Phone only
+         — on a desktop the same controls sit in the hero and the sidebar. -->
+    <div class="trail-action-bar lg:hidden">
+      <div class="mx-auto flex max-w-lg items-center gap-2 px-4 py-3">
+        <button
+          @click="toggleOfflineDownload()"
+          x-class="downloaded ? 'flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-100 px-4 py-3 text-sm font-semibold text-emerald-800 transition active:scale-[0.98] dark:bg-emerald-900/40 dark:text-emerald-300' : 'flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 transition active:scale-[0.98]'">
+          <i x-class="downloaded ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4'" aria-hidden="true"></i>
+          {{ downloaded ? 'Downloaded' : 'Download' }}
+        </button>
+
+        <button
+          @click="onToggleSave(trailId())"
+          class="flex flex-1 items-center justify-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 transition active:scale-[0.98] dark:bg-slate-800 dark:text-slate-100"
+          x-aria-label="saved ? 'Remove from saved trails' : 'Save this trail'">
+          <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="saved ? 'currentColor' : 'none'" x-class="saved ? 'text-rose-500' : ''" aria-hidden="true">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+          {{ saved ? 'Saved' : 'Save' }}
+        </button>
+
+        <a href="#trail-map" class="flex flex-1 items-center justify-center gap-2 rounded-full bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 transition active:scale-[0.98] dark:bg-slate-800 dark:text-slate-100">
+          <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
+          Map
+        </a>
       </div>
     </div>
   </div>
