@@ -29,6 +29,11 @@ export default defineModel({
   // One review per user per trail (#972) - the store action upserts.
   indexes: [
     { name: 'trail_reviews_user_trail_unique', columns: ['user_id', 'trail_id'], unique: true },
+    // Reviews are read by trail, newest first: a trail's own reviews tab, and
+    // the recent-reviewer lookup behind a page of catalog cards. The unique
+    // index above leads on `user_id`, so neither could use it and both scanned
+    // the table.
+    { name: 'trail_reviews_trail_created_index', columns: ['trail_id', 'created_at'] },
   ],
 
   attributes: {

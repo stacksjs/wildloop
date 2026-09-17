@@ -414,6 +414,9 @@ route.get('/search/suggest', 'Actions/Search/SearchSuggestAction')
 route.get('/trails', 'Actions/Trail/TrailIndexAction')
 // Registered BEFORE `/trails/{id}/...` so `stats` is not captured as an id.
 route.get('/trails/stats', 'Actions/Trail/TrailStatsAction')
+// Recent reviewers for a page of cards, asked for by id. Registered with the
+// other fixed segments, before `/trails/{id}`, so it is not read as an id.
+route.get('/trails/reviewers', 'Actions/Trail/TrailReviewersAction')
 route.get('/trails/{id}', 'Actions/Trail/TrailShowAction')
 route.get('/trails/{id}/reviews', 'Actions/Trail/TrailReviewIndexAction')
 // The route's fastest-known-time board. Public and session-free: a records
