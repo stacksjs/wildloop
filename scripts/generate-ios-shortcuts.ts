@@ -43,14 +43,6 @@ export interface IosShortcutsOptions {
   /** The URL scheme registered by the build, without `://`. */
   scheme: string
   shortcuts?: AppShortcut[]
-  /**
-   * Craft's application delegate, when one was found in the project.
-   *
-   * Given it, this file also routes a tapped home-screen quick action — see
-   * `delegateExtension`. Left out, the intents are still generated and the
-   * quick actions merely open the app.
-   */
-  delegateType?: string
 }
 
 /** A Swift string literal, with the two characters that would end it escaped. */
@@ -152,61 +144,19 @@ struct ${providerName}: AppShortcutsProvider {
 ${entries.join('\n')}
     }
 }
-${options.delegateType ? `\n${delegateExtension(options.delegateType)}\n` : ''}`
+`
 }
 
-/**
- * The extension that makes a tapped quick action land somewhere.
+/*
+ * There is deliberately no `performActionFor` handler here.
  *
- * Craft can SET the home-screen shortcuts — `useNativeShortcuts` registers
- * them — but nothing in its app handles one being tapped: there is no
- * `performActionFor`, and the `craftShortcut` event its own JavaScript listens
- * for is never dispatched. So a quick action promising "Trails Near Me" would
- * open the app wherever it was left.
- *
- * This adds the missing half, against the delegate Craft already installs.
- * `@objc` is written out rather than inferred, so that a Swift version or a
- * Craft change that stops this being a protocol witness fails the build
- * instead of silently never being called.
- *
- * The URL is opened rather than handed to Craft's DeepLinkManager directly:
- * it is the same path the intents take, and it does not depend on the name of
- * a type inside Craft.
+ * Craft's own app delegate implements it — v0.0.90's template did not, which
+ * is what this file first assumed, and the simulator build said otherwise:
+ * "invalid redeclaration of 'application(_:performActionFor:completionHandler:)'"
+ * against WildLoopApp.swift. Tapped home-screen shortcuts are Craft's to
+ * deliver; what it has no answer for, and what this file exists for, is the
+ * Spotlight and Siri row.
  */
-export function delegateExtension(delegateType: string): string {
-  return `// A tapped home-screen quick action. The link travels in the item's
-// userInfo, which is what useNativeShortcuts puts there.
-extension ${delegateType} {
-    @objc
-    func application(
-        _ application: UIApplication,
-        performActionFor shortcutItem: UIApplicationShortcutItem,
-        completionHandler: @escaping (Bool) -> Void
-    ) {
-        guard let link = shortcutItem.userInfo?["url"] as? String,
-              let url = URL(string: link) else {
-            completionHandler(false)
-            return
-        }
-
-        UIApplication.shared.open(url)
-        completionHandler(true)
-    }
-}`
-}
-
-/**
- * The name of the app delegate in a generated project, or null when it has
- * none in the shape this expects.
- */
-export function findDelegateType(sources: string[]): string | null {
-  for (const source of sources) {
-    const match = source.match(/class\s+(\w+)\s*:\s*NSObject\s*,\s*UIApplicationDelegate/)
-    if (match)
-      return match[1]
-  }
-  return null
-}
 
 /** Where the generated file goes inside a Craft iOS project. */
 export function shortcutsSourcePath(projectDir: string, appName: string): string {
@@ -233,25 +183,9 @@ export async function conflictingProviders(projectDir: string, ownPath: string):
   return found
 }
 
-/** Every Swift source in the project, minus the one this generates. */
-async function projectSources(projectDir: string, ownPath: string): Promise<string[]> {
-  const sources = join(projectDir, 'Sources')
-  if (!existsSync(sources))
-    return []
-
-  const texts: string[] = []
-  for (const entry of await readdir(sources)) {
-    const path = join(sources, entry)
-    if (entry.endsWith('.swift') && path !== ownPath)
-      texts.push(await Bun.file(path).text())
-  }
-  return texts
-}
-
 export async function writeIosShortcuts(projectDir: string, options: IosShortcutsOptions): Promise<string> {
   const path = shortcutsSourcePath(projectDir, options.appName)
-  const delegateType = options.delegateType ?? findDelegateType(await projectSources(projectDir, path)) ?? undefined
-  await writeFile(path, iosShortcutsSwift({ ...options, delegateType }))
+  await writeFile(path, iosShortcutsSwift(options))
   return path
 }
 
@@ -272,10 +206,7 @@ if (import.meta.main) {
   }
 
   const path = await writeIosShortcuts(projectDir, options)
-  const routesQuickActions = (await Bun.file(path).text()).includes('performActionFor')
   console.log(`Wrote ${APP_SHORTCUTS.length} App Shortcuts to ${path}`)
-  if (!routesQuickActions)
-    console.warn('::warning::No UIApplicationDelegate found in the project, so a tapped home-screen shortcut will only open the app.')
 
   const conflicts = await conflictingProviders(projectDir, path)
   if (conflicts.length > 0)
