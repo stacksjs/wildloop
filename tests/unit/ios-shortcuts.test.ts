@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   conflictingProviders,
+  findDelegateType,
   iosShortcutsSwift,
   shortcutsSourcePath,
   sirifyPhrase,
@@ -109,5 +110,48 @@ describe('writing into a project', () => {
     const theirs = join(dir, 'Sources', 'CraftAppExtensions.swift')
     await writeFile(theirs, 'struct CraftShortcuts: AppShortcutsProvider {}\n')
     expect(await conflictingProviders(dir, ours)).toEqual([theirs])
+  })
+})
+
+describe('routing a tapped home-screen shortcut', () => {
+  it('finds the delegate Craft installs', () => {
+    expect(findDelegateType([
+      'import SwiftUI\nfinal class CraftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {\n}',
+    ])).toBe('CraftAppDelegate')
+  })
+
+  it('says so when the project has none in that shape', () => {
+    expect(findDelegateType(['struct CraftApp: App {}'])).toBeNull()
+    expect(findDelegateType([])).toBeNull()
+  })
+
+  it('handles the tap against the delegate it was given', () => {
+    const swift = iosShortcutsSwift({ ...options, delegateType: 'CraftAppDelegate' })
+
+    expect(swift).toContain('extension CraftAppDelegate {')
+    expect(swift).toContain('performActionFor shortcutItem: UIApplicationShortcutItem')
+    // Written out rather than inferred: a change that stops this being a
+    // protocol witness should fail the build, not go quiet.
+    expect(swift).toContain('@objc')
+    expect(swift).toContain('shortcutItem.userInfo?["url"] as? String')
+    expect(swift).toContain('completionHandler(true)')
+  })
+
+  it('leaves the app’s own sources alone when there is no delegate', () => {
+    const swift = iosShortcutsSwift(options)
+    expect(swift).not.toContain('extension')
+    expect(swift).not.toContain('performActionFor')
+  })
+
+  it('picks the delegate out of the project it is writing into', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'wildloop-ios-'))
+    await mkdir(join(dir, 'Sources'), { recursive: true })
+    await writeFile(
+      join(dir, 'Sources', 'WildLoopApp.swift'),
+      'final class CraftAppDelegate: NSObject, UIApplicationDelegate {\n}\n',
+    )
+
+    const path = await writeIosShortcuts(dir, options)
+    expect(await Bun.file(path).text()).toContain('extension CraftAppDelegate {')
   })
 })
