@@ -39,6 +39,18 @@
 
 <script client>
   import { catalogError, EMPTY_COVERAGE, fetchCoverage, queryTrails, shouldFallbackToCatalog } from '../composables/useTrailCatalog'
+  import {
+    activeFilterCount,
+    bucketChipLabel,
+    DIFFICULTY_OPTIONS,
+    ELEVATION_BUCKETS,
+    filtersFromQuery,
+    filtersToQuery,
+    LENGTH_BUCKETS,
+    RATING_OPTIONS,
+    ROUTE_TYPE_OPTIONS,
+    SORT_OPTIONS,
+  } from '../composables/useTrailFilters'
   import { useSavedTrails } from '../composables/useSavedTrails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
   import {
@@ -55,10 +67,147 @@
   const { onToggleSave } = useSavedTrails(wl)
 
   const search = state('')
-  const difficulty = state<'all' | 'easy' | 'moderate' | 'hard'>('all')
-  const routeType = state<'all' | 'loop' | 'out-and-back'>('all')
+  const difficulty = state<string>('all')
+  const routeType = state<string>('all')
+  const lengthBucket = state('any')
+  const elevationBucket = state('any')
+  const minRating = state(0)
+  const dogsOnly = state(false)
+  const accessibleOnly = state(false)
+  const nationalOnly = state(false)
+  /** The filter chip whose panel is open, or '' for none. Only ever one. */
+  const openFilter = state('')
+  /** An explicitly chosen ordering, which outranks the page's own default. */
+  const sortChoice = state('')
   const activeState = state('')
   const selectedTrailId = state<number | null>(null)
+
+  // Bound to locals: the template resolves names declared in this script, and
+  // an imported binding read straight from the markup comes back empty.
+  const difficultyOptions = DIFFICULTY_OPTIONS
+  const lengthBuckets = LENGTH_BUCKETS
+  const elevationBuckets = ELEVATION_BUCKETS
+  const routeOptions = ROUTE_TYPE_OPTIONS
+  const ratingOptions = RATING_OPTIONS
+  const sortOptions = SORT_OPTIONS
+
+  /** Every filter as one value, which is what the query builder takes. */
+  const filters = derived(() => ({
+    difficulty: difficulty(),
+    length: lengthBucket(),
+    elevation: elevationBucket(),
+    routeType: routeType(),
+    rating: minRating(),
+    dogsAllowed: dogsOnly(),
+    accessible: accessibleOnly(),
+    nationalTrail: nationalOnly(),
+  }))
+
+  const filterCount = derived(() => activeFilterCount(filters()))
+
+  // A chip reads as what it is set to, so the current filters can be seen
+  // without opening anything.
+  const difficultyLabel = derived(() => (difficulty() === 'all'
+    ? 'Difficulty'
+    : difficultyOptions.find(option => option.id === difficulty())?.label ?? 'Difficulty'))
+  const lengthLabel = derived(() => bucketChipLabel(lengthBuckets, lengthBucket(), 'Length'))
+  const elevationLabel = derived(() => bucketChipLabel(elevationBuckets, elevationBucket(), 'Elevation gain'))
+  const routeLabel = derived(() => (routeType() === 'all'
+    ? 'Route type'
+    : routeOptions.find(option => option.id === routeType())?.label ?? 'Route type'))
+  const ratingLabel = derived(() => (minRating() > 0 ? `${minRating()}+ stars` : 'Rating'))
+
+  /**
+   * The rows of whichever panel is open.
+   *
+   * One panel driven by data rather than five near-identical blocks of markup:
+   * every chip opens the same single-select list, and only its contents differ.
+   */
+  const panelOptions = derived(() => {
+    switch (openFilter()) {
+      case 'difficulty':
+        return difficultyOptions.map(option => ({ id: String(option.id), label: option.label, active: difficulty() === option.id }))
+      case 'length':
+        return lengthBuckets.map(bucket => ({ id: bucket.id, label: bucket.label, active: lengthBucket() === bucket.id }))
+      case 'elevation':
+        return elevationBuckets.map(bucket => ({ id: bucket.id, label: bucket.label, active: elevationBucket() === bucket.id }))
+      case 'route':
+        return routeOptions.map(option => ({ id: String(option.id), label: option.label, active: routeType() === option.id }))
+      case 'rating':
+        return ratingOptions.map(option => ({ id: String(option.id), label: option.label, active: minRating() === option.id }))
+      default:
+        return []
+    }
+  })
+
+  function togglePanel(id: string) {
+    openFilter.set(openFilter() === id ? '' : id)
+  }
+
+  function closePanel() {
+    openFilter.set('')
+  }
+
+  /** Apply a row from whichever panel is open, then close it and re-search. */
+  function choosePanelOption(id: string) {
+    switch (openFilter()) {
+      case 'difficulty':
+        difficulty.set(id)
+        break
+      case 'length':
+        lengthBucket.set(id)
+        break
+      case 'elevation':
+        elevationBucket.set(id)
+        break
+      case 'route':
+        routeType.set(id)
+        break
+      case 'rating':
+        minRating.set(Number(id))
+        break
+    }
+    closePanel()
+    runSearch()
+  }
+
+  function toggleDogsOnly() {
+    dogsOnly.set(!dogsOnly())
+    runSearch()
+  }
+
+  function toggleAccessibleOnly() {
+    accessibleOnly.set(!accessibleOnly())
+    runSearch()
+  }
+
+  function toggleNationalOnly() {
+    nationalOnly.set(!nationalOnly())
+    runSearch()
+  }
+
+  function chooseSort(id: string) {
+    sortChoice.set(id)
+    runSearch()
+  }
+
+  function clearFilters() {
+    difficulty.set('all')
+    routeType.set('all')
+    lengthBucket.set('any')
+    elevationBucket.set('any')
+    minRating.set(0)
+    dogsOnly.set(false)
+    accessibleOnly.set(false)
+    nationalOnly.set(false)
+    closePanel()
+    runSearch()
+  }
+
+  function clearSearchText() {
+    search.set('')
+    runSearch()
+  }
 
   /**
    * Whether the catalog is scoped to where the visitor is.
@@ -161,13 +310,12 @@
         q: search(),
         country: activeCountry(),
         state: activeState(),
-        difficulty: difficulty(),
-        routeType: routeType(),
+        ...filtersToQuery(filters()),
         // Near me sorts by rating: within a radius somebody can drive, "which
         // of these is good" is the remaining question. Nationally there is no
         // such thing as near, so length is what makes the list impressive
         // rather than arbitrary.
-        sort: urlSort() || (search() ? 'featured' : near ? 'rating' : 'longest'),
+        sort: sortChoice() || urlSort() || (search() ? 'featured' : near ? 'rating' : 'longest'),
         ...(near ? { lat: near.lat, lng: near.lng, radius: 25 } : {}),
         limit: 60,
       }
@@ -221,14 +369,37 @@
     debounce = setTimeout(() => runSearch(), 250)
   }
 
-  /** Keep discovery useful when the native shell has fallen back offline. */
+  /**
+   * Keep discovery useful when the native shell has fallen back offline.
+   *
+   * The same filters as the API applies, against whatever the store holds: a
+   * chip that silently stops meaning anything once the connection drops is
+   * worse than a short list.
+   */
   function offlineResults() {
     const term = search().trim().toLowerCase()
+    const query = filtersToQuery(filters())
+
     return (wl?.trails() ?? []).filter((trail: any) => {
-      const matchesText = !term || `${trail.name} ${trail.location}`.toLowerCase().includes(term)
-      const matchesDifficulty = difficulty() === 'all' || trail.difficulty === difficulty()
-      const matchesRoute = routeType() === 'all' || trail.routeType === routeType()
-      return matchesText && matchesDifficulty && matchesRoute
+      if (term && !`${trail.name} ${trail.location}`.toLowerCase().includes(term))
+        return false
+      if (query.difficulty && trail.difficulty !== query.difficulty)
+        return false
+      if (query.routeType && trail.routeType !== query.routeType)
+        return false
+      if (query.minDistance !== undefined && !(trail.distance >= query.minDistance))
+        return false
+      if (query.maxDistance !== undefined && !(trail.distance <= query.maxDistance))
+        return false
+      if (query.minElevation !== undefined && !(trail.elevation >= query.minElevation))
+        return false
+      if (query.maxElevation !== undefined && !(trail.elevation <= query.maxElevation))
+        return false
+      if (query.minRating !== undefined && !(trail.rating >= query.minRating))
+        return false
+      if (query.nationalTrail && !trail.nationalTrail)
+        return false
+      return true
     })
   }
 
@@ -355,6 +526,18 @@
     const sort = text(query.sort)
     const knownSort = ['featured', 'rating', 'longest', 'distance', 'name'].includes(sort)
 
+    // A link can carry the filters too, so a shared list opens as the list
+    // somebody was actually looking at rather than the default catalog.
+    const linked = filtersFromQuery(query as Record<string, unknown>)
+    difficulty.set(linked.difficulty)
+    routeType.set(linked.routeType)
+    lengthBucket.set(linked.length)
+    elevationBucket.set(linked.elevation)
+    minRating.set(linked.rating)
+    dogsOnly.set(linked.dogsAllowed)
+    accessibleOnly.set(linked.accessible)
+    nationalOnly.set(linked.nationalTrail)
+
     if (q)
       search.set(q)
     if (knownSort)
@@ -363,7 +546,7 @@
       activeState.set(code)
     if (country)
       activeCountry.set(country)
-    if (q || code || country || knownSort)
+    if (q || code || country || knownSort || activeFilterCount(linked) > 0)
       useNearMe.set(false)
   }
 
@@ -471,27 +654,152 @@
       </template>
     </div>
 
-    <!-- Search + filters -->
-    <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-      <div class="relative flex-1">
-        <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-          <Icon name="search" size="18" />
-        </span>
-        <input
-          type="search"
-          x-value="search"
-          @input="onSearchInput($event.target.value)"
-          placeholder="Search trails by name, park, forest or Land"
-          class="w-full py-3 pl-11 pr-4 text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition"
-        />
+    <!-- Search + filters.
+
+         One search field and a row of chips that each say what they are set
+         to, because a bar of controls all reading "Length" gives no way to see
+         how the list in front of you was narrowed. Every chip opens the same
+         single-select panel; only its rows differ. -->
+    <div class="relative mb-6">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div class="relative flex-1">
+          <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <Icon name="search" size="18" />
+          </span>
+          <input
+            type="search"
+            x-value="search"
+            @input="onSearchInput($event.target.value)"
+            placeholder="Search trails by name, park, forest or Land"
+            class="w-full py-3 pl-11 pr-11 text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition"
+          />
+          <!-- Clearing a search by selecting the text and deleting it is work
+               nobody should have to do on a phone. -->
+          <button
+            :if="search().length > 0"
+            @click="clearSearchText()"
+            aria-label="Clear search"
+            class="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
+            <i class="i-lucide-x h-4 w-4" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
 
-      <div class="flex gap-2 overflow-x-auto pb-1">
-        <button @click="difficulty.set('all'); runSearch()" x-class="difficulty === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-full transition active:scale-[0.98]">All levels</button>
-        <button @click="difficulty.set('easy'); runSearch()" x-class="difficulty === 'easy' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-full transition active:scale-[0.98]">Easy</button>
-        <button @click="difficulty.set('moderate'); runSearch()" x-class="difficulty === 'moderate' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-full transition active:scale-[0.98]">Moderate</button>
-        <button @click="difficulty.set('hard'); runSearch()" x-class="difficulty === 'hard' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-full transition active:scale-[0.98]">Hard</button>
-        <button @click="routeType.set(routeType() === 'loop' ? 'all' : 'loop'); runSearch()" x-class="routeType === 'loop' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'" class="px-4 py-2 font-medium text-sm whitespace-nowrap rounded-full transition active:scale-[0.98]">Loops only</button>
+      <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+        <button
+          @click="togglePanel('all')"
+          x-class="openFilter === 'all' || filterCount() > 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          <i class="i-lucide-sliders-horizontal h-4 w-4" aria-hidden="true"></i>
+          <span>All filters</span>
+          <span :if="filterCount() > 0" class="grid h-5 min-w-5 place-items-center rounded-full bg-emerald-600 px-1 text-[11px] font-bold text-white tabular-nums">{{ filterCount() }}</span>
+        </button>
+
+        <button
+          @click="togglePanel('difficulty')"
+          x-class="difficulty !== 'all' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          <span>{{ difficultyLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
+          @click="togglePanel('length')"
+          x-class="lengthBucket !== 'any' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          <span>{{ lengthLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
+          @click="togglePanel('elevation')"
+          x-class="elevationBucket !== 'any' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          <span>{{ elevationLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
+          @click="togglePanel('route')"
+          x-class="routeType !== 'all' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          <span>{{ routeLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
+          @click="togglePanel('rating')"
+          x-class="minRating > 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          <span>{{ ratingLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
+          :if="filterCount() > 0"
+          @click="clearFilters()"
+          class="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white">
+          Clear
+        </button>
+      </div>
+
+      <!-- A tap anywhere else closes the open panel, without a document
+           listener the page would then have to remember to remove. -->
+      <div :if="openFilter() !== ''" @click="closePanel()" class="fixed inset-0 z-30" aria-hidden="true"></div>
+
+      <div :if="panelOptions().length > 0" class="absolute left-0 top-full z-40 mt-2 max-h-80 w-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+        <template :for="option in panelOptions">
+          <button
+            @click="choosePanelOption(option.id)"
+            x-class="option.active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60'"
+            class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition">
+            <span>{{ option.label }}</span>
+            <i x-class="option.active ? 'i-lucide-check h-4 w-4' : 'hidden'" aria-hidden="true"></i>
+          </button>
+        </template>
+      </div>
+
+      <!-- Everything that is not a single choice: the suitability toggles and
+           the ordering, plus the one control that undoes all of it. -->
+      <div :if="openFilter() === 'all'" class="absolute left-0 top-full z-40 mt-2 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+        <p class="metric-label mb-2">Suitability</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            @click="toggleDogsOnly()"
+            x-class="dogsOnly ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-600 dark:border-slate-600 dark:text-slate-300'"
+            class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition">
+            <i class="i-lucide-dog h-4 w-4" aria-hidden="true"></i>Dogs allowed
+          </button>
+          <button
+            @click="toggleAccessibleOnly()"
+            x-class="accessibleOnly ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-600 dark:border-slate-600 dark:text-slate-300'"
+            class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition">
+            <i class="i-lucide-accessibility h-4 w-4" aria-hidden="true"></i>Accessible
+          </button>
+          <button
+            @click="toggleNationalOnly()"
+            x-class="nationalOnly ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-600 dark:border-slate-600 dark:text-slate-300'"
+            class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition">
+            <i class="i-lucide-landmark h-4 w-4" aria-hidden="true"></i>National Trails
+          </button>
+        </div>
+
+        <p class="metric-label mb-2 mt-4">Sort by</p>
+        <div class="flex flex-wrap gap-2">
+          <template :for="option in sortOptions">
+            <button
+              @click="chooseSort(option.id)"
+              x-class="sortChoice === option.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-600 dark:border-slate-600 dark:text-slate-300'"
+              class="rounded-full border px-3 py-1.5 text-sm font-medium transition">
+              {{ option.label }}
+            </button>
+          </template>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-700">
+          <button @click="clearFilters()" class="text-sm font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Clear all</button>
+          <button @click="closePanel()" class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Show results</button>
+        </div>
       </div>
     </div>
 
@@ -649,7 +957,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-2">No trails found</h3>
       <p class="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Try a wider search, or clear the filters to browse the whole catalog.</p>
-      <button @click="search.set(''); difficulty.set('all'); routeType.set('all'); activeState.set(''); runSearch()" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-full hover:bg-emerald-700 transition active:scale-[0.98]">Clear filters</button>
+      <button @click="search.set(''); activeState.set(''); clearFilters()" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-full hover:bg-emerald-700 transition active:scale-[0.98]">Clear filters</button>
     </div>
   </div>
 @endsection
