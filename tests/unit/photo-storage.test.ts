@@ -83,6 +83,12 @@ describe('createPhotoStorage', () => {
     expect(String((error as Error).message)).toContain('PHOTOS_S3_SECRET_ACCESS_KEY')
   })
 
+  it('refuses local disk on a deployed server, where the next deploy would delete the photos', () => {
+    for (const APP_ENV of ['production', 'staging'])
+      expect(() => createPhotoStorage({ APP_ENV })).toThrow(PhotoStorageNotConfiguredError)
+    expect(() => createPhotoStorage({ APP_ENV: 'production', PHOTOS_DISK: 'local' })).toThrow(PhotoStorageNotConfiguredError)
+  })
+
   it('builds an S3 store when fully configured, without contacting S3', () => {
     const store = createPhotoStorage({
       PHOTOS_DISK: 's3',

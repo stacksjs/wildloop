@@ -37,6 +37,20 @@ export default new Action({
     if (Number(existing?.n ?? 0) >= MAX_PHOTOS_PER_USER_PER_TRAIL)
       return response.json({ success: false, error: `You can add up to ${MAX_PHOTOS_PER_USER_PER_TRAIL} photos to a trail.` }, 422)
 
+    // Before any processing: an upload that cannot be stored should not cost
+    // half a second of decoding first.
+    let store
+    try {
+      store = photoStorage()
+    }
+    catch (error) {
+      if (error instanceof PhotoStorageNotConfiguredError) {
+        console.error('[photos]', error.message)
+        return response.json({ success: false, error: 'Photo uploads are not available right now.' }, 503)
+      }
+      throw error
+    }
+
     const file = request.file('photo') as { bytes?: () => Promise<Uint8Array>, arrayBuffer?: () => Promise<ArrayBuffer> } | null
     if (!file)
       return response.json({ success: false, error: 'Choose a photo to upload.', fields: { photo: 'Choose a photo to upload.' } }, 422)
@@ -49,18 +63,6 @@ export default new Action({
     catch (error) {
       if (error instanceof PhotoRejectedError)
         return response.json({ success: false, error: error.message, reason: error.reason, fields: { photo: error.message } }, 422)
-      throw error
-    }
-
-    let store
-    try {
-      store = photoStorage()
-    }
-    catch (error) {
-      if (error instanceof PhotoStorageNotConfiguredError) {
-        console.error('[photos]', error.message)
-        return response.json({ success: false, error: 'Photo uploads are not available right now.' }, 503)
-      }
       throw error
     }
 

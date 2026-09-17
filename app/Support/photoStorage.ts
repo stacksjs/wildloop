@@ -55,8 +55,18 @@ export function photoStoragePrefix(env: Env): string {
   return `${raw.replace(/^\/+|\/+$/g, '')}/`
 }
 
+/** Environments where local disk is not durable: every deploy replaces the release folder. */
+const DEPLOYED_ENVIRONMENTS = new Set(['production', 'staging'])
+
 export function createPhotoStorage(env: Env): StorageAdapter {
   const disk = (env.PHOTOS_DISK ?? 'local').trim().toLowerCase()
+  const appEnv = (env.APP_ENV ?? '').trim().toLowerCase()
+
+  // A deployed server keeps its local files inside the release folder, which
+  // the next deploy replaces. Photos written there would vanish while their
+  // rows remained, so refuse instead of losing them.
+  if (disk !== 's3' && DEPLOYED_ENVIRONMENTS.has(appEnv))
+    throw new PhotoStorageNotConfiguredError([`PHOTOS_DISK=s3 (local disk does not survive a deploy in ${appEnv})`])
 
   if (disk === 's3') {
     const required = ['PHOTOS_S3_BUCKET', 'PHOTOS_S3_ACCESS_KEY_ID', 'PHOTOS_S3_SECRET_ACCESS_KEY']
