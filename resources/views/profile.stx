@@ -46,7 +46,21 @@
     navigate('/')
   }
 
+  /**
+   * Open the tab a link asked for.
+   *
+   * `?tab=saved` is what the Favorites shortcut opens — see
+   * resources/functions/app-shortcuts.ts. An unknown value leaves the default
+   * alone rather than showing an empty pane.
+   */
+  function applyTabFromUrl(): void {
+    const requested = String(useRoute().query?.tab ?? '').trim()
+    if (requested === 'saved' || requested === 'achievements' || requested === 'activities')
+      activeTab.set(requested)
+  }
+
   onMount(async () => {
+    applyTabFromUrl()
     if (!wl) return
     try {
       const data = await fetchFollows(wl.currentUserId())

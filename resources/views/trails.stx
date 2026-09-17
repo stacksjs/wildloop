@@ -580,6 +580,28 @@
       exploreMap.fitPoints(bounds, [48, 48])
   }
 
+  /**
+   * Arrive from a "Trails Near Me" link — the Spotlight shortcut, the home
+   * screen, or a shared URL.
+   *
+   * The coarse fix is tried first because it needs no permission: somebody who
+   * asked for what is nearby should see it, not a prompt. Only when nothing is
+   * known at all is the browser asked, and a refusal still leaves a list —
+   * the national catalog is the honest answer when there is no location, but
+   * it is the last resort rather than the first.
+   */
+  async function openNearMeFromLink() {
+    useNearMe.set(true)
+    activeState.set('')
+    activeCountry.set('')
+
+    const known = await resolveNearby()
+    if (!known)
+      await locatePrecisely()
+
+    runSearch()
+  }
+
   /** Turn "near me" on, asking for a precise fix if there is nothing yet. */
   async function enableNearMe() {
     useNearMe.set(true)
@@ -618,13 +640,18 @@
    * a search for Yosemite within 25 miles of Berlin, and that intersection
    * returns nothing without ever widening.
    */
-  function applyUrlQuery() {
+  function applyUrlQuery(): boolean {
     const query = useRoute().query ?? {}
     const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
     const q = text(query.q)
     const code = text(query.state)
     const country = text(query.country).toUpperCase()
     const sort = text(query.sort)
+    // `?near=me` is what the Trails Near Me shortcut opens, from the home
+    // screen or Spotlight. It is the one parameter that turns near-me ON
+    // rather than off: the link is a request for somewhere specific — here —
+    // and it outranks the page's own default either way.
+    const near = text(query.near).toLowerCase()
     const knownSort = ['featured', 'rating', 'longest', 'distance', 'name'].includes(sort)
 
     // A link can carry the filters too, so a shared list opens as the list
@@ -649,14 +676,25 @@
       activeCountry.set(country)
     if (q || code || country || knownSort || activeFilterCount(linked) > 0)
       useNearMe.set(false)
+
+    // Answered in onMount by the same path the button takes, because turning
+    // the flag on here is not enough: with no fix resolved yet, `nearMeActive`
+    // stays false and the shortcut quietly lands on the national list.
+    return near === 'me'
   }
 
   onMount(() => {
-    applyUrlQuery()
+    const askedForNearMe = applyUrlQuery()
     void refreshDownloads()
-    // Resolve first, then search: opening the national catalog and swapping it
-    // for a local one a beat later is two answers to one question.
-    resolveNearby().finally(() => runSearch())
+
+    if (askedForNearMe) {
+      void openNearMeFromLink()
+    }
+    else {
+      // Resolve first, then search: opening the national catalog and swapping
+      // it for a local one a beat later is two answers to one question.
+      resolveNearby().finally(() => runSearch())
+    }
     fetchCoverage().then(value => coverage.set(value))
     const cancelMap = runWhenMapReady('trails-explore-map', () => refreshExploreMap())
     const stop = effect(() => {
