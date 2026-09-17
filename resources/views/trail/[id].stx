@@ -498,8 +498,13 @@
               <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</p>
               <p class="metric-label mt-0.5">Length</p>
             </div>
+            <!-- The catalog stores 0 when a source recorded no climb (NPS and USFS
+                 never do), so 0 means unknown, not flat. -->
             <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.elevation.toLocaleString() + ' ft' }}</p>
+              <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">
+                <span :if="trail.elevation > 0">{{ trail.elevation.toLocaleString() + ' ft' }}</span>
+                <span :if="!(trail.elevation > 0)"><span aria-hidden="true">—</span><span class="sr-only">Not recorded</span></span>
+              </p>
               <p class="metric-label mt-0.5">Elev. gain</p>
             </div>
             <div class="bg-white p-4 text-center dark:bg-slate-800">
@@ -818,7 +823,7 @@
             <div class="space-y-3">
               <div class="flex justify-between"><span class="text-sm text-gray-500">Difficulty</span><span class="text-sm font-medium capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span></div>
               <div class="flex justify-between"><span class="text-sm text-gray-500">Distance</span><span class="text-sm font-medium dark:text-white">{{ trail.distance + ' mi' }}</span></div>
-              <div class="flex justify-between"><span class="text-sm text-gray-500">Elevation</span><span class="text-sm font-medium dark:text-white">{{ trail.elevation.toLocaleString() + ' ft' }}</span></div>
+              <div class="flex justify-between"><span class="text-sm text-gray-500">Elevation</span><span class="text-sm font-medium dark:text-white">{{ trail.elevation > 0 ? trail.elevation.toLocaleString() + ' ft' : 'Not recorded' }}</span></div>
               <div class="flex justify-between"><span class="text-sm text-gray-500">Time</span><span class="text-sm font-medium dark:text-white">{{ trail.estimatedTime }}</span></div>
               <div :if="routeLabel() !== ''" class="flex justify-between"><span class="text-sm text-gray-500">Route</span><span class="text-sm font-medium dark:text-white">{{ routeLabel() }}</span></div>
               <div :if="trail.surface" class="flex justify-between"><span class="text-sm text-gray-500">Surface</span><span class="text-sm font-medium capitalize dark:text-white">{{ trail.surface }}</span></div>
