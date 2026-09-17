@@ -168,10 +168,21 @@ export const SMOKE_CHECKS: SmokeCheck[] = [
   },
 ]
 
+/**
+ * How long one request may take before it counts as a failure.
+ *
+ * Bounded because this runs in CI: a server that accepts the connection and
+ * then never answers would otherwise hold the deploy job open until the
+ * runner's own six-hour limit, with nothing in the log to say why. The trail
+ * catalog is the slowest of these and answers in well under a second.
+ */
+const REQUEST_TIMEOUT_MS = 15_000
+
 async function fetchOnce(url: string): Promise<SmokeResponse> {
   const response = await fetch(url, {
     redirect: 'follow',
     headers: { 'user-agent': 'wildloop-smoke/1.0' },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
   return {
@@ -179,6 +190,13 @@ async function fetchOnce(url: string): Promise<SmokeResponse> {
     contentType: response.headers.get('content-type') ?? '',
     body: await response.text(),
   }
+}
+
+/** `TimeoutError` says nothing about what timed out. Say it. */
+function describeRequestFailure(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'TimeoutError')
+    return `no answer within ${REQUEST_TIMEOUT_MS / 1000}s`
+  return error instanceof Error ? error.message : String(error)
 }
 
 /**
@@ -197,7 +215,7 @@ async function waitForSite(base: string, attempts = 10, delayMs = 6000): Promise
       console.log(`  …${base} answered ${response.status}, retrying (${attempt}/${attempts})`)
     }
     catch (error) {
-      console.log(`  …${base} unreachable (${error instanceof Error ? error.message : error}), retrying (${attempt}/${attempts})`)
+      console.log(`  …${base} unreachable (${describeRequestFailure(error)}), retrying (${attempt}/${attempts})`)
     }
     await Bun.sleep(delayMs)
   }
@@ -227,7 +245,7 @@ export async function runSmokeChecks(base: string): Promise<number> {
     }
     catch (error) {
       failures++
-      console.log(`❌ ${check.name} — request failed: ${error instanceof Error ? error.message : error}`)
+      console.log(`❌ ${check.name} — request failed: ${describeRequestFailure(error)}`)
       console.log(`   ${url}`)
     }
   }
