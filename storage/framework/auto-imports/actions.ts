@@ -92,6 +92,7 @@ export const actions = {
   'Actions/Trail/TrailIndexAction': '../../../app/Actions/Trail/TrailIndexAction.ts',
   'Actions/Trail/TrailReviewIndexAction': '../../../app/Actions/Trail/TrailReviewIndexAction.ts',
   'Actions/Trail/TrailReviewStoreAction': '../../../app/Actions/Trail/TrailReviewStoreAction.ts',
+  'Actions/Trail/TrailReviewersAction': '../../../app/Actions/Trail/TrailReviewersAction.ts',
   'Actions/Trail/TrailShowAction': '../../../app/Actions/Trail/TrailShowAction.ts',
   'Actions/Trail/TrailStatsAction': '../../../app/Actions/Trail/TrailStatsAction.ts',
   'Actions/AI/AskAction': '../../../node_modules/@stacksjs/defaults/app/Actions/AI/AskAction.ts',

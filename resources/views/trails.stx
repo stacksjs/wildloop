@@ -53,6 +53,8 @@
   } from '../composables/useTrailFilters'
   import { downloadedTrailIds, downloadMessage, downloadingTrailId, refreshDownloads, toggleDownload } from '../composables/useOfflineDownloads'
   import { routePreviewDataUri } from '../composables/useRoutePreview'
+  import { loadReviewers, trailReviewers } from '../composables/useTrailReviewers'
+  import { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../functions/avatars'
   import { useSavedTrails } from '../composables/useSavedTrails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
   import { routeTypeLabel, trailHighlight } from '../functions/trail-features'
@@ -234,6 +236,33 @@
     void toggleDownload(trail, routes()[trail.id])
   }
 
+  // Recent reviewers, mirrored through a local derived like the rest: an
+  // imported signal read straight from the markup comes back empty.
+  const reviewerSummaries = derived(() => trailReviewers())
+
+  /** Faces for a card, newest reviewer first. Empty for a quiet trail. */
+  function reviewerFaces(id: number) {
+    return reviewerSummaries()[id]?.reviewers ?? []
+  }
+
+  function reviewerCountLabel(id: number) {
+    return newReviewsLabel(reviewerSummaries()[id]?.recentCount ?? 0)
+  }
+
+  /** `+28` for the reviewers behind the three faces shown. */
+  function reviewerOverflow(id: number) {
+    const summary = reviewerSummaries()[id]
+    return summary ? overflowLabel(summary.recentCount, summary.reviewers.length) : ''
+  }
+
+  function faceInitial(name: string) {
+    return avatarInitial(name)
+  }
+
+  function faceTint(reviewer: any) {
+    return avatarTint(reviewer?.id ?? reviewer?.name)
+  }
+
   /**
    * The badge on a card's photo: the single attribute somebody picks this
    * trail by. Empty when the catalog knows nothing worth saying.
@@ -405,6 +434,9 @@
       // first draws one frame of every card with no route chip.
       routes.set(res.geometryById)
       results.set(res.trails)
+      // Faces last, and not awaited: the list is already on screen, and who
+      // reviewed a trail last month is not worth holding it for.
+      void loadReviewers(res.trails.map((trail: any) => trail.id))
       matchCount.set(res.total)
       nearRadius.set(near ? (res.radius ?? 25) : 0)
     }
@@ -1053,6 +1085,29 @@
                 <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                 <span class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
               </span>
+            </p>
+
+            <!-- Who has been up there lately.
+
+                 A rating and a lifetime count say how a trail has been judged
+                 over years; three faces and a month's count say whether anyone
+                 has walked it since the last storm — which is the question a
+                 weekend is planned on. Absent entirely for a quiet trail
+                 rather than shown as a zero. -->
+            <p :if="reviewerCountLabel(trail.id) !== ''" class="mt-2 flex items-center gap-2">
+              <span class="flex -space-x-1.5">
+                <template :for="reviewer in reviewerFaces(trail.id)">
+                  <span
+                    x-class="'grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ring-2 ring-white dark:ring-slate-900 ' + faceTint(reviewer)"
+                    x-title="reviewer.name"
+                    aria-hidden="true">{{ faceInitial(reviewer.name) }}</span>
+                </template>
+                <span
+                  :if="reviewerOverflow(trail.id) !== ''"
+                  class="grid h-6 min-w-6 place-items-center rounded-full bg-slate-200 px-1 text-[10px] font-bold text-slate-600 ring-2 ring-white tabular-nums dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-900"
+                  aria-hidden="true">{{ reviewerOverflow(trail.id) }}</span>
+              </span>
+              <span class="text-sm text-slate-500 dark:text-slate-400">{{ reviewerCountLabel(trail.id) }}</span>
             </p>
 
             <p :if="trail.nationalTrail || routeLabelFor(trail) !== ''" class="mt-1.5 flex flex-wrap gap-1.5">

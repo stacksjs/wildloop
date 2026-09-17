@@ -27,6 +27,16 @@ const config: CrosswindOptions = {
     // the tinted pastels a chip on a white card can afford. Hue carries the
     // meaning; the white text is what makes it legible on a bright ridge line
     // or a black night sky alike.
+    // Avatar tints, one per account rather than one per person's mood: see
+    // resources/functions/avatars.ts, which picks by hashing the account id.
+    // Each pair holds its contrast in both themes so the initial stays legible.
+    'avatar-tint-0': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-100',
+    'avatar-tint-1': 'bg-sky-100 text-sky-800 dark:bg-sky-500/25 dark:text-sky-100',
+    'avatar-tint-2': 'bg-amber-100 text-amber-900 dark:bg-amber-500/25 dark:text-amber-100',
+    'avatar-tint-3': 'bg-rose-100 text-rose-800 dark:bg-rose-500/25 dark:text-rose-100',
+    'avatar-tint-4': 'bg-violet-100 text-violet-800 dark:bg-violet-500/25 dark:text-violet-100',
+    'avatar-tint-5': 'bg-teal-100 text-teal-800 dark:bg-teal-500/25 dark:text-teal-100',
+
     'difficulty-easy': 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950',
     'difficulty-moderate': 'bg-amber-500 text-amber-950 dark:bg-amber-400 dark:text-amber-950',
     'difficulty-hard': 'bg-rose-600 text-white dark:bg-rose-500 dark:text-white',
@@ -46,6 +56,14 @@ const config: CrosswindOptions = {
     'difficulty-easy',
     'difficulty-moderate',
     'difficulty-hard',
+    // Picked by hash at runtime, so none of these ever appears whole in a
+    // template either.
+    'avatar-tint-0',
+    'avatar-tint-1',
+    'avatar-tint-2',
+    'avatar-tint-3',
+    'avatar-tint-4',
+    'avatar-tint-5',
   ],
 }
 

@@ -43,6 +43,10 @@ declare global {
   const activityShareOptions: typeof autoImports.activityShareOptions
   const activityShareSvg: typeof autoImports.activityShareSvg
   const activitySharePreview: typeof autoImports.activitySharePreview
+  const avatarInitial: typeof autoImports.avatarInitial
+  const avatarTint: typeof autoImports.avatarTint
+  const newReviewsLabel: typeof autoImports.newReviewsLabel
+  const overflowLabel: typeof autoImports.overflowLabel
   const yardStartsAt: typeof autoImports.yardStartsAt
   const currentYard: typeof autoImports.currentYard
   const msToNextStart: typeof autoImports.msToNextStart
