@@ -1,8 +1,30 @@
 import type { LatLng } from './useTrailMap'
 
-export function routePreviewPoints(coords: LatLng[]): string {
-  if (coords.length < 2)
+/**
+ * The most points worth drawing into a thumbnail.
+ *
+ * A national trail carries thousands of them, and at 100x100 the difference
+ * between 80 and 8,000 is invisible — but a grid of sixty cards each building
+ * an 8,000-point polyline is a visible pause on every search.
+ */
+const PREVIEW_POINTS = 80
+
+/** Keep the ends, thin the middle. The shape survives; the point count does not. */
+function samplePoints(coords: LatLng[]): LatLng[] {
+  if (coords.length <= PREVIEW_POINTS)
+    return coords
+
+  const step = (coords.length - 1) / (PREVIEW_POINTS - 1)
+  const sampled: LatLng[] = []
+  for (let i = 0; i < PREVIEW_POINTS; i++)
+    sampled.push(coords[Math.round(i * step)])
+  return sampled
+}
+
+export function routePreviewPoints(input: LatLng[]): string {
+  if (input.length < 2)
     return ''
+  const coords = samplePoints(input)
   const lats = coords.map(c => c[0])
   const lngs = coords.map(c => c[1])
   const minLat = Math.min(...lats)

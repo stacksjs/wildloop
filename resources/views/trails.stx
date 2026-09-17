@@ -51,8 +51,11 @@
     ROUTE_TYPE_OPTIONS,
     SORT_OPTIONS,
   } from '../composables/useTrailFilters'
+  import { downloadedTrailIds, downloadMessage, downloadingTrailId, refreshDownloads, toggleDownload } from '../composables/useOfflineDownloads'
+  import { routePreviewDataUri } from '../composables/useRoutePreview'
   import { useSavedTrails } from '../composables/useSavedTrails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
+  import { routeTypeLabel, trailHighlight } from '../functions/trail-features'
   import {
     createTrailMap,
     drawTrailMarker,
@@ -207,6 +210,59 @@
   function clearSearchText() {
     search.set('')
     runSearch()
+  }
+
+  // Offline state, mirrored through locals: the template resolves names from
+  // this script, and an imported signal read straight from the markup is empty.
+  const downloadedIds = derived(() => downloadedTrailIds())
+  const downloadNote = derived(() => downloadMessage())
+
+  function isDownloaded(id: number) {
+    return downloadedIds().includes(id)
+  }
+
+  function isDownloading(id: number) {
+    return downloadingTrailId() === id
+  }
+
+  /** Save a card's route for the field without opening the trail first. */
+  function onDownload(trail: any) {
+    void toggleDownload(trail, routes()[trail.id])
+  }
+
+  /**
+   * The badge on a card's photo: the single attribute somebody picks this
+   * trail by. Empty when the catalog knows nothing worth saying.
+   */
+  function highlightLabel(trail: any) {
+    return trailHighlight(trail)?.label ?? ''
+  }
+
+  function highlightIcon(trail: any) {
+    return trailHighlight(trail)?.icon || 'i-lucide-sparkles'
+  }
+
+  function routeLabelFor(trail: any) {
+    return routeTypeLabel(trail.routeType)
+  }
+
+  /**
+   * The route's shape as a small SVG, the way a map chip on a card shows it.
+   *
+   * Cached by id: the grid re-renders on every keystroke and the line does not
+   * change, so rebuilding it each time is work with no output.
+   */
+  const thumbnails = new Map<number, string>()
+
+  function routeThumb(id: number) {
+    const cached = thumbnails.get(id)
+    if (cached !== undefined)
+      return cached
+
+    const coords = routes()[id]
+    const uri = (coords && coords.length > 1 ? routePreviewDataUri(coords) : '') || ''
+    thumbnails.set(id, uri)
+    return uri
   }
 
   /**
@@ -552,6 +608,7 @@
 
   onMount(() => {
     applyUrlQuery()
+    void refreshDownloads()
     // Resolve first, then search: opening the national catalog and swapping it
     // for a local one a beat later is two answers to one question.
     resolveNearby().finally(() => runSearch())
@@ -826,6 +883,13 @@
 
     <div :if="catalogError()" class="mb-4 text-sm text-amber-600 dark:text-amber-400">{{ 'Using demo trails. ' + catalogError() }}</div>
 
+    <!-- What the last download did. A button that saves half a gigabyte of
+         tiles silently is a button people press twice. -->
+    <div :if="downloadNote()" class="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+      <i class="i-lucide-hard-drive-download h-4 w-4 shrink-0" aria-hidden="true"></i>
+      <span>{{ downloadNote() }}</span>
+    </div>
+
     <!-- Split: result list + map -->
     <div class="grid gap-6 mb-8 lg:grid-cols-5">
       <div class="lg:col-span-2 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
@@ -892,19 +956,46 @@
               <Image x-src="trail.image || 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=600&fit=crop'" x-alt="trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
             </StxLink>
 
-            <!-- Inline SVG rather than <Icon>: the heart has to FILL when the
-                 trail is saved, and the Icon component hardcodes fill="none"
-                 on the svg it renders, so an outline was the only state it
-                 could ever show. -->
-            <button
-              @click.stop.prevent="onToggleSave(trail.id)"
-              x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500'"
-              class="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white shadow-md transition hover:scale-105 active:scale-95"
-              x-aria-label="wl.isTrailSaved(trail.id) ? 'Remove from saved trails' : 'Save this trail'">
-              <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="wl.isTrailSaved(trail.id) ? 'currentColor' : 'none'" aria-hidden="true">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-              </svg>
-            </button>
+            <!-- What this trail is, in one word, where a photo has room for
+                 it. Only ever from a tag the catalog actually carries. -->
+            <span :if="highlightLabel(trail) !== ''" class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-slate-900/75 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+              <i x-class="highlightIcon(trail) + ' h-3.5 w-3.5'" aria-hidden="true"></i>
+              {{ highlightLabel(trail) }}
+            </span>
+
+            <div class="absolute right-3 top-3 flex gap-1.5">
+              <!-- Take it offline from the list. Planning a weekend used to
+                   mean opening each trail in turn to press the same button. -->
+              <button
+                @click.stop.prevent="onDownload(trail)"
+                x-class="isDownloaded(trail.id) ? 'text-emerald-600' : 'text-slate-700 hover:text-emerald-600'"
+                class="grid h-8 w-8 place-items-center rounded-full bg-white shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60"
+                x-disabled="isDownloading(trail.id)"
+                x-aria-label="isDownloaded(trail.id) ? 'Remove offline copy' : 'Download for offline use'">
+                <i x-class="isDownloading(trail.id) ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : (isDownloaded(trail.id) ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4')" aria-hidden="true"></i>
+              </button>
+
+              <!-- Inline SVG rather than <Icon>: the heart has to FILL when the
+                   trail is saved, and the Icon component hardcodes fill="none"
+                   on the svg it renders, so an outline was the only state it
+                   could ever show. -->
+              <button
+                @click.stop.prevent="onToggleSave(trail.id)"
+                x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500'"
+                class="grid h-8 w-8 place-items-center rounded-full bg-white shadow-md transition hover:scale-105 active:scale-95"
+                x-aria-label="wl.isTrailSaved(trail.id) ? 'Remove from saved trails' : 'Save this trail'">
+                <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="wl.isTrailSaved(trail.id) ? 'currentColor' : 'none'" aria-hidden="true">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- The route's own shape, which is what tells a loop from an out
+                 and back at a glance. Drawn from the geometry the search
+                 already returned, so it costs no request. -->
+            <span :if="routeThumb(trail.id) !== ''" class="absolute bottom-3 right-3 h-14 w-14 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md">
+              <img x-src="routeThumb(trail.id)" alt="" width="56" height="56" loading="lazy" class="h-full w-full object-cover" />
+            </span>
           </div>
 
           <div class="pt-3">
@@ -923,6 +1014,9 @@
                   <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
                 </svg>
                 <span class="tabular-nums">{{ trail.rating.toFixed(1) }}</span>
+                <!-- How many people that average is built on, which is what
+                     makes a 4.8 mean something. -->
+                <span :if="trail.reviewCount > 0" class="text-slate-400 tabular-nums dark:text-slate-500">{{ '(' + trail.reviewCount.toLocaleString() + ')' }}</span>
               </span>
               <span :if="trail.rating > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
 
@@ -938,18 +1032,31 @@
               <span :if="trail.estimatedTime" class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
             </p>
 
-            <p :if="trail.nationalTrail || trail.routeType === 'loop'" class="mt-1.5 flex flex-wrap gap-1.5">
+            <p :if="trail.nationalTrail || routeLabelFor(trail) !== ''" class="mt-1.5 flex flex-wrap gap-1.5">
               <span :if="trail.nationalTrail" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                 <i class="i-lucide-landmark h-3 w-3" aria-hidden="true"></i>National Trail
               </span>
-              <span :if="trail.routeType === 'loop'" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                <i class="i-lucide-rotate-cw h-3 w-3" aria-hidden="true"></i>Loop
+              <!-- Every shape, not just loops: whether you finish where you
+                   started decides whether a second car is needed. -->
+              <span :if="routeLabelFor(trail) !== ''" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                <i class="i-lucide-route h-3 w-3" aria-hidden="true"></i>{{ routeLabelFor(trail) }}
               </span>
             </p>
           </div>
         </article>
       </template>
     </div>
+
+    <!-- The map is below the list on a phone, which is where it belongs while
+         reading results and exactly wrong when the question is "where are
+         these". A plain in-page anchor gets there: no script, no second view
+         to keep in step with the list. -->
+    <a
+      href="#trails-explore-map"
+      class="fixed bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition active:scale-[0.98] lg:hidden dark:bg-white dark:text-slate-900">
+      <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
+      Map
+    </a>
 
     <div :if="!searching() && results().length === 0" class="py-20 text-center">
       <div class="w-20 h-20 mx-auto mb-6 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
