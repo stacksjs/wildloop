@@ -110,7 +110,9 @@ struct ${name}: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         if let url = URL(string: ${swiftString(link)}) {
-            UIApplication.shared.open(url)
+            // Awaited: inside an async context this resolves to
+            // \`open(_:options:)\`, which is itself async on current SDKs.
+            await UIApplication.shared.open(url)
         }
         return .result()
     }

@@ -50,7 +50,9 @@ describe('the generated Swift', () => {
     expect(swift).toContain('URL(string: "wildloop://profile?tab=saved")')
     expect(swift).toContain('URL(string: "wildloop://trails?near=me")')
     expect(swift).toContain('URL(string: "wildloop://stats")')
-    expect(swift.match(/UIApplication\.shared\.open\(url\)/g)).toHaveLength(APP_SHORTCUTS.length)
+    // Awaited inside perform(): the async overload is what an async context
+    // resolves to, and Xcode rejects it bare.
+    expect(swift.match(/await UIApplication\.shared\.open\(url\)/g)).toHaveLength(APP_SHORTCUTS.length)
   })
 
   it('brings the app forward, since the link is what places it', () => {
@@ -135,6 +137,9 @@ describe('routing a tapped home-screen shortcut', () => {
     expect(swift).toContain('@objc')
     expect(swift).toContain('shortcutItem.userInfo?["url"] as? String')
     expect(swift).toContain('completionHandler(true)')
+    // The delegate method is not async, so the call there takes the
+    // completion-handler overload and must NOT be awaited.
+    expect(swift.split('extension CraftAppDelegate')[1]).toContain('\n        UIApplication.shared.open(url)')
   })
 
   it('leaves the app’s own sources alone when there is no delegate', () => {
