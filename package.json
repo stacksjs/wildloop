@@ -54,7 +54,7 @@
     "build:frontend": "bun build.ts",
     "build:stacks": "./buddy build",
     "build:android": "./buddy build:android",
-    "build:ios": "./buddy build:ios",
+    "build:ios": "./buddy build:ios && bun scripts/generate-ios-shortcuts.ts",
     "preview": "./buddy preview",
     "start": "./buddy serve",
     "prod": "./buddy build",
