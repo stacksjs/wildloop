@@ -217,6 +217,22 @@ function applyFilters(
   if (maxDistance !== null)
     query = query.where('distance', '<=', maxDistance)
 
+  // Ascent, in feet. The catalog stores the display unit (see
+  // `normalizeTrailRow`), so the bound needs no conversion on the way in.
+  const minElevation = readNumber(request, 'minElevation')
+  if (minElevation !== null)
+    query = query.where('elevation', '>=', minElevation)
+
+  const maxElevation = readNumber(request, 'maxElevation')
+  if (maxElevation !== null)
+    query = query.where('elevation', '<=', maxElevation)
+
+  // A rating floor, not a sort. An unrated trail has `rating` 0, so it falls
+  // out of any floor above zero — which is what "4.0+" is asking for.
+  const minRating = readNumber(request, 'minRating')
+  if (minRating !== null && minRating > 0)
+    query = query.where('rating', '>=', Math.min(minRating, 5))
+
   if (readString(request, 'dogsAllowed') === 'true')
     query = query.where('dogs_allowed', true)
 

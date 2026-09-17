@@ -25,6 +25,18 @@ export interface TrailQuery {
   difficulty?: string
   routeType?: string
   sort?: string
+  /** Miles. A length bucket from the filter bar. */
+  minDistance?: number
+  maxDistance?: number
+  /** Feet of ascent. */
+  minElevation?: number
+  maxElevation?: number
+  /** Stars, 0-5. Only trails rated at least this highly. */
+  minRating?: number
+  dogsAllowed?: boolean
+  /** Wheelchair accessible, as reported by the managing agency. */
+  accessible?: boolean
+  nationalTrail?: boolean
   /** Centre of a "near me" search. Paired with `lng`; the API ignores one alone. */
   lat?: number
   lng?: number
@@ -60,6 +72,17 @@ export function shouldFallbackToCatalog(query: TrailQuery, result: TrailQueryRes
     && !query.state
     && (!query.difficulty || query.difficulty === 'all')
     && (!query.routeType || query.routeType === 'all')
+    // A length, ascent, rating or suitability bound is as deliberate as a
+    // typed search: an empty answer under one is the honest answer, and
+    // silently dropping the location would show trails the filter excludes.
+    && query.minDistance === undefined
+    && query.maxDistance === undefined
+    && query.minElevation === undefined
+    && query.maxElevation === undefined
+    && !query.minRating
+    && !query.dogsAllowed
+    && !query.accessible
+    && !query.nationalTrail
 
   return hasLocation && locationOnly && result.trails.length === 0
 }
@@ -195,6 +218,22 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
     params.set('routeType', query.routeType)
   if (query.sort)
     params.set('sort', query.sort)
+  if (Number.isFinite(query.minDistance))
+    params.set('minDistance', String(query.minDistance))
+  if (Number.isFinite(query.maxDistance))
+    params.set('maxDistance', String(query.maxDistance))
+  if (Number.isFinite(query.minElevation))
+    params.set('minElevation', String(query.minElevation))
+  if (Number.isFinite(query.maxElevation))
+    params.set('maxElevation', String(query.maxElevation))
+  if (Number.isFinite(query.minRating) && (query.minRating ?? 0) > 0)
+    params.set('minRating', String(query.minRating))
+  if (query.dogsAllowed)
+    params.set('dogsAllowed', 'true')
+  if (query.accessible)
+    params.set('accessible', 'true')
+  if (query.nationalTrail)
+    params.set('nationalTrail', 'true')
   if (Number.isFinite(query.lat) && Number.isFinite(query.lng)) {
     params.set('lat', String(query.lat))
     params.set('lng', String(query.lng))
