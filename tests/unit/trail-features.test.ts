@@ -89,3 +89,18 @@ describe('trail notices', () => {
     expect(trailNotices({ distance: 1, elevation: 213, routeType: 'out-and-back' }, { hasRoute: true })).toEqual([])
   })
 })
+
+describe('normalized rows feed the notices', () => {
+  it('keeps a ban, an allowance and an unknown apart', async () => {
+    const { normalizeTrailRow } = await import('../../resources/assets/scripts/trail-data')
+    const row = (extra: Record<string, unknown>) => normalizeTrailRow({ id: 1, latitude: 1, longitude: 2, ...extra })
+
+    expect(row({ dogs_allowed: 0 })?.dogsAllowed).toBe(false)
+    expect(row({ dogs_allowed: 1 })?.dogsAllowed).toBe(true)
+    expect(row({})?.dogsAllowed).toBeNull()
+    expect(row({ wheelchair_accessible: 'true' })?.wheelchairAccessible).toBe(true)
+
+    expect(trailNotices(row({ dogs_allowed: 0 })!).map(n => n.key)).toEqual(['no-dogs'])
+    expect(trailNotices(row({})!)).toEqual([])
+  })
+})

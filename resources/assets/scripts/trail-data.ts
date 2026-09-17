@@ -34,6 +34,13 @@ export interface UiTrail {
   source: string
   sourceUrl: string
   nationalTrail: boolean
+  /**
+   * Suitability, as the managing agency reports it. `null` is not `false`:
+   * "we do not know whether dogs are allowed" and "dogs are banned" are
+   * different answers, and only one of them is ours to put on the page.
+   */
+  dogsAllowed: boolean | null
+  wheelchairAccessible: boolean | null
 }
 
 /** Parse stored geometry JSON: [[lat,lng],...] */
@@ -123,7 +130,27 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     source: String(row.source ?? ''),
     sourceUrl: String(row.sourceUrl ?? row.source_url ?? ''),
     nationalTrail: Boolean(row.nationalTrail ?? row.national_trail),
+    dogsAllowed: readTriState(row.dogsAllowed ?? row.dogs_allowed),
+    wheelchairAccessible: readTriState(row.wheelchairAccessible ?? row.wheelchair_accessible),
   }
+}
+
+/** true / false / unknown, from a column that may be absent, 0/1 or a string. */
+function readTriState(raw: unknown): boolean | null {
+  if (raw === null || raw === undefined || raw === '')
+    return null
+  if (typeof raw === 'boolean')
+    return raw
+  if (typeof raw === 'number')
+    return raw !== 0
+  if (typeof raw === 'string') {
+    const value = raw.trim().toLowerCase()
+    if (value === 'true' || value === '1' || value === 'yes')
+      return true
+    if (value === 'false' || value === '0' || value === 'no')
+      return false
+  }
+  return null
 }
 
 function normalizeRouteType(raw: unknown): UiTrail['routeType'] {
