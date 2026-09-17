@@ -38,6 +38,7 @@
     "config/integrations.ts",
     "app/Support/searchSuggest.ts",
     "app/Support/trailPhotoProcessing.ts",
+    "app/Support/photoStorage.ts",
     "resources/assets/scripts/auth.ts",
     "resources/assets/scripts/game-api.ts",
     "resources/assets/scripts/offline-trails.ts",
@@ -54,7 +55,8 @@
     "tests/unit/territory-battle.test.ts",
     "tests/unit/game-integrity-schema.test.ts",
     "tests/unit/search-suggest.test.ts",
-    "tests/unit/trail-photo-processing.test.ts"
+    "tests/unit/trail-photo-processing.test.ts",
+    "tests/unit/photo-storage.test.ts"
   ],
   "exclude": [
     "cloud/**",

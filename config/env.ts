@@ -178,6 +178,42 @@ export default {
     default: '',
   },
 
+  // Trail photos. See app/Support/photoStorage.ts.
+  PHOTOS_DISK: {
+    validation: schema.enum(['local', 's3']),
+    default: 'local',
+  },
+
+  PHOTOS_LOCAL_ROOT: {
+    validation: schema.string(),
+    default: '',
+  },
+
+  PHOTOS_S3_BUCKET: {
+    validation: schema.string(),
+    default: '',
+  },
+
+  PHOTOS_S3_REGION: {
+    validation: schema.string(),
+    default: 'us-east-1',
+  },
+
+  PHOTOS_S3_PREFIX: {
+    validation: schema.string(),
+    default: '',
+  },
+
+  PHOTOS_S3_ACCESS_KEY_ID: {
+    validation: schema.string(),
+    default: '',
+  },
+
+  PHOTOS_S3_SECRET_ACCESS_KEY: {
+    validation: schema.string(),
+    default: '',
+  },
+
   MEILISEARCH_HOST: {
     validation: schema.string(),
     default: '',

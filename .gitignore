@@ -76,3 +76,6 @@ pantry
 # the old root path is kept here only to catch a stale install.
 /storage/framework/database
 /.qb
+
+# Trail photos written to local disk in development (app/Support/photoStorage.ts)
+/storage/app
