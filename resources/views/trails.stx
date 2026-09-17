@@ -1031,18 +1031,28 @@
                      makes a 4.8 mean something. -->
                 <span :if="trail.reviewCount > 0" class="text-slate-400 tabular-nums dark:text-slate-500">{{ '(' + trail.reviewCount.toLocaleString() + ')' }}</span>
               </span>
-              <span :if="trail.rating > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-
-              <span class="inline-flex items-center gap-1.5">
+              <span :if="trail.rating > 0" class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                 <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
                 <span class="capitalize">{{ trail.difficulty }}</span>
               </span>
 
-              <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-              <span class="tabular-nums">{{ trail.distance.toLocaleString() + ' mi' }}</span>
+              <span :if="trail.rating === 0" class="inline-flex items-center gap-1.5">
+                <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
+                <span class="capitalize">{{ trail.difficulty }}</span>
+              </span>
 
-              <span :if="trail.estimatedTime" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-              <span :if="trail.estimatedTime" class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
+              <!-- Separator and value travel together, so a wrap never leaves
+                   a dot hanging at the end of a line. -->
+              <span class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span class="tabular-nums">{{ trail.distance.toLocaleString() + ' mi' }}</span>
+              </span>
+
+              <span :if="trail.estimatedTime" class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
+              </span>
             </p>
 
             <p :if="trail.nationalTrail || routeLabelFor(trail) !== ''" class="mt-1.5 flex flex-wrap gap-1.5">
