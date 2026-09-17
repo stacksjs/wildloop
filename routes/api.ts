@@ -419,6 +419,10 @@ route.get('/trails/stats', 'Actions/Trail/TrailStatsAction')
 route.get('/trails/reviewers', 'Actions/Trail/TrailReviewersAction')
 route.get('/trails/{id}', 'Actions/Trail/TrailShowAction')
 route.get('/trails/{id}/reviews', 'Actions/Trail/TrailReviewIndexAction')
+// Photos people added to a trail. The bucket is private, so the image bytes
+// are served through the file route, which only answers for visible photos.
+route.get('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoIndexAction')
+route.get('/trail-photos/{trailId}/{file}', 'Actions/TrailPhoto/TrailPhotoFileAction')
 // The route's fastest-known-time board. Public and session-free: a records
 // board is a reference work, and requiring a login to read who holds a route
 // would defeat the point of publishing it.
@@ -506,6 +510,9 @@ route.group({ middleware: 'auth' }, () => {
     route.post('/trails/{id}/reviews', 'Actions/Trail/TrailReviewStoreAction')
     // Saved trails - bookmark toggle, deduped per user+trail (#969)
     route.post('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
+    // Trail photos: re-encoded on upload, which strips their GPS position
+    route.post('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoStoreAction')
+    route.delete('/trail-photos/{uuid}', 'Actions/TrailPhoto/TrailPhotoDestroyAction')
     // Social graph - follow/unfollow another athlete
     route.post('/users/{id}/follow', 'Actions/Social/FollowToggleAction')
     route.post('/users/{id}/block', 'Actions/Social/BlockToggleAction')
