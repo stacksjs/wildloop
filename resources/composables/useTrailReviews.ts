@@ -17,6 +17,8 @@ interface ReviewRow {
   text: string
   conditions: string
   created_at: string
+  /** As stored: a JSON array, a comma-separated list or a single URL. */
+  photos?: unknown
 }
 
 interface ReviewStoreLike {
@@ -48,6 +50,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
       text: r.content ?? '',
       conditions: r.conditions ?? '',
       created_at: r.createdAt ?? new Date().toISOString(),
+      photos: r.photos ?? null,
     }
   }
 

@@ -15,6 +15,7 @@
   import { routePreviewDataUri } from '../../composables/useRoutePreview'
   import { shareLink, shareNote } from '../../composables/useShareLink'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
+  import { trailGallery } from '../../functions/trail-photos'
 
   // The served shell's title. Replaced with the trail's own once it loads —
   // see the effect below, and usePageSeo for why that happens on the client.
@@ -31,6 +32,8 @@
   const offlineMessage = state<string | null>(null)
   /** Long descriptions are clamped until asked for. */
   const descriptionOpen = state(false)
+  /** Which frame of the hero gallery is showing. */
+  const photoIndex = state(0)
 
   // -1 is a deliberate no-match sentinel: if the route param can't be
   // resolved we render a real "not found" instead of silently loading a
@@ -73,6 +76,51 @@
   })
 
   const shareMessage = derived(() => shareNote())
+
+  /**
+   * The hero gallery: the catalog's own picture, then the photos people
+   * attached to their reviews. One photo is not a gallery, so the dots and the
+   * arrows only appear once there is somewhere to go.
+   */
+  const gallery = derived(() => trailGallery(trail(), reviews()))
+  const galleryCount = derived(() => gallery().length)
+  const hasGallery = derived(() => galleryCount() > 1)
+
+  const currentPhoto = derived(() => gallery()[Math.min(photoIndex(), Math.max(galleryCount() - 1, 0))] ?? null)
+  const heroImage = derived(() => currentPhoto()?.url
+    ?? 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=1600&h=900&fit=crop')
+  const photoCredit = derived(() => currentPhoto()?.credit ?? '')
+
+  /** Wraps in both directions: a carousel that dead-ends is a carousel of one. */
+  function showPhoto(index: number) {
+    const count = galleryCount()
+    if (count < 1)
+      return
+    photoIndex.set(((index % count) + count) % count)
+  }
+
+  function nextPhoto() {
+    showPhoto(photoIndex() + 1)
+  }
+
+  function previousPhoto() {
+    showPhoto(photoIndex() - 1)
+  }
+
+  /** A fixed set of dots, filled from the gallery. Twelve is its cap. */
+  const photoSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+  function dotClass(slot: number) {
+    if (slot >= galleryCount())
+      return 'hidden'
+    return slot === photoIndex()
+      ? 'h-2 w-2 rounded-full bg-white transition'
+      : 'h-2 w-2 rounded-full bg-white/50 transition hover:bg-white/80'
+  }
+
+  function dotLabel(slot: number) {
+    return `Show photo ${slot + 1}`
+  }
 
   /** A description worth clamping. Shorter ones show whole, with no control. */
   const descriptionLong = derived(() => String(trail()?.description ?? '').length > 220)
@@ -294,9 +342,27 @@
 
   <div :if="trail">
     <!-- Hero -->
-    <section class="relative h-72 sm:h-96 bg-gradient-to-br from-emerald-700 to-teal-800 overflow-hidden">
-      <Image x-src="trail.image || 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=1600&h=900&fit=crop'" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
+    <section class="group relative h-72 sm:h-96 bg-gradient-to-br from-emerald-700 to-teal-800 overflow-hidden">
+      <Image x-src="heroImage()" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
       <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
+
+      <!-- Gallery controls. Only drawn once a second photo exists: a lone
+           arrow over a single picture is a control that does nothing. -->
+      <button :if="hasGallery()" @click="previousPhoto()" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur-sm transition hover:bg-black/55 focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-100">
+        <i class="i-lucide-chevron-left h-5 w-5" aria-hidden="true"></i>
+      </button>
+      <button :if="hasGallery()" @click="nextPhoto()" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur-sm transition hover:bg-black/55 focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-100">
+        <i class="i-lucide-chevron-right h-5 w-5" aria-hidden="true"></i>
+      </button>
+
+      <div :if="hasGallery()" class="absolute inset-x-0 bottom-[7.5rem] z-10 flex justify-center gap-1.5">
+        <template :for="slot in photoSlots">
+          <button @click="showPhoto(slot)" x-class="dotClass(slot)" x-aria-label="dotLabel(slot)"></button>
+        </template>
+      </div>
+
+      <!-- Whose photo this is. The catalog's own frame has no credit line. -->
+      <p :if="photoCredit() !== ''" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">{{ 'Photo by ' + photoCredit() }}</p>
       <!-- Floating controls, over the photo rather than under it: on a phone
            the photo is the whole first screen, and a control below the fold is
            a control nobody finds. -->

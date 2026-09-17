@@ -32,6 +32,10 @@ export default new Action({
         title: r.title,
         content: r.content,
         conditions: r.conditions,
+        // Passed through as stored. The column has held JSON arrays, comma
+        // separated lists and single URLs, and the client parses all three —
+        // re-encoding one of those shapes here would only add a fourth.
+        photos: r.photos ?? null,
         visitDate: r.visit_date,
         createdAt: r.created_at,
       }))
