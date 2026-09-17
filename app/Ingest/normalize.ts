@@ -10,6 +10,7 @@
 import type { Coordinate } from '../../resources/functions/geo'
 import type { TrailDifficulty, TrailRouteType } from './types'
 import { haversineDistance } from '../../resources/functions/geo'
+import { STOCK_TRAIL_PHOTOS } from '../../resources/functions/stock-photos'
 import { formatTrailTime } from '../../resources/functions/trail-time'
 
 export const METERS_PER_MILE = 1609.344
@@ -239,25 +240,16 @@ export function encodeTags(tags: Iterable<string>): string {
  * these layers, and OSM almost never does, so rather than leave every card
  * blank the trail gets one of a small set of licensed landscape photographs,
  * picked deterministically from its source id. Deterministic matters: a re-sync
- * must not reshuffle every image in the catalog.
+ * must not reshuffle every image in the catalog. The list lives in
+ * resources/functions/stock-photos.ts so pages can label these as illustrative.
  */
-const FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1465056836041-7f43ac27dcb5?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1476231682828-37e571bc172f?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1533240332313-0db49b459ad6?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=600&fit=crop',
-]
 
 export function pickImage(sourceId: string): string {
   let hash = 0
   for (let i = 0; i < sourceId.length; i++)
     hash = (hash * 31 + sourceId.charCodeAt(i)) >>> 0
 
-  return FALLBACK_IMAGES[hash % FALLBACK_IMAGES.length]
+  return STOCK_TRAIL_PHOTOS[hash % STOCK_TRAIL_PHOTOS.length]
 }
 
 export function metersToFeet(meters: number): number {

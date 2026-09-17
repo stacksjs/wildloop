@@ -89,9 +89,11 @@
   const hasGallery = derived(() => galleryCount() > 1)
 
   const currentPhoto = derived(() => gallery()[Math.min(photoIndex(), Math.max(galleryCount() - 1, 0))] ?? null)
-  const heroImage = derived(() => currentPhoto()?.url
-    ?? 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=1600&h=900&fit=crop')
+  // No stand-in when a trail has no photo. Another stock landscape under the
+  // trail's name reads as a picture of it, so the section's own gradient shows.
+  const heroImage = derived(() => currentPhoto()?.url ?? '')
   const photoCredit = derived(() => currentPhoto()?.credit ?? '')
+  const photoIllustrative = derived(() => currentPhoto()?.illustrative === true)
 
   /** Wraps in both directions: a carousel that dead-ends is a carousel of one. */
   function showPhoto(index: number) {
@@ -374,7 +376,9 @@
   <div :if="trail">
     <!-- Hero -->
     <section class="group relative h-72 sm:h-96 bg-gradient-to-br from-emerald-700 to-teal-800 overflow-hidden">
-      <Image x-src="heroImage()" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
+      <div :if="heroImage() !== ''" class="absolute inset-0">
+        <Image x-src="heroImage()" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
+      </div>
       <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
 
       <!-- Gallery controls. Only drawn once a second photo exists: a lone
@@ -394,8 +398,10 @@
         </template>
       </div>
 
-      <!-- Whose photo this is. The catalog's own frame has no credit line. -->
+      <!-- Whose photo this is. A stock cover says it is one: it is not a
+           picture of this trail, and without the label it reads as one. -->
       <p :if="photoCredit() !== ''" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">{{ 'Photo by ' + photoCredit() }}</p>
+      <p :if="photoCredit() === '' && photoIllustrative()" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">Illustrative photo</p>
       <!-- Floating controls, over the photo rather than under it: on a phone
            the photo is the whole first screen, and a control below the fold is
            a control nobody finds. -->

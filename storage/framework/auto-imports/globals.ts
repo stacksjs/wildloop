@@ -128,12 +128,24 @@ declare global {
   const computeSplitsFromSamples: typeof autoImports.computeSplitsFromSamples
   const ELEVATION_NOISE_FLOOR_FT: typeof autoImports.ELEVATION_NOISE_FLOOR_FT
   const METERS_TO_FEET: typeof autoImports.METERS_TO_FEET
+  const isStockTrailPhoto: typeof autoImports.isStockTrailPhoto
+  const STOCK_TRAIL_PHOTOS: typeof autoImports.STOCK_TRAIL_PHOTOS
   const classifyBattleOutcome: typeof autoImports.classifyBattleOutcome
   const territoryColor: typeof autoImports.territoryColor
   const territoryAppearance: typeof autoImports.territoryAppearance
   const formatTerritoryArea: typeof autoImports.formatTerritoryArea
   const diffTerritories: typeof autoImports.diffTerritories
   const OWN_TERRITORY_COLOR: typeof autoImports.OWN_TERRITORY_COLOR
+  const normalizeTagKey: typeof autoImports.normalizeTagKey
+  const readTags: typeof autoImports.readTags
+  const featureFromTag: typeof autoImports.featureFromTag
+  const trailFeatures: typeof autoImports.trailFeatures
+  const trailHighlight: typeof autoImports.trailHighlight
+  const routeTypeLabel: typeof autoImports.routeTypeLabel
+  const routeTypeIcon: typeof autoImports.routeTypeIcon
+  const trailNotices: typeof autoImports.trailNotices
+  const parsePhotoList: typeof autoImports.parsePhotoList
+  const trailGallery: typeof autoImports.trailGallery
   const formatTrailTime: typeof autoImports.formatTrailTime
   const parseTrailTime: typeof autoImports.parseTrailTime
   const displayTrailTime: typeof autoImports.displayTrailTime

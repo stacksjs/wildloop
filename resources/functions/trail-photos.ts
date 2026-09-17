@@ -11,10 +11,14 @@
  * plainly an image URL is dropped rather than rendered into a `src`.
  */
 
+import { isStockTrailPhoto } from './stock-photos'
+
 export interface GalleryPhoto {
   url: string
   /** Who took it, when that is known. Empty for the catalog's own image. */
   credit: string
+  /** A stock cover, not a picture of this trail. */
+  illustrative: boolean
 }
 
 /** Where a photo may come from: absolute http(s), or this site's own root. */
@@ -88,7 +92,7 @@ export function trailGallery(trail: GalleryTrail | null, reviews: GalleryReview[
     if (!isRenderableUrl(clean) || seen.has(clean) || photos.length >= MAX_PHOTOS)
       return
     seen.add(clean)
-    photos.push({ url: clean, credit })
+    photos.push({ url: clean, credit, illustrative: isStockTrailPhoto(clean) })
   }
 
   if (trail?.image)

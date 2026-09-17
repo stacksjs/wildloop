@@ -31,9 +31,15 @@ describe('trail gallery', () => {
     )
 
     expect(gallery).toEqual([
-      { url: 'https://a.test/cover.jpg', credit: '' },
-      { url: 'https://a.test/1.jpg', credit: 'Ada' },
+      { url: 'https://a.test/cover.jpg', credit: '', illustrative: false },
+      { url: 'https://a.test/1.jpg', credit: 'Ada', illustrative: false },
     ])
+  })
+
+  it('marks a stock cover as illustrative, at whatever size it was requested', () => {
+    const cover = 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&h=900&fit=crop'
+    const [first] = trailGallery({ image: cover }, [])
+    expect(first).toEqual({ url: cover, credit: '', illustrative: true })
   })
 
   it('shows one copy of a photo posted twice', () => {
