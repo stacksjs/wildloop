@@ -49,7 +49,21 @@ describe('conditional rendering inside components the native app mounts', () => 
     // It starts connected, so `:if` dropped it on the first pass and the app
     // could never say it had lost signal — on a ridge, the one thing it is for.
     expect(banner).not.toContain(':if=')
-    expect(banner).toContain('connected() ? \'native-network-banner--quiet\' : \'\'')
-    expect(banner).toContain('.native-network-banner--quiet { display: none; }')
+    expect(banner).toContain('connected() ? \'native-network-banner--quiet \' : \'\'')
+  })
+
+  it('gives the banner exactly one class binding', () => {
+    // Each binding captures the element's classes when it binds and then
+    // assigns className outright, so a second one overwrites what the first
+    // decided. With both `x-class` and `:class` here the banner was stuck
+    // showing whichever state happened to be written last.
+    const bindings = (banner.match(/(?:^|\s)(?::class|x-class)=/g) ?? []).length
+    expect(bindings).toBe(1)
+  })
+
+  it('beats the banner\'s own display rule on specificity, not source order', () => {
+    // Both are single-class selectors, so order alone decided it and
+    // `display: flex` won: the class was applied and changed nothing.
+    expect(banner).toContain('.native-network-banner.native-network-banner--quiet { display: none; }')
   })
 })

@@ -28,21 +28,23 @@ onDestroy(() => removeListener?.())
   browser. This banner starts connected, so `:if` removed it on that first
   pass and the app could never tell you it had gone offline. Class bindings
   do re-run there, so the element stays mounted and only its display changes.
+
+  Both states go through the one `:class`. Each class binding captures the
+  element's classes when it binds and then assigns `className` outright, so a
+  second binding on the same element overwrites whatever the first decided —
+  which left this banner stuck in one state whichever way the signal went.
 -->
 <div
-  x-class="connected() ? 'native-network-banner--quiet' : ''"
   role="status"
   aria-live="polite"
   class="native-network-banner"
-  :class="className()"
+  :class="(connected() ? 'native-network-banner--quiet ' : '') + className()"
 >
   <i aria-hidden="true" class="h-4 w-4 i-hugeicons-wifi-disconnected-01"></i>
   <span>{{ offlineLabel() }}</span>
 </div>
 
 <style>
-  .native-network-banner--quiet { display: none; }
-
   .native-network-banner {
     position: sticky;
     top: env(safe-area-inset-top, 0px);
@@ -58,6 +60,10 @@ onDestroy(() => removeListener?.())
     font-size: 0.8125rem;
     font-weight: 600;
   }
+
+  /* After the base rule and doubled up: both are single-class selectors, so
+     source order alone decided it, and `display: flex` won. */
+  .native-network-banner.native-network-banner--quiet { display: none; }
 
   @media (prefers-color-scheme: dark) {
     .native-network-banner { color: rgb(254 243 199); background: rgb(120 53 15 / 0.96); }
