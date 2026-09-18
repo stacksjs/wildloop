@@ -1002,14 +1002,24 @@
       <span>{{ downloadNote() }}</span>
     </div>
 
-    <!-- Split: result list + map -->
+    <!-- How many matched. Above the split because the list it used to sit in
+         is desktop-only, and the count is the one part of that list a phone
+         still needs. -->
+    <p class="mb-3 text-sm text-slate-500 dark:text-slate-400">
+      <span :if="searching()">Searching…</span>
+      <span :if="!searching()">{{ matchCount().toLocaleString() + (matchCount() === 1 ? ' trail' : ' trails') }}</span>
+      <span :if="!searching() && matchCount() > results().length" class="opacity-70">{{ ' · showing first ' + results().length }}</span>
+    </p>
+
+    <!-- Split: result list + map.
+
+         The list is the map's other half: it exists to be read beside the pins
+         and to highlight one. Below `lg` the two stack, and it became a second
+         copy of every card further down the page — 21 trails rendered as 42
+         entries to scroll past. So on a phone the map keeps the row to itself
+         and the cards are the only list. -->
     <div class="grid gap-6 mb-8 lg:grid-cols-5">
-      <div class="lg:col-span-2 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
-        <p class="text-sm text-slate-500 dark:text-slate-400">
-          <span :if="searching()">Searching…</span>
-          <span :if="!searching()">{{ matchCount().toLocaleString() + (matchCount() === 1 ? ' trail' : ' trails') }}</span>
-          <span :if="!searching() && matchCount() > results().length" class="opacity-70">{{ ' · showing first ' + results().length }}</span>
-        </p>
+      <div class="hidden lg:block lg:col-span-2 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
 
         <!-- Skeletons match the row shape so the list does not jump. -->
         <template :if="searching() && results().length === 0">
