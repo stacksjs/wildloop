@@ -205,7 +205,7 @@
 
       <!-- ── Map ─────────────────────────────────────────────────────────── -->
       <div class="map-frame">
-        <div id="record-map" data-stx-ignore class="ts-map-container h-[24rem] w-full sm:h-[30rem]"></div>
+        <div id="record-map" data-stx-ignore class="ts-map-container h-[46dvh] min-h-[20rem] w-full sm:h-[30rem]"></div>
 
         <div class="map-badge" x-class="gpsStatus === 'active' ? 'text-emerald-700' : gpsStatus === 'searching' ? 'text-amber-700' : 'text-slate-600'">
           <span class="map-dot" x-class="gpsStatus === 'active' ? 'bg-emerald-500 animate-pulse' : gpsStatus === 'searching' ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'"></span>
@@ -506,6 +506,23 @@
     border-radius: 1.5rem;
   }
 
+  /* On a phone this panel is the screen, not a card on a page: it runs to the
+   * edges, drops the outline, and lets the numbers grow into the space the
+   * padding was holding. */
+  @media (max-width: 639.98px) {
+    .metrics {
+      margin-right: -1rem;
+      margin-left: -1rem;
+      padding: 1.5rem 1rem 1rem;
+      border-right: 0;
+      border-left: 0;
+      border-radius: 1.25rem;
+    }
+
+    .metric { padding: 1.1rem 0.5rem; }
+    .metric-value { font-size: 1.75rem; }
+  }
+
   .metric-hero { text-align: center; }
 
   .metric-clock {
@@ -536,8 +553,13 @@
     border-radius: 1rem;
   }
 
+  /* Five numbers in two columns leave a sixth cell, and the grid's gap colour
+   * renders it as a hole in the panel. The odd one out spans the row instead. */
+  .metric-grid > .metric:last-child { grid-column: 1 / -1; }
+
   @media (min-width: 640px) {
     .metric-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .metric-grid > .metric:last-child { grid-column: auto; }
   }
 
   .metric {
@@ -561,11 +583,24 @@
 
   .control-dock {
     position: sticky;
-    bottom: 0;
+    /* Above the tab bar, not behind it. The bar is fixed over the bottom of
+     * the viewport, so a dock at `bottom: 0` put the start button's hint —
+     * and part of the button — underneath it on a phone. The fallbacks keep
+     * this at 0 on any page rendered outside the native shell. */
+    bottom: calc(var(--native-tab-height, 0px) + var(--native-tab-inset, 0px));
     z-index: 20;
-    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    padding: 1rem 1rem 1rem;
     text-align: center;
     background: linear-gradient(180deg, transparent 0%, var(--dock-bg, #fff) 45%);
+  }
+
+  /* A desktop pointer hides the tab bar, so the dock reclaims the bottom edge
+   * and goes back to clearing the window's own inset. */
+  @media (min-width: 1024px) and (pointer: fine) {
+    .native-app-shell:not(.native-mobile) .control-dock {
+      bottom: 0;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
   }
 
   .dark .control-dock { --dock-bg: #0b1512; }
