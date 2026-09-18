@@ -347,6 +347,8 @@
   const activeCountry = state('')
   /** The country the last answer was scoped to, picked or guessed. */
   const answeredCountry = state('')
+  /** Whether an answer has come back yet, so no chip lights up on a guess. */
+  const answered = state(false)
 
   /**
    * A card's photo, and whether it is a picture of that trail.
@@ -379,7 +381,21 @@
   const countries = derived(() => coverage().countries)
 
   /** Which chip is lit: what was picked, or what the API answered for. */
-  const chipCountry = derived(() => (activeCountry() === 'all' ? 'all' : activeCountry() || answeredCountry()))
+  // Declared above the chips because they read it, and a `derived` body that
+  // reaches a `const` further down the script is a reference error.
+  const nearMeActive = derived(() => useNearMe() && !!nearby() && !activeState() && !activeCountry())
+
+  const chipCountry = derived(() => {
+    if (activeCountry())
+      return activeCountry()
+    if (answeredCountry())
+      return answeredCountry()
+    // Nothing picked and nothing filtered: the list really is the whole
+    // catalog, which is what the Everywhere chip says. Not while a radius is
+    // doing the scoping, and not before the first answer, when lighting a chip
+    // would be a guess at what comes back.
+    return answered() && !nearMeActive() ? 'all' : ''
+  })
 
   /** The country the list is actually showing, empty for the whole catalog. */
   const countryInView = derived(() => (chipCountry() === 'all' ? '' : chipCountry()))
@@ -394,8 +410,6 @@
     const all = coverage().states
     return (country ? all.filter((s: any) => s.country === country) : all).slice(0, 12)
   })
-
-  const nearMeActive = derived(() => useNearMe() && !!nearby() && !activeState() && !activeCountry())
 
   // Read through `derived` rather than reaching into `nearby()` from the
   // template. The template's expression scope resolves the local declarations
@@ -477,6 +491,7 @@
       nearRadius.set(near ? (res.radius ?? 25) : 0)
       // Nothing picked means the API chose the scope. Say which one it chose.
       answeredCountry.set(res.country ?? '')
+      answered.set(true)
     }
     catch {
       if (token !== searchToken)
