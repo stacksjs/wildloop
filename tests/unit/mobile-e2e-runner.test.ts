@@ -210,12 +210,13 @@ describe('mobile E2E runner', () => {
     // beneath it — not part of the row the controls centre across, which is
     // what made the bar read as 98pt of mostly nothing on an iPhone 17 Pro.
     expect(styles).toContain('--native-tab-height: 3.25rem;')
-    expect(styles).toContain('height: calc(var(--native-tab-height) + var(--native-safe-area-bottom));')
-    expect(styles).toContain('padding-bottom: var(--native-safe-area-bottom);')
+    expect(styles).toContain('--native-tab-inset: min(var(--native-safe-area-bottom), 0.75rem);')
+    expect(styles).toContain('height: calc(var(--native-tab-height) + var(--native-tab-inset));')
+    expect(styles).toContain('padding-bottom: var(--native-tab-inset);')
 
     // Page content clears the bar by the same measurement, so a fixed control
     // can never come to rest underneath it.
-    expect(styles).toContain('padding-bottom: calc(var(--native-tab-height) + var(--native-safe-area-bottom));')
+    expect(styles).toContain('padding-bottom: calc(var(--native-tab-height) + var(--native-tab-inset));')
     expect(styles).not.toContain('calc(4rem + var(--native-safe-area-bottom))')
   })
 
