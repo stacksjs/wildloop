@@ -20,6 +20,7 @@
 </script>
 
 <script client>
+  import { openAuthGate } from '../composables/useAuthGate'
   import { fetchFollows } from '../assets/scripts/game-api'
   import { signOut } from '../assets/scripts/auth'
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
@@ -35,6 +36,19 @@
 
   const currentUser = derived(() => wl?.currentUser())
   const userStats = derived(() => wl?.userStats())
+
+  /**
+   * Wrapped rather than called from the markup directly: stx resolves template
+   * expressions against this script's own declarations, and an imported
+   * binding used inline is simply undefined — the button did nothing at all.
+   */
+  function openLogin(): void {
+    openAuthGate('Sign in to see your profile.', 'login')
+  }
+
+  function openSignup(): void {
+    openAuthGate('Create an account to start recording.', 'signup')
+  }
   const currentUserId = derived(() => wl?.currentUserId())
   const followingCount = derived(() => wl ? wl.following().length : 0)
   const myActivities = derived(() => wl ? wl.activities().filter((a: any) => a.user_id === wl.currentUserId()) : [])
@@ -77,8 +91,28 @@
 </script>
 
   <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-4xl">
+    <!-- Signed out.
+
+         This screen used to render anyway, and `userStats` falls back to a
+         seeded fixture, so a visitor with no account was shown 78.4 miles, a
+         12-day streak and somebody else's trail count as their own. A tab is
+         not an action, so nothing is thrown over the screen on arrival: the
+         page says what lives here and offers the same sign-in sheet the rest
+         of the app uses. -->
+    <div :if="!currentUser" class="py-16 text-center">
+      <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <i class="i-lucide-user h-9 w-9 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+      </div>
+      <h1 class="text-xl font-bold text-slate-900 dark:text-white">Your profile</h1>
+      <p class="mx-auto mt-2 max-w-sm text-slate-500 dark:text-slate-400">Your runs, achievements, saved trails and the ground you hold all live here.</p>
+      <div class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <button type="button" @click="openLogin()" class="min-h-11 w-full rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] sm:w-auto">Log in</button>
+        <button type="button" @click="openSignup()" class="min-h-11 w-full rounded-full border border-slate-300 px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] sm:w-auto dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">Create account</button>
+      </div>
+    </div>
+
     <!-- Profile header -->
-    <div class="relative mb-6 card">
+    <div :if="currentUser" class="relative mb-6 card">
       <button :if="currentUser" type="button" @click="handleSignOut()" class="absolute right-4 top-4 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Log out</button>
       <div class="flex flex-col gap-6 items-center sm:flex-row">
         <div class="flex items-center justify-center h-24 w-24 font-bold text-3xl text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">{{ (currentUser?.name || 'U').charAt(0) }}</div>
@@ -116,14 +150,14 @@
     </div>
 
     <!-- Tabs -->
-    <div class="flex gap-1 mb-6 border-b border-gray-200 dark:border-slate-700">
+    <div :if="currentUser" class="flex gap-1 mb-6 border-b border-gray-200 dark:border-slate-700">
       <button @click="activeTab.set('activities')" x-class="activeTab === 'activities' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Activities</button>
       <button @click="activeTab.set('achievements')" x-class="activeTab === 'achievements' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Achievements</button>
       <button @click="activeTab.set('saved')" x-class="activeTab === 'saved' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Saved Trails</button>
     </div>
 
     <!-- Activities -->
-    <div :if="activeTab === 'activities'" class="space-y-4">
+    <div :if="currentUser && activeTab === 'activities'" class="space-y-4">
       <template :for="activity in myActivities">
         <StxLink x-to="'/activity/' + activity.id" class="card flex gap-4 items-center hover:shadow-md transition block">
           <div class="flex items-center justify-center shrink-0 h-12 w-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
@@ -157,7 +191,7 @@
     </div>
 
     <!-- Achievements -->
-    <div :if="activeTab === 'achievements' && achievements.length > 0" class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+    <div :if="currentUser && activeTab === 'achievements' && achievements.length > 0" class="grid gap-4 grid-cols-1 sm:grid-cols-2">
       <template :for="achievement in achievements">
         <div class="flex gap-4 items-center card">
           <span class="text-3xl">{{ achievement.icon }}</span>
@@ -173,7 +207,7 @@
       </template>
     </div>
 
-    <div :if="activeTab === 'achievements' && achievements.length === 0" class="py-16 text-center">
+    <div :if="currentUser && activeTab === 'achievements' && achievements.length === 0" class="py-16 text-center">
       <div class="w-16 h-16 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
         <Icon name="award" size="32" class="text-emerald-400" />
       </div>
@@ -183,7 +217,7 @@
     </div>
 
     <!-- Saved -->
-    <div :if="activeTab === 'saved' && savedTrails.length > 0" class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+    <div :if="currentUser && activeTab === 'saved' && savedTrails.length > 0" class="grid gap-4 grid-cols-1 sm:grid-cols-2">
       <template :for="trail in savedTrails">
         <div class="card flex items-center gap-4 hover:shadow-lg transition">
           <StxLink x-to="'/trail/' + trail.id" class="flex-1 min-w-0 group">
@@ -205,7 +239,7 @@
       </template>
     </div>
 
-    <div :if="activeTab === 'saved' && savedTrails.length === 0" class="py-16 text-center">
+    <div :if="currentUser && activeTab === 'saved' && savedTrails.length === 0" class="py-16 text-center">
       <div class="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center">
         <Icon name="heart" size="32" class="text-red-400" />
       </div>
