@@ -1,4 +1,5 @@
 import { derived, onDestroy, onMount, state, useStore } from 'stx'
+import { requireAuth } from './useAuthGate'
 import { formatTerritoryArea } from '../functions/territory-style'
 import { appReview, device, haptics, health, isNativeMobile, keepAwake, lifecycle, liveActivities, location, secureStorage, watchConnectivity } from '@stacksjs/mobile'
 import { createHealthWorkout } from '../functions/health-workout'
@@ -524,6 +525,8 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
 
   async function simulate() {
     if (!wl || !refs.map) return
+    if (!requireAuth('Sign in to preview a run.', () => { void simulate() }))
+      return
     if (!wl.currentUserId()) {
       recordingError.set('Sign in before recording an activity.')
       return
@@ -565,6 +568,15 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
 
   async function startManual() {
     recordingError.set(null)
+
+    // Opens the app's sign-in gate rather than answering the one control on
+    // this screen with a line of red text. `requireAuth` holds the press and
+    // replays it once the session exists, so a run starts on the tap that was
+    // meant to start it — the same gate that saving a trail or joining a club
+    // already uses.
+    if (!requireAuth('Sign in to record your run.', () => { void startManual() }))
+      return
+
     const userId = wl?.currentUserId()
     if (!userId) {
       recordingError.set('Sign in before recording an activity.')
