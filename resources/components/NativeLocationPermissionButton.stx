@@ -4,7 +4,12 @@ import { withLocationRequestTimeout } from '../assets/scripts/location-request'
 
 const label = useReactiveProp<string>('label', 'Allow precise location')
 const grantedLabel = useReactiveProp<string>('grantedLabel', 'Location ready')
-const className = useReactiveProp<string>('class', 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold')
+// Appearance only. The layout that keeps the icon beside its label lives on
+// the element itself: a caller passing `class` replaces this value wholesale,
+// and when the Record page did that the button lost `inline-flex`, fell back
+// to `display: block`, and rendered the pin on one line with the label
+// wrapping underneath it.
+const className = useReactiveProp<string>('class', 'min-h-11 rounded-xl px-4 text-sm font-semibold')
 const status = state<'undetermined' | 'checking' | 'granted' | 'denied'>('undetermined')
 const message = state('')
 const emit = defineEmits()
@@ -38,7 +43,7 @@ async function requestLocation(): Promise<void> {
 <div class="inline-flex flex-col gap-2">
   <button
     type="button"
-    :class="className()"
+    :class="'inline-flex items-center justify-center gap-2 whitespace-nowrap ' + className()"
     :disabled="status() === 'checking' || status() === 'granted'"
     :aria-busy="status() === 'checking' ? 'true' : 'false'"
     @click="requestLocation()"
