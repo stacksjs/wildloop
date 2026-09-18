@@ -197,12 +197,26 @@ describe('mobile E2E runner', () => {
     const styles = readFileSync(new URL('../../public/css/native-shell.css', import.meta.url), 'utf8')
 
     expect(styles).toContain('grid-auto-rows: minmax(0, 1fr);')
-    expect(styles).toContain('height: calc(4rem + var(--native-safe-area-bottom));')
     expect(styles).toContain('height: 100%;')
     expect(styles).toContain('.native-tab-bar > [data-stx-scope]')
     expect(styles).toContain('flex: 1;')
-    expect(styles).toContain('transform: translateY(0.25rem);')
-    expect(styles).toContain('translateY(0.25rem) scale(0.96)')
+    expect(styles).toContain('scale(0.96)')
+  })
+
+  it('keeps the home-indicator inset out of the tab row', () => {
+    const styles = readFileSync(new URL('../../public/css/native-shell.css', import.meta.url), 'utf8')
+
+    // The row is one measurement, declared once, and the inset is padding
+    // beneath it — not part of the row the controls centre across, which is
+    // what made the bar read as 98pt of mostly nothing on an iPhone 17 Pro.
+    expect(styles).toContain('--native-tab-height: 3.25rem;')
+    expect(styles).toContain('height: calc(var(--native-tab-height) + var(--native-safe-area-bottom));')
+    expect(styles).toContain('padding-bottom: var(--native-safe-area-bottom);')
+
+    // Page content clears the bar by the same measurement, so a fixed control
+    // can never come to rest underneath it.
+    expect(styles).toContain('padding-bottom: calc(var(--native-tab-height) + var(--native-safe-area-bottom));')
+    expect(styles).not.toContain('calc(4rem + var(--native-safe-area-bottom))')
   })
 
   it('rejects a bundle that loads analytics from every rendered component', () => {

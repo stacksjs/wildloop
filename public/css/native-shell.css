@@ -8,6 +8,13 @@
   --native-safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --native-safe-area-left: env(safe-area-inset-left, 0px);
 
+  /* The tab row itself, without the home-indicator inset underneath it.
+   * 3.25rem sits just above Apple's own 49pt tab bar, which is what the eye
+   * is calibrated against — the previous 4rem, with the inset folded into the
+   * row rather than left below it, made the bar 98pt tall on an iPhone 17 Pro
+   * and floated the icons in the middle of it. */
+  --native-tab-height: 3.25rem;
+
   min-height: 100dvh;
   color: inherit;
   background: inherit;
@@ -37,12 +44,12 @@
  * characteristics. Do not make clearance for a fixed native tab bar depend
  * on those browser heuristics, or login and form actions can end up behind it. */
 .native-app-shell.native-mobile:has(.native-app-tab-slot) .native-app-content {
-  padding-bottom: calc(4rem + var(--native-safe-area-bottom));
+  padding-bottom: calc(var(--native-tab-height) + var(--native-safe-area-bottom));
 }
 
 @media (max-width: 767.98px) {
   .native-app-shell:has(.native-app-tab-slot) .native-app-content {
-    padding-bottom: calc(4rem + var(--native-safe-area-bottom));
+    padding-bottom: calc(var(--native-tab-height) + var(--native-safe-area-bottom));
   }
 }
 
@@ -56,7 +63,12 @@
   z-index: 30;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  height: calc(4rem + var(--native-safe-area-bottom));
+  height: calc(var(--native-tab-height) + var(--native-safe-area-bottom));
+  /* The inset is padding, not part of the row: the home indicator sits over an
+   * empty strip of the bar's own background, the way every native tab bar on
+   * the platform does it. Folding it into the row instead centred the controls
+   * across the indicator too, which read as a bar with nothing in it. */
+  padding-bottom: var(--native-safe-area-bottom);
   padding-right: var(--native-safe-area-right);
   padding-left: var(--native-safe-area-left);
   background: rgb(255 255 255 / 0.9);
@@ -83,9 +95,8 @@
    * like a large spacing error, especially in landscape. Make its sole row
    * fill the fixed touch target instead. */
   grid-auto-rows: minmax(0, 1fr);
-  /* The safe-area inset belongs to the tab row, not below it. This lets the
-   * controls center across the whole visible bar on devices with a home
-   * indicator instead of appearing pinned toward the top. */
+  /* 100% of the slot's content box, which now excludes the safe-area padding,
+   * so the controls centre across the tab row alone. */
   height: 100%;
   border-top: 1px solid rgb(148 163 184 / 0.22);
   background: rgb(255 255 255 / 0.9);
@@ -110,19 +121,15 @@
   justify-content: center;
   min-width: 2.75rem;
   color: rgb(100 116 139);
-  /* The bar is a fixed 4rem tall, but the icon + label only filled ~36px of
-   * it, leaving the controls looking undersized and stranded. Scale both up so
-   * the row actually occupies its touch target. */
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.1;
   text-decoration: none;
-  transform: translateY(0.25rem);
   transition: color 150ms ease, transform 150ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.native-tab-item:active { transform: translateY(0.25rem) scale(0.96); }
+.native-tab-item:active { transform: scale(0.96); }
 .native-tab-item.is-active { color: rgb(5 150 105); }
 /* Iconify's `i-lucide-*` classes set `width: 1em; height: 1em` at the same
  * specificity and load after this file, so a bare `.native-tab-icon` rule lost
@@ -139,7 +146,7 @@
 
   .native-app-shell.native-mobile .native-tab-visibility { display: block; }
   .native-app-shell.native-mobile .native-app-content {
-    padding-bottom: calc(4rem + var(--native-safe-area-bottom));
+    padding-bottom: calc(var(--native-tab-height) + var(--native-safe-area-bottom));
   }
 }
 
