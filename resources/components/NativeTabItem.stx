@@ -20,8 +20,24 @@ const usesIosNativeRouting = state(isNativeMobile() && device.isIOS())
 
 function followTab(event: MouseEvent): void {
   if (!usesIosNativeRouting()) return
+
+  // The destination comes off the element, not from the `href` prop.
+  //
+  // A component's client bundle is compiled into its own scope and does not
+  // close over the props declared in `<script>`: `navigate(href)` threw
+  // ReferenceError here, *after* preventDefault had already cancelled the
+  // link. Every tab tap on iPhone did nothing at all — no navigation, no
+  // error anybody would see — while the same bar worked in a browser, where
+  // this path is skipped entirely.
+  const link = event.currentTarget as HTMLAnchorElement | null
+  const to = link?.getAttribute('href')
+
+  // Falling through to the browser is the honest failure: a tab that loads
+  // the document beats a tab that does nothing.
+  if (!to || typeof navigate !== 'function') return
+
   event.preventDefault()
-  navigate(href)
+  navigate(to)
 }
 </script>
 
