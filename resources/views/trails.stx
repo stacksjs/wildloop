@@ -57,6 +57,7 @@
   import { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../functions/avatars'
   import { useSavedTrails } from '../composables/useSavedTrails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
+  import { isStockTrailPhoto } from '../functions/stock-photos'
   import { routeTypeLabel, trailHighlight } from '../functions/trail-features'
   import {
     createTrailMap,
@@ -346,6 +347,22 @@
   const activeCountry = state('')
   /** The country the last answer was scoped to, picked or guessed. */
   const answeredCountry = state('')
+
+  /**
+   * A card's photo, and whether it is a picture of that trail.
+   *
+   * Cards used to fall back to one hardcoded forest, so a catalog whose
+   * sources publish no photos — which is most of it — rendered as the same
+   * picture 25 times, each reading as this trail. A trail with no photo now
+   * says so, and a stock cover is labelled the way the trail page labels it.
+   */
+  function cardPhoto(trail: any): string {
+    return typeof trail?.image === 'string' ? trail.image.trim() : ''
+  }
+
+  function cardPhotoIllustrative(trail: any): boolean {
+    return isStockTrailPhoto(cardPhoto(trail))
+  }
 
   /** Countries read as names, not ISO codes, everywhere they are shown. */
   const COUNTRY_NAMES: Record<string, string> = {
@@ -1037,8 +1054,11 @@
             x-class="selectedTrailId === trail.id ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : ''"
             class="flex gap-3 items-center p-3 card hover:shadow-md transition"
           >
-            <div class="shrink-0 overflow-hidden h-14 w-14 rounded-lg">
-              <Image x-src="trail.image || 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=200&h=200&fit=crop'" x-alt="trail.name" width="56" height="56" sizes="56px" placeholder="blur" class="object-cover h-full w-full" />
+            <div class="shrink-0 overflow-hidden h-14 w-14 rounded-lg bg-slate-100 dark:bg-slate-800">
+              <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="trail.name" width="56" height="56" sizes="56px" placeholder="blur" class="object-cover h-full w-full" />
+              <span :if="cardPhoto(trail) === ''" class="grid h-full w-full place-items-center text-slate-400 dark:text-slate-600" aria-hidden="true">
+                <i class="i-lucide-mountain h-5 w-5"></i>
+              </span>
             </div>
             <div class="min-w-0 flex-1">
               <p class="font-semibold text-sm dark:text-white truncate">{{ trail.name }}</p>
@@ -1075,8 +1095,18 @@
         <article class="group">
           <div class="relative overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
             <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block h-48 sm:h-52">
-              <Image x-src="trail.image || 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=600&fit=crop'" x-alt="trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
+              <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
+              <!-- No photo published for this trail. A neutral frame says that
+                   much; the stand-in forest that used to sit here said this is
+                   what the trail looks like, for every trail alike. -->
+              <span :if="cardPhoto(trail) === ''" class="grid h-full w-full place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-900 dark:text-slate-600" aria-hidden="true">
+                <i class="i-lucide-mountain h-10 w-10"></i>
+              </span>
             </StxLink>
+
+            <!-- A licensed landscape, not this trail. Said on the card for the
+                 same reason the trail page says it under the hero. -->
+            <span :if="cardPhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Illustrative</span>
 
             <!-- What this trail is, in one word, where a photo has room for
                  it. Only ever from a tag the catalog actually carries. -->
