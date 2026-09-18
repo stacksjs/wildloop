@@ -19,8 +19,18 @@ onMount(() => {
 onDestroy(() => removeListener?.())
 </script>
 
+<!--
+  Visibility is a class, not `:if`.
+
+  A component's `:if` binds once and then never re-runs inside Craft's
+  WebView — it reads correctly on the first pass and is deaf to the signal
+  afterwards, silently, while the same markup works in Safari and in every
+  browser. This banner starts connected, so `:if` removed it on that first
+  pass and the app could never tell you it had gone offline. Class bindings
+  do re-run there, so the element stays mounted and only its display changes.
+-->
 <div
-  :if="!connected()"
+  x-class="connected() ? 'native-network-banner--quiet' : ''"
   role="status"
   aria-live="polite"
   class="native-network-banner"
@@ -31,6 +41,8 @@ onDestroy(() => removeListener?.())
 </div>
 
 <style>
+  .native-network-banner--quiet { display: none; }
+
   .native-network-banner {
     position: sticky;
     top: env(safe-area-inset-top, 0px);
