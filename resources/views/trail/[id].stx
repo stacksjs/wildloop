@@ -836,14 +836,12 @@
             </div>
           </div>
 
-          <div class="card">
-            <h3 class="font-bold text-lg dark:text-white mb-4">Weather</h3>
-            <div class="text-center py-4">
-              <Icon name="sun" size="40" class="mx-auto mb-2 text-yellow-500" />
-              <p class="text-2xl font-bold dark:text-white">72°F</p>
-              <p class="text-sm text-gray-500">Clear skies</p>
-            </div>
-          </div>
+          <!-- A weather card used to sit here reading 72°F and "Clear skies"
+               for every trail in the catalog, in every season, hardcoded. On a
+               page people plan a day out from, an invented forecast is the one
+               kind of wrong that gets somebody caught out above the treeline.
+               It comes back when a real forecast is wired to the trailhead
+               coordinates, and not before. -->
         </div>
       </div>
     </div>
