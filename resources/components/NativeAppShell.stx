@@ -9,9 +9,15 @@ const { tabBar = false } = defineProps<NativeAppShellProps>()
 
 <script client>
 import { isNativeMobile } from '@stacksjs/mobile'
+import { nativeShellReady } from '../functions/native-shell-ready'
 
 const className = useReactiveProp<string>('class', '')
+
+// Asked twice on purpose. Craft installs its bridge after the document
+// starts, so the answer at setup is `false` on a phone and every rule hanging
+// off `.native-mobile` — the hidden site header among them — never applied.
 const nativeMobile = state(isNativeMobile())
+void nativeShellReady().then(native => nativeMobile.set(native))
 </script>
 
 <div

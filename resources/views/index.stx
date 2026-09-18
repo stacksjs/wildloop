@@ -47,6 +47,8 @@
 
 <script client>
   import { fetchCoverage, fetchSearchSuggestions, queryTrails } from '../composables/useTrailCatalog'
+  import { isNativeMobile } from '@stacksjs/mobile'
+  import { nativeShellReady } from '../functions/native-shell-ready'
   import { useAppInstall } from '../composables/useAppInstall'
   import { locatePrecisely, locating as nearbyLocating, resolveNearby } from '../composables/useNearby'
   import { activitySharePreview } from '../functions/activity-share'
@@ -363,6 +365,23 @@
   const sampleStory = activitySharePreview(sampleActivity, sampleRoute, 'story')
 
   onMount(() => {
+    // The landing page is an acquisition surface: it exists to be found by
+    // someone who has never heard of WildLoop. Nobody opens an app to read
+    // one, so the shell goes straight to the Feed and leaves this page to the
+    // web, where it earns its keep.
+    if (isNativeMobile()) {
+      navigate('/feed')
+      return
+    }
+
+    // The bridge may still be installing, in which case the check above ran
+    // too early. Ask again once it answers, and leave the page as it is in a
+    // browser — where this hero is the whole point.
+    void nativeShellReady().then((native) => {
+      if (native)
+        navigate('/feed')
+    })
+
     // Resolve where the visitor is before choosing what to put on the shelf.
     // A remembered or edge-derived fix costs no prompt, so the first thing
     // most people see is already their own area rather than a national list

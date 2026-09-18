@@ -60,7 +60,8 @@
     "tests/unit/photo-storage.test.ts",
     "tests/unit/trail-photo-payload.test.ts",
     "tests/unit/password-change.test.ts",
-    "tests/unit/native-tab-item.test.ts"
+    "tests/unit/native-tab-item.test.ts",
+    "tests/unit/native-shell-ready.test.ts"
   ],
   "exclude": [
     "cloud/**",

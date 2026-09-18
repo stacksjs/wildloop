@@ -64,6 +64,19 @@
 
 .native-app-sticky-top { top: var(--native-safe-area-top); }
 
+/* The app has no site header.
+ *
+ * A wordmark with Log in and Sign up beside it is a website's furniture, and
+ * inside a WebView it is the loudest tell that this is one. Every screen here
+ * already carries its own title, and the tab bar is the navigation. The bar
+ * stays on the mobile *web*, where it is the only navigation there is. */
+.native-app-shell.native-mobile .native-app-sticky-top { display: none; }
+
+/* Shown only inside the native shell — for the handful of controls that lived
+ * in that header and still need somewhere to be. */
+.native-only { display: none !important; }
+.native-app-shell.native-mobile .native-only { display: inline-flex !important; }
+
 .native-app-tab-slot {
   position: fixed;
   right: 0;
