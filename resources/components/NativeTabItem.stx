@@ -38,6 +38,20 @@ function followTab(event: MouseEvent): void {
 
   event.preventDefault()
   navigate(to)
+
+  // And if the in-document route change does not take, load the document.
+  //
+  // Whether this path runs at all depends on when Craft's bridge finished
+  // installing relative to the page: a screen opened before it uses plain
+  // links and always worked, while one opened after took this path and could
+  // leave the tab bar dead — Profile trapped you on it with no way out. A tab
+  // that has to reload the page is worse than one that swaps it in place, and
+  // far better than one that does nothing at all.
+  setTimeout(() => {
+    const here = globalThis.location?.pathname ?? ''
+    if (here !== to && !here.startsWith(`${to}/`))
+      globalThis.location.assign(to)
+  }, 400)
 }
 </script>
 
