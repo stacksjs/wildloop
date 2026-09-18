@@ -490,6 +490,13 @@ route.group({ middleware: 'auth' }, () => {
     route.post('/events/{id}/laps', 'Actions/Event/EventLapStoreAction')
   })
 
+  // Changing a password is a credential check, so it is rate limited like one:
+  // this endpoint tells a caller whether a guess at the current password was
+  // right, and six tries a minute is plenty for someone who knows it.
+  route.group({ middleware: 'throttle:6,1' }, () => {
+    route.post('/password/change', 'Actions/Auth/PasswordUpdateAction')
+  })
+
   // Full-table sweeps - event hooks keep these fresh; manual calls are rare
   route.group({ middleware: 'throttle:10,1' }, () => {
     route.post('/territories/recompute-ranks', 'Actions/Territory/ComputeTerritoryRanksAction').middleware('role:admin')

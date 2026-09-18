@@ -58,7 +58,8 @@
     "tests/unit/search-suggest.test.ts",
     "tests/unit/trail-photo-processing.test.ts",
     "tests/unit/photo-storage.test.ts",
-    "tests/unit/trail-photo-payload.test.ts"
+    "tests/unit/trail-photo-payload.test.ts",
+    "tests/unit/password-change.test.ts"
   ],
   "exclude": [
     "cloud/**",
