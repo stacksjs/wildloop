@@ -61,11 +61,14 @@ describe('mobile Buddy commands', () => {
     const locationButton = await Bun.file(new URL('../../resources/components/NativeLocationPermissionButton.stx', import.meta.url)).text()
 
     // Craft's generic permission bridge does not currently report Android
-    // location correctly. The app asks the dedicated location bridge for a
-    // real sample, which is also what recording needs to begin safely.
-    expect(recordView).toContain('<NativeLocationPermissionButton')
-    expect(locationButton).toContain('withLocationRequestTimeout(location.getCurrentPosition')
+    // location correctly, so anything needing a fix asks the dedicated
+    // location bridge for a real sample instead.
+    //
+    // Recording does that itself, when Start is pressed — which is the moment
+    // the request explains itself. The page used to front-load a permission
+    // card to do it first; that card is gone, and this guarantee is not.
     expect(await Bun.file(new URL('../../resources/composables/useRecorder.ts', import.meta.url)).text()).toContain('withLocationRequestTimeout(location.getCurrentPosition')
+    expect(locationButton).toContain('withLocationRequestTimeout(location.getCurrentPosition')
     expect(recordView).not.toContain('<NativePermissionButton')
   })
 
