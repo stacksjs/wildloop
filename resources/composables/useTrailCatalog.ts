@@ -57,6 +57,11 @@ export interface TrailQueryResult {
    * answer was actually computed at — not necessarily what was asked for.
    */
   radius?: number
+  /**
+   * The country the API scoped the answer to — the one asked for, or the one
+   * it guessed from the request. Null when the answer spans the whole catalog.
+   */
+  country: string | null
 }
 
 /**
@@ -253,11 +258,14 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
 
   const radius = Number(payload?.meta?.radius)
 
+  const country = payload?.meta?.country
+
   return {
     trails,
     geometryById,
     total: Number(payload?.meta?.total) || trails.length,
     hasMore: Boolean(payload?.meta?.hasMore),
+    country: typeof country === 'string' && country ? country : null,
     ...(Number.isFinite(radius) && radius > 0 ? { radius } : {}),
   }
 }

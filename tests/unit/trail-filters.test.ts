@@ -75,7 +75,7 @@ describe('filters from a url', () => {
 })
 
 describe('near-me fallback with the new filters', () => {
-  const empty = { trails: [], geometryById: {}, total: 0, hasMore: false }
+  const empty = { trails: [], geometryById: {}, total: 0, hasMore: false, country: null }
 
   it('keeps a deliberate bound empty instead of dropping the location', () => {
     expect(shouldFallbackToCatalog({ lat: 37.8, lng: -119.5, minDistance: 10 }, empty)).toBe(false)

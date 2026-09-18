@@ -332,7 +332,20 @@
 
   // How much the catalog holds, and where.
   const coverage = state(EMPTY_COVERAGE)
+  /**
+   * The country the visitor picked. Three values, not two:
+   *
+   * - `''` — nothing picked, so the API answers for wherever the request looks
+   *   like it came from. What the guess landed on comes back with the results
+   *   and lights that country's chip, so the page never claims a scope it does
+   *   not have.
+   * - `'all'` — "Everywhere", asked for out loud. An absent country cannot mean
+   *   this: that is what turns the guess on.
+   * - a code — that country, and nothing else.
+   */
   const activeCountry = state('')
+  /** The country the last answer was scoped to, picked or guessed. */
+  const answeredCountry = state('')
 
   /** Countries read as names, not ISO codes, everywhere they are shown. */
   const COUNTRY_NAMES: Record<string, string> = {
@@ -348,13 +361,19 @@
 
   const countries = derived(() => coverage().countries)
 
+  /** Which chip is lit: what was picked, or what the API answered for. */
+  const chipCountry = derived(() => (activeCountry() === 'all' ? 'all' : activeCountry() || answeredCountry()))
+
+  /** The country the list is actually showing, empty for the whole catalog. */
+  const countryInView = derived(() => (chipCountry() === 'all' ? '' : chipCountry()))
+
   /**
    * Regions for the country in view. With no country picked this is the
    * biggest regions anywhere, which is how the page used to behave when the
    * catalog was US-only.
    */
   const topStates = derived(() => {
-    const country = activeCountry()
+    const country = countryInView()
     const all = coverage().states
     return (country ? all.filter((s: any) => s.country === country) : all).slice(0, 12)
   })
@@ -379,7 +398,7 @@
         return `Trails in ${match.name}`
     }
 
-    const country = activeCountry()
+    const country = countryInView()
     if (country)
       return `Every trail in ${countryName(country)}`
 
@@ -439,6 +458,8 @@
       void loadReviewers(res.trails.map((trail: any) => trail.id))
       matchCount.set(res.total)
       nearRadius.set(near ? (res.radius ?? 25) : 0)
+      // Nothing picked means the API chose the scope. Say which one it chose.
+      answeredCountry.set(res.country ?? '')
     }
     catch {
       if (token !== searchToken)
@@ -515,7 +536,9 @@
    * user has to reason their way out of.
    */
   function selectCountry(code: string) {
-    const next = activeCountry() === code ? '' : code
+    // Tapping the lit chip steps back to the whole catalog rather than to the
+    // guess, which is what a second tap on "United States" plainly means.
+    const next = chipCountry() === code ? 'all' : code
     activeCountry.set(next)
     activeState.set('')
     runSearch()
@@ -645,7 +668,10 @@
     const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
     const q = text(query.q)
     const code = text(query.state)
-    const country = text(query.country).toUpperCase()
+    // `?country=all` is the "Everywhere" chip, and the only value here that is
+    // not an ISO code.
+    const rawCountry = text(query.country)
+    const country = /^all$/i.test(rawCountry) ? 'all' : rawCountry.toUpperCase()
     const sort = text(query.sort)
     // `?near=me` is what the Trails Near Me shortcut opens, from the home
     // screen or Spotlight. It is the one parameter that turns near-me ON
@@ -740,7 +766,10 @@
           <span :if="nearRadius() > 0" class="text-slate-500 dark:text-slate-400">{{ ' · within ' + nearRadius() + ' mi' }}</span>
         </span>
         <span :if="!nearMeActive() && nearbyBusy()">Finding you…</span>
-        <span :if="!nearMeActive() && !nearbyBusy()">Showing the whole catalog</span>
+        <!-- Naming the country matters most when nobody picked it: the list is
+             scoped to wherever the request came from, and "the whole catalog"
+             was the page describing a scope it did not have. -->
+        <span :if="!nearMeActive() && !nearbyBusy()">{{ countryInView() ? 'Showing trails in ' + countryName(countryInView()) : 'Showing the whole catalog' }}</span>
       </span>
 
       <div class="ml-auto flex flex-wrap items-center gap-2">
@@ -778,15 +807,15 @@
          pill reading "United States" is a control that cannot do anything. -->
     <div :if="countries().length > 1" class="mb-4 flex gap-2 overflow-x-auto pb-1">
       <button
-        @click="selectCountry('')"
-        x-class="activeCountry === '' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'"
+        @click="selectCountry('all')"
+        x-class="chipCountry === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'"
         class="shrink-0 px-4 py-2 text-sm font-medium rounded-full transition active:scale-[0.98]">
         Everywhere
       </button>
       <template :for="c in countries">
         <button
           @click="selectCountry(c.code)"
-          x-class="activeCountry === c.code ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'"
+          x-class="chipCountry === c.code ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'"
           class="shrink-0 px-4 py-2 text-sm font-medium rounded-full transition active:scale-[0.98]">
           {{ countryName(c.code) }}
           <span class="ml-1.5 text-xs opacity-60 tabular-nums">{{ c.count.toLocaleString() }}</span>

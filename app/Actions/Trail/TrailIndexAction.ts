@@ -61,6 +61,10 @@ export default new Action({
 
       let { rows, total } = await fetchPage(false)
       let radius = origin ? requestedRadius(request) : null
+      // What the answer was actually scoped to. The page shows this as the
+      // selected country chip: a list filtered to the US while "Everywhere"
+      // is lit is the UI lying about its own state.
+      let appliedCountry = resolveCountry(request)
 
       /*
        * "Near me" widens rather than coming back empty.
@@ -99,8 +103,10 @@ export default new Action({
        * with a real answer of "none", and answering it with the whole catalog
        * would be a lie.
        */
-      if (total === 0 && !readString(request, 'country'))
+      if (total === 0 && !readString(request, 'country')) {
         ({ rows, total } = await fetchPage(true))
+        appliedCountry = undefined
+      }
 
       const trails = (rows ?? []).map((row: Record<string, unknown>) => ({
         ...row,
@@ -117,6 +123,9 @@ export default new Action({
           limit: page.limit,
           total,
           hasMore: page.offset + trails.length < total,
+          // The country the rows were filtered to, guessed or asked for, and
+          // null when they were not filtered at all.
+          country: appliedCountry ?? null,
           // Present only for a "near me" query, and only ever the radius the
           // answer was actually computed at.
           ...(radius !== null ? { radius } : {}),
@@ -128,12 +137,43 @@ export default new Action({
       return response.json({
         success: false,
         trails: [],
-        meta: { offset: 0, limit: 0, total: 0, hasMore: false },
+        meta: { offset: 0, limit: 0, total: 0, hasMore: false, country: null },
         error: 'Failed to fetch trails',
       }, 500)
     }
   },
 })
+
+/**
+ * The country this request is answered for, or undefined for the whole catalog.
+ *
+ * An explicit `?country=` always wins. Without one, fall back to where the
+ * request appears to come from: a visitor in Munich asking for "popular
+ * trails" and getting Colorado reads as the catalog being empty for them, not
+ * as the catalog being wrong. Skipped entirely for a coordinate search, which
+ * is already more precise than a country and legitimately crosses borders — a
+ * bounding box around Basel covers three of them.
+ *
+ * `?country=all` is how a caller says "everywhere" out loud. Leaving the
+ * parameter off cannot mean that, because an absent country is exactly what
+ * turns the guess on: the catalog's four German, Austrian and Swiss trails
+ * were unreachable from a US-English browser, which saw 21 of 25 with the
+ * "Everywhere" chip lit.
+ */
+export function resolveCountry(
+  request: { get: (key: string) => any },
+  skipInferredCountry = false,
+): string | undefined {
+  const explicit = readString(request, 'country')
+  if (explicit)
+    return /^[a-z]{2}$/i.test(explicit) ? explicit.toUpperCase() : undefined
+
+  if (skipInferredCountry || readOrigin(request) !== null)
+    return undefined
+
+  const inferred = visitorCountry(request)
+  return inferred && /^[a-z]{2}$/i.test(inferred) ? inferred.toUpperCase() : undefined
+}
 
 /**
  * Apply every query-string filter to a builder.
@@ -177,18 +217,10 @@ function applyFilters(
       : query.whereRaw('1 = 0')
   }
 
-  // An explicit `?country=` always wins. Without one, fall back to where the
-  // request appears to come from: a visitor in Munich asking for "popular
-  // trails" and getting Colorado reads as the catalog being empty for them,
-  // not as the catalog being wrong. Skipped entirely for a coordinate search,
-  // which is already more precise than a country and legitimately crosses
-  // borders — a bounding box around Basel covers three of them.
-  const explicitCountry = readString(request, 'country')
-  const hasCoordinates = readOrigin(request) !== null
-  const country = explicitCountry ?? (skipInferredCountry || hasCoordinates ? undefined : visitorCountry(request))
+  const country = resolveCountry(request, skipInferredCountry)
 
-  if (country && /^[a-z]{2}$/i.test(country))
-    query = query.where('country', country.toUpperCase())
+  if (country)
+    query = query.where('country', country)
 
   // Two letters for a US state (`CO`), ISO 3166-2 elsewhere (`DE-BY`). The
   // old two-letter-only pattern silently ignored every DACH region, so

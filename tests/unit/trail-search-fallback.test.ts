@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { shouldFallbackToCatalog, type TrailQuery, type TrailQueryResult } from '../../resources/composables/useTrailCatalog'
 
-const emptyResult: TrailQueryResult = { trails: [], geometryById: {}, total: 0, hasMore: false }
+const emptyResult: TrailQueryResult = { trails: [], geometryById: {}, total: 0, hasMore: false, country: null }
 
 describe('trail search fallback', () => {
   it('broadens an empty location-only catalog search', () => {
