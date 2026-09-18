@@ -47,7 +47,10 @@
   }
 
   function openSignup(): void {
-    openAuthGate('Create an account to start recording.', 'signup')
+    // The gate's modes are login and register. Anything else falls back to
+    // login, which is how this opened the sign-in tab while the line beneath
+    // it invited you to create an account.
+    openAuthGate('Create an account to start recording.', 'register')
   }
   const currentUserId = derived(() => wl?.currentUserId())
   const followingCount = derived(() => wl ? wl.following().length : 0)
