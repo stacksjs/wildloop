@@ -13,13 +13,19 @@ export default new Action({
     const rows = ((await TerritoryHistory.whereIn('event_type', BATTLE_EVENTS).orderBy('created_at', 'desc').limit(limit).get()) ?? [])
       .filter((row: any) => !blockedIds.has(row.user_id) && !blockedIds.has(row.previous_owner_id))
     const territoryIds = [...new Set(rows.map((row: any) => row.territory_id).filter(Boolean))]
-    const userIds = [...new Set(rows.flatMap((row: any) => [row.user_id, row.previous_owner_id]).filter(Boolean))]
     const activityIds = [...new Set(rows.map((row: any) => row.activity_id).filter(Boolean))]
-    const [territories, users, activities] = await Promise.all([
+    const [territories, activities] = await Promise.all([
       territoryIds.length ? Territory.whereIn('id', territoryIds).get() : [],
-      userIds.length ? User.whereIn('id', userIds).get() : [],
       activityIds.length ? Activity.whereIn('id', activityIds).get() : [],
     ])
+    // A contest names no previous owner on its row: the land stayed with its
+    // owner, who is the defender. Without the owners in this lookup every
+    // live battle read "<attacker> vs the previous owner".
+    const userIds = [...new Set([
+      ...rows.flatMap((row: any) => [row.user_id, row.previous_owner_id]),
+      ...territories.map((territory: any) => territory.user_id),
+    ].filter(Boolean))]
+    const users = userIds.length ? await User.whereIn('id', userIds).get() : []
     const territoryMap = new Map(territories.map((row: any) => [row.id, row]))
     const userMap = new Map(users.map((row: any) => [row.id, row]))
     const activityMap = new Map(activities.map((row: any) => [row.id, row]))
