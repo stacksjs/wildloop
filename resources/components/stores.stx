@@ -275,21 +275,6 @@
     { id: 10, name: 'Meadow Empire', user_id: 1, areaSize: 48000, conquestCount: 5, defendCount: 6, totalRunners: 20, status: 'active', claimedAt: ago(12), lat: 46.79, lng: -121.74 },
   ]
 
-  const seedConquests: Conquest[] = [
-    { id: 1, territory_id: 3, territoryName: 'Desert Crown', attacker_id: 3, attackerName: 'Marcus Johnson', defender_id: 7, defenderName: 'Ryan O\'Brien', status: 'conquered', areaCaptured: 18000, runDistance: 6.1, description: 'Carved through the eastern ridge with a 6-mile tempo run.', created_at: ago(7) },
-    { id: 2, territory_id: 5, territoryName: 'Thunder Mesa', attacker_id: 5, attackerName: 'Jake Thompson', defender_id: 3, defenderName: 'Marcus Johnson', status: 'conquered', areaCaptured: 22000, runDistance: 7.9, description: 'Full loop around Thunder Mountain claimed the mesa.', created_at: ago(3) },
-    { id: 3, territory_id: 1, territoryName: 'Cascade Ridge Zone', attacker_id: 2, attackerName: 'Sarah Chen', defender_id: 1, defenderName: 'You', status: 'defended', areaCaptured: 0, runDistance: 4.2, description: 'Sarah attempted a conquest but your defense held.', created_at: ago(2) },
-    { id: 4, territory_id: 8, territoryName: 'Summit Kingdom', attacker_id: 5, attackerName: 'Jake Thompson', defender_id: 4, defenderName: 'Emily Rodriguez', status: 'conquered', areaCaptured: 35000, runDistance: 12.4, description: 'Epic highpoint run claimed the summit territory.', created_at: ago(5) },
-    { id: 5, territory_id: 4, territoryName: 'Redwood Sanctuary', attacker_id: 6, attackerName: 'Aisha Patel', defender_id: 1, defenderName: 'You', status: 'defended', areaCaptured: 0, runDistance: 2.8, description: 'Aisha\'s attempt foiled by your strong defense runs.', created_at: ago(8) },
-    { id: 6, territory_id: 6, territoryName: 'Bluff Runner\'s Edge', attacker_id: 3, attackerName: 'Marcus Johnson', defender_id: 7, defenderName: 'Ryan O\'Brien', status: 'conquered', areaCaptured: 15000, runDistance: 9.6, description: 'Dominant tempo run carved through the coastal bluffs.', created_at: ago(10) },
-    { id: 7, territory_id: 10, territoryName: 'Meadow Empire', attacker_id: 4, attackerName: 'Emily Rodriguez', defender_id: 1, defenderName: 'You', status: 'defended', areaCaptured: 0, runDistance: 5.8, description: 'Your meadow territory remains secure.', created_at: ago(6) },
-    { id: 8, territory_id: 3, territoryName: 'Desert Crown', attacker_id: 1, attackerName: 'You', defender_id: 3, defenderName: 'Marcus Johnson', status: 'active', areaCaptured: 0, runDistance: 0, description: 'You are planning a conquest run through Desert Crown.', created_at: ago(0, 5) },
-    { id: 9, territory_id: 5, territoryName: 'Thunder Mesa', attacker_id: 7, attackerName: 'Ryan O\'Brien', defender_id: 5, defenderName: 'Jake Thompson', status: 'active', areaCaptured: 0, runDistance: 0, description: 'Ryan is eyeing Thunder Mesa for revenge.', created_at: ago(0, 2) },
-    { id: 10, territory_id: 1, territoryName: 'Cascade Ridge Zone', attacker_id: 3, attackerName: 'Marcus Johnson', defender_id: 1, defenderName: 'You', status: 'active', areaCaptured: 0, runDistance: 0, description: 'Marcus is targeting your Cascade Ridge territory.', created_at: ago(0, 1) },
-    { id: 11, territory_id: 8, territoryName: 'Summit Kingdom', attacker_id: 1, attackerName: 'You', defender_id: 5, defenderName: 'Jake Thompson', status: 'conquered', areaCaptured: 12000, runDistance: 8.2, description: 'You carved through the northern face during a long run.', created_at: ago(1) },
-    { id: 12, territory_id: 2, territoryName: 'Riverside Flats', attacker_id: 4, attackerName: 'Emily Rodriguez', defender_id: 2, defenderName: 'Sarah Chen', status: 'conquered', areaCaptured: 8500, runDistance: 3.2, description: 'Quick loop run snagged a piece of the flats.', created_at: ago(4) },
-  ]
-
   const seedChallenges: Challenge[] = [
     { id: 1, challenger_id: 1, challengerName: 'You', challenged_id: 3, challengedName: 'Marcus Johnson', territory_id: 3, territoryName: 'Desert Crown', status: 'active', areaAtStake: 72000, deadline: new Date(now + 3 * 86400000).toISOString(), created_at: ago(1) },
     { id: 2, challenger_id: 5, challengerName: 'Jake Thompson', challenged_id: 1, challengedName: 'You', territory_id: 1, territoryName: 'Cascade Ridge Zone', status: 'pending', areaAtStake: 45000, deadline: new Date(now + 5 * 86400000).toISOString(), created_at: ago(0, 6) },
@@ -442,7 +427,10 @@
       apiTrailIds: [] as number[],
       activities: seedActivities,
       territories: seedTerritories,
-      conquests: seedConquests,
+      // Battles come only from /api/territories/battles. The demo list that
+      // used to seed this had three "active" battles in it, so the feed said
+      // turf was being taken right now whether or not anything was.
+      conquests: [] as Conquest[],
       challenges: seedChallenges,
       reviews: seedReviews,
       // Club discovery is backed by /api/clubs. Starting empty prevents SSR

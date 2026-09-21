@@ -76,7 +76,8 @@ function isPath(pathname: string, routes: string[]): boolean {
 export function dataNeedsForPath(pathname: string): AppDataNeeds {
   return {
     activities: isPath(pathname, ['/activity', '/athlete', '/feed', '/profile', '/record', '/stats']),
-    battles: isPath(pathname, ['/battles', '/challenges', '/conquests', '/territories', '/territory']),
+    // The feed carries the "turf is being taken right now" banner.
+    battles: isPath(pathname, ['/battles', '/challenges', '/conquests', '/feed', '/territories', '/territory']),
     follows: isPath(pathname, ['/athlete', '/athletes', '/feed', '/profile']),
     territories: isPath(pathname, ['/battles', '/challenges', '/conquests', '/leaderboard', '/record', '/territories', '/territory']),
     trails: isPath(pathname, ['/record', '/routes', '/trail', '/trails']),

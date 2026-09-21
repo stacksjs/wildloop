@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { authReadyUser, dataNeedsForPath } from '../../resources/composables/useWildLoopApp'
 
 describe('route-aware app bootstrap', () => {
@@ -38,6 +39,14 @@ describe('route-aware app bootstrap', () => {
   it('loads social data for feed and athlete pages', () => {
     expect(dataNeedsForPath('/feed')).toMatchObject({ activities: true, follows: true })
     expect(dataNeedsForPath('/athlete/42')).toMatchObject({ activities: true, follows: true })
+  })
+
+  it('loads real battles for the feed banner, which has no demo battles to fall back on', () => {
+    expect(dataNeedsForPath('/feed').battles).toBe(true)
+
+    const store = readFileSync(new URL('../../resources/components/stores.stx', import.meta.url), 'utf8')
+    expect(store).toContain('conquests: [] as Conquest[],')
+    expect(store).not.toContain('seedConquests')
   })
 
   it('accepts only a complete authenticated identity from the cross-bundle event', () => {
