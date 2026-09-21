@@ -1,10 +1,5 @@
 <script client>
-  import {
-    AUTH_REQUIRED_EVENT,
-    gateSignIn,
-    gateSignUp,
-    goToAuthPage,
-  } from '../composables/useAuthGate'
+  import { AUTH_REQUIRED_EVENT } from '../functions/auth-events'
 
   /**
    * The sign-in wall, mounted once by the layout.
@@ -23,6 +18,16 @@
    * actually shared — the page set one copy while this modal watched another,
    * and the gate never opened.
    */
+  // Signing in goes through the store, which the layout hands the auth client.
+  // Importing it here gave this sheet its own copy on every page, though it is
+  // only needed once somebody opens it (stacksjs/stx#1957).
+  const wl = useStore('wl')
+
+  /** Leave for the full page, coming back here afterwards. */
+  function goToAuthPage(mode) {
+    wl?.openAuthPage(mode)
+  }
+
   const gateIsOpen = state(false)
   const gateActiveMode = state('login')
   const gateWhy = state('')
@@ -76,8 +81,8 @@
 
     formBusy.set(true)
     const message = isRegister
-      ? await gateSignUp(nameValue, emailValue, passwordValue)
-      : await gateSignIn(emailValue, passwordValue)
+      ? await wl.signUp(nameValue, emailValue, passwordValue)
+      : await wl.signIn(emailValue, passwordValue)
     formBusy.set(false)
 
     if (message) {

@@ -1,6 +1,8 @@
 import { onDestroy, useStore } from 'stx'
-import { currentUser, initializeAuthSession, isSignedIn } from '../assets/scripts/auth'
+import { haptics } from '@stacksjs/mobile'
+import { currentUser, initializeAuthSession, isSignedIn, signOut } from '../assets/scripts/auth'
 import { useActivityCatalog } from './useActivityCatalog'
+import { gateSignIn, gateSignUp, goToAuthPage } from './useAuthGate'
 import { useBattleFeed } from './useBattleFeed'
 import { hydrateFollows, useFollows } from './useFollows'
 import { hydrateNotifications, useNotifications } from './useNotifications'
@@ -38,6 +40,13 @@ type WildLoopAppStore =
   & {
     hydrateAuthenticatedUser: (user: BootstrapUser) => void
     clearAuthenticatedUser: () => void
+    provideServices: (services: {
+      signIn: (email: string, password: string) => Promise<string | null>
+      signUp: (name: string, email: string, password: string) => Promise<string | null>
+      signOut: () => Promise<void>
+      openAuthPage: (mode: 'login' | 'register') => void
+      tap: () => void
+    }) => void
   }
 
 function cachedUser(): BootstrapUser | null {
@@ -90,6 +99,18 @@ let identityStarted = false
 export function useWildLoopApp(): void {
   void initializeAuthSession()
   const wl = useStore('wl') as WildLoopAppStore
+  // This bundle already carries the auth client and the native bridge; the
+  // nav, the mobile header and the sign-in sheet reach them through the store
+  // rather than each shipping a copy (stacksjs/stx#1957).
+  wl.provideServices({
+    signIn: gateSignIn,
+    signUp: gateSignUp,
+    signOut,
+    openAuthPage: goToAuthPage,
+    tap: () => {
+      void haptics.selection()
+    },
+  })
   const localUser = cachedUser()
   const hasSession = Boolean(localUser) || isSignedIn()
   const pathname = typeof location === 'undefined' ? '/' : location.pathname

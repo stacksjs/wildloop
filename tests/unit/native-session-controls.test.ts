@@ -19,8 +19,28 @@ describe('native session controls', () => {
 
     expect(profile).toContain('@click="handleSignOut()"')
     expect(profile).toContain('Log out')
-    // The listener also refreshes the unread badge, so it is not plain applyAccount.
-    expect(header).toContain("globalThis.addEventListener('wildloop:auth-ready', applyAccountAndUnread)")
-    expect(header).toContain("globalThis.removeEventListener('wildloop:auth-ready', applyAccountAndUnread)")
+    // The header reads the session and the unread count from the shared store,
+    // which the layout updates on every auth-ready, so it refreshes without a
+    // listener of its own, and without bundling its own copy of the auth
+    // client (stacksjs/stx#1957).
+    expect(header).toContain("const wl = useStore('wl')")
+    expect(header).toContain('wl.unreadCount()')
+    expect(header).not.toContain('assets/scripts/auth')
+    expect(header).not.toMatch(/from '@stacksjs\/mobile'/)
+  })
+
+  it('keeps the auth client out of the nav and the sign-in sheet, which render on every page', async () => {
+    const [nav, gate] = await Promise.all([
+      Bun.file(new URL('resources/components/nav.stx', root)).text(),
+      Bun.file(new URL('resources/components/AuthGate.stx', root)).text(),
+    ])
+
+    for (const source of [nav, gate]) {
+      expect(source).not.toContain('assets/scripts/auth')
+      expect(source).not.toContain('assets/scripts/game-api')
+      expect(source).not.toContain('composables/useAuthGate')
+    }
+    expect(nav).toContain('await wl?.signOut()')
+    expect(gate).toContain('await wl.signIn(emailValue, passwordValue)')
   })
 })

@@ -1,53 +1,19 @@
 <script client>
-import { haptics } from '@stacksjs/mobile'
-import { currentUser, initializeAuthSession, token } from '../assets/scripts/auth'
-import { fetchNotifications } from '../assets/scripts/game-api'
-
-const isAdmin = state(false)
-const signedIn = state(false)
+// Everything here comes from the shared store, which the layout fills from
+// the session and hands the native bridge. Importing the auth client, the
+// API client and @stacksjs/mobile for a badge and a tap put about 38 KB into
+// this bundle on every page (stacksjs/stx#1957).
+const wl = useStore('wl')
+const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
+const isAdmin = derived(() => Boolean(signedIn() && wl.currentUser()?.roles?.includes('admin')))
 // The bell's dot used to be markup with no condition, so it lit up for every
 // signed-in account even with an empty notifications page. Drive it from the
 // real unread count instead.
-const unreadCount = state(0)
-
-async function refreshUnread(): Promise<void> {
-  if (!token()) {
-    unreadCount.set(0)
-    return
-  }
-  try {
-    const payload = await fetchNotifications()
-    unreadCount.set(Number(payload?.unreadCount ?? 0))
-  }
-  catch {
-    // A failed poll must not invent a badge.
-    unreadCount.set(0)
-  }
-}
+const unreadCount = derived(() => (signedIn() ? wl.unreadCount() : 0))
 
 function tap(): void {
-  void haptics.selection()
+  wl?.tap()
 }
-
-function applyAccount(): void {
-  const account = currentUser()
-  const hasSession = Boolean(token())
-  signedIn.set(hasSession)
-  isAdmin.set(Boolean(hasSession && account?.roles?.includes('admin')))
-}
-
-function applyAccountAndUnread(): void {
-  applyAccount()
-  void refreshUnread()
-}
-
-onMount(() => {
-  applyAccountAndUnread()
-  void initializeAuthSession().then(applyAccountAndUnread)
-  globalThis.addEventListener('wildloop:auth-ready', applyAccountAndUnread)
-})
-
-onDestroy(() => globalThis.removeEventListener('wildloop:auth-ready', applyAccountAndUnread))
 </script>
 
 <header class="native-app-sticky-top sticky z-40 flex h-13 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 backdrop-blur-xl lg:hidden dark:border-slate-700/70 dark:bg-slate-950/90">

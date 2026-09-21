@@ -1,4 +1,5 @@
 import { currentUser, initializeAuthSession, isSignedIn, redirectAfterAuth, signIn, signUp, token } from '../assets/scripts/auth'
+import { AUTH_READY_EVENT, AUTH_REQUIRED_EVENT } from '../functions/auth-events'
 
 /**
  * The sign-in gate every "you have to be someone to do this" control shares.
@@ -31,10 +32,7 @@ import { currentUser, initializeAuthSession, isSignedIn, redirectAfterAuth, sign
 
 export type AuthGateMode = 'login' | 'register'
 
-/** Fired to open the gate. Detail: `{ reason, mode }`. */
-export const AUTH_REQUIRED_EVENT = 'wildloop:auth-required'
-/** Fired once a session exists. Detail: `{ signedIn, user }`. */
-export const AUTH_READY_EVENT = 'wildloop:auth-ready'
+export { AUTH_READY_EVENT, AUTH_REQUIRED_EVENT }
 
 /**
  * The action that was blocked, replayed after a successful sign-in.

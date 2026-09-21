@@ -312,20 +312,22 @@
     { id: 10, name: 'Empire Builder', description: 'Own 5 territories at once', icon: '🏰', progress: 3, total: 5, unlockedAt: null },
   ]
 
-  const seedNotifications: Notification[] = [
-    { id: 1, type: 'conquest_attack', title: 'Territory Under Attack!', message: 'Marcus Johnson is targeting your Cascade Ridge Zone', link: '/territory/1', read: false, created_at: ago(0, 1) },
-    { id: 2, type: 'kudos', title: 'New Kudos', message: 'Sarah Chen gave kudos to your Morning Falls Run', link: '/activity/1', read: false, created_at: ago(0, 2) },
-    { id: 3, type: 'comment', title: 'New Comment', message: 'Jake Thompson commented on your Morning Falls Run', link: '/activity/1', read: false, created_at: ago(0, 3) },
-    { id: 4, type: 'challenge', title: 'New Challenge!', message: 'Jake Thompson challenged you for Cascade Ridge Zone', link: '/challenges', read: false, created_at: ago(0, 6) },
-    { id: 5, type: 'conquest_defend', title: 'Territory Defended!', message: 'You successfully defended Cascade Ridge Zone', link: '/territory/1', read: true, created_at: ago(2) },
-    { id: 6, type: 'conquest_win', title: 'Conquest Victory!', message: 'You conquered part of Summit Kingdom', link: '/territory/8', read: true, created_at: ago(1) },
-    { id: 7, type: 'achievement', title: 'Achievement Unlocked!', message: 'You earned Social Butterfly', link: '/profile', read: true, created_at: ago(14) },
-    { id: 8, type: 'club', title: 'Club Activity', message: 'Trail Crushers completed 67 activities this week!', link: '/clubs', read: true, created_at: ago(1) },
-    { id: 9, type: 'kudos', title: 'New Kudos', message: 'Emily Rodriguez and 4 others gave kudos to your Windy Cliff Run', link: '/activity/6', read: true, created_at: ago(2, 1) },
-    { id: 10, type: 'conquest_attack', title: 'Territory Defended!', message: 'Aisha Patel failed to conquer your Redwood Sanctuary', link: '/territory/4', read: true, created_at: ago(8) },
-    { id: 11, type: 'challenge', title: 'Challenge Won!', message: 'You beat Aisha Patel in the Lakeshore Domain challenge', link: '/challenges', read: true, created_at: ago(2) },
-    { id: 12, type: 'achievement', title: 'Achievement Unlocked!', message: 'You earned First Steps', link: '/profile', read: true, created_at: ago(90) },
-  ]
+  /**
+   * What the layout hands the store at start-up, so components can sign in,
+   * sign out or tap without bundling their own copy of the auth client and the
+   * native bridge: stx inlines a component's imports into that component
+   * (stacksjs/stx#1957), which put three copies of each on every page.
+   */
+  interface AppServices {
+    signIn: (email: string, password: string) => Promise<string | null>
+    signUp: (name: string, email: string, password: string) => Promise<string | null>
+    signOut: () => Promise<void>
+    openAuthPage: (mode: 'login' | 'register') => void
+    tap: () => void
+  }
+
+  const appServices: Partial<AppServices> = {}
+  const SERVICES_NOT_READY = 'WildLoop is still starting. Try again in a moment.'
 
   const seedSegments: Segment[] = [
     { id: 1, name: 'Cascade Switchbacks', trail_id: 3, distance: 1.2, elevation: 480, leaderTime: '8:15', leaderName: 'Marcus Johnson', yourTime: '8:52', yourRank: 3, totalAttempts: 45 },
@@ -437,7 +439,9 @@
       // from emitting links to demo-only ids before live hydration completes.
       clubs: [] as Club[],
       achievements: seedAchievements,
-      notifications: seedNotifications,
+      // Only the API fills this. The demo list that seeded it lit the unread
+      // badge for notifications nobody had sent.
+      notifications: [] as Notification[],
       segments: seedSegments,
       userStats: seedUserStats,
       conquestStats: seedConquestStats,
@@ -481,6 +485,28 @@
       },
       clearAuthenticatedUser() {
         this.currentUserId = 0
+      },
+      provideServices(services: Partial<AppServices>) {
+        Object.assign(appServices, services)
+      },
+      /** Sign in; resolves to an error message, or null. */
+      signIn(email: string, password: string): Promise<string | null> {
+        return appServices.signIn?.(email, password) ?? Promise.resolve(SERVICES_NOT_READY)
+      },
+      /** Register; resolves to an error message, or null. */
+      signUp(name: string, email: string, password: string): Promise<string | null> {
+        return appServices.signUp?.(name, email, password) ?? Promise.resolve(SERVICES_NOT_READY)
+      },
+      signOut(): Promise<void> {
+        return appServices.signOut?.() ?? Promise.resolve()
+      },
+      /** Leave for the full sign-in or sign-up page, coming back here afterwards. */
+      openAuthPage(mode: 'login' | 'register') {
+        appServices.openAuthPage?.(mode)
+      },
+      /** A light haptic tick on native; nothing on the web. */
+      tap() {
+        appServices.tap?.()
       },
       /**
        * Replace seed trails with API/OSM data when available.
