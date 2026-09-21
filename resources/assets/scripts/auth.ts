@@ -314,6 +314,37 @@ export async function signOut(): Promise<void> {
   await forgetSession()
 }
 
+/**
+ * Delete the signed-in account (DELETE /api/me). Resolves to a message to
+ * show, or null once the account is gone and this device has forgotten it.
+ *
+ * The server asks for the password again, and removes this device's push
+ * registration along with the account. The sign-out hooks still run after,
+ * signed out by then, so they only clear the device's own opt-in.
+ */
+export async function deleteAccount(password: string): Promise<string | null> {
+  try {
+    const response = await apiFetch('/api/me', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: headers(),
+      body: JSON.stringify({ password }),
+    })
+    if (response.ok) {
+      await forgetSession()
+      await Promise.all([...session.signOutTasks].map(task => withTimeout(task())))
+      return null
+    }
+    const failure = describeResponseError(response.status, await response.json().catch(() => null))
+    if (failure.unexpected)
+      console.error('[auth:deleteAccount]', response.status, failure.cause)
+    return failure.message
+  }
+  catch (error) {
+    return describeThrownError(error).message
+  }
+}
+
 /** Forget the session on this device only. For a token the server already refused. */
 async function forgetSession(): Promise<void> {
   if (typeof localStorage === 'undefined')
