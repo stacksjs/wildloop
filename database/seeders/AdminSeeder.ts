@@ -68,8 +68,10 @@ export default class AdminSeeder extends Seeder {
       await Rbac.createRole('paid', 'web', 'A WildLoop member with an active paid plan.')
 
     const existing = await User.where('email', '=', ADMIN_EMAIL).first().catch(() => null)
+    // An existing admin keeps its password; see UserSeeder for why a deploy
+    // no longer resets it.
     const admin = existing
-      ? (await User.update(existing.id, { name: 'WildLoop Admin', password: ADMIN_PASSWORD }), existing)
+      ? (await User.update(existing.id, { name: 'WildLoop Admin' }), existing)
       : await User.create({
           name: 'WildLoop Admin',
           email: ADMIN_EMAIL,

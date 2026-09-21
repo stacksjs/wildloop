@@ -170,8 +170,13 @@ export default class UserSeeder extends Seeder {
       // the athlete directory with duplicates of the same five people.
       const existing = await User.where('email', '=', seed.email).first().catch(() => null)
 
+      // An existing account keeps its password. Resetting it on every deploy
+      // put a published password back on production each release, and since
+      // bun-query-builder 0.2.70 the static update skips the ORM wrapper that
+      // awaits the async bcrypt mutator, so it bound a Promise and the deploy
+      // failed at this line.
       const user = existing
-        ? (await User.update(existing.id, { name: seed.name, password: SEED_PASSWORD }), existing)
+        ? (await User.update(existing.id, { name: seed.name }), existing)
         : await User.create({
             name: seed.name,
             email: seed.email,
