@@ -23,7 +23,7 @@
 </script>
 
 <script client>
-  import { isSignedIn, token } from '../assets/scripts/auth'
+  import { apiFetch, isSignedIn } from '../assets/scripts/auth'
   import { fetchRecords, reviewEffort } from '../assets/scripts/records-api'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../functions/route-records'
@@ -102,8 +102,8 @@
     loading.set(true)
     error.set('')
     try {
-      const res = await fetch('/api/admin/overview', {
-        headers: { Authorization: `Bearer ${token()}`, Accept: 'application/json' },
+      const res = await apiFetch('/api/admin/overview', {
+        headers: { Accept: 'application/json' },
       })
       const payload = await res.json().catch(() => null)
 

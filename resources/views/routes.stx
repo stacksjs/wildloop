@@ -32,7 +32,7 @@
 </script>
 
 <script client>
-  import { readyToken } from '../assets/scripts/auth'
+  import { apiFetch, readyToken } from '../assets/scripts/auth'
 
   useHead({ title: 'Route Planner — WildLoop' })
   const wl = useStore('wl')
@@ -53,7 +53,7 @@
       navigate('/login')
       return
     }
-    const res = await fetch('/api/custom-routes', { headers: { Authorization: `Bearer ${bearer}` } }).catch(() => null)
+    const res = await apiFetch('/api/custom-routes', {}).catch(() => null)
     const payload = await res?.json().catch(() => null)
     routes.set(res?.ok && Array.isArray(payload?.routes) ? payload.routes : [])
   }
@@ -71,9 +71,9 @@
       message.set('Choose a trail with verified route geometry.')
       return
     }
-    const res = await fetch('/api/custom-routes', {
+    const res = await apiFetch('/api/custom-routes', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name().trim() || `${trail.name} route`, route, elevation: trail.elevation }),
     })
     const payload = await res.json().catch(() => null)
@@ -92,7 +92,7 @@
       navigate('/login')
       return
     }
-    await fetch(`/api/custom-routes/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${bearer}` } })
+    await apiFetch(`/api/custom-routes/${id}`, { method: 'DELETE' })
     await loadRoutes()
   }
 

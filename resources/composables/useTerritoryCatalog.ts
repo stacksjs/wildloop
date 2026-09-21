@@ -1,5 +1,5 @@
 import { onMount, state } from 'stx'
-import { readyToken } from '../assets/scripts/auth'
+import { apiFetch } from '../assets/scripts/auth'
 
 /**
  * Hydrate the `wl` store's territories from the live API
@@ -65,9 +65,7 @@ export async function loadTerritories(
       query.set('max_lat', String(viewport.maxLat))
       query.set('max_lng', String(viewport.maxLng))
     }
-    const bearer = await readyToken()
-    const res = await fetch(`/api/territories/map?${query}`, {
-      headers: bearer ? { Authorization: `Bearer ${bearer}` } : undefined,
+    const res = await apiFetch(`/api/territories/map?${query}`, {
     })
     if (!res.ok)
       throw new Error(`Territories API returned ${res.status}`)

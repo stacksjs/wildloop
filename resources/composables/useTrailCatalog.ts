@@ -1,5 +1,6 @@
 import type { LatLng, UiTrail } from '../assets/scripts/trail-data'
 import { onMount, state } from 'stx'
+import { apiFetch } from '../assets/scripts/auth'
 import {
   normalizeTrailsPayload,
   routesFromTrails,
@@ -112,7 +113,7 @@ export const EMPTY_COVERAGE: CoverageState = { total: 0, countries: [], states: 
  */
 export async function fetchCoverage(): Promise<CoverageState> {
   try {
-    const res = await fetch('/api/trails/stats')
+    const res = await apiFetch('/api/trails/stats')
     if (!res.ok)
       return EMPTY_COVERAGE
 
@@ -151,7 +152,7 @@ export function useTrailCatalog(wl: TrailStoreLike | null) {
     catalogError.set(null)
 
     try {
-      const listRes = await fetch('/api/trails?limit=200&sort=featured')
+      const listRes = await apiFetch('/api/trails?limit=200&sort=featured')
       if (!listRes.ok)
         throw new Error(`Trails API returned ${listRes.status}`)
 
@@ -197,7 +198,7 @@ export interface SearchSuggestion {
  */
 export async function fetchSearchSuggestions(query: string): Promise<SearchSuggestion[]> {
   try {
-    const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(query)}`)
+    const res = await apiFetch(`/api/search/suggest?q=${encodeURIComponent(query)}`)
     if (!res.ok)
       return []
     const body = await res.json()
@@ -249,7 +250,7 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
   params.set('limit', String(query.limit ?? 60))
   params.set('offset', String(query.offset ?? 0))
 
-  const res = await fetch(`/api/trails?${params}`)
+  const res = await apiFetch(`/api/trails?${params}`)
   if (!res.ok)
     throw new Error(`Trails API returned ${res.status}`)
 

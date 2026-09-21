@@ -8,6 +8,7 @@
  */
 
 import { state } from 'stx'
+import { apiFetch } from '../assets/scripts/auth'
 
 export interface Reviewer {
   id: number
@@ -59,7 +60,7 @@ export async function loadReviewers(trailIds: number[]): Promise<void> {
     return
 
   try {
-    const res = await fetch(`/api/trails/reviewers?ids=${wanted.join(',')}`)
+    const res = await apiFetch(`/api/trails/reviewers?ids=${wanted.join(',')}`)
     if (!res.ok)
       return
 

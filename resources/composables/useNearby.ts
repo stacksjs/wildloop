@@ -1,4 +1,5 @@
 import { state } from 'stx'
+import { apiFetch } from '../assets/scripts/auth'
 
 /**
  * Where the visitor is, for the purposes of "what is good near me".
@@ -123,7 +124,7 @@ function apply(place: NearbyPlace): NearbyPlace {
 async function fromEdge(): Promise<NearbyPlace | null> {
   edgeLookup ??= (async () => {
     try {
-      const res = await fetch('/api/geo/here', { headers: { Accept: 'application/json' } })
+      const res = await apiFetch('/api/geo/here', { headers: { Accept: 'application/json' } })
       if (!res.ok)
         return null
 

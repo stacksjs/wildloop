@@ -1,5 +1,5 @@
 import { onMount, state } from 'stx'
-import { readyToken } from '../assets/scripts/auth'
+import { apiFetch } from '../assets/scripts/auth'
 
 /**
  * Hydrate the `wl` store's activity feed from the live API
@@ -51,9 +51,7 @@ let activitiesStarted = false
 
 export async function loadActivities(wl: ActivityStoreLike): Promise<void> {
   try {
-    const bearer = await readyToken()
-    const res = await fetch('/api/activities?limit=200', {
-      headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+    const res = await apiFetch('/api/activities?limit=200', {
     })
     if (!res.ok)
       throw new Error(`Activities API returned ${res.status}`)

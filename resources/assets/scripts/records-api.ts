@@ -14,7 +14,7 @@ import type {
   RecordStatus,
   RecordStyle,
 } from '../../functions/route-records'
-import { csrfToken, readyToken, token } from './auth'
+import { apiFetch, csrfToken, readyToken, token } from './auth'
 
 export type { RecordCategory, RecordDirection, RecordStatus, RecordStyle }
 
@@ -118,7 +118,7 @@ function writeHeaders(): Record<string, string> {
 async function send<T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: object): Promise<T | null> {
   await readyToken()
   try {
-    const res = await fetch(path, {
+    const res = await apiFetch(path, {
       method,
       credentials: 'same-origin',
       headers: writeHeaders(),
@@ -156,7 +156,7 @@ export async function fetchRecords(filters: RecordFilters = {}): Promise<{ effor
 
   try {
     const query = params.toString()
-    const res = await fetch(`/api/route-efforts${query ? `?${query}` : ''}`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/route-efforts${query ? `?${query}` : ''}`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     if (!res.ok || !Array.isArray(payload?.efforts))
       return null
@@ -169,7 +169,7 @@ export async function fetchRecords(filters: RecordFilters = {}): Promise<{ effor
 
 export async function fetchTracking(): Promise<TrackedEffort[] | null> {
   try {
-    const res = await fetch('/api/route-efforts/tracking', { headers: readHeaders() })
+    const res = await apiFetch('/api/route-efforts/tracking', { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && Array.isArray(payload?.tracking) ? payload.tracking : null
   }
@@ -182,7 +182,7 @@ export async function fetchTracking(): Promise<TrackedEffort[] | null> {
 
 export async function fetchTrailRecords(trailId: number): Promise<TrailRecordsView | null> {
   try {
-    const res = await fetch(`/api/trails/${trailId}/records`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/trails/${trailId}/records`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && payload?.success ? payload as TrailRecordsView : null
   }
@@ -193,7 +193,7 @@ export async function fetchTrailRecords(trailId: number): Promise<TrailRecordsVi
 
 export async function fetchEffort(id: number): Promise<EffortDetailView | null> {
   try {
-    const res = await fetch(`/api/route-efforts/${id}`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/route-efforts/${id}`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && payload?.effort ? payload.effort : null
   }

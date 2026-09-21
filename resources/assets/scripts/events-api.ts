@@ -7,7 +7,7 @@
  * for. Writes carry the bearer token and the CSRF echo, same as game-api.
  */
 
-import { csrfToken, readyToken, token } from './auth'
+import { apiFetch, csrfToken, readyToken, token } from './auth'
 
 export type EventType = 'backyard' | 'race' | 'group_run' | 'time_trial'
 export type EventStatus = 'scheduled' | 'live' | 'finished' | 'cancelled'
@@ -111,7 +111,7 @@ function writeHeaders(): Record<string, string> {
 async function post<T>(path: string, body: object): Promise<T | null> {
   await readyToken()
   try {
-    const res = await fetch(path, {
+    const res = await apiFetch(path, {
       method: 'POST',
       credentials: 'same-origin',
       headers: writeHeaders(),
@@ -141,7 +141,7 @@ export async function fetchEvents(filters: EventFilters = {}): Promise<EventSumm
 
   try {
     const query = params.toString()
-    const res = await fetch(`/api/events${query ? `?${query}` : ''}`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/events${query ? `?${query}` : ''}`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && Array.isArray(payload?.events) ? payload.events : null
   }
@@ -152,7 +152,7 @@ export async function fetchEvents(filters: EventFilters = {}): Promise<EventSumm
 
 export async function fetchEvent(id: number): Promise<{ event: EventDetail, live: LiveBoard, me: any } | null> {
   try {
-    const res = await fetch(`/api/events/${id}`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/events/${id}`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     if (!res.ok || !payload?.event)
       return null
@@ -165,7 +165,7 @@ export async function fetchEvent(id: number): Promise<{ event: EventDetail, live
 
 export async function fetchLiveBoard(id: number): Promise<LiveBoard | null> {
   try {
-    const res = await fetch(`/api/events/${id}/live`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/events/${id}/live`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && payload?.live ? payload.live : null
   }
@@ -245,7 +245,7 @@ export interface ClubInvite {
 export async function fetchClubInvites(clubId: number): Promise<ClubInvite[] | null> {
   await readyToken()
   try {
-    const res = await fetch(`/api/clubs/${clubId}/invites`, { headers: readHeaders() })
+    const res = await apiFetch(`/api/clubs/${clubId}/invites`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && Array.isArray(payload?.invites) ? payload.invites : null
   }

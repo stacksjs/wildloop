@@ -21,7 +21,7 @@
 
 <script client>
   import { device, health, isNativeMobile, secureStorage } from '@stacksjs/mobile'
-  import { changePassword, deleteAccount, readyToken, redirectTo, token } from '../assets/scripts/auth'
+  import { apiFetch, changePassword, deleteAccount, readyToken, redirectTo, token } from '../assets/scripts/auth'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { disableNativePushNotifications, enableNativePushNotifications } from '../composables/useNativeServices'
   import { formatHealthSummary } from '../functions/health-summary'
@@ -91,8 +91,8 @@
 
   async function loadStatus() {
     try {
-      const res = await fetch('/api/garmin/status', {
-        headers: { Authorization: `Bearer ${token()}`, Accept: 'application/json' },
+      const res = await apiFetch('/api/garmin/status', {
+        headers: { Accept: 'application/json' },
       })
       const payload = await res.json().catch(() => null)
 
@@ -119,7 +119,7 @@
   }
 
   async function loadPrivacy() {
-    const res = await fetch('/api/privacy-settings', { headers: { Authorization: `Bearer ${token()}` } }).catch(() => null)
+    const res = await apiFetch('/api/privacy-settings', {}).catch(() => null)
     const payload = await res?.json().catch(() => null)
     if (res?.ok && payload?.settings) {
       const settings = payload.settings
@@ -138,9 +138,9 @@
     privacyWorking.set(true)
     error.set('')
     notice.set('')
-    const res = await fetch('/api/privacy-settings', {
+    const res = await apiFetch('/api/privacy-settings', {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         default_activity_visibility: defaultVisibility(),
         hide_start_end_meters: Number(hideStartEndMeters()),
@@ -311,9 +311,9 @@
       // navigation cannot send, so the token fetches the authorize URL (and
       // receives the state cookie), and only then does the browser leave for
       // Garmin's own consent screen at Garmin's own address.
-      const res = await fetch('/api/garmin/connect', {
+      const res = await apiFetch('/api/garmin/connect', {
         credentials: 'same-origin',
-        headers: { Authorization: `Bearer ${token()}`, Accept: 'application/json' },
+        headers: { Accept: 'application/json' },
       })
       const payload = await res.json().catch(() => null)
 
@@ -341,9 +341,9 @@
     working.set(true)
 
     try {
-      const res = await fetch('/api/garmin/disconnect', {
+      const res = await apiFetch('/api/garmin/disconnect', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token()}`, Accept: 'application/json' },
+        headers: { Accept: 'application/json' },
       })
 
       if (!res.ok) {

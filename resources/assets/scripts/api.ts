@@ -8,6 +8,7 @@
  * No manual initApi() call needed.
  */
 
+import { apiFetch } from './auth'
 import {
   auth,
   Trail,
@@ -198,7 +199,7 @@ export async function createActivity(data: {
  */
 export async function claimTerritory(activityId: number) {
   // This calls the custom claim endpoint
-  const response = await fetch('/api/territories/claim', {
+  const response = await apiFetch('/api/territories/claim', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -219,7 +220,7 @@ export async function claimTerritory(activityId: number) {
  * Process conquest for an activity
  */
 export async function processConquest(activityId: number) {
-  const response = await fetch('/api/territories/process-conquest', {
+  const response = await apiFetch('/api/territories/process-conquest', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -1,4 +1,4 @@
-import { readyToken } from './auth'
+import { apiFetch, readyToken } from './auth'
 
 export type ActivityVisibility = 'public' | 'followers' | 'private'
 
@@ -20,8 +20,7 @@ export async function loadActivityVisibilityDefault(): Promise<ActivityVisibilit
     return pending
 
   pendingForToken = bearer
-  pending = fetch('/api/privacy-settings', {
-    headers: { Authorization: `Bearer ${bearer}` },
+  pending = apiFetch('/api/privacy-settings', {
   })
     .then(async (result) => {
       if (!result.ok) return 'followers' as const

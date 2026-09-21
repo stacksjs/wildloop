@@ -1,6 +1,6 @@
 import { onDestroy, onMount } from 'stx'
 import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications, secureStorage } from '@stacksjs/mobile'
-import { beforeSignOut, readyToken } from '../assets/scripts/auth'
+import { apiFetch, beforeSignOut, readyToken } from '../assets/scripts/auth'
 import { donateSiriPhrases, onAppShortcut, registerAppShortcuts } from './useNativeShortcuts'
 
 const PUSH_ENABLED_KEY = 'wildloop_push_enabled'
@@ -46,9 +46,9 @@ export async function enableNativePushNotifications(): Promise<boolean> {
     pushNotifications.register(),
     device.getInfo(),
   ])
-  const response = await fetch('/api/notifications/push-token', {
+  const response = await apiFetch('/api/notifications/push-token', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       token: pushToken,
       platform: info.platform,
@@ -78,9 +78,9 @@ export async function disableNativePushNotifications(): Promise<boolean> {
     ])
     return true
   }
-  const response = await fetch('/api/notifications/push-token', {
+  const response = await apiFetch('/api/notifications/push-token', {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: pushToken }),
   })
   if (!response.ok) return false

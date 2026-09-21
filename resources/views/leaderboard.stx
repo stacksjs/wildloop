@@ -32,7 +32,7 @@
 </script>
 
 <script client>
-  import { token } from '../assets/scripts/auth'
+  import { apiFetch } from '../assets/scripts/auth'
   useHead({ title: 'Leaderboard — WildLoop' })
 
   interface LeaderEntry {
@@ -51,10 +51,8 @@
 
   async function loadLeaderboard() {
     loading.set(true)
-    const bearer = token()
     const query = new URLSearchParams({ period: period(), metric: metric(), scope: scope() })
-    const res = await fetch(`/api/activities/leaderboard?${query}`, {
-      headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+    const res = await apiFetch(`/api/activities/leaderboard?${query}`, {
     }).catch(() => null)
     const payload = await res?.json().catch(() => null)
     leaders.set(res?.ok && Array.isArray(payload?.leaderboard) ? payload.leaderboard : [])
