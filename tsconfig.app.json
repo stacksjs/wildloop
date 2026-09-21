@@ -68,7 +68,8 @@
     "tests/unit/account-deletion.test.ts",
     "tests/unit/battle-rows.test.ts",
     "tests/unit/toggle-intent.test.ts",
-    "tests/unit/native-shell-ready.test.ts"
+    "tests/unit/native-shell-ready.test.ts",
+    "tests/unit/keychain-session.test.ts"
   ],
   "exclude": [
     "cloud/**",

@@ -110,9 +110,14 @@ export function initializeAuthSession(): Promise<void> {
     else {
       const legacy = localStorage.getItem(TOKEN_KEY)
       const secured = await secureStorage.get(TOKEN_KEY).catch(() => null)
-      session.token = secured ?? legacy
-      if (legacy && !secured) await secureStorage.set(TOKEN_KEY, legacy)
-      localStorage.removeItem(TOKEN_KEY)
+      // A token in the app's own storage is the newer one: it is only written
+      // there when the Keychain refused the last sign-in (see persist).
+      session.token = legacy ?? secured
+      // Move it into the Keychain, and leave it where it is if the Keychain
+      // still will not take it. Removing it regardless is how a failed
+      // migration used to lose the only copy.
+      if (legacy && (legacy === secured || await saveToKeychain(legacy)))
+        localStorage.removeItem(TOKEN_KEY)
       if (session.token && typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, session.token)
     }
 
@@ -252,6 +257,26 @@ export function currentUser(): AuthUser | null {
   }
 }
 
+/**
+ * Save the token to the Keychain, and say whether it is really there.
+ *
+ * Craft resolves a refused Keychain write instead of rejecting it: its
+ * `secureStorage.set` drops the native `false`. So a write that did not happen
+ * looked like one that did, and on a build whose Keychain refuses every write
+ * (the Simulator app, today) each sign-in lasted until the next relaunch.
+ * Reading it back is the only answer the bridge gives.
+ */
+async function saveToKeychain(value: string): Promise<boolean> {
+  try {
+    await secureStorage.set(TOKEN_KEY, value)
+    return await secureStorage.get(TOKEN_KEY) === value
+  }
+  catch (error) {
+    console.error('[auth] could not save the session to the Keychain', error)
+    return false
+  }
+}
+
 async function persist(data: { token?: string, user?: AuthUser }): Promise<void> {
   if (typeof localStorage === 'undefined')
     return
@@ -259,11 +284,20 @@ async function persist(data: { token?: string, user?: AuthUser }): Promise<void>
     session.token = data.token
     if (isCraftHost()) {
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, data.token)
-      localStorage.removeItem(TOKEN_KEY)
-      // Without the Keychain the session still lasts this app session; it
-      // just will not survive a relaunch. That beats failing the sign-in.
-      if (await waitForCraftReady())
-        await secureStorage.set(TOKEN_KEY, data.token).catch((error: unknown) => console.error('[auth] could not save the session to the Keychain', error))
+      if (await waitForCraftReady() && await saveToKeychain(data.token)) {
+        localStorage.removeItem(TOKEN_KEY)
+      }
+      else {
+        // No Keychain: keep the token in the app's own storage, which is
+        // sandboxed and encrypted at rest, so the sign-in survives a relaunch.
+        // Page code can read the Keychain through the bridge anyway, so this
+        // gives nothing up against script on the page. Drop any older Keychain
+        // copy so a restore cannot pick it over this one.
+        localStorage.setItem(TOKEN_KEY, data.token)
+        console.warn('[auth] the Keychain refused the session; keeping it in app storage')
+        if ((globalThis as typeof globalThis & { craft?: unknown }).craft)
+          await secureStorage.delete(TOKEN_KEY).catch(() => undefined)
+      }
     }
     else {
       localStorage.setItem(TOKEN_KEY, data.token)
@@ -404,8 +438,14 @@ async function forgetSession(): Promise<void> {
  */
 export async function refreshCurrentUser(): Promise<AuthUser | null> {
   const bearer = token()
-  if (!bearer)
+  if (!bearer) {
+    // No token, no session. The cached account is only a rendering hint for
+    // a session being checked; without a token it showed a signed-in profile
+    // whose every request went out anonymous, and Settings, which checks the
+    // token, sent that person to the login page.
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(USER_KEY)
     return null
+  }
 
   try {
     const response = await fetch('/api/me', {
