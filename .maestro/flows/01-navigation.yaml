@@ -8,10 +8,13 @@ tags:
     clearState: true
     permissions:
       all: allow
+# The app opens on the Feed. The landing page hands a native shell straight
+# to /feed (index.stx), so its hero is never on screen long enough to assert;
+# waiting for it passed or failed on timing.
 - extendedWaitUntil:
-    visible: "Find your next adventure"
+    visible: Runs, kudos and turf changing hands.
     timeout: 30000
-- takeScreenshot: home
+- takeScreenshot: launch
 - tapOn: "^Feed$"
 - extendedWaitUntil:
     visible: Log activity
@@ -27,18 +30,6 @@ tags:
     visible: "Close a loop.*"
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - tapOn: Allow precise location
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - extendedWaitUntil:
-          visible: Location ready
-          timeout: 30000
 - scrollUntilVisible:
     element:
       text: Start recording
@@ -60,12 +51,13 @@ tags:
     timeout: 30000
 - takeScreenshot: territory
 - tapOn: "^Profile$"
+# Signed out, Profile says what lives there and offers the sign-in sheet.
 - extendedWaitUntil:
-    visible: Activities
+    visible: Your profile
     timeout: 30000
 - takeScreenshot: profile
 - tapOn: "^Log in$"
 - extendedWaitUntil:
-    visible: Welcome Back
+    visible: Welcome back
     timeout: 30000
 - takeScreenshot: sign-in

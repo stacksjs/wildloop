@@ -12,22 +12,34 @@ tags:
       visible: "Don’t Allow"
     commands:
       - tapOn: "Don’t Allow"
+# The app opens on the Feed. The landing page hands a native shell straight
+# to /feed (index.stx), so its hero is never on screen long enough to assert;
+# waiting for it passed or failed on timing.
 - extendedWaitUntil:
-    visible: "Find your next adventure"
+    visible: Runs, kudos and turf changing hands.
     timeout: 30000
+- tapOn: "^Profile$"
+# Signed in from an earlier run: Log out lives in Settings, behind the
+# profile card's gear.
 - runFlow:
     when:
       notVisible: "^Log in$"
     commands:
-      - tapOn: "^Profile$"
-      - extendedWaitUntil:
-          visible: "^Log out$"
+      - tapOn: Settings
+      - scrollUntilVisible:
+          element:
+            text: "^Log out$"
+          direction: DOWN
           timeout: 30000
       - tapOn: "^Log out$"
       - extendedWaitUntil:
-          visible: "^Log in$"
+          visible: Runs, kudos and turf changing hands.
           timeout: 30000
+      - tapOn: "^Profile$"
 - tapOn: "^Log in$"
+# The sheet's own form shares its "Log in" label with the tab above it; the
+# full page keeps the journey's selectors unambiguous.
+- tapOn: Trouble signing in? Open the full page
 - extendedWaitUntil:
     visible: Welcome Back
     timeout: 30000
@@ -39,7 +51,7 @@ tags:
 - inputText: ${E2E_PASSWORD}
 - tapOn: Sign In
 - extendedWaitUntil:
-    visible: Search
+    visible: Runs, kudos and turf changing hands.
     timeout: 30000
 - runFlow:
     when:

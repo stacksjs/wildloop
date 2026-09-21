@@ -15,11 +15,8 @@ tags:
 - extendedWaitUntil:
     visible: "Close a loop.*"
     timeout: 30000
+# Landing on Record must not ask for location; starting a recording does.
 - assertNotVisible: "would like to use your current location"
-- tapOn: Allow precise location
-- extendedWaitUntil:
-    visible: WildLoop could not get a current location.*
-    timeout: 20000
 - scrollUntilVisible:
     element:
       text: Start recording

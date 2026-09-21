@@ -11,22 +11,13 @@ onFlowComplete:
     clearState: true
     permissions:
       all: allow
+# The app opens on the Feed. The landing page hands a native shell straight
+# to /feed (index.stx), so its hero is never on screen long enough to assert;
+# waiting for it passed or failed on timing.
 - extendedWaitUntil:
-    visible: "Find your next adventure"
+    visible: Runs, kudos and turf changing hands.
     timeout: 30000
 - tapOn: "^Record$"
 - assertVisible: "Close a loop.*"
 - assertNotVisible: "would like to use your current location"
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - tapOn: Allow precise location
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - extendedWaitUntil:
-          visible: Location ready
-          timeout: 30000
 - takeScreenshot: offline-bundle
