@@ -41,4 +41,16 @@ describe('native tab item', () => {
     expect(code).toContain('if (!usesIosNativeRouting()) return')
     expect(code).toContain('href="{{ href }}"')
   })
+
+  it('waits for the router instead of racing it with a page load', () => {
+    // A 400ms timer called location.assign on any slow navigation. Two quick
+    // taps on a slow server started two page loads, WebKit cancelled the
+    // first, and Craft answers any cancelled load by switching the session to
+    // its stale bundled copy of the site, which cannot reach the API.
+    const handler = code.slice(code.indexOf('function followTab'))
+    expect(handler).toContain('Promise.resolve(navigate(to))')
+    expect(handler).toContain('if (settled)')
+    expect(code).toContain('const ROUTER_STALL_MS = 8000')
+    expect(code).not.toMatch(/\},\s*400\)/)
+  })
 })

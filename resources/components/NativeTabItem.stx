@@ -18,6 +18,9 @@ import { device, isNativeMobile } from '@stacksjs/mobile'
 // start. This is a narrow client-side resilience measure, not auth enforcement.
 const usesIosNativeRouting = state(isNativeMobile() && device.isIOS())
 
+/** Long enough that a slow page is never mistaken for a stalled router. */
+const ROUTER_STALL_MS = 8000
+
 function followTab(event: MouseEvent): void {
   if (!usesIosNativeRouting()) return
 
@@ -37,21 +40,28 @@ function followTab(event: MouseEvent): void {
   if (!to || typeof navigate !== 'function') return
 
   event.preventDefault()
-  navigate(to)
 
-  // And if the in-document route change does not take, load the document.
-  //
-  // Whether this path runs at all depends on when Craft's bridge finished
-  // installing relative to the page: a screen opened before it uses plain
-  // links and always worked, while one opened after took this path and could
-  // leave the tab bar dead — Profile trapped you on it with no way out. A tab
-  // that has to reload the page is worse than one that swaps it in place, and
-  // far better than one that does nothing at all.
+  // Wait for the router's own answer rather than second-guessing it on a
+  // timer. It already loads the document itself when its fetch fails, and it
+  // answers false when a navigation is still in flight. The 400ms timer that
+  // used to sit here fired a full page load on any slow navigation, so two
+  // quick taps on a slow server started two page loads, WebKit cancelled the
+  // first, and Craft treats a cancelled load as a failure: it swapped the rest
+  // of the session to its stale bundled copy of the site, the one with the
+  // website header, the landing page and no API. The only case left to cover
+  // is a router that never answers at all.
+  let settled = false
+  void Promise.resolve(navigate(to)).finally(() => {
+    settled = true
+  })
+
   setTimeout(() => {
+    if (settled)
+      return
     const here = globalThis.location?.pathname ?? ''
     if (here !== to && !here.startsWith(`${to}/`))
       globalThis.location.assign(to)
-  }, 400)
+  }, ROUTER_STALL_MS)
 }
 </script>
 
