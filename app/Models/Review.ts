@@ -2,6 +2,7 @@ import { defineModel } from '@stacksjs/orm'
 import { schema } from '@stacksjs/validation'
 
 const conditions = ['excellent', 'good', 'fair', 'poor', 'muddy', 'icy'] as const
+const difficulties = ['easy', 'moderate', 'hard'] as const
 
 export default defineModel({
   name: 'Review',
@@ -138,6 +139,19 @@ export default defineModel({
         rule: schema.string(),
       },
       factory: () => null,
+    },
+
+    // How hard the reviewer found it. A trail's own `difficulty` is inferred
+    // from distance alone (the source data has no ascent for nearly every
+    // trail), so the people who walked it are the better witnesses.
+    difficulty: {
+      order: 8,
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.enum(difficulties),
+      },
+      factory: (faker): typeof difficulties[number] => faker.helpers.arrayElement([...difficulties]),
     },
   },
 

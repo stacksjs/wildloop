@@ -10,8 +10,15 @@
 // recomputed from the review rows (#973), so they can never drift.
 
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
+import { isReviewDifficulty, REVIEW_DIFFICULTIES } from '../../Support/reviewDifficulty'
+import { trailPhotoUrl } from '../../Support/trailPhotoPayload'
 
 const REVIEW_CONDITIONS = ['excellent', 'good', 'fair', 'poor', 'muddy', 'icy']
+
+/** Photos attached to one review; the trail gallery caps what it shows anyway. */
+const MAX_REVIEW_PHOTOS = 10
+const PHOTO_ID = /^[0-9a-f-]{8,64}$/i
 
 export default new Action({
   name: 'Trail Review Store',
@@ -28,6 +35,10 @@ export default new Action({
     const title = (request.get<string>('title') ?? '').trim() || null
     const conditions = request.get<string>('conditions') ?? null
     const visitDate = request.get<string>('visit_date') ?? null
+    const difficulty = request.get<string>('difficulty') ?? null
+    // Absent means "leave the photos as they are" on an update; an empty list
+    // means "remove them".
+    const photoIds = request.get<unknown>('photo_ids')
 
     if (!userId)
       return response.json({ success: false, error: 'Authentication required' }, 401)
@@ -42,6 +53,11 @@ export default new Action({
       fields.content = 'required: 10-2000 characters'
     if (conditions !== null && !REVIEW_CONDITIONS.includes(conditions))
       fields.conditions = `must be one of: ${REVIEW_CONDITIONS.join(', ')}`
+    if (difficulty !== null && !isReviewDifficulty(difficulty))
+      fields.difficulty = `must be one of: ${REVIEW_DIFFICULTIES.join(', ')}`
+    if (photoIds !== undefined && photoIds !== null
+      && (!Array.isArray(photoIds) || photoIds.length > MAX_REVIEW_PHOTOS || photoIds.some(id => typeof id !== 'string' || !PHOTO_ID.test(id))))
+      fields.photo_ids = `must be a list of up to ${MAX_REVIEW_PHOTOS} photo ids`
     if (Object.keys(fields).length)
       return response.json({ success: false, error: 'Validation failed', fields }, 422)
 
@@ -50,13 +66,35 @@ export default new Action({
       if (!trail)
         return response.json({ success: false, error: 'Trail not found' }, 404)
 
-      const fields = {
+      // Only photos this reviewer uploaded to this trail can be attached. The
+      // column is rendered straight into <img src>, so it never stores a URL
+      // a client typed in: it stores the URLs of rows we just looked up.
+      let photos: string | null | undefined
+      if (Array.isArray(photoIds)) {
+        const ids = [...new Set(photoIds as string[])]
+        if (ids.length) {
+          // At most 30 per person per trail (TrailPhotoStoreAction), so read
+          // them all and check membership here.
+          const owned = await db.sql`
+            SELECT uuid FROM trail_photos WHERE trail_id = ${trailId} AND user_id = ${userId}
+          `.execute() as Array<{ uuid: string }>
+          const ownedIds = new Set(owned.map(row => row.uuid))
+          if (ids.some(id => !ownedIds.has(id)))
+            return response.json({ success: false, error: 'Validation failed', fields: { photo_ids: 'can only attach photos you uploaded to this trail' } }, 422)
+        }
+        photos = ids.length ? JSON.stringify(ids.map(id => trailPhotoUrl(trailId, id))) : null
+      }
+
+      const fields: Record<string, unknown> = {
         rating,
         title,
         content,
         conditions,
+        difficulty,
         visit_date: visitDate,
       }
+      if (photos !== undefined)
+        fields.photos = photos
 
       let reviewId: number
       let updated = false
@@ -74,9 +112,9 @@ export default new Action({
           const created = await Review.forceCreate({
             user_id: userId,
             trail_id: trailId,
+            photos: null,
             ...fields,
             helpful_count: 0,
-            photos: null,
           })
           reviewId = created.id
         }
@@ -118,6 +156,8 @@ export default new Action({
           title,
           content,
           conditions,
+          difficulty,
+          photos: photos ?? (existing?.photos ?? null),
           visitDate,
         },
         trail: { id: trailId, rating: avgRating, reviewCount },

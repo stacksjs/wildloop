@@ -1,4 +1,5 @@
-// No imports needed - everything is auto-imported!
+import { summarizeDifficulty } from '../../Support/reviewDifficulty'
+
 //
 // GET /api/trails/{id}/reviews - a trail's reviews with author names joined
 // (#981). Public read; the trail detail Reviews tab renders straight from
@@ -32,6 +33,7 @@ export default new Action({
         title: r.title,
         content: r.content,
         conditions: r.conditions,
+        difficulty: r.difficulty ?? null,
         // Passed through as stored. The column has held JSON arrays, comma
         // separated lists and single URLs, and the client parses all three —
         // re-encoding one of those shapes here would only add a fourth.
@@ -43,7 +45,9 @@ export default new Action({
       // Generous default - the reviews tab renders the full set, no load-more
       // (#978 review); ?limit/?offset still paginate on demand.
       const paged = paginate(reviews, readPageParams(request, { defaultLimit: 200, maxLimit: 200 }))
-      return response.json({ success: true, reviews: paged.items, meta: paged.meta })
+      // Tallied over every review, not the page: it describes the trail.
+      const difficulty = summarizeDifficulty(rows.map((r: any) => r.difficulty))
+      return response.json({ success: true, reviews: paged.items, difficulty, meta: paged.meta })
     }
     catch (error) {
       console.error('[trail-reviews] index failed:', error)
