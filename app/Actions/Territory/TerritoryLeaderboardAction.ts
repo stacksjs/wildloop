@@ -54,6 +54,7 @@ export default new Action({
       })
 
       return response.json({
+        success: true,
         type,
         leaderboard,
         meta: {
@@ -65,6 +66,7 @@ export default new Action({
     catch (error) {
       console.error('Error fetching leaderboard:', error)
       return response.json({
+        success: false,
         type,
         leaderboard: [],
         error: 'Failed to fetch leaderboard',

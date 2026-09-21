@@ -19,14 +19,14 @@ export default new Action({
   async handle() {
     const user = await Auth.user().catch(() => null)
     if (!user)
-      return response.json({ error: 'Sign in to continue.' }, 401)
+      return response.json({ success: false, error: 'Sign in to continue.' }, 401)
 
     const configured = isConfigured(garminConfig)
 
     // Distinguishing "not set up yet" from "not connected" is the difference
     // between a button that explains itself and one that fails on click.
     if (!configured)
-      return response.json({ configured: false, connected: false })
+      return response.json({ success: true, configured: false, connected: false })
 
     const { db } = await import('@stacksjs/database')
     const connection = await db
@@ -40,6 +40,7 @@ export default new Action({
     // them, and anything sent to a browser is a secret with a wider blast
     // radius than it looks.
     return response.json({
+      success: true,
       configured: true,
       connected: Boolean(connection),
       connectedAt: connection?.created_at ?? null,

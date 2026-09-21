@@ -66,13 +66,13 @@ export default new Action({
   async handle() {
     const user = await Auth.user().catch(() => null)
     if (!user)
-      return response.json({ error: 'Sign in to continue.' }, 401)
+      return response.json({ success: false, error: 'Sign in to continue.' }, 401)
 
     const roles = await roleNamesFor(user.id)
     if (!roles.some(role => ADMIN_ROLES.includes(role))) {
       // Deliberately the same shape as any other refusal: an account that is
       // not an admin learns nothing about what the dashboard contains.
-      return response.json({ error: 'This area is for administrators.' }, 403)
+      return response.json({ success: false, error: 'This area is for administrators.' }, 403)
     }
 
     const [users, trails, activities, assignments] = await Promise.all([
@@ -116,6 +116,7 @@ export default new Action({
     }, { admins: 0, clients: 0, paid: 0, unassigned: 0 })
 
     return response.json({
+      success: true,
       viewer: { id: user.id, email: user.email, name: user.name ?? null, roles },
       counts: {
         users: allAccounts.length,

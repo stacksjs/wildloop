@@ -256,11 +256,11 @@ export default new Action({
       })
 
       const { items, meta } = paginate(activities, page)
-      return response.json({ activities: items, meta })
+      return response.json({ success: true, activities: items, meta })
     }
     catch (error) {
       console.error('[activities] index failed:', error)
-      return response.json({ activities: [], error: 'Failed to fetch activities' }, 500)
+      return response.json({ success: false, activities: [], error: 'Failed to fetch activities' }, 500)
     }
   },
 })

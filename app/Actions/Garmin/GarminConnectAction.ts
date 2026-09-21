@@ -23,10 +23,11 @@ export default new Action({
   async handle(request) {
     const user = await Auth.user().catch(() => null)
     if (!user)
-      return response.json({ error: 'Sign in to continue.' }, 401)
+      return response.json({ success: false, error: 'Sign in to continue.' }, 401)
 
     if (!isConfigured(garminConfig)) {
       return response.json({
+        success: false,
         error: 'Garmin syncing is not available yet. It turns on once Garmin approves this app for their Activity API.',
       }, 503)
     }
@@ -40,7 +41,7 @@ export default new Action({
     if (!secret) {
       // Failing loudly beats issuing an unsigned token that looks like it
       // protects something.
-      return response.json({ error: 'Server is missing APP_KEY; cannot start a secure connection.' }, 500)
+      return response.json({ success: false, error: 'Server is missing APP_KEY; cannot start a secure connection.' }, 500)
     }
 
     const sealed = sealOAuthState({ userId: user.id, state, verifier, issuedAt: Date.now() }, secret)
@@ -72,7 +73,7 @@ export default new Action({
     // top-level navigation cannot send - so the browser has to fetch this
     // with its token and then navigate itself. The cookie set here is stored
     // all the same, which is what the callback later reads.
-    const json = response.json({ url })
+    const json = response.json({ success: true, url })
     json.headers.append('Set-Cookie', cookie)
     return json
   },

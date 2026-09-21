@@ -20,21 +20,21 @@ export default new Action({
     const file = String(request.get('file') ?? '')
     const key = `trails/${trailId}/${file}`
     if (!isPhotoKey(key))
-      return response.json({ error: 'Not found' }, 404)
+      return response.json({ success: false, error: 'Not found' }, 404)
 
     const uuid = file.replace(/(-thumb)?\.jpg$/, '')
     const visible = (await db.sql`
       SELECT 1 AS ok FROM trail_photos WHERE uuid = ${uuid} AND trail_id = ${Number(trailId)} AND status = 'visible'
     `.execute() as any[])[0]
     if (!visible)
-      return response.json({ error: 'Not found' }, 404)
+      return response.json({ success: false, error: 'Not found' }, 404)
 
     let bytes: Uint8Array
     try {
       bytes = await photoStorage().readToUint8Array(key)
     }
     catch {
-      return response.json({ error: 'Not found' }, 404)
+      return response.json({ success: false, error: 'Not found' }, 404)
     }
 
     return new Response(bytes, {

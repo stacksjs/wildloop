@@ -8,6 +8,7 @@ export default new Action({
   method: 'GET',
   async handle() {
     return response.json({
+      success: true,
       providers: integrationProviderStatuses({
         garminConfigured: !!(garmin.clientId && garmin.clientSecret && garmin.webhookSecret),
         appleHealthNativeBridge: integrations.appleHealth.nativeBridgeEnabled,

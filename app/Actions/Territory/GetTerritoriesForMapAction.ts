@@ -131,6 +131,7 @@ export default new Action({
       }).filter(f => f.geometry !== null)
 
       return response.json({
+        success: true,
         type: 'FeatureCollection',
         features,
         meta: {
@@ -142,6 +143,7 @@ export default new Action({
     catch (error) {
       console.error('Error fetching territories for map:', error)
       return response.json({
+        success: false,
         type: 'FeatureCollection',
         features: [],
         error: 'Failed to fetch territories',

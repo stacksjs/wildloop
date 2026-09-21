@@ -17,7 +17,7 @@ export default new Action({
   async handle() {
     const user = await Auth.user()
     if (!user)
-      return response.json({ error: 'Unauthenticated' }, 401)
+      return response.json({ success: false, error: 'Unauthenticated' }, 401)
 
     let roles: string[] = []
     try {
@@ -32,6 +32,7 @@ export default new Action({
     }
 
     return response.json({
+      success: true,
       user: {
         id: user.id,
         email: user.email,

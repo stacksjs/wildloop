@@ -54,6 +54,7 @@ export default new Action({
       const user = result.user
 
       return response.json({
+        success: true,
         token: result.token,
         user: {
           id: user?.id,
@@ -69,6 +70,6 @@ export default new Action({
       })
     }
 
-    return response.unauthorized('Incorrect email or password')
+    return response.json({ success: false, error: 'Incorrect email or password' }, 401)
   },
 })

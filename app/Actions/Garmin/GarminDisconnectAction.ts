@@ -21,7 +21,7 @@ export default new Action({
   async handle() {
     const user = await Auth.user().catch(() => null)
     if (!user)
-      return response.json({ error: 'Sign in to continue.' }, 401)
+      return response.json({ success: false, error: 'Sign in to continue.' }, 401)
 
     const { db } = await import('@stacksjs/database')
 
@@ -33,7 +33,7 @@ export default new Action({
       .catch(() => null)
 
     if (!connection)
-      return response.json({ disconnected: true })
+      return response.json({ success: true, disconnected: true })
 
     // Best effort, and deliberately not fatal. If Garmin is unreachable we
     // still remove the connection here, because leaving someone connected
@@ -50,6 +50,6 @@ export default new Action({
 
     // The import ledger stays. It is what stops previously imported activities
     // from arriving a second time if the athlete reconnects later.
-    return response.json({ disconnected: true })
+    return response.json({ success: true, disconnected: true })
   },
 })

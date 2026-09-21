@@ -36,6 +36,7 @@ export default new Action({
       const user = await Auth.getUserFromToken(result.token)
 
       return response.json({
+        success: true,
         token: result.token,
         user: {
           id: user?.id,
@@ -45,6 +46,6 @@ export default new Action({
       })
     }
 
-    return response.error('Registration failed')
+    return response.json({ success: false, error: 'Registration failed' }, 500)
   },
 })
