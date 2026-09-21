@@ -49,8 +49,11 @@ tags:
     text: Start recording
     enabled: true
 - tapOn: Start recording
-- assertVisible: Sign in before recording an activity.
+# Signed out, the press opens the sign-in sheet (useRecorder's requireAuth)
+# and replays once there is a session; the sheet is closed to go on.
+- assertVisible: Sign in to record your run.
 - takeScreenshot: signed-out-recording-gate
+- tapOn: Close
 - tapOn: "^Territory$"
 - extendedWaitUntil:
     visible: Your territory map
