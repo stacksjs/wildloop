@@ -60,4 +60,14 @@
     flex-direction: column;
   }
 
+  /* A page's own overlay (the trail review sheet) is rendered inside <main>,
+     and <main> carries the router's view-transition-name, which makes it a
+     stacking context: the overlay sat under the sticky header and the tab bar
+     whatever its z-index. While one is open, <main> gives the name up so the
+     overlay stacks against the whole page. Nothing navigates with a sheet
+     open, so no page transition is lost. */
+  main:has([data-page-overlay][data-open="true"]) {
+    view-transition-name: none;
+  }
+
 </style>
