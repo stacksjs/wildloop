@@ -2,6 +2,7 @@ import { onDestroy, onMount } from 'stx'
 import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications, secureStorage } from '@stacksjs/mobile'
 import { apiFetch, beforeSignOut, readyToken } from '../assets/scripts/auth'
 import { donateSiriPhrases, onAppShortcut, registerAppShortcuts } from './useNativeShortcuts'
+import { returnToServerFromBundledCopy } from '../functions/native-remote'
 
 const PUSH_ENABLED_KEY = 'wildloop_push_enabled'
 const PUSH_TOKEN_KEY = 'wildloop_push_token'
@@ -29,11 +30,19 @@ export function deepLinkPath(value: NativeDeepLink): string | null {
   }
 }
 
+/** The deep link this page is already on its way to. */
+let pendingDeepLink: string | null = null
+
 function openDeepLink(value: NativeDeepLink): void {
   const path = deepLinkPath(value)
   if (!path || typeof location === 'undefined') return
   const current = `${location.pathname}${location.search}${location.hash}`
   if (current.replace(/\/$/, '') === path.replace(/\/$/, '')) return
+  // A link that opens the app arrives twice, as the launch URL and through
+  // the link listener. The second navigation cancelled the first, and Craft
+  // answers a cancelled load by dropping to its bundled copy.
+  if (pendingDeepLink === path) return
+  pendingDeepLink = path
   location.assign(path)
 }
 
@@ -107,6 +116,7 @@ export function useNativeServices(): void {
   let removeShortcut: (() => void) | null = null
 
   onMount(() => {
+    void returnToServerFromBundledCopy()
     removeReady = onMobileReady(async () => {
       if (!isNativeMobile()) return
       const initial = await deepLinks.getInitialURL().catch(() => null)
