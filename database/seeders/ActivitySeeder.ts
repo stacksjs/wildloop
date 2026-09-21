@@ -107,6 +107,10 @@ const SESSIONS: Record<string, Session[]> = {
     { type: 'Hike', distance: 9.6, minutes: 186, elevation: 2240, notes: 'Ridge traverse. Longer than it looked on the map.', trail: 'brca-navajo-queens', capture: true },
     // Claims Skyline.
     { type: 'Trail Run', distance: 8.9, minutes: 74, elevation: 810, notes: 'Steady, felt good.', trail: 'mora-skyline-loop', capture: true },
+    // Cuts across Harvey's Jenny Lake parcel, claimed the day before, without
+    // covering it. Harvey has not run it since, so this contest is still
+    // live: it is the battle behind the feed's "turf is being taken" banner.
+    { type: 'Trail Run', distance: 4.0, minutes: 38, elevation: 300, notes: 'Half the Jenny Lake loop before the storm rolled in.', trail: 'grte-jenny-lake-loop', capture: true },
   ],
 }
 
