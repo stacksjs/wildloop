@@ -1,4 +1,5 @@
 import { onMount, state } from 'stx'
+import { initializeAuthSession } from '../assets/scripts/auth'
 import { fetchAchievements } from '../assets/scripts/game-api'
 
 /**
@@ -25,8 +26,14 @@ export function useAchievementCatalog(wl: AchievementStoreLike | null) {
   onMount(async () => {
     if (!wl || achievementsStarted)
       return
+    // As with follows: wait for the session to say whose wall this is, or the
+    // first load fetched user 0 and never tried again.
+    await initializeAuthSession()
+    const userId = wl.currentUserId()
+    if (achievementsStarted || userId <= 0)
+      return
     achievementsStarted = true
-    const payload = await fetchAchievements(wl.currentUserId())
+    const payload = await fetchAchievements(userId)
     const rows = Array.isArray(payload?.achievements) ? payload.achievements : []
     if (!payload) {
       // The request itself failed; leave whatever the store already had.

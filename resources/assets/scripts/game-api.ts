@@ -261,13 +261,50 @@ export interface FollowsResult {
 }
 
 /** Fetch the current user's notifications (auth). */
-export async function fetchNotifications(): Promise<{ notifications: any[], unreadCount: number } | null> {
-  await ensureSession()
-  const res = await apiFetch('/api/notifications', { headers: authHeaders() })
-  if (!res.ok)
-    return null
-  const json = await res.json()
-  return json?.success ? json : null
+type NotificationPage = { notifications: any[], unreadCount: number } | null
+
+/** How long one answer serves every caller that asks at about the same time. */
+const NOTIFICATIONS_FRESH_MS = 2000
+
+interface SharedNotifications {
+  pending: Promise<NotificationPage> | null
+  value: NotificationPage
+  at: number
+}
+
+/**
+ * Page-wide, like the session: this module is inlined into several bundles.
+ * The desktop nav, the mobile header and the notification list each ask on
+ * load and again when the session is restored, which was thirteen requests
+ * for one page. Callers that ask together now share one.
+ */
+const sharedNotifications: SharedNotifications
+  = (globalThis as typeof globalThis & { __wildloopNotifications?: SharedNotifications }).__wildloopNotifications
+    ??= { pending: null, value: null, at: 0 }
+
+export async function fetchNotifications(): Promise<NotificationPage> {
+  if (sharedNotifications.pending)
+    return sharedNotifications.pending
+  if (sharedNotifications.value && Date.now() - sharedNotifications.at < NOTIFICATIONS_FRESH_MS)
+    return sharedNotifications.value
+
+  sharedNotifications.pending = (async () => {
+    await ensureSession()
+    const res = await apiFetch('/api/notifications', { headers: authHeaders() })
+    if (!res.ok)
+      return null
+    const json = await res.json()
+    return json?.success ? json : null
+  })()
+  try {
+    const value = await sharedNotifications.pending
+    sharedNotifications.value = value
+    sharedNotifications.at = Date.now()
+    return value
+  }
+  finally {
+    sharedNotifications.pending = null
+  }
 }
 
 /** Mark notifications read (all, or a single id). */
@@ -278,6 +315,8 @@ export async function markNotificationsRead(id?: number): Promise<boolean> {
     headers: authHeaders(),
     body: JSON.stringify(id ? { id } : {}),
   })
+  // The next read has to see the change, not the answer from before it.
+  sharedNotifications.value = null
   return res.ok
 }
 
@@ -520,6 +559,9 @@ export async function searchAthletes(q: string): Promise<AthleteSearchResult[] |
 
 /** Fetch achievement definitions merged with a user's progress (#982). */
 export async function fetchAchievements(userId: number): Promise<{ achievements: any[], meta: any } | null> {
+  // Zero is the guest sentinel, not an athlete (see fetchSavedTrails).
+  if (!Number.isInteger(userId) || userId <= 0)
+    return null
   const res = await apiFetch(`/api/users/${userId}/achievements`)
   if (!res.ok)
     return null
@@ -538,6 +580,8 @@ export async function fetchAthlete(userId: number): Promise<any | null> {
 
 /** Fetch a user's social graph (counts + id lists). Public read. */
 export async function fetchFollows(userId: number): Promise<FollowsResult | null> {
+  if (!Number.isInteger(userId) || userId <= 0)
+    return null
   const res = await apiFetch(`/api/users/${userId}/follows`, { headers: authHeaders() })
   if (!res.ok)
     return null

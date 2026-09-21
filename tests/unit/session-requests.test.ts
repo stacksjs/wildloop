@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { apiFetch } from '../../resources/assets/scripts/auth'
-import { persistRunAndProcess, queuedRunMessage } from '../../resources/assets/scripts/game-api'
+import { fetchAchievements, fetchFollows, persistRunAndProcess, queuedRunMessage } from '../../resources/assets/scripts/game-api'
 import { nextAttemptCount } from '../../resources/assets/scripts/run-upload-queue'
 
 const store = new Map<string, string>()
@@ -99,5 +99,66 @@ describe('recorded runs', () => {
   it('tell the athlete why their run is waiting', () => {
     expect(queuedRunMessage(new TypeError('Failed to fetch'))).toBe('Saved on this device and will sync when WildLoop is online')
     expect(queuedRunMessage(Object.assign(new Error('Unauthenticated'), { status: 401 }))).toContain('Sign in again')
+  })
+})
+
+describe('a page with several copies of the auth module', () => {
+  // stx inlines auth.ts into every bundle that imports it: five copies on the
+  // profile page. Two copies stand in for them here.
+  async function twoCopies() {
+    delete (globalThis as any).__wildloopSession
+    const nav = await import(`../../resources/assets/scripts/auth.ts?bundle=nav-${Math.random()}`)
+    const layout = await import(`../../resources/assets/scripts/auth.ts?bundle=layout-${Math.random()}`)
+    return { nav, layout }
+  }
+
+  it('restores the session once', async () => {
+    store.set('auth_token', 'abc')
+    respondWith(200, { user: { id: 5, email: 'pawel@wildloop.test' } })
+    const { nav, layout } = await twoCopies()
+
+    await Promise.all([nav.initializeAuthSession(), layout.initializeAuthSession()])
+
+    expect(calls.filter(call => call.url === '/api/me')).toHaveLength(1)
+  })
+
+  it('runs a sign-out hook registered by any copy', async () => {
+    store.set('auth_token', 'abc')
+    respondWith(200, {})
+    const { nav, layout } = await twoCopies()
+    let pushUnregistered = false
+    layout.beforeSignOut(async () => {
+      pushUnregistered = true
+    })
+
+    await nav.signOut()
+
+    expect(pushUnregistered).toBe(true)
+  })
+
+  it('sends identical GETs asked for together once, and gives each caller its own copy', async () => {
+    store.set('auth_token', 'abc')
+    respondWith(200, { success: true, followingIds: [7] })
+    const { nav, layout } = await twoCopies()
+
+    const [first, second] = await Promise.all([
+      nav.apiFetch('/api/users/5/follows'),
+      layout.apiFetch('/api/users/5/follows'),
+    ])
+
+    expect(calls.filter(call => call.url === '/api/users/5/follows')).toHaveLength(1)
+    expect(await first.json()).toEqual({ success: true, followingIds: [7] })
+    expect(await second.json()).toEqual({ success: true, followingIds: [7] })
+  })
+})
+
+describe('per-athlete reads', () => {
+  it('never ask for the guest sentinel, user 0', async () => {
+    store.set('auth_token', 'abc')
+    respondWith(200, { success: true })
+
+    expect(await fetchFollows(0)).toBeNull()
+    expect(await fetchAchievements(0)).toBeNull()
+    expect(calls.some(call => call.url.includes('/users/0/'))).toBe(false)
   })
 })

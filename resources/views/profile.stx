@@ -22,7 +22,7 @@
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
   import { fetchFollows } from '../assets/scripts/game-api'
-  import { signOut } from '../assets/scripts/auth'
+  import { initializeAuthSession, signOut } from '../assets/scripts/auth'
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
   import { useSavedTrails } from '../composables/useSavedTrails'
 
@@ -80,6 +80,9 @@
     applyTabFromUrl()
     if (!wl) return
     try {
+      // The session names whose profile this is; on a first load it is still
+      // being restored, and the id read before it is 0.
+      await initializeAuthSession()
       const data = await fetchFollows(wl.currentUserId())
       if (data) {
         followerCount.set(data.followerCount)

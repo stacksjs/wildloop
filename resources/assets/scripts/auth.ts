@@ -22,8 +22,30 @@ export const TOKEN_KEY = 'auth_token'
 /** Where the signed-in user is cached between full page navigations. */
 const USER_KEY = 'auth_user'
 const SESSION_TOKEN_KEY = 'wildloop_auth_token'
-let memoryToken: string | null = null
-let sessionInitialization: Promise<void> | null = null
+interface PageSession {
+  token: string | null
+  initialization: Promise<void> | null
+  signOutTasks: Set<() => Promise<unknown>>
+  /** GETs in flight, so identical ones asked for at once share a request. */
+  inflight: Map<string, Promise<Response>>
+}
+
+/**
+ * Session state for the whole page, not for this module.
+ *
+ * stx inlines this file into every component bundle that imports it, five
+ * copies on the profile page, and each copy kept its own state. Each restored
+ * the session by itself: five /api/me calls and five auth-ready events, every
+ * one of which made the header refetch notifications. A sign-out run from one
+ * copy also never saw the push hook registered with another.
+ */
+const pageGlobal = globalThis as typeof globalThis & { __wildloopSession?: PageSession }
+const session: PageSession = pageGlobal.__wildloopSession ??= {
+  token: null,
+  initialization: null,
+  signOutTasks: new Set(),
+  inflight: new Map(),
+}
 
 function announceAuthReady(user: AuthUser | null): void {
   if (typeof globalThis.dispatchEvent !== 'function' || typeof CustomEvent === 'undefined')
@@ -70,28 +92,28 @@ async function waitForCraftReady(): Promise<boolean> {
 
 /** Migrate persistent native credentials into Keychain/Keystore once per page. */
 export function initializeAuthSession(): Promise<void> {
-  if (sessionInitialization) return sessionInitialization
-  sessionInitialization = (async () => {
+  if (session.initialization) return session.initialization
+  session.initialization = (async () => {
     if (typeof localStorage === 'undefined') return
     if (!isCraftHost()) {
-      memoryToken = localStorage.getItem(TOKEN_KEY)
+      session.token = localStorage.getItem(TOKEN_KEY)
     }
     else if (!await waitForCraftReady()) {
       // No Keychain yet. Go on with the copy this page session already holds,
       // and restore the full session if the bridge turns up late.
-      memoryToken = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SESSION_TOKEN_KEY)
+      session.token = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SESSION_TOKEN_KEY)
       globalThis.addEventListener('craftReady', () => {
-        sessionInitialization = null
+        session.initialization = null
         void initializeAuthSession()
       }, { once: true })
     }
     else {
       const legacy = localStorage.getItem(TOKEN_KEY)
       const secured = await secureStorage.get(TOKEN_KEY).catch(() => null)
-      memoryToken = secured ?? legacy
+      session.token = secured ?? legacy
       if (legacy && !secured) await secureStorage.set(TOKEN_KEY, legacy)
       localStorage.removeItem(TOKEN_KEY)
-      if (memoryToken && typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, memoryToken)
+      if (session.token && typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, session.token)
     }
 
     // A token alone is not enough to render an account menu. Resolve it before
@@ -99,7 +121,7 @@ export function initializeAuthSession(): Promise<void> {
     const user = await refreshCurrentUser()
     announceAuthReady(user)
   })()
-  return sessionInitialization
+  return session.initialization
 }
 
 export async function readyToken(): Promise<string | null> {
@@ -134,10 +156,27 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   if (bearer && !Object.keys(headers).some(name => name.toLowerCase() === 'authorization'))
     headers.Authorization = `Bearer ${bearer}`
 
-  const response = await fetch(path, { ...init, headers })
+  const method = (init.method ?? 'GET').toUpperCase()
+  const response = method === 'GET'
+    ? await sharedGet(`${bearer ?? ''} ${path}`, () => fetch(path, { ...init, headers }))
+    : await fetch(path, { ...init, headers })
   if (response.status === 401 && bearer && token() === bearer)
     await forgetSession()
   return response
+}
+
+/**
+ * Identical GETs asked for at the same moment share one request. A page is
+ * put together from several bundles that each load what they need, and on a
+ * first load they all ask together. Each caller gets its own copy to read.
+ */
+async function sharedGet(key: string, send: () => Promise<Response>): Promise<Response> {
+  let pending = session.inflight.get(key)
+  if (!pending) {
+    pending = send().finally(() => session.inflight.delete(key))
+    session.inflight.set(key, pending)
+  }
+  return (await pending).clone()
 }
 
 export interface AuthUser {
@@ -184,7 +223,7 @@ function headers(): Record<string, string> {
 }
 
 export function token(): string | null {
-  if (memoryToken) return memoryToken
+  if (session.token) return session.token
   if (typeof sessionStorage !== 'undefined') {
     const current = sessionStorage.getItem(SESSION_TOKEN_KEY)
     if (current) return current
@@ -217,7 +256,7 @@ async function persist(data: { token?: string, user?: AuthUser }): Promise<void>
   if (typeof localStorage === 'undefined')
     return
   if (data.token) {
-    memoryToken = data.token
+    session.token = data.token
     if (isCraftHost()) {
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, data.token)
       localStorage.removeItem(TOKEN_KEY)
@@ -237,16 +276,14 @@ async function persist(data: { token?: string, user?: AuthUser }): Promise<void>
 /** How long sign-out waits on the server before signing out locally anyway. */
 const SIGN_OUT_TIMEOUT_MS = 4000
 
-const signOutTasks = new Set<() => Promise<unknown>>()
-
 /**
  * Work that has to happen while the session is still valid, run by
  * `signOut` before it revokes the token: unregistering this device from push,
  * for one, which the server only accepts from the signed-in athlete.
  */
 export function beforeSignOut(task: () => Promise<unknown>): () => void {
-  signOutTasks.add(task)
-  return () => signOutTasks.delete(task)
+  session.signOutTasks.add(task)
+  return () => session.signOutTasks.delete(task)
 }
 
 function withTimeout<T>(work: Promise<T>): Promise<T | null> {
@@ -267,7 +304,7 @@ function withTimeout<T>(work: Promise<T>): Promise<T | null> {
 export async function signOut(): Promise<void> {
   const bearer = token()
   if (bearer) {
-    await Promise.all([...signOutTasks].map(task => withTimeout(task())))
+    await Promise.all([...session.signOutTasks].map(task => withTimeout(task())))
     await withTimeout(fetch('/api/logout', {
       method: 'POST',
       credentials: 'same-origin',
@@ -281,7 +318,7 @@ export async function signOut(): Promise<void> {
 async function forgetSession(): Promise<void> {
   if (typeof localStorage === 'undefined')
     return
-  memoryToken = null
+  session.token = null
   if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SESSION_TOKEN_KEY)
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)

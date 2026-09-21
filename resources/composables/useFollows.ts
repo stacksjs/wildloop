@@ -1,4 +1,5 @@
 import { onMount } from 'stx'
+import { initializeAuthSession } from '../assets/scripts/auth'
 import { fetchFollows } from '../assets/scripts/game-api'
 
 /**
@@ -16,9 +17,16 @@ let followsStarted = false
 export async function hydrateFollows(wl: FollowStoreLike | null): Promise<void> {
   if (!wl || followsStarted)
     return
+  // Whose list this is comes from the session, which is still being restored
+  // on a first load. Reading the id before it is asked for /api/users/0, and
+  // marking the load done meant the real one never followed.
+  await initializeAuthSession()
+  const userId = wl.currentUserId()
+  if (followsStarted || userId <= 0)
+    return
   followsStarted = true
   try {
-    const data = await fetchFollows(wl.currentUserId())
+    const data = await fetchFollows(userId)
     if (data && Array.isArray(data.followingIds))
       wl.hydrateFollowing(data.followingIds)
   }

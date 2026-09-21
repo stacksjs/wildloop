@@ -1,5 +1,5 @@
 import { onMount } from 'stx'
-import { isSignedIn } from '../assets/scripts/auth'
+import { initializeAuthSession, isSignedIn } from '../assets/scripts/auth'
 import { fetchSavedTrails, toggleSaveTrail } from '../assets/scripts/game-api'
 import { requireAuth } from './useAuthGate'
 
@@ -24,8 +24,15 @@ export function useSavedTrails(wl: SavedTrailStoreLike | null) {
     // costs a request that comes back 401.
     if (!wl || savedTrailsStarted || !isSignedIn())
       return
+    // Wait for the session to name the athlete. On a first load the id is
+    // still 0 here, which skipped the request and marked it done, so saved
+    // trails never loaded until the next page.
+    await initializeAuthSession()
+    const userId = wl.currentUserId()
+    if (savedTrailsStarted || userId <= 0)
+      return
     savedTrailsStarted = true
-    const payload = await fetchSavedTrails(wl.currentUserId())
+    const payload = await fetchSavedTrails(userId)
     if (payload && Array.isArray(payload.savedTrails))
       wl.hydrateSavedTrails(payload.savedTrails.map((s: any) => s.trailId))
   })
