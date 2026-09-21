@@ -15,7 +15,9 @@
   import { routePreviewDataUri } from '../../composables/useRoutePreview'
   import { copyLink, shareLink, shareNote } from '../../composables/useShareLink'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
-  import { trailGallery } from '../../functions/trail-photos'
+  import { parsePhotoList, trailGallery } from '../../functions/trail-photos'
+  import { difficultyLabel, difficultyTallyText } from '../../functions/review-form'
+  import { requireAuth } from '../../composables/useAuthGate'
 
   // The served shell's title. Replaced with the trail's own once it loads —
   // see the effect below, and usePageSeo for why that happens on the client.
@@ -45,9 +47,37 @@
   const trail = derived(() => wl ? wl.trails().find((t: any) => t.id === trailId()) ?? null : null)
   const saved = derived(() => !!(wl && wl.isTrailSaved(trailId())))
   const {
-    reviews, formRating, formContent, formConditions,
-    submittingReview, reviewError, reviewSaved, submitReview,
+    reviews, difficultyTally, reviewSheetOpen,
+    formRating, formContent, formConditions, formDifficulty, formPhotos,
+    submittingReview, reviewError, reviewSaved,
+    openReviewSheet, closeReviewSheet, addReviewPhotos, removeReviewPhoto, submitReview,
   } = useTrailReviews(wl, trailId)
+
+  // The review sheet's helpers, declared here because the template only sees
+  // this script's own declarations: an imported function used inline in the
+  // markup is undefined there, and the control silently does nothing.
+  const difficultyTallyLine = derived(() => difficultyTallyText(difficultyTally()))
+
+  function openReview(): void {
+    if (requireAuth('Sign in to review this trail.', () => openReviewSheet()))
+      openReviewSheet()
+  }
+
+  function pickReviewPhotos(event: Event): void {
+    const input = event.target as HTMLInputElement | null
+    addReviewPhotos(input?.files)
+    // Cleared so choosing the same photo again after removing it still fires.
+    if (input)
+      input.value = ''
+  }
+
+  function reviewPhotoUrls(review: { photos?: unknown }): string[] {
+    return parsePhotoList(review.photos)
+  }
+
+  function reviewDifficultyText(value: unknown): string {
+    return difficultyLabel(value)
+  }
   const segments = derived(() => wl ? wl.segments().filter((s: any) => s.trail_id === trailId()) : [])
 
   /** The trail's own route, when the catalog has a line for it. */
@@ -759,40 +789,15 @@
             </div>
 
             <div :if="reviewTab() === 'reviews'" class="space-y-4">
-              <!-- Review form (#981) - one review per user per trail, resubmitting updates it -->
-              <div class="card">
-                <h3 class="font-semibold text-sm dark:text-white mb-3">Rate this trail</h3>
-                <div class="flex items-center gap-1 mb-3">
-                  <template :for="star in [1, 2, 3, 4, 5]">
-                    <button
-                      type="button"
-                      @click="formRating.set(star)"
-                      class="text-2xl leading-none transition"
-                      x-class="star <= formRating() ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-300'"
-                      :aria-pressed="star <= formRating()"
-                      x-aria-label="'Rate ' + star + ' stars'">★</button>
-                  </template>
-                  <span :if="formRating() > 0" class="ml-2 text-xs text-gray-500">{{ formRating() + '/5' }}</span>
+              <!-- One review per person per trail (#981): opening the sheet again edits it. -->
+              <div class="card flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <h3 class="font-semibold text-sm dark:text-white">Been on this trail?</h3>
+                  <p class="mt-0.5 text-xs text-gray-500">{{ difficultyTallyLine() || 'Tell others what to expect.' }}</p>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-3 mb-3">
-                  <textarea
-                    rows="2"
-                    placeholder="How was the trail? (10+ characters)"
-                    x-model.trim="formContent"
-                    class="flex-1 px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-emerald-500 transition"></textarea>
-                  <select x-model="formConditions" class="sm:w-40 px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm h-fit">
-                    <option value="">Conditions…</option>
-                    <template :for="opt in conditionOptions">
-                      <option x-value="opt" :text="opt"></option>
-                    </template>
-                  </select>
-                </div>
-                <p :if="reviewError()" class="text-sm text-red-500 mb-2">{{ reviewError() }}</p>
-                <div class="flex items-center gap-3">
-                  <button type="button" @click="submitReview()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">{{ submittingReview() ? 'Saving…' : 'Post review' }}</button>
-                  <span :if="reviewSaved()" class="text-sm text-emerald-600 font-medium">Saved, thanks!</span>
-                </div>
+                <button type="button" @click="openReview()" class="min-h-11 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700">Leave a review</button>
               </div>
+              <p :if="reviewSaved()" role="status" class="text-sm font-medium text-emerald-600">Review saved, thanks!</p>
 
               <template :for="review in reviews()">
                 <div class="card">
@@ -807,7 +812,14 @@
                     <span class="text-yellow-400">{{ '★'.repeat(review.rating) }}</span>
                   </div>
                   <p class="text-sm text-gray-600 dark:text-slate-400">{{ review.text }}</p>
-                  <p :if="review.conditions" class="mt-2 text-xs text-gray-400 capitalize">{{ 'Conditions: ' + review.conditions }}</p>
+                  <div :if="reviewPhotoUrls(review).length" class="mt-3 flex gap-2 overflow-x-auto">
+                    <template :for="url in reviewPhotoUrls(review)">
+                      <Image x-src="url" x-alt="'Photo from ' + review.userName" width="80" height="80" sizes="80px" class="h-20 w-20 shrink-0 rounded-xl object-cover" />
+                    </template>
+                  </div>
+                  <p :if="review.conditions || review.difficulty" class="mt-2 text-xs text-gray-400">
+                    {{ [review.difficulty ? 'Found it ' + reviewDifficultyText(review.difficulty).toLowerCase() : '', review.conditions ? 'Conditions: ' + review.conditions : ''].filter(Boolean).join(' · ') }}
+                  </p>
                 </div>
               </template>
               <div :if="reviews().length === 0" class="text-center py-6 text-gray-400 text-sm">
@@ -884,4 +896,126 @@
     <p class="text-gray-500 font-medium">{{ trailLoadError ? 'Trail could not be loaded' : 'Trail not found' }}</p>
     <StxLink to="/trails" class="inline-block mt-4 px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Browse Trails</StxLink>
   </div>
+<!--
+  Leave a review. A bottom sheet on a phone, a centred dialog on a wider
+  screen. Visibility is a class rather than :if so the half-written review,
+  photos included, survives closing the sheet by accident.
+-->
+<div
+  data-page-overlay
+  :data-open="reviewSheetOpen() ? 'true' : 'false'"
+  x-class="reviewSheetOpen() ? 'flex' : 'hidden'"
+  class="fixed inset-0 z-[90] items-end justify-center sm:items-center sm:p-4"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="review-sheet-title"
+>
+  <div @click="closeReviewSheet()" class="absolute inset-0 bg-slate-900/50"></div>
+
+  <div class="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl dark:bg-slate-900">
+    <div aria-hidden="true" class="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+
+    <div class="flex items-start justify-between gap-4 px-6 pt-5">
+      <div>
+        <h2 id="review-sheet-title" class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Leave a review</h2>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Help others find the right trail</p>
+      </div>
+      <button type="button" @click="closeReviewSheet()" aria-label="Close" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+        <i aria-hidden="true" class="i-lucide-x h-5 w-5"></i>
+      </button>
+    </div>
+
+    <div class="flex-1 space-y-7 overflow-y-auto px-6 pb-6 pt-6">
+      <section>
+        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Rating</h3>
+        <div class="mt-3 flex gap-1.5">
+          <template :for="star in [1, 2, 3, 4, 5]">
+            <button
+              type="button"
+              @click="formRating.set(star)"
+              x-aria-label="'Rate ' + star + (star === 1 ? ' star' : ' stars')"
+              :aria-pressed="(star <= formRating()) ? 'true' : 'false'"
+              x-class="star <= formRating() ? 'text-amber-400' : 'text-slate-400 dark:text-slate-500'"
+              class="rounded-lg p-0.5 transition active:scale-95"
+            >
+              <svg viewBox="0 0 24 24" class="h-10 w-10" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" :fill="star <= formRating() ? 'currentColor' : 'none'" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.4.9-4.6 4.5 1.1 6.3L12 17.3l-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z" /></svg>
+            </button>
+          </template>
+        </div>
+      </section>
+
+      <section>
+        <label for="review-tips" class="text-base font-semibold text-slate-900 dark:text-white">Tips &amp; insights</label>
+        <textarea
+          id="review-tips"
+          rows="4"
+          maxlength="2000"
+          x-model="formContent"
+          placeholder="Tell other trailgoers about cool features, facilities, or tips to come prepared."
+          class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        ></textarea>
+      </section>
+
+      <section>
+        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Photos</h3>
+        <div class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <template :for="(photo, index) in formPhotos()">
+            <div class="relative aspect-square overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+              <Image x-src="photo.preview" x-alt="'Photo ' + (index + 1) + ' to add'" width="160" height="160" sizes="160px" class="h-full w-full object-cover" />
+              <button type="button" @click="removeReviewPhoto(index)" aria-label="Remove photo" class="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-slate-900/70 text-white">
+                <i aria-hidden="true" class="i-lucide-x h-4 w-4"></i>
+              </button>
+            </div>
+          </template>
+          <label
+            for="review-photo-input"
+            x-class="formPhotos().length === 0 ? 'col-span-3 grid h-14 sm:col-span-4' : (formPhotos().length >= 10 ? 'hidden' : 'grid aspect-square')"
+            class="cursor-pointer place-items-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <i aria-hidden="true" class="i-lucide-plus h-6 w-6"></i>
+            <span class="sr-only">Add photos</span>
+          </label>
+        </div>
+        <input id="review-photo-input" type="file" accept="image/*" multiple class="sr-only" @change="pickReviewPhotos($event)">
+      </section>
+
+      <section>
+        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Difficulty</h3>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button type="button" @click="formDifficulty.set(formDifficulty() === 'easy' ? '' : 'easy')" :aria-pressed="(formDifficulty() === 'easy') ? 'true' : 'false'" x-class="formDifficulty() === 'easy' ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'border-slate-200 dark:border-slate-700'" class="flex min-h-11 items-center gap-2 rounded-2xl border-2 px-4 text-sm font-semibold text-slate-900 dark:text-white">
+            <span aria-hidden="true" class="h-3.5 w-3.5 rounded-full bg-green-500"></span>
+            Easy
+          </button>
+          <button type="button" @click="formDifficulty.set(formDifficulty() === 'moderate' ? '' : 'moderate')" :aria-pressed="(formDifficulty() === 'moderate') ? 'true' : 'false'" x-class="formDifficulty() === 'moderate' ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'border-slate-200 dark:border-slate-700'" class="flex min-h-11 items-center gap-2 rounded-2xl border-2 px-4 text-sm font-semibold text-slate-900 dark:text-white">
+            <span aria-hidden="true" class="h-3.5 w-3.5 rounded-sm bg-amber-400"></span>
+            Moderate
+          </button>
+          <button type="button" @click="formDifficulty.set(formDifficulty() === 'hard' ? '' : 'hard')" :aria-pressed="(formDifficulty() === 'hard') ? 'true' : 'false'" x-class="formDifficulty() === 'hard' ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'border-slate-200 dark:border-slate-700'" class="flex min-h-11 items-center gap-2 rounded-2xl border-2 px-4 text-sm font-semibold text-slate-900 dark:text-white">
+            <svg viewBox="0 0 16 14" class="h-3.5 w-4 text-red-500" aria-hidden="true"><path d="M8 0l8 14H0z" fill="currentColor" /></svg>
+            Hard
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Conditions</h3>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <template :for="opt in conditionOptions">
+            <button type="button" @click="formConditions.set(formConditions() === opt ? '' : opt)" :aria-pressed="(formConditions() === opt) ? 'true' : 'false'" x-class="formConditions() === opt ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-300'" class="min-h-10 rounded-full border px-4 text-sm font-medium capitalize">{{ opt }}</button>
+          </template>
+        </div>
+      </section>
+    </div>
+
+    <div class="border-t border-slate-100 px-6 pt-4 dark:border-slate-800" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+      <p x-class="reviewError() ? 'block' : 'hidden'" role="alert" class="mb-3 text-sm text-rose-600 dark:text-rose-400">{{ reviewError() }}</p>
+      <button
+        type="button"
+        @click="submitReview()"
+        x-disabled="formRating() < 1 || submittingReview()"
+        class="min-h-12 w-full rounded-full bg-emerald-600 text-base font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+      >{{ submittingReview() ? 'Saving…' : 'Submit' }}</button>
+    </div>
+  </div>
+</div>
 @endsection

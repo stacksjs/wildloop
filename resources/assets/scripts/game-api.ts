@@ -401,15 +401,50 @@ export interface TrailReview {
 
 /** Fetch a trail's reviews (author names joined, newest first) (#981). */
 export async function fetchTrailReviews(trailId: number): Promise<TrailReview[] | null> {
+  return (await fetchTrailReviewPage(trailId))?.reviews ?? null
+}
+
+/** How hard reviewers found a trail: votes per level, and the leader if there is one. */
+export interface TrailDifficultySummary {
+  easy: number
+  moderate: number
+  hard: number
+  total: number
+  consensus: 'easy' | 'moderate' | 'hard' | null
+}
+
+/** A trail's reviews together with the tally of their difficulty votes. */
+export async function fetchTrailReviewPage(trailId: number): Promise<{ reviews: TrailReview[], difficulty: TrailDifficultySummary | null } | null> {
   const res = await fetch(`/api/trails/${trailId}/reviews`)
   if (!res.ok)
     return null
   const json = await res.json()
-  return json?.success ? json.reviews : null
+  return json?.success ? { reviews: json.reviews, difficulty: json.difficulty ?? null } : null
+}
+
+/**
+ * Upload one photo to a trail. The server re-encodes it, which drops its GPS
+ * position, and answers with the stored photo's id and URLs.
+ */
+export async function uploadTrailPhoto(trailId: number, file: Blob): Promise<{ success: boolean, photo?: { id: string, url: string, thumbUrl: string }, error?: string }> {
+  await ensureSession()
+  // Multipart: the browser writes the boundary into Content-Type, so the JSON
+  // one authHeaders() sets must not go with it.
+  const headers = authHeaders()
+  delete headers['Content-Type']
+  const body = new FormData()
+  body.append('photo', file)
+  const res = await fetch(`/api/trails/${trailId}/photos`, { method: 'POST', headers, body })
+  try {
+    return await res.json()
+  }
+  catch {
+    return { success: false, error: `HTTP ${res.status}` }
+  }
 }
 
 /** Create or update the session user's review of a trail (#981). */
-export async function postTrailReview(trailId: number, payload: { rating: number, content: string, conditions?: string | null, title?: string | null }): Promise<{ success: boolean, review?: any, trail?: { id: number, rating: number, reviewCount: number }, updated?: boolean, error?: string, fields?: Record<string, string> }> {
+export async function postTrailReview(trailId: number, payload: { rating: number, content: string, conditions?: string | null, title?: string | null, difficulty?: string | null, photo_ids?: string[] }): Promise<{ success: boolean, review?: any, trail?: { id: number, rating: number, reviewCount: number }, updated?: boolean, error?: string, fields?: Record<string, string> }> {
   await ensureSession()
   const res = await fetch(`/api/trails/${trailId}/reviews`, {
     method: 'POST',
