@@ -65,11 +65,22 @@ async function withStore<T>(
   })
 }
 
+/**
+ * The attempt count after a failed upload. A 401 says the session ended, not
+ * that anything is wrong with the run. Counting it let a device left signed
+ * out for a few days use up every attempt, after which the run was never
+ * tried again, even once its owner signed back in.
+ */
+export function nextAttemptCount(previous: number, error: unknown): number {
+  const sessionEnded = (error as { status?: number } | null)?.status === 401
+  return previous + (sessionEnded ? 0 : 1)
+}
+
 export async function enqueueRun(payload: ActivityPayload, error: unknown = null, now = Date.now()): Promise<void> {
   if (!payload.upload_id)
     throw new Error('Queued runs require an upload_id')
   const existing = await withStore<QueuedRun>('readonly', store => store.get(payload.upload_id!))
-  const attempts = (existing?.attempts ?? 0) + 1
+  const attempts = nextAttemptCount(existing?.attempts ?? 0, error)
   const queued: QueuedRun = {
     uploadId: payload.upload_id,
     ownerId: payload.user_id,

@@ -41,7 +41,7 @@ export interface ConquestResult {
   totalXp?: number
 }
 
-import { initializeAuthSession, readyToken, token } from './auth'
+import { apiFetch, initializeAuthSession, readyToken, token } from './auth'
 
 void initializeAuthSession()
 
@@ -137,19 +137,32 @@ export interface ActivityPayload {
 /** Persist a recorded run as an Activity. Returns the created activity (with id). */
 export async function createActivity(payload: ActivityPayload): Promise<CreatedActivity | null> {
   await ensureSession()
-  const res = await fetch('/api/activities', {
+  const res = await apiFetch('/api/activities', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    const error = new Error(body?.error || `Activity upload failed with HTTP ${res.status}`) as Error & { retryable?: boolean }
+    const error = new Error(body?.error || `Activity upload failed with HTTP ${res.status}`) as Error & { retryable?: boolean, status?: number }
     error.retryable = res.status >= 500 || res.status === 408 || res.status === 429
+    error.status = res.status
     throw error
   }
   const json = await res.json()
   return json?.activity ?? null
+}
+
+/** What the recorder tells someone whose run was kept on the device instead of uploaded. */
+export function queuedRunMessage(error: unknown): string {
+  const status = (error as { status?: number } | null)?.status
+  if (status === 401)
+    return 'Saved on this device. Sign in again and it will upload.'
+  if (status && status >= 400 && status < 500) {
+    const reason = error instanceof Error && error.message ? ` (${error.message})` : ''
+    return `Saved on this device, but WildLoop did not accept it yet${reason}. It will keep trying.`
+  }
+  return 'Saved on this device and will sync when WildLoop is online'
 }
 
 export interface ActivityUpdatePayload {
@@ -169,7 +182,7 @@ export interface ActivityUpdatePayload {
 /** Edit an activity (owner only). Returns { success, activity?, error? }. */
 export async function updateActivity(activityId: number, payload: ActivityUpdatePayload): Promise<{ success: boolean, activity?: any, error?: string }> {
   await ensureSession()
-  const res = await fetch(`/api/activities/${activityId}`, {
+  const res = await apiFetch(`/api/activities/${activityId}`, {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -185,7 +198,7 @@ export async function updateActivity(activityId: number, payload: ActivityUpdate
 /** Delete an activity (owner only). Kudos/comments cascade; territory stays. */
 export async function deleteActivity(activityId: number): Promise<boolean> {
   await ensureSession()
-  const res = await fetch(`/api/activities/${activityId}`, {
+  const res = await apiFetch(`/api/activities/${activityId}`, {
     method: 'DELETE',
     headers: authHeaders(),
   })
@@ -202,7 +215,7 @@ export interface ActivityComment {
 
 /** Fetch a single activity (incl. parsed route + comments). */
 export async function fetchActivityDetail(activityId: number): Promise<any | null> {
-  const res = await fetch(`/api/activities/${activityId}`, { headers: authHeaders() })
+  const res = await apiFetch(`/api/activities/${activityId}`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -212,7 +225,7 @@ export async function fetchActivityDetail(activityId: number): Promise<any | nul
 /** Post a comment on an activity; returns the created comment. */
 export async function postComment(activityId: number, userId: number, body: string): Promise<ActivityComment | null> {
   await ensureSession()
-  const res = await fetch(`/api/activities/${activityId}/comments`, {
+  const res = await apiFetch(`/api/activities/${activityId}/comments`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ user_id: userId, body }),
@@ -232,7 +245,7 @@ export interface KudosResult {
 /** Toggle the user's kudos on an activity; returns the authoritative count. */
 export async function toggleKudos(activityId: number, userId: number): Promise<KudosResult> {
   await ensureSession()
-  const res = await fetch(`/api/activities/${activityId}/kudos`, {
+  const res = await apiFetch(`/api/activities/${activityId}/kudos`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ user_id: userId }),
@@ -250,7 +263,7 @@ export interface FollowsResult {
 /** Fetch the current user's notifications (auth). */
 export async function fetchNotifications(): Promise<{ notifications: any[], unreadCount: number } | null> {
   await ensureSession()
-  const res = await fetch('/api/notifications', { headers: authHeaders() })
+  const res = await apiFetch('/api/notifications', { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -260,7 +273,7 @@ export async function fetchNotifications(): Promise<{ notifications: any[], unre
 /** Mark notifications read (all, or a single id). */
 export async function markNotificationsRead(id?: number): Promise<boolean> {
   await ensureSession()
-  const res = await fetch('/api/notifications/read', {
+  const res = await apiFetch('/api/notifications/read', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(id ? { id } : {}),
@@ -275,7 +288,7 @@ export async function fetchChallenges(): Promise<any[] | null> {
   const bearer = await readyToken()
   if (!bearer)
     return null
-  const res = await fetch('/api/challenges', { headers: authHeaders() })
+  const res = await apiFetch('/api/challenges', { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -285,7 +298,7 @@ export async function fetchChallenges(): Promise<any[] | null> {
 /** Create a challenge over a rival's territory (opponent + stake derived). */
 export async function createChallenge(territoryId: number, deadline?: string): Promise<{ success: boolean, challenge?: any, error?: string, fields?: Record<string, string> }> {
   await ensureSession()
-  const res = await fetch('/api/challenges', {
+  const res = await apiFetch('/api/challenges', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(deadline ? { territory_id: territoryId, deadline } : { territory_id: territoryId }),
@@ -301,7 +314,7 @@ export async function createChallenge(territoryId: number, deadline?: string): P
 /** Accept or decline a pending challenge (defender only). */
 export async function respondToChallenge(challengeId: number, action: 'accept' | 'decline'): Promise<{ success: boolean, challenge?: any, error?: string }> {
   await ensureSession()
-  const res = await fetch(`/api/challenges/${challengeId}/respond`, {
+  const res = await apiFetch(`/api/challenges/${challengeId}/respond`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ action }),
@@ -331,7 +344,7 @@ export interface ClubPayload {
 /** List clubs (public; private clubs only when the session user is a member). */
 export async function fetchClubs(): Promise<any[] | null> {
   await ensureSession()
-  const res = await fetch('/api/clubs', { headers: authHeaders() })
+  const res = await apiFetch('/api/clubs', { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -341,7 +354,7 @@ export async function fetchClubs(): Promise<any[] | null> {
 /** Club detail: members, recent feed, leaderboard. */
 export async function fetchClubDetail(clubId: number): Promise<any | null> {
   await ensureSession()
-  const res = await fetch(`/api/clubs/${clubId}`, { headers: authHeaders() })
+  const res = await apiFetch(`/api/clubs/${clubId}`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -351,7 +364,7 @@ export async function fetchClubDetail(clubId: number): Promise<any | null> {
 /** Create a club; the creator becomes its owner. */
 export async function createClub(payload: ClubPayload): Promise<{ success: boolean, club?: any, error?: string, fields?: Record<string, string> }> {
   await ensureSession()
-  const res = await fetch('/api/clubs', {
+  const res = await apiFetch('/api/clubs', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -367,14 +380,14 @@ export async function createClub(payload: ClubPayload): Promise<{ success: boole
 /** Delete a club (owner only). */
 export async function deleteClub(clubId: number): Promise<boolean> {
   await ensureSession()
-  const res = await fetch(`/api/clubs/${clubId}`, { method: 'DELETE', headers: authHeaders() })
+  const res = await apiFetch(`/api/clubs/${clubId}`, { method: 'DELETE', headers: authHeaders() })
   return res.ok
 }
 
 /** Join or leave a club; returns the new membership state + count. */
 export async function toggleClubMembership(clubId: number): Promise<{ success: boolean, joined?: boolean, memberCount?: number, error?: string }> {
   await ensureSession()
-  const res = await fetch(`/api/clubs/${clubId}/join`, {
+  const res = await apiFetch(`/api/clubs/${clubId}/join`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({}),
@@ -415,7 +428,7 @@ export interface TrailDifficultySummary {
 
 /** A trail's reviews together with the tally of their difficulty votes. */
 export async function fetchTrailReviewPage(trailId: number): Promise<{ reviews: TrailReview[], difficulty: TrailDifficultySummary | null } | null> {
-  const res = await fetch(`/api/trails/${trailId}/reviews`)
+  const res = await apiFetch(`/api/trails/${trailId}/reviews`)
   if (!res.ok)
     return null
   const json = await res.json()
@@ -434,7 +447,7 @@ export async function uploadTrailPhoto(trailId: number, file: Blob): Promise<{ s
   delete headers['Content-Type']
   const body = new FormData()
   body.append('photo', file)
-  const res = await fetch(`/api/trails/${trailId}/photos`, { method: 'POST', headers, body })
+  const res = await apiFetch(`/api/trails/${trailId}/photos`, { method: 'POST', headers, body })
   try {
     return await res.json()
   }
@@ -446,7 +459,7 @@ export async function uploadTrailPhoto(trailId: number, file: Blob): Promise<{ s
 /** Create or update the session user's review of a trail (#981). */
 export async function postTrailReview(trailId: number, payload: { rating: number, content: string, conditions?: string | null, title?: string | null, difficulty?: string | null, photo_ids?: string[] }): Promise<{ success: boolean, review?: any, trail?: { id: number, rating: number, reviewCount: number }, updated?: boolean, error?: string, fields?: Record<string, string> }> {
   await ensureSession()
-  const res = await fetch(`/api/trails/${trailId}/reviews`, {
+  const res = await apiFetch(`/api/trails/${trailId}/reviews`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -462,7 +475,7 @@ export async function postTrailReview(trailId: number, payload: { rating: number
 /** Toggle the session user's saved/bookmark state for a trail (#969). */
 export async function toggleSaveTrail(trailId: number): Promise<{ success: boolean, saved?: boolean }> {
   await ensureSession()
-  const res = await fetch(`/api/trails/${trailId}/save`, {
+  const res = await apiFetch(`/api/trails/${trailId}/save`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({}),
@@ -480,7 +493,7 @@ export async function fetchSavedTrails(userId: number): Promise<{ savedTrails: a
   // error on every public trail page.
   if (!Number.isInteger(userId) || userId <= 0)
     return null
-  const res = await fetch(`/api/users/${userId}/saved-trails`, { headers: authHeaders() })
+  const res = await apiFetch(`/api/users/${userId}/saved-trails`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -498,7 +511,7 @@ export interface AthleteSearchResult {
 
 /** Search athletes by name; empty/short query returns a discover list (#971). */
 export async function searchAthletes(q: string): Promise<AthleteSearchResult[] | null> {
-  const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() })
+  const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -507,7 +520,7 @@ export async function searchAthletes(q: string): Promise<AthleteSearchResult[] |
 
 /** Fetch achievement definitions merged with a user's progress (#982). */
 export async function fetchAchievements(userId: number): Promise<{ achievements: any[], meta: any } | null> {
-  const res = await fetch(`/api/users/${userId}/achievements`)
+  const res = await apiFetch(`/api/users/${userId}/achievements`)
   if (!res.ok)
     return null
   const json = await res.json()
@@ -516,7 +529,7 @@ export async function fetchAchievements(userId: number): Promise<{ achievements:
 
 /** Fetch a public athlete profile (identity, stats, social counts, recent activities). */
 export async function fetchAthlete(userId: number): Promise<any | null> {
-  const res = await fetch(`/api/users/${userId}`, { headers: authHeaders() })
+  const res = await apiFetch(`/api/users/${userId}`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -525,7 +538,7 @@ export async function fetchAthlete(userId: number): Promise<any | null> {
 
 /** Fetch a user's social graph (counts + id lists). Public read. */
 export async function fetchFollows(userId: number): Promise<FollowsResult | null> {
-  const res = await fetch(`/api/users/${userId}/follows`, { headers: authHeaders() })
+  const res = await apiFetch(`/api/users/${userId}/follows`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
@@ -535,7 +548,7 @@ export async function fetchFollows(userId: number): Promise<FollowsResult | null
 /** Follow/unfollow a user; returns the new state + the target's follower count. */
 export async function toggleFollow(targetId: number): Promise<{ success: boolean, following?: boolean, followerCount?: number }> {
   await ensureSession()
-  const res = await fetch(`/api/users/${targetId}/follow`, {
+  const res = await apiFetch(`/api/users/${targetId}/follow`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({}),
@@ -546,7 +559,7 @@ export async function toggleFollow(targetId: number): Promise<{ success: boolean
 /** Block/unblock an athlete. Blocking also removes follow relationships. */
 export async function toggleBlock(targetId: number): Promise<{ success: boolean, blocked?: boolean, error?: string }> {
   await ensureSession()
-  const res = await fetch(`/api/users/${targetId}/block`, {
+  const res = await apiFetch(`/api/users/${targetId}/block`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({}),
@@ -562,7 +575,7 @@ export async function reportContent(payload: {
   details?: string
 }): Promise<{ success: boolean, alreadyReported?: boolean, error?: string }> {
   await ensureSession()
-  const res = await fetch('/api/reports', {
+  const res = await apiFetch('/api/reports', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -573,7 +586,7 @@ export async function reportContent(payload: {
 /** Claim a new territory from a completed closed-loop activity. */
 export async function claimTerritory(activityId: number, userId: number): Promise<ClaimResult> {
   await ensureSession()
-  const res = await fetch('/api/territories/claim', {
+  const res = await apiFetch('/api/territories/claim', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ activity_id: activityId, user_id: userId }),
@@ -590,7 +603,7 @@ export async function claimTerritory(activityId: number, userId: number): Promis
 /** Process conquests for an activity that ran through enemy territory. */
 export async function processConquest(activityId: number, userId: number, targetTerritoryId?: number | null): Promise<ConquestResult> {
   await ensureSession()
-  const res = await fetch('/api/territories/process-conquest', {
+  const res = await apiFetch('/api/territories/process-conquest', {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({
@@ -628,8 +641,9 @@ export async function persistRunAndProcess(
   options: { queueOnFailure?: boolean } = {},
 ): Promise<RunResult> {
   const queueOnFailure = options.queueOnFailure ?? true
+  let activity: CreatedActivity | null = null
   try {
-    const activity = await createActivity(payload)
+    activity = await createActivity(payload)
     if (!activity)
       throw new Error('The activity API refused the upload')
 
@@ -649,13 +663,19 @@ export async function persistRunAndProcess(
     return { activityId: activity.id, claim, conquest }
   }
   catch (error) {
-    if (queueOnFailure && payload.upload_id && (error as Error & { retryable?: boolean })?.retryable !== false) {
+    // Until the activity is saved, this recording exists only on this device,
+    // and the recorder clears its copy once the save is over. So it is kept
+    // whatever went wrong: a 401 after a password change, or a 422, used to
+    // throw the run away. Once saved, a failure belongs to the territory
+    // engine, and only a transient one is worth replaying.
+    const retryable = (error as Error & { retryable?: boolean })?.retryable !== false
+    if (queueOnFailure && payload.upload_id && (!activity || retryable)) {
       const { enqueueRun } = await import('./run-upload-queue')
       await enqueueRun(payload, error)
       return {
         activityId: null,
         queued: true,
-        error: 'Saved on this device and will sync when WildLoop is online',
+        error: queuedRunMessage(error),
       }
     }
     throw error

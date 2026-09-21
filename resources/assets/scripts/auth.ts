@@ -107,6 +107,39 @@ export async function readyToken(): Promise<string | null> {
   return token()
 }
 
+function plainHeaders(input: HeadersInit | undefined): Record<string, string> {
+  if (!input)
+    return {}
+  if (typeof Headers !== 'undefined' && input instanceof Headers)
+    return Object.fromEntries(input.entries())
+  if (Array.isArray(input))
+    return Object.fromEntries(input)
+  return { ...input as Record<string, string> }
+}
+
+/**
+ * `fetch` for the WildLoop API.
+ *
+ * It waits for the session to be restored before sending anything, so the
+ * first requests after a cold start no longer go out anonymous, and it sends
+ * the bearer token. Every 401 the API answers means there is no valid session
+ * (a wrong password at sign-in goes through `submit`, not here), so one ends
+ * the session on this device: the page then shows the person signed out
+ * instead of letting every later write fail. Only the token the request was
+ * sent with is forgotten, never a newer one from a sign-in in the meantime.
+ */
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const bearer = await readyToken()
+  const headers = plainHeaders(init.headers)
+  if (bearer && !Object.keys(headers).some(name => name.toLowerCase() === 'authorization'))
+    headers.Authorization = `Bearer ${bearer}`
+
+  const response = await fetch(path, { ...init, headers })
+  if (response.status === 401 && bearer && token() === bearer)
+    await forgetSession()
+  return response
+}
+
 export interface AuthUser {
   id: number
   email: string

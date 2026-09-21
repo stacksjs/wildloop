@@ -1,4 +1,5 @@
 import { onDestroy, onMount, state } from 'stx'
+import { readyToken } from '../assets/scripts/auth'
 import { persistRunAndProcess } from '../assets/scripts/game-api'
 import { MAX_UPLOAD_ATTEMPTS, flushQueuedRuns, queuedRuns } from '../assets/scripts/run-upload-queue'
 import { loadActivities } from './useActivityCatalog'
@@ -34,6 +35,10 @@ export function useRunUploadQueue(wl: QueueStoreLike | null) {
   const flush = async () => {
     const ownerId = wl?.currentUserId() ?? 0
     if (!wl || !ownerId || flushing || (typeof navigator !== 'undefined' && !navigator.onLine))
+      return
+    // Signed out, every upload would only come back 401. The runs wait for
+    // their owner to sign in again, which reloads the page and flushes.
+    if (!await readyToken())
       return
     flushing = true
     try {
