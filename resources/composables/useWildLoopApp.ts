@@ -93,6 +93,31 @@ export function dataNeedsForPath(pathname: string): AppDataNeeds {
   }
 }
 
+const STALE_SHELL_KEY = 'wildloop:stale-shell-reload'
+
+/**
+ * The store outlives in-app navigation, so a page opened before new code
+ * shipped keeps its old store while the pages it navigates to run the new
+ * code. When that code needs something the old store does not have, the call
+ * throws and takes the whole page script with it: an app left open across a
+ * deploy (or a dev-server edit) showed pages with every binding dead. Reload
+ * once so the whole app comes from one version; if that did not help, carry
+ * on rather than loop.
+ */
+function reloadStaleShellOnce(): void {
+  if (typeof location === 'undefined' || typeof sessionStorage === 'undefined')
+    return
+  if (sessionStorage.getItem(STALE_SHELL_KEY))
+    return
+  sessionStorage.setItem(STALE_SHELL_KEY, '1')
+  location.reload()
+}
+
+function forgetStaleShellReload(): void {
+  if (typeof sessionStorage !== 'undefined')
+    sessionStorage.removeItem(STALE_SHELL_KEY)
+}
+
 let identityStarted = false
 
 /** Initialize the shared WildLoop store and its browser-side data sources. */
@@ -102,15 +127,21 @@ export function useWildLoopApp(): void {
   // This bundle already carries the auth client and the native bridge; the
   // nav, the mobile header and the sign-in sheet reach them through the store
   // rather than each shipping a copy (stacksjs/stx#1957).
-  wl.provideServices({
-    signIn: gateSignIn,
-    signUp: gateSignUp,
-    signOut,
-    openAuthPage: goToAuthPage,
-    tap: () => {
-      void haptics.selection()
-    },
-  })
+  if (typeof wl.provideServices === 'function') {
+    forgetStaleShellReload()
+    wl.provideServices({
+      signIn: gateSignIn,
+      signUp: gateSignUp,
+      signOut,
+      openAuthPage: goToAuthPage,
+      tap: () => {
+        void haptics.selection()
+      },
+    })
+  }
+  else {
+    reloadStaleShellOnce()
+  }
   const localUser = cachedUser()
   const hasSession = Boolean(localUser) || isSignedIn()
   const pathname = typeof location === 'undefined' ? '/' : location.pathname
