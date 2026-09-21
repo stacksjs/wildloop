@@ -1,4 +1,5 @@
 import { Auth } from '@stacksjs/auth'
+import { isAnsweredContest } from '../../Support/battleRows'
 
 const BATTLE_EVENTS = ['conquered', 'split', 'contested', 'defended']
 
@@ -59,7 +60,7 @@ export default new Action({
       return null
     }
 
-    const battles = rows.map((row: any) => {
+    const battles = rows.filter((row: any) => !isAnsweredContest(rows, row)).map((row: any) => {
       const territory = territoryMap.get(row.territory_id)
       const activity = activityMap.get(row.activity_id)
 
