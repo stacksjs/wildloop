@@ -48,7 +48,7 @@ export function useSavedTrails(wl: SavedTrailStoreLike | null) {
 
     const was = wl.isTrailSaved(trailId)
     wl.setTrailSaved(trailId, !was) // optimistic
-    const res = await toggleSaveTrail(trailId)
+    const res = await toggleSaveTrail(trailId, !was)
     if (res && res.success)
       wl.setTrailSaved(trailId, !!res.saved)
     else

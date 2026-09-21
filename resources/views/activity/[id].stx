@@ -75,7 +75,7 @@
       const was = hasKudos()
       hasKudos.set(!was)
       wl.toggleKudos(activityId, was ? -1 : 1)
-      const res = await toggleKudos(activityId, wl.currentUserId())
+      const res = await toggleKudos(activityId, wl.currentUserId(), !was)
       if (res && res.success) {
         hasKudos.set(!!res.kudosed)
         if (typeof res.kudosCount === 'number') wl.setActivityKudos(activityId, res.kudosCount)

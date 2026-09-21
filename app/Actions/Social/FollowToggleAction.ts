@@ -8,6 +8,7 @@
 // body, so you can't make someone else follow on their behalf.
 
 import { Auth } from '@stacksjs/auth'
+import { wantsIt } from '../../Support/toggleIntent'
 
 export default new Action({
   name: 'Follow Toggle',
@@ -38,13 +39,12 @@ export default new Action({
         .where('following_id', '=', targetId)
         .first()
 
-      let following: boolean
-      if (existing) {
-        await Follow.delete(existing.id)
-        following = false
+      const following = wantsIt(request.method, Boolean(existing))
+      if (!following) {
+        if (existing)
+          await Follow.delete(existing.id)
       }
-      else {
-        following = true
+      else if (!existing) {
         try {
           await Follow.forceCreate({ follower_id: followerId, following_id: targetId })
           // Notify the followed athlete.

@@ -514,17 +514,27 @@ route.group({ middleware: 'auth' }, () => {
     route.patch('/activities/{id}', 'Actions/Activity/ActivityUpdateAction')
     route.delete('/activities/{id}', 'Actions/Activity/ActivityDestroyAction')
     route.post('/activities/{id}/kudos', 'Actions/Activity/KudosToggleAction')
+    route.put('/activities/{id}/kudos', 'Actions/Activity/KudosToggleAction')
+    route.delete('/activities/{id}/kudos', 'Actions/Activity/KudosToggleAction')
     route.post('/activities/{id}/comments', 'Actions/Activity/ActivityCommentStoreAction')
     // Trail reviews - one per user per trail, upserts (#972/#973)
     route.post('/trails/{id}/reviews', 'Actions/Trail/TrailReviewStoreAction')
-    // Saved trails - bookmark toggle, deduped per user+trail (#969)
+    // Saved trails - deduped per user+trail (#969). Save, kudos, follow and
+    // block take PUT to add and DELETE to remove; POST is the old toggle,
+    // kept for apps still open across a deploy (app/Support/toggleIntent.ts).
     route.post('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
+    route.put('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
+    route.delete('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
     // Trail photos: re-encoded on upload, which strips their GPS position
     route.post('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoStoreAction')
     route.delete('/trail-photos/{uuid}', 'Actions/TrailPhoto/TrailPhotoDestroyAction')
     // Social graph - follow/unfollow another athlete
     route.post('/users/{id}/follow', 'Actions/Social/FollowToggleAction')
+    route.put('/users/{id}/follow', 'Actions/Social/FollowToggleAction')
+    route.delete('/users/{id}/follow', 'Actions/Social/FollowToggleAction')
     route.post('/users/{id}/block', 'Actions/Social/BlockToggleAction')
+    route.put('/users/{id}/block', 'Actions/Social/BlockToggleAction')
+    route.delete('/users/{id}/block', 'Actions/Social/BlockToggleAction')
     route.post('/reports', 'Actions/Social/ReportStoreAction')
     route.get('/privacy-settings', 'Actions/Privacy/PrivacySettingsShowAction')
     route.patch('/privacy-settings', 'Actions/Privacy/PrivacySettingsUpdateAction')

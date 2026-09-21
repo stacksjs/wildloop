@@ -76,7 +76,7 @@
     if (!wl || isSelf()) return
     const was = wl.isFollowing(athleteId)
     wl.setFollowing(athleteId, !was) // optimistic
-    const res = await toggleFollow(athleteId)
+    const res = await toggleFollow(athleteId, !was)
     if (res && res.success) {
       wl.setFollowing(athleteId, !!res.following)
       if (profile() && typeof res.followerCount === 'number')
@@ -89,7 +89,7 @@
 
   async function onBlock() {
     if (isSelf()) return
-    const result = await toggleBlock(athleteId)
+    const result = await toggleBlock(athleteId, true)
     if (result.success && result.blocked) {
       safetyMessage.set('Athlete blocked and follow connections removed.')
       profile.set(null)

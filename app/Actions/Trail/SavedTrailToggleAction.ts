@@ -9,6 +9,7 @@
 // resolve to "already saved" instead of a duplicate row.
 
 import { Auth } from '@stacksjs/auth'
+import { wantsIt } from '../../Support/toggleIntent'
 
 export default new Action({
   name: 'Saved Trail Toggle',
@@ -37,13 +38,12 @@ export default new Action({
         .where('trail_id', '=', trailId)
         .first()
 
-      let saved: boolean
-      if (existing) {
-        await SavedTrail.delete(existing.id)
-        saved = false
+      const saved = wantsIt(request.method, Boolean(existing))
+      if (!saved) {
+        if (existing)
+          await SavedTrail.delete(existing.id)
       }
-      else {
-        saved = true
+      else if (!existing) {
         try {
           await SavedTrail.forceCreate({
             user_id: userId,

@@ -242,11 +242,16 @@ export interface KudosResult {
   kudosCount?: number
 }
 
-/** Toggle the user's kudos on an activity; returns the authoritative count. */
-export async function toggleKudos(activityId: number, userId: number): Promise<KudosResult> {
+/**
+ * Give (`kudosed` true) or take back kudos; returns the authoritative count.
+ *
+ * Save, kudos, follow and block send the state wanted, PUT to add and DELETE
+ * to remove, so a double tap or a retried request cannot undo itself.
+ */
+export async function toggleKudos(activityId: number, userId: number, kudosed: boolean): Promise<KudosResult> {
   await ensureSession()
   const res = await apiFetch(`/api/activities/${activityId}/kudos`, {
-    method: 'POST',
+    method: kudosed ? 'PUT' : 'DELETE',
     headers: authHeaders(),
     body: JSON.stringify({ user_id: userId }),
   })
@@ -511,11 +516,11 @@ export async function postTrailReview(trailId: number, payload: { rating: number
   }
 }
 
-/** Toggle the session user's saved/bookmark state for a trail (#969). */
-export async function toggleSaveTrail(trailId: number): Promise<{ success: boolean, saved?: boolean }> {
+/** Save or unsave a trail for the session user (#969). */
+export async function toggleSaveTrail(trailId: number, saved: boolean): Promise<{ success: boolean, saved?: boolean }> {
   await ensureSession()
   const res = await apiFetch(`/api/trails/${trailId}/save`, {
-    method: 'POST',
+    method: saved ? 'PUT' : 'DELETE',
     headers: authHeaders(),
     body: JSON.stringify({}),
   })
@@ -589,22 +594,22 @@ export async function fetchFollows(userId: number): Promise<FollowsResult | null
   return json?.success ? json : null
 }
 
-/** Follow/unfollow a user; returns the new state + the target's follower count. */
-export async function toggleFollow(targetId: number): Promise<{ success: boolean, following?: boolean, followerCount?: number }> {
+/** Follow or unfollow a user; returns the new state + the target's follower count. */
+export async function toggleFollow(targetId: number, following: boolean): Promise<{ success: boolean, following?: boolean, followerCount?: number }> {
   await ensureSession()
   const res = await apiFetch(`/api/users/${targetId}/follow`, {
-    method: 'POST',
+    method: following ? 'PUT' : 'DELETE',
     headers: authHeaders(),
     body: JSON.stringify({}),
   })
   return res.json()
 }
 
-/** Block/unblock an athlete. Blocking also removes follow relationships. */
-export async function toggleBlock(targetId: number): Promise<{ success: boolean, blocked?: boolean, error?: string }> {
+/** Block or unblock an athlete. Blocking also removes follow relationships. */
+export async function toggleBlock(targetId: number, blocked: boolean): Promise<{ success: boolean, blocked?: boolean, error?: string }> {
   await ensureSession()
   const res = await apiFetch(`/api/users/${targetId}/block`, {
-    method: 'POST',
+    method: blocked ? 'PUT' : 'DELETE',
     headers: authHeaders(),
     body: JSON.stringify({}),
   })

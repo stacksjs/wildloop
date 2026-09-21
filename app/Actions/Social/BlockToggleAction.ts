@@ -1,6 +1,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import UserBlock from '../../Models/UserBlock'
+import { wantsIt } from '../../Support/toggleIntent'
 
 export default new Action({
   name: 'Block Toggle',
@@ -17,12 +18,14 @@ export default new Action({
       return response.json({ success: false, error: 'Athlete not found' }, 404)
 
     const existing = await UserBlock.where('blocker_id', '=', blockerId).where('blocked_id', '=', blockedId).first()
-    if (existing) {
-      await UserBlock.delete(existing.id)
+    if (!wantsIt(request.method, Boolean(existing))) {
+      if (existing)
+        await UserBlock.delete(existing.id)
       return response.json({ success: true, blocked: false })
     }
 
-    await UserBlock.forceCreate({ blocker_id: blockerId, blocked_id: blockedId })
+    if (!existing)
+      await UserBlock.forceCreate({ blocker_id: blockerId, blocked_id: blockedId })
     const connections = [
       ...((await Follow.where('follower_id', '=', blockerId).where('following_id', '=', blockedId).get()) ?? []),
       ...((await Follow.where('follower_id', '=', blockedId).where('following_id', '=', blockerId).get()) ?? []),

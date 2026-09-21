@@ -32,7 +32,7 @@ export async function followAthlete(wl: FollowStoreLike | null, userId: number):
 
   const was = wl.isFollowing(userId)
   wl.setFollowing(userId, !was) // optimistic
-  const res = await toggleFollow(userId)
+  const res = await toggleFollow(userId, !was)
   if (res && res.success)
     wl.setFollowing(userId, !!res.following)
   else
@@ -65,7 +65,7 @@ export async function giveKudos(
   apply({ ...kudosed, [activity.id]: !was })
   wl.setActivityKudos(activity.id, Math.max(0, activity.kudos_count + (was ? -1 : 1)))
 
-  const res = await toggleKudos(activity.id, wl.currentUserId())
+  const res = await toggleKudos(activity.id, wl.currentUserId(), !was)
   if (res && res.success) {
     apply({ ...kudosed, [activity.id]: !!res.kudosed })
     if (typeof res.kudosCount === 'number')

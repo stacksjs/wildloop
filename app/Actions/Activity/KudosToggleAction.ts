@@ -9,6 +9,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
+import { wantsIt } from '../../Support/toggleIntent'
 
 export default new Action({
   name: 'Toggle Kudos',
@@ -42,13 +43,13 @@ export default new Action({
         .where('activity_id', '=', activityId)
         .first()
 
-      let kudosed: boolean
-      if (existing) {
-        await Kudos.delete(existing.id)
-        kudosed = false
+      const kudosed = wantsIt(request.method, Boolean(existing))
+      const giving = kudosed && !existing
+      if (!kudosed) {
+        if (existing)
+          await Kudos.delete(existing.id)
       }
-      else {
-        kudosed = true
+      else if (giving) {
         try {
           await Kudos.forceCreate({
             giver_id: giverId,
@@ -84,7 +85,7 @@ export default new Action({
       await Activity.forceUpdate(activityId, { kudos_count: kudosCount })
 
       // Unlock engine hook (#982): giving kudos moves Social Butterfly.
-      if (kudosed) {
+      if (giving) {
         await evaluateAchievementsForUser(giverId).catch((err: unknown) =>
           console.error('[achievements] evaluate after kudos failed:', err))
       }
