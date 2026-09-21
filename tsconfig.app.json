@@ -65,6 +65,7 @@
     "tests/unit/review-difficulty.test.ts",
     "tests/unit/session-tokens.test.ts",
     "tests/unit/session-requests.test.ts",
+    "tests/unit/account-deletion.test.ts",
     "tests/unit/native-shell-ready.test.ts"
   ],
   "exclude": [

@@ -579,5 +579,7 @@ route.group({ middleware: 'auth' }, () => {
 // Authenticated user routes
 route.group({ middleware: 'auth' }, () => {
   route.get('/me', 'Actions/Auth/AuthUserAction')
+  // Deleting the account asks for the password again (App Store 5.1.1(v))
+  route.delete('/me', 'Actions/Auth/AccountDestroyAction')
   route.post('/logout', 'Actions/Auth/LogoutAction')
 })
