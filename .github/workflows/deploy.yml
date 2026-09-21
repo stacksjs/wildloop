@@ -31,7 +31,16 @@ jobs:
   deploy:
     # `workflow_run` fires for failed runs too — that is the point of the
     # gate, so check the conclusion.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    #
+    # And check what CI ran on. CI also runs for pull requests, and
+    # `branches: [main]` matches the head branch name, so a fork's PR from a
+    # branch called `main` that passed CI would deploy the fork's commit with
+    # the production secrets. Only a push to this repository ships.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     # Attach a GitHub Environment to get required reviewers and to scope these
     # secrets to it.
