@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { apiFetch } from '../../resources/assets/scripts/auth'
+import { apiFetch, changePassword } from '../../resources/assets/scripts/auth'
 import { fetchAchievements, fetchFollows, persistRunAndProcess, queuedRunMessage } from '../../resources/assets/scripts/game-api'
 import { nextAttemptCount } from '../../resources/assets/scripts/run-upload-queue'
 
@@ -160,5 +160,30 @@ describe('per-athlete reads', () => {
     expect(await fetchFollows(0)).toBeNull()
     expect(await fetchAchievements(0)).toBeNull()
     expect(calls.some(call => call.url.includes('/users/0/'))).toBe(false)
+  })
+})
+
+describe('changing the password', () => {
+  it('keeps this device signed in with the new token the server hands back', async () => {
+    store.set('auth_token', 'old-token')
+    respondWith(200, { success: true, message: 'Password changed. Other devices have been signed out.', token: 'new-token' })
+
+    const result = await changePassword({ currentPassword: 'old pass', password: 'new password 1', confirmation: 'new password 1', deviceId: 'dev-A' })
+
+    const request = calls.find(call => call.url === '/api/me/password')
+    expect(request?.init.method).toBe('PUT')
+    expect(JSON.parse(request?.init.body).device_id).toBe('dev-A')
+    expect(result).toEqual({ ok: true, message: 'Password changed. Other devices have been signed out.' })
+    expect(store.get('auth_token')).toBe('new-token')
+  })
+
+  it('leaves the session alone when the current password is wrong', async () => {
+    store.set('auth_token', 'abc')
+    respondWith(403, { success: false, error: 'That is not your current password.' })
+
+    const result = await changePassword({ currentPassword: 'nope', password: 'new password 1', confirmation: 'new password 1' })
+
+    expect(result).toEqual({ ok: false, message: 'That is not your current password.' })
+    expect(store.get('auth_token')).toBe('abc')
   })
 })

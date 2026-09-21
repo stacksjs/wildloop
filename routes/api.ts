@@ -495,6 +495,7 @@ route.group({ middleware: 'auth' }, () => {
   // this endpoint tells a caller whether a guess at the current password was
   // right, and six tries a minute is plenty for someone who knows it.
   route.group({ middleware: 'throttle:6,1' }, () => {
+    // Superseded by PUT /me/password; kept so an app still open across a deploy works.
     route.post('/password/change', 'Actions/Auth/PasswordUpdateAction')
   })
 
@@ -581,5 +582,6 @@ route.group({ middleware: 'auth' }, () => {
   route.get('/me', 'Actions/Auth/AuthUserAction')
   // Deleting the account asks for the password again (App Store 5.1.1(v))
   route.delete('/me', 'Actions/Auth/AccountDestroyAction')
+  route.put('/me/password', 'Actions/Auth/PasswordUpdateAction')
   route.post('/logout', 'Actions/Auth/LogoutAction')
 })

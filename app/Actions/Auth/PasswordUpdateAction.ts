@@ -87,6 +87,32 @@ export default new Action({
       console.error('[password] could not revoke other sessions', error)
     })
 
-    return response.json({ success: true, message: 'Password changed. Other devices have been signed out.' })
+    // Signed out, those devices must stop receiving this athlete's
+    // notifications too. Push registrations belong to a device, not a session,
+    // so revoking the sessions left them behind, and a phone that had lost its
+    // session still lit up with someone else's kudos. The device making the
+    // change keeps its own: it names itself with the `device_id` it
+    // registered push with.
+    const keepDevice = String(request.get('device_id') ?? '').trim().slice(0, 255)
+    await (keepDevice
+      ? db.sql`DELETE FROM device_push_tokens WHERE user_id = ${user.id} AND (device_id IS NULL OR device_id != ${keepDevice})`
+      : db.sql`DELETE FROM device_push_tokens WHERE user_id = ${user.id}`
+    ).execute().catch((error: unknown) => {
+      console.error('[password] could not remove other devices from push', error)
+    })
+
+    // The stamp above ends every session opened before this moment, this one
+    // included: the framework refuses a token issued before the password
+    // changed. So the page that promised to keep you signed in here signed you
+    // out on its next request. Hand this device a new session instead, and
+    // retire the old one.
+    const fresh = await Auth.createTokenForUser(user, { name: 'user-auth-token' })
+    await Auth.logout().catch(() => undefined)
+
+    return response.json({
+      success: true,
+      message: 'Password changed. Other devices have been signed out.',
+      token: fresh.plainTextToken,
+    })
   },
 })

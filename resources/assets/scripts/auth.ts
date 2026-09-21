@@ -315,6 +315,44 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Change the password (PUT /api/me/password).
+ *
+ * The change ends every session opened before it, this one included, so the
+ * server answers with a new token for this device, which replaces the old one
+ * here. Other devices are signed out and dropped from push; passing this
+ * device's push `deviceId` keeps its own notifications.
+ */
+export async function changePassword(input: {
+  currentPassword: string
+  password: string
+  confirmation: string
+  deviceId?: string | null
+}): Promise<{ ok: boolean, message: string }> {
+  try {
+    const response = await apiFetch('/api/me/password', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: headers(),
+      body: JSON.stringify({
+        current_password: input.currentPassword,
+        password: input.password,
+        password_confirmation: input.confirmation,
+        ...(input.deviceId ? { device_id: input.deviceId } : {}),
+      }),
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok)
+      return { ok: false, message: describeResponseError(response.status, payload).message }
+    if (typeof payload?.token === 'string' && payload.token)
+      await persist({ token: payload.token })
+    return { ok: true, message: payload?.message || 'Password changed.' }
+  }
+  catch (error) {
+    return { ok: false, message: describeThrownError(error).message }
+  }
+}
+
+/**
  * Delete the signed-in account (DELETE /api/me). Resolves to a message to
  * show, or null once the account is gone and this device has forgotten it.
  *

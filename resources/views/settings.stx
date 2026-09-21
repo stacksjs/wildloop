@@ -21,7 +21,7 @@
 
 <script client>
   import { device, health, isNativeMobile, secureStorage } from '@stacksjs/mobile'
-  import { deleteAccount, readyToken, redirectTo, token } from '../assets/scripts/auth'
+  import { changePassword, deleteAccount, readyToken, redirectTo, token } from '../assets/scripts/auth'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { disableNativePushNotifications, enableNativePushNotifications } from '../composables/useNativeServices'
   import { formatHealthSummary } from '../functions/health-summary'
@@ -170,20 +170,20 @@
       return
 
     passwordWorking.set(true)
-    const res = await fetch('/api/password/change', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        current_password: currentPassword(),
-        password: newPassword(),
-        password_confirmation: confirmPassword(),
-      }),
-    }).catch(() => null)
-    const payload = await res?.json().catch(() => null)
+    // The change signs every other device out and drops them from push. This
+    // device keeps its notifications by naming itself, and keeps its session:
+    // changePassword stores the new token the server hands back.
+    const info = isNativeMobile() ? await device.getInfo().catch(() => null) : null
+    const result = await changePassword({
+      currentPassword: currentPassword(),
+      password: newPassword(),
+      confirmation: confirmPassword(),
+      deviceId: info?.deviceId ?? null,
+    })
     passwordWorking.set(false)
 
-    if (!res?.ok) {
-      passwordError.set(payload?.error || 'Could not change your password')
+    if (!result.ok) {
+      passwordError.set(result.message)
       return
     }
 
@@ -192,7 +192,7 @@
     currentPassword.set('')
     newPassword.set('')
     confirmPassword.set('')
-    passwordNotice.set(payload?.message || 'Password changed.')
+    passwordNotice.set(result.message)
   }
 
   function cancelDeleteAccount() {
