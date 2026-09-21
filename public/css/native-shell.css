@@ -2,6 +2,18 @@
  * Native shell styles must load from the document head. StX component styles
  * are emitted as body links, which bundled WebViews can paint before loading.
  */
+
+/*
+ * Two quick taps zoomed the whole page in the app: WebKit's double-tap to
+ * zoom, which no native app does, and which also makes every single tap wait
+ * to see whether a second one is coming. `manipulation` keeps panning and
+ * pinch-zoom, so zoom stays available to anyone who needs it, and drops only
+ * the double-tap gesture and its delay. Maps declare their own touch-action
+ * and keep it: the browser applies the stricter of an element's and its
+ * ancestors'.
+ */
+.native-app-shell { touch-action: manipulation; }
+
 .native-app-shell {
   --native-safe-area-top: env(safe-area-inset-top, 0px);
   --native-safe-area-right: env(safe-area-inset-right, 0px);

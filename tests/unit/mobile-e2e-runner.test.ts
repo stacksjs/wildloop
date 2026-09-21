@@ -220,6 +220,17 @@ describe('mobile E2E runner', () => {
     expect(styles).not.toContain('calc(4rem + var(--native-safe-area-bottom))')
   })
 
+  it('drops double-tap zoom without taking pinch-zoom away', () => {
+    const styles = readFileSync(new URL('../../public/css/native-shell.css', import.meta.url), 'utf8')
+
+    // Two quick taps zoomed the whole app, and every tap waited to see whether
+    // a second was coming. `manipulation` removes only that gesture; disabling
+    // zoom outright (user-scalable=no) would take pinch-zoom from people who
+    // need it.
+    expect(styles).toContain('.native-app-shell { touch-action: manipulation; }')
+    expect(styles).not.toContain('user-scalable')
+  })
+
   it('rejects a bundle that loads analytics from every rendered component', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-analytics-'))
     for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html'])
