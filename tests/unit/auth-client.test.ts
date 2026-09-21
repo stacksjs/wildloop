@@ -138,11 +138,25 @@ describe('signIn', () => {
 })
 
 describe('signOut', () => {
-  it('clears the session', async () => {
-    stubFetch({ body: { token: 'abc', user: { id: 1, email: 'a@b.c' } } })
+  it('revokes the token on the server, then clears the session', async () => {
+    const { calls } = stubFetch({ body: { token: 'abc', user: { id: 1, email: 'a@b.c' } } })
     await signIn('a@b.c', 'password123')
 
-    signOut()
+    await signOut()
+
+    const logout = calls.find(call => call.url === '/api/logout')
+    expect(logout?.init.method).toBe('POST')
+    expect(logout?.init.headers.Authorization).toBe('Bearer abc')
+    expect(store.has('auth_token')).toBe(false)
+    expect(store.has('auth_user')).toBe(false)
+  })
+
+  it('still signs out on this device when the server cannot be reached', async () => {
+    stubFetch({ body: { token: 'abc', user: { id: 1, email: 'a@b.c' } } })
+    await signIn('a@b.c', 'password123')
+    stubFetch(new Error('offline'))
+
+    await signOut()
 
     expect(store.has('auth_token')).toBe(false)
     expect(store.has('auth_user')).toBe(false)

@@ -44,13 +44,26 @@ function isCraftHost(): boolean {
   return Boolean(host.craft || host.CraftAndroid || host.webkit?.messageHandlers?.craft)
 }
 
-async function waitForCraftReady(): Promise<void> {
-  if (!isCraftHost() || (globalThis as typeof globalThis & { craft?: unknown }).craft) return
-  await new Promise<void>((resolve) => {
+/**
+ * How long to wait for Craft's bridge before carrying on without it. Every
+ * authenticated request waits on this, so waiting forever for an event that
+ * never comes left the app hanging with no error.
+ */
+const CRAFT_READY_TIMEOUT_MS = 4000
+
+/** True once Craft's bridge is up; false if it did not come up in time. */
+async function waitForCraftReady(): Promise<boolean> {
+  if (!isCraftHost() || (globalThis as typeof globalThis & { craft?: unknown }).craft) return true
+  return await new Promise<boolean>((resolve) => {
     const done = () => {
+      clearTimeout(timer)
       globalThis.removeEventListener('craftReady', done)
-      resolve()
+      resolve(true)
     }
+    const timer = setTimeout(() => {
+      globalThis.removeEventListener('craftReady', done)
+      resolve(false)
+    }, CRAFT_READY_TIMEOUT_MS)
     globalThis.addEventListener('craftReady', done, { once: true })
   })
 }
@@ -63,8 +76,16 @@ export function initializeAuthSession(): Promise<void> {
     if (!isCraftHost()) {
       memoryToken = localStorage.getItem(TOKEN_KEY)
     }
+    else if (!await waitForCraftReady()) {
+      // No Keychain yet. Go on with the copy this page session already holds,
+      // and restore the full session if the bridge turns up late.
+      memoryToken = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SESSION_TOKEN_KEY)
+      globalThis.addEventListener('craftReady', () => {
+        sessionInitialization = null
+        void initializeAuthSession()
+      }, { once: true })
+    }
     else {
-      await waitForCraftReady()
       const legacy = localStorage.getItem(TOKEN_KEY)
       const secured = await secureStorage.get(TOKEN_KEY).catch(() => null)
       memoryToken = secured ?? legacy
@@ -165,10 +186,12 @@ async function persist(data: { token?: string, user?: AuthUser }): Promise<void>
   if (data.token) {
     memoryToken = data.token
     if (isCraftHost()) {
-      await waitForCraftReady()
-      await secureStorage.set(TOKEN_KEY, data.token)
-      localStorage.removeItem(TOKEN_KEY)
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, data.token)
+      localStorage.removeItem(TOKEN_KEY)
+      // Without the Keychain the session still lasts this app session; it
+      // just will not survive a relaunch. That beats failing the sign-in.
+      if (await waitForCraftReady())
+        await secureStorage.set(TOKEN_KEY, data.token).catch((error: unknown) => console.error('[auth] could not save the session to the Keychain', error))
     }
     else {
       localStorage.setItem(TOKEN_KEY, data.token)
@@ -178,7 +201,51 @@ async function persist(data: { token?: string, user?: AuthUser }): Promise<void>
     localStorage.setItem(USER_KEY, JSON.stringify(data.user))
 }
 
+/** How long sign-out waits on the server before signing out locally anyway. */
+const SIGN_OUT_TIMEOUT_MS = 4000
+
+const signOutTasks = new Set<() => Promise<unknown>>()
+
+/**
+ * Work that has to happen while the session is still valid, run by
+ * `signOut` before it revokes the token: unregistering this device from push,
+ * for one, which the server only accepts from the signed-in athlete.
+ */
+export function beforeSignOut(task: () => Promise<unknown>): () => void {
+  signOutTasks.add(task)
+  return () => signOutTasks.delete(task)
+}
+
+function withTimeout<T>(work: Promise<T>): Promise<T | null> {
+  return Promise.race([
+    work.catch(() => null),
+    new Promise<null>(resolve => setTimeout(() => resolve(null), SIGN_OUT_TIMEOUT_MS)),
+  ])
+}
+
+/**
+ * Sign out: revoke the token on the server, then forget it here.
+ *
+ * Clearing it locally alone left it valid for up to thirty days, so a copy
+ * in a backup or another tab kept working after the person had signed out.
+ * The server is asked first but not waited on forever: offline, sign-out
+ * still happens on this device.
+ */
 export async function signOut(): Promise<void> {
+  const bearer = token()
+  if (bearer) {
+    await Promise.all([...signOutTasks].map(task => withTimeout(task())))
+    await withTimeout(fetch('/api/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { ...headers(), Authorization: `Bearer ${bearer}` },
+    }))
+  }
+  await forgetSession()
+}
+
+/** Forget the session on this device only. For a token the server already refused. */
+async function forgetSession(): Promise<void> {
   if (typeof localStorage === 'undefined')
     return
   memoryToken = null
@@ -208,7 +275,7 @@ export async function refreshCurrentUser(): Promise<AuthUser | null> {
     })
 
     if (response.status === 401) {
-      await signOut()
+      await forgetSession()
       return null
     }
     if (!response.ok)

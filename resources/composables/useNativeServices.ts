@@ -1,6 +1,6 @@
 import { onDestroy, onMount } from 'stx'
 import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications, secureStorage } from '@stacksjs/mobile'
-import { readyToken } from '../assets/scripts/auth'
+import { beforeSignOut, readyToken } from '../assets/scripts/auth'
 import { donateSiriPhrases, onAppShortcut, registerAppShortcuts } from './useNativeShortcuts'
 
 const PUSH_ENABLED_KEY = 'wildloop_push_enabled'
@@ -90,6 +90,10 @@ export async function disableNativePushNotifications(): Promise<boolean> {
   ])
   return true
 }
+
+// Signing out stops this device receiving the athlete's notifications. It has
+// to run before the token is revoked: unregistering needs the session.
+beforeSignOut(() => disableNativePushNotifications())
 
 async function syncOptedInNativePushNotifications(): Promise<void> {
   if (await secureStorage.get(PUSH_ENABLED_KEY).catch(() => null) !== 'true') return
