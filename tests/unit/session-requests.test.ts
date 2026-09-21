@@ -65,6 +65,7 @@ describe('recorded runs', () => {
     user_id: 5,
     activity_type: 'Trail Run',
     distance: 3.1,
+    duration: '0:31:00',
     upload_id: 'run:session-test',
     recording_source: 'native_gps',
     game_mode: 'capture',
