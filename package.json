@@ -107,5 +107,8 @@
   "type": "module",
   "devDependencies": {
     "@types/bun": "^1.4.2"
+  },
+  "overrides": {
+    "craft-native": "0.0.92"
   }
 }

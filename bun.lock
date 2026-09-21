@@ -20,6 +20,9 @@
       },
     },
   },
+  "overrides": {
+    "craft-native": "0.0.92",
+  },
   "packages": {
     "@cwcss/crosswind": ["@cwcss/crosswind@0.2.19", "", { "dependencies": { "@stacksjs/clapp": "^0.2.0", "bunfig": "^0.15.17" }, "bin": { "crosswind": "./dist/cli.js" } }, "sha512-NswUZPNHbdkW4rxvmwjjIM7jyfQ/rr0X1J1uwjTUwixc3BXQs1Fk7pP5cC7MxkGGnmRTFs2O9J+U9tJ36ZJ7fQ=="],
 
@@ -331,7 +334,7 @@
 
     "clone": ["clone@2.1.2", "", {}, "sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w=="],
 
-    "craft-native": ["craft-native@0.0.90", "", { "bin": { "craft-sdk": "./dist/cli.js" } }, "sha512-38sZHDJfjisiIC4e/JezvGXw7eqwruoIP5iVsrP8Qa8h+NMpDi6N24jp0Oflb4/RVOwg+xQQwTcihn86s8W2lA=="],
+    "craft-native": ["craft-native@0.0.92", "", { "bin": { "craft-sdk": "./dist/cli.js" } }, "sha512-ZItXbEfrR3uYpEyHz65BYce/O2SUeV8TXKlG2QEzOmg4svD9/eD+/C4bfA5jgthmszcJMYKmHc6yKE+JIECZqw=="],
 
     "cz-git": ["cz-git@1.14.0", "", {}, "sha512-QjwlXZrGWsXQkyregBHhA2qNNGB2TCuf0ovkW1Q5OLgdJDs9Tq1yahfKpSMLyqOBjVRuv1iHBTDP83zJDBlJdg=="],
 

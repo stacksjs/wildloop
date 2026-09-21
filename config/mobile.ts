@@ -57,8 +57,9 @@ export default {
       healthKit: true,
       keepAwake: true,
       liveActivities: true,
-      // Craft currently emits an incomplete WatchKit target graph. Keep the
-      // iPhone app installable until craft-native/craft#195 is resolved.
+      // craft-native/craft#195 shipped in 0.0.92, but embedding the Watch app
+      // makes every iPhone simulator build require the watchOS simulator
+      // runtime, which this machine and CI do not install yet.
       watchApp: false,
       localDatabase: true,
       orientationLock: true,

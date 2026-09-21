@@ -29,7 +29,7 @@ jobs:
     env:
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
       # Craft v0.0.91, pinned to the annotated release tag's commit.
-      CRAFT_REVISION: 1c33c60ce91fa88031ac65d69bb59eaa4dff1f99
+      CRAFT_REVISION: 186cd8398573e912afd79f674cc39eec3dd35fa2
       STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
     strategy:
       fail-fast: false
