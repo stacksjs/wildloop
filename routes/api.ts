@@ -24,8 +24,9 @@ route.get('/verify-authentication', 'Actions/Auth/VerifyAuthenticationAction')
 
 // Token management routes
 route.group({ prefix: '/auth' }, () => {
-  // Public - refresh token (no auth middleware needed)
-  route.post('/refresh', 'Actions/Auth/RefreshTokenAction')
+  // No /refresh: a session is one bearer token whose expiry slides while it
+  // is used (app/Middleware/Auth.ts). The framework's refresh action also
+  // answered with an auth cookie, a credential nothing here sends or reads.
 
   // Protected - requires authentication
   route.get('/tokens', 'Actions/Auth/ListTokensAction').middleware('auth')
