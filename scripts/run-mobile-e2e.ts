@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
+import { isLoopback, resolveMobileServer, serverArgument } from './mobile-target'
 
 type MobilePlatform = 'android' | 'ios'
 
@@ -398,8 +399,27 @@ function runAndroid(preview: boolean): void {
   else {
     stopAndroidHomeLauncher(devices[0])
     seedTestLocation('android', devices[0])
-    runMaestroJourneys('android', devices[0])
+    runMaestroJourneys('android', devices[0], null)
   }
+}
+
+/**
+ * The server a Simulator preview loads, from `--server`: `preview:ios:local`
+ * passes this Mac's dev server, `preview:ios:production` passes wildloop.org.
+ * Without it the preview is the bundled, offline build.
+ */
+export function previewServerURL(args: string[]): string | null {
+  const value = serverArgument(args)
+  return value ? resolveMobileServer(value, 'simulator') : null
+}
+
+async function warnIfServerIsDown(server: string): Promise<void> {
+  const reachable = await fetch(server, { signal: AbortSignal.timeout(3000) }).then(() => true).catch(() => false)
+  if (reachable) return
+  const hint = isLoopback(new URL(server))
+    ? 'Start it in a terminal with `./buddy dev` (it exits if run in the background).'
+    : 'Check the connection, or the deploy.'
+  console.warn(`${server} is not answering. The app will open on its bundled copy and return once the server is up. ${hint}`)
 }
 
 function runIos(preview: boolean, signedInURL: string | null): void {
@@ -425,7 +445,12 @@ function runIos(preview: boolean, signedInURL: string | null): void {
     '-destination', `platform=iOS Simulator,id=${device.udid}`,
     '-derivedDataPath', derivedData,
     '-configuration', 'Debug',
-    'CODE_SIGNING_ALLOWED=NO',
+    // Signed to run locally, not unsigned: an unsigned app carries no
+    // entitlements, and without its application-identifier iOS refuses it the
+    // Keychain. Every sign-in then ended at the next launch. No team needed.
+    'CODE_SIGN_IDENTITY=-',
+    'CODE_SIGN_STYLE=Manual',
+    'DEVELOPMENT_TEAM=',
     'build',
   ])
 
@@ -438,7 +463,8 @@ function runIos(preview: boolean, signedInURL: string | null): void {
     requireCommand('open')
     execute(['open', '-a', 'Simulator'])
     execute(['xcrun', 'simctl', 'launch', '--terminate-running-process', device.udid, appId('ios')])
-    console.log(`WildLoop is open in Simulator on ${device.name}.`)
+    const server = JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8')).devServerURL
+    console.log(`WildLoop is open in Simulator on ${device.name}, ${server ? `loading ${server}` : 'running its bundled copy'}.`)
   }
   else {
     seedTestLocation('ios', device.udid)
@@ -447,7 +473,7 @@ function runIos(preview: boolean, signedInURL: string | null): void {
 }
 
 function usage(): never {
-  throw new Error('Usage: bun scripts/run-mobile-e2e.ts <ios|android> [--preview|--build-only|--skip-build]')
+  throw new Error('Usage: bun scripts/run-mobile-e2e.ts <ios|android> [--preview [--server=<url>]|--build-only|--skip-build]')
 }
 
 export function requestedPlatform(args: string[]): MobilePlatform {
@@ -466,11 +492,14 @@ if (import.meta.main) {
     if (preview && buildOnly) throw new Error('--preview and --build-only cannot be combined')
     if (!preview && !buildOnly) requireCommand('maestro')
 
-    const remoteURL = signedInTargetURL()
-    if (platform === 'android' && remoteURL)
-      throw new Error('The signed-in recording journey is currently available for iOS only.')
-    if (!skipBuild) buildGeneratedApp(platform, remoteURL)
-    if (!buildOnly) platform === 'ios' ? runIos(preview, remoteURL) : runAndroid(preview)
+    const signedInURL = signedInTargetURL()
+    const previewServer = previewServerURL(process.argv.slice(2))
+    if (previewServer && !preview) throw new Error('--server is for --preview; the E2E journeys pick their server with MOBILE_E2E_URL')
+    if (platform === 'android' && (signedInURL || previewServer))
+      throw new Error('Pointing the app at a server is currently available for iOS only.')
+    if (previewServer) await warnIfServerIsDown(previewServer)
+    if (!skipBuild) buildGeneratedApp(platform, previewServer ?? signedInURL)
+    if (!buildOnly) platform === 'ios' ? runIos(preview, signedInURL) : runAndroid(preview)
   }
   catch (error) {
     console.error(error instanceof Error ? error.message : error)

@@ -50,16 +50,27 @@ the Live Activity and Watch targets:
 Build, install, and open the current shared STX app for hands-on testing:
 
 ```bash
-./buddy preview:iphone
+bun run preview:ios:local       # Simulator, on this Mac's dev server (./buddy dev)
+bun run preview:ios:production  # Simulator, on wildloop.org (demos without a local server)
+./buddy preview:iphone          # connected iPhone, on wildloop.org
 ./buddy preview:iphone --bundled
 bun run preview:ios
 bun run preview:android
 ```
 
-`buddy preview:iphone` creates a Release device build, signs it, installs it on the
-single connected iPhone, and launches WildLoop. Use
-`--bundled` to test the exact local frontend and its
-offline behavior. The `preview:ios` command targets the iOS Simulator.
+Which server the app loads is fixed when it is built. `preview:ios:local`
+points the Simulator at `http://localhost:3000`, so start `./buddy dev` in a
+terminal first. `buddy preview:iphone` creates a Release device build, signs
+it, installs it on the single connected iPhone, and launches WildLoop. It
+always loads wildloop.org, whatever `MOBILE_URL` your shell has, because a
+phone cannot reach this Mac's localhost; `bun run preview:iphone
+--server=https://…` points it at another https server, such as a tunnel. Use
+`--bundled` to test the exact local frontend and its offline behavior. Plain
+`preview:ios` is the bundled, offline Simulator build.
+
+If the server is unreachable (a dev-server restart, a deploy, no signal), the
+app shows the copy of the site bundled with it and returns to the server by
+itself once the server answers.
 
 Run the same native iOS and Android journeys used in CI:
 

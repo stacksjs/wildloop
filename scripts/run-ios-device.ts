@@ -3,6 +3,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
 import mobileConfig from '../config/mobile'
+import { isLoopback, PRODUCTION_URL, resolveMobileServer, serverArgument } from './mobile-target'
 
 interface CoreDevice {
   identifier: string
@@ -27,7 +28,8 @@ const projectRoot = resolve(import.meta.dir, '..')
 const generatedRoot = join(projectRoot, 'storage/framework/mobile/ios')
 const runtimeRoot = join(projectRoot, 'storage/framework/runtime/ios-device')
 const bundleId = process.env.IOS_BUNDLE_ID ?? 'org.wildloop.app'
-const watchAppEnabled = mobileConfig.ios.capabilities?.watchApp === true
+// The config's literal type says `false` today; the check is for the day it is switched on.
+const watchAppEnabled = (mobileConfig.ios.capabilities as { watchApp?: boolean } | undefined)?.watchApp === true
 
 function normalizedEnvironment(extra: Record<string, string | undefined> = {}): Record<string, string> {
   const localBin = join(homedir(), '.local/bin')
@@ -115,14 +117,36 @@ function localSource(packageName: 'craft' | 'stx'): string | undefined {
   return existsSync(path) ? path : undefined
 }
 
-function generateProject(xcode: string, teamId: string, bundled: boolean): void {
+/**
+ * The server a phone build loads: wildloop.org, or an https `--server` (a
+ * tunnel to this Mac, say). Deliberately not MOBILE_URL from the shell: a
+ * Simulator session leaves that at localhost, and a phone built with it
+ * opened on a server it cannot reach.
+ */
+export function deviceServerURL(args: string[]): string {
+  return resolveMobileServer(serverArgument(args) ?? PRODUCTION_URL, 'device')
+}
+
+/** Refuse a built app that loads this Mac, whichever way it was generated. */
+export function assertDeviceServer(config: { devServerURL?: unknown }): void {
+  if (typeof config.devServerURL !== 'string') return
+  if (isLoopback(new URL(config.devServerURL)))
+    throw new Error(`This build loads ${config.devServerURL}, which an iPhone cannot reach. Rebuild without --skip-generate.`)
+}
+
+function generateProject(xcode: string, teamId: string, bundled: boolean, server: string): void {
   if (!Bun.which('xcodegen') && !existsSync(join(homedir(), '.local/bin/xcodegen'))) {
     throw new Error('XcodeGen is required. Install it with `brew install xcodegen` or place `xcodegen` in ~/.local/bin.')
   }
   const shared = {
     DEVELOPER_DIR: xcode,
     APPLE_TEAM_ID: teamId,
-    ...(bundled ? { MOBILE_E2E: '1' } : {}),
+    MOBILE_E2E: bundled ? '1' : '0',
+    MOBILE_URL: server,
+    // Signing with any team rewrote the tracked apple-app-site-association
+    // for that team, and a push to main deploys it: universal links for the
+    // real app would break. The file is only ever regenerated on purpose.
+    SKIP_MOBILE_ASSOCIATIONS: '1',
   }
   execute(['bun', 'run', 'build:frontend'], {
     env: { ...shared, STX_SOURCE_ROOT: process.env.STX_SOURCE_ROOT ?? localSource('stx') },
@@ -146,6 +170,8 @@ function validateApp(app: string, xcode: string, signed: boolean): void {
   for (const path of required) {
     if (!existsSync(path)) throw new Error(`Device build is incomplete: ${path}`)
   }
+
+  assertDeviceServer(JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8')))
 
   const architecture = execute(['file', join(app, 'WildLoop')], { capture: true })
   if (!architecture.includes('arm64')) throw new Error('Device build does not contain an arm64 executable')
@@ -192,13 +218,16 @@ function installAndLaunch(app: string, phone: IosPhone, xcode: string): void {
 
 if (import.meta.main) {
   try {
-    const args = new Set(process.argv.slice(2))
+    const argv = process.argv.slice(2)
+    const args = new Set(argv)
     const compileOnly = args.has('--compile-only')
     const buildOnly = args.has('--build-only') || compileOnly
+    const server = deviceServerURL(argv)
     const xcode = developerDir()
-    const teamId = requiresDevelopmentTeam([...args]) ? developmentTeam() : ''
+    const teamId = requiresDevelopmentTeam(argv) ? developmentTeam() : ''
     const phone = buildOnly ? null : availableIphone(xcode)
-    if (!args.has('--skip-generate')) generateProject(xcode, teamId, args.has('--bundled'))
+    if (!args.has('--skip-generate')) generateProject(xcode, teamId, args.has('--bundled'), server)
+    if (!args.has('--bundled')) console.log(`This iPhone build loads ${server}.`)
     const app = buildForDevice(xcode, teamId, phone, compileOnly)
     if (phone) installAndLaunch(app, phone, xcode)
     else console.log(`Validated iPhone build: ${app}`)
