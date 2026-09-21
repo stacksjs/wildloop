@@ -485,6 +485,14 @@
       },
       clearAuthenticatedUser() {
         this.currentUserId = 0
+        // What belonged to that account goes with it. Signing out left the
+        // feed saying "Following" on everyone the last athlete followed, and
+        // their saved hearts and unread badge in place for whoever came next.
+        this.following = []
+        this.savedTrailIds = []
+        this.notifications = []
+        this.captureSamples = {}
+        this.sessionXp = 0
       },
       provideServices(services: Partial<AppServices>) {
         Object.assign(appServices, services)

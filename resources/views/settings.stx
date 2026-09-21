@@ -21,7 +21,7 @@
 
 <script client>
   import { device, health, isNativeMobile, secureStorage } from '@stacksjs/mobile'
-  import { apiFetch, changePassword, deleteAccount, readyToken, redirectTo, token } from '../assets/scripts/auth'
+  import { apiFetch, changePassword, deleteAccount, readyToken, redirectTo, signOut, token } from '../assets/scripts/auth'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { disableNativePushNotifications, enableNativePushNotifications } from '../composables/useNativeServices'
   import { formatHealthSummary } from '../functions/health-summary'
@@ -201,6 +201,21 @@
     deleteError.set('')
   }
 
+  // Signing out lives here now, beside the rest of the account. The app has
+  // no site header, so this page is also the admin's way in on a phone.
+  const wl = useStore('wl')
+  const accountEmail = derived(() => wl?.currentUser()?.email || '')
+  const isAdmin = derived(() => Boolean(wl?.currentUser()?.roles?.includes('admin')))
+  const signingOut = state(false)
+
+  async function handleSignOut(): Promise<void> {
+    if (signingOut())
+      return
+    signingOut.set(true)
+    await signOut()
+    navigate('/')
+  }
+
   async function confirmDeleteAccount() {
     if (deleteWorking())
       return
@@ -370,8 +385,13 @@
 
 <div class="mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-3xl">
   <header class="mb-10">
+    <!-- The app has no header to go back with; the website has its nav. -->
+    <StxLink to="/profile" class="native-only mb-4 items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+      <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
+      Profile
+    </StxLink>
     <h1 class="font-bold text-3xl text-slate-900 dark:text-white tracking-tight">Settings</h1>
-    <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Connect a watch so your runs record themselves.</p>
+    <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Your privacy, password, connected devices and account.</p>
   </header>
 
   <div :if="error" role="alert" aria-live="assertive" class="flex gap-3 items-start mb-6 p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl dark:border-red-900">
@@ -571,6 +591,26 @@
     </div>
   </section>
 
+  <section class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
+      <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700/60" aria-hidden="true">
+        <i class="i-hugeicons-user-circle h-6 w-6 text-slate-600 dark:text-slate-300"></i>
+      </span>
+      <div class="min-w-0 flex-1">
+        <h2 class="font-semibold text-slate-900 dark:text-white">Account</h2>
+        <p :if="accountEmail" class="mt-1 truncate text-slate-500 text-sm dark:text-slate-400">Signed in as {{ accountEmail }}</p>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <button type="button" @click="handleSignOut()" x-disabled="signingOut" class="px-5 py-2.5 font-semibold text-sm text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">
+            {{ signingOut() ? 'Logging out…' : 'Log out' }}
+          </button>
+          <StxLink :if="isAdmin" to="/admin" class="px-5 py-2.5 font-semibold text-sm text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+            Admin
+          </StxLink>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Deleting the account (App Store 5.1.1(v)). What it removes is spelled
        out before anything can be pressed, and the password is asked for again:
        a phone left unlocked must not be enough. -->
@@ -605,5 +645,14 @@
       </div>
     </div>
   </section>
+
+  <!-- The site footer is hidden on phones, and in the app it is the only
+       other place these were linked from. The App Store wants the privacy
+       policy reachable inside the app. -->
+  <p class="mt-8 text-center text-xs text-slate-500 dark:text-slate-400">
+    <StxLink to="/privacy" class="hover:underline">Privacy Policy</StxLink>
+    <span aria-hidden="true">·</span>
+    <StxLink to="/terms" class="hover:underline">Terms of Service</StxLink>
+  </p>
 </div>
 @endsection

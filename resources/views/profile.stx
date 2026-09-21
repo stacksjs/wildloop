@@ -22,7 +22,7 @@
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
   import { fetchFollows } from '../assets/scripts/game-api'
-  import { initializeAuthSession, signOut } from '../assets/scripts/auth'
+  import { initializeAuthSession } from '../assets/scripts/auth'
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
   import { useSavedTrails } from '../composables/useSavedTrails'
 
@@ -57,11 +57,6 @@
   const myActivities = derived(() => wl ? wl.activities().filter((a: any) => a.user_id === wl.currentUserId()) : [])
   const achievements = derived(() => wl ? wl.achievements() : [])
   const savedTrails = derived(() => wl ? wl.trails().filter((t: any) => wl.isTrailSaved(t.id)) : [])
-
-  async function handleSignOut(): Promise<void> {
-    await signOut()
-    navigate('/')
-  }
 
   /**
    * Open the tab a link asked for.
@@ -119,7 +114,12 @@
 
     <!-- Profile header -->
     <div :if="currentUser" class="relative mb-6 card">
-      <button :if="currentUser" type="button" @click="handleSignOut()" class="absolute right-4 top-4 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Log out</button>
+      <!-- The app has no site header (native-shell.css), and the gear that
+           opened Settings lived in it: password, deletion and sign-out were
+           unreachable from the phone. The profile is where people look. -->
+      <StxLink to="/settings" aria-label="Settings" class="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-700">
+        <i class="i-lucide-settings h-5 w-5" aria-hidden="true"></i>
+      </StxLink>
       <div class="flex flex-col gap-6 items-center sm:flex-row">
         <div class="flex items-center justify-center h-24 w-24 font-bold text-3xl text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">{{ (currentUser?.name || 'U').charAt(0) }}</div>
         <div class="flex-1 text-center sm:text-left">
