@@ -70,6 +70,10 @@
   const nativePushAvailable = state(false)
   const nativePushEnabled = state(false)
   const nativePushWorking = state(false)
+  const nativePushError = state('')
+  // The switch moves the moment it is pressed and moves back if the change
+  // fails; waiting on the push registration left it looking ignored.
+  const nativePushSwitchOn = derived(() => (nativePushWorking() ? !nativePushEnabled() : nativePushEnabled()))
   const nativeHealthProvider = derived(() => device.isIOS() ? 'Apple Health' : 'Health Connect')
   const nativeHealthButtonLabel = derived(() => nativeHealthConnected() ? 'Refresh health summary' : `Connect ${nativeHealthProvider()}`)
 
@@ -265,9 +269,10 @@
   })
 
   async function toggleNativePush() {
+    if (nativePushWorking())
+      return
     nativePushWorking.set(true)
-    error.set('')
-    notice.set('')
+    nativePushError.set('')
     try {
       const enabled = nativePushEnabled()
         ? await disableNativePushNotifications()
@@ -276,10 +281,10 @@
         ? 'Could not turn off device notifications. Try again in a moment.'
         : 'Notifications were not enabled. Check your device settings and try again.')
       nativePushEnabled.set(!nativePushEnabled())
-      notice.set(nativePushEnabled() ? 'Device notifications are on.' : 'Device notifications are off.')
     }
     catch (err) {
-      error.set(err instanceof Error ? err.message : 'Could not update device notifications.')
+      // Next to the switch: the page-level banner is a screen away from it.
+      nativePushError.set(err instanceof Error ? err.message : 'Could not update device notifications.')
     }
     finally {
       nativePushWorking.set(false)
@@ -582,11 +587,36 @@
         <i class="i-hugeicons-notification-02 h-6 w-6 text-emerald-600 dark:text-emerald-300"></i>
       </span>
       <div class="min-w-0 flex-1">
-        <h2 class="font-semibold text-slate-900 dark:text-white">Device notifications</h2>
+        <!-- A switch, not a button: it takes effect at once, and a button
+             labelled with the opposite of the current state made people read
+             "Turn off" as the state. The padding is the tap target; the track
+             is the size of the system switch. -->
+        <div class="flex items-center justify-between gap-4">
+          <h2 id="device-notifications-title" class="font-semibold text-slate-900 dark:text-white">Device notifications</h2>
+          <button
+            type="button"
+            role="switch"
+            aria-labelledby="device-notifications-title"
+            x-aria-checked="nativePushSwitchOn() ? 'true' : 'false'"
+            x-aria-busy="nativePushWorking() ? 'true' : 'false'"
+            x-disabled="nativePushWorking"
+            @click="toggleNativePush()"
+            class="-m-1.5 shrink-0 rounded-full p-1.5 disabled:cursor-wait"
+          >
+            <span
+              x-class="nativePushSwitchOn() ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'"
+              class="flex h-[31px] w-[51px] items-center rounded-full p-[2px] transition-colors duration-200"
+              aria-hidden="true"
+            >
+              <span
+                x-class="nativePushSwitchOn() ? 'translate-x-[20px]' : 'translate-x-0'"
+                class="h-[27px] w-[27px] rounded-full bg-white shadow-md transition-transform duration-200"
+              ></span>
+            </span>
+          </button>
+        </div>
         <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Choose whether WildLoop can send activity, club and territory updates to this phone.</p>
-        <button type="button" @click="toggleNativePush()" x-disabled="nativePushWorking" class="mt-4 px-5 py-2.5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]">
-          {{ nativePushWorking ? 'Updating notifications' : nativePushEnabled ? 'Turn off notifications' : 'Turn on notifications' }}
-        </button>
+        <p :if="nativePushError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ nativePushError }}</p>
       </div>
     </div>
   </section>

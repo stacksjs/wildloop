@@ -22,7 +22,10 @@ describe('native push opt-in', () => {
   it('offers an explicit native Settings control', async () => {
     const settings = await Bun.file(new URL('resources/views/settings.stx', root)).text()
 
-    expect(settings).toContain('Turn on notifications')
-    expect(settings).toContain('Turn off notifications')
+    // A switch that says whether it is on, not a button labelled with the
+    // opposite of the current state.
+    expect(settings).toContain('role="switch"')
+    expect(settings).toContain('x-aria-checked="nativePushSwitchOn() ? \'true\' : \'false\'"')
+    expect(settings).toContain('@click="toggleNativePush()"')
   })
 })
