@@ -256,7 +256,7 @@ route.group({ prefix: '/commerce' }, () => {
   route.get('/manufacturers', 'Actions/Commerce/Product/ManufacturerIndexAction')
   route.get('/manufacturers/{id}', 'Actions/Commerce/Product/ManufacturerShowAction')
   route.post('/manufacturers', 'Actions/Commerce/Product/ManufacturerStoreAction')
-  route.patch('/manufacturers/{id}', 'Actions/Commerce/Product/ProductManufacturerUpdateAction')
+  route.patch('/manufacturers/{id}', 'Actions/Commerce/Product/ManufacturerUpdateAction')
   route.delete('/manufacturers/{id}', 'Actions/Commerce/Product/ManufacturerDestroyAction')
 
   // Orders
@@ -374,11 +374,10 @@ route.group({ prefix: '/shipping' }, () => {
   route.patch('/delivery-routes/{id}', 'Actions/Commerce/Shipping/DeliveryRouteUpdateAction')
   route.delete('/delivery-routes/{id}', 'Actions/Commerce/Shipping/DeliveryRouteDestroyAction')
 
-  // Drivers
-  route.get('/drivers', 'Actions/Commerce/Shipping/DriverIndexAction')
-  route.get('/drivers/{id}', 'Actions/Commerce/Shipping/DriverShowAction')
-  route.post('/drivers', 'Actions/Commerce/Shipping/DriverStoreAction')
-  route.patch('/drivers/{id}', 'Actions/Commerce/Shipping/DriverUpdateAction')
+  // No driver routes: @stacksjs/defaults ships Couriers and DeliveryRoutes but
+  // no Driver actions (still true in 0.74.51), so every /drivers request died
+  // in the router with "Cannot find module ... DriverStoreAction.ts" instead
+  // of answering 404. The route-actions test keeps this from coming back.
 
   // Digital Delivery
   route.get('/digital', 'Actions/Commerce/Shipping/DigitalDeliveryIndexAction')
