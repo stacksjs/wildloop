@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { nativeShellReady } from '../../resources/functions/native-shell-ready'
 
 const host = globalThis as typeof globalThis & {
+  CraftAndroid?: unknown
   craft?: unknown
   webkit?: { messageHandlers?: { craft?: unknown } }
 }
 
 afterEach(() => {
+  delete host.CraftAndroid
   delete host.craft
   delete host.webkit
 })
@@ -33,6 +35,14 @@ describe('native shell readiness', () => {
     globalThis.dispatchEvent(new Event('craftReady'))
 
     expect(await answer).toBe(true)
+  })
+
+  it('answers true straight away in the Android app, before its bridge installs', async () => {
+    // Android installs `craft` only when the page has finished loading, which
+    // on the landing page came after the timeout; its interface is there from
+    // the start.
+    host.CraftAndroid = {}
+    expect(await nativeShellReady(40)).toBe(true)
   })
 
   it('gives up rather than hanging when a host never finishes installing', async () => {

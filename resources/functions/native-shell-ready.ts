@@ -28,6 +28,19 @@ function hasCraftHost(): boolean {
   return Boolean(host.craft || host.CraftAndroid || host.webkit?.messageHandlers?.craft)
 }
 
+/**
+ * Craft's Android shell, which is conclusive on its own.
+ *
+ * Android adds the `CraftAndroid` interface before the page starts, but only
+ * installs `window.craft` once the page has finished loading, images and all.
+ * On a heavy page (the landing page) or a slow phone that was past the
+ * timeout below, so the app stayed on the website's landing page with the
+ * website's chrome. Only the app's WebView has this interface.
+ */
+function isAndroidShell(): boolean {
+  return typeof globalThis !== 'undefined' && Boolean((globalThis as typeof globalThis & { CraftAndroid?: unknown }).CraftAndroid)
+}
+
 /** The bridge, once it has finished installing. */
 function craftInstalled(): boolean {
   return typeof globalThis !== 'undefined' && Boolean((globalThis as typeof globalThis & { craft?: unknown }).craft)
@@ -44,7 +57,7 @@ export function nativeShellReady(timeoutMs = 2000): Promise<boolean> {
   if (!hasCraftHost())
     return Promise.resolve(false)
 
-  if (craftInstalled())
+  if (craftInstalled() || isAndroidShell())
     return Promise.resolve(true)
 
   return new Promise<boolean>((resolve) => {
