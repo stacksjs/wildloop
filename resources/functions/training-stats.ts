@@ -54,7 +54,7 @@ export interface TrainingStats {
 }
 
 /** `h:mm:ss` or `mm:ss` to seconds. Anything unparseable counts as nothing. */
-function durationSeconds(value: string | null | undefined): number {
+export function durationSeconds(value: string | null | undefined): number {
   if (typeof value !== 'string')
     return 0
   const parts = value.split(':').map(Number)

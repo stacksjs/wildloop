@@ -1,0 +1,186 @@
+@extends('layouts/default')
+
+@section('title', 'Achievements - WildLoop')
+
+@section('content')
+<script server>
+  useSeoMeta({
+    title: 'Achievements — WildLoop',
+    description: 'Your personal bests and your year on the trail.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
+<script client>
+  import { share } from '@stacksjs/mobile'
+  import { apiFetch, initializeAuthSession } from '../assets/scripts/auth'
+  import { openAuthGate } from '../composables/useAuthGate'
+  import { formatMiles, monthlyProgress, personalBests, shareText } from '../functions/personal-bests'
+
+  useHead({ title: 'Achievements — WildLoop' })
+
+  const wl = useStore('wl')
+  const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
+  const loading = state(true)
+  const failed = state(false)
+  const records = state<any[]>([])
+  const months = state<any[]>([])
+  const active = state(0)
+  const shareNote = state('')
+  const year = new Date().getFullYear()
+  const thisMonth = new Date().getMonth()
+
+  // One colour per card, the way the badge sets the mood of the screen. The
+  // last one belongs to the "Want more?" card.
+  const SLIDES = [
+    { bg: 'bg-[#e6d8c3]', text: 'text-stone-800', button: 'bg-[#f7efe3] text-stone-800' },
+    { bg: 'bg-[#a7b3a6]', text: 'text-white', button: 'bg-[#eef1ec] text-stone-800' },
+    { bg: 'bg-[#a68a68]', text: 'text-white', button: 'bg-[#f1e7da] text-stone-800' },
+  ]
+  const LAST_SLIDE = { bg: 'bg-[#555a52]', text: 'text-white', button: 'bg-[#e9ebe6] text-stone-800' }
+  const ICONS: Record<string, string> = {
+    distance: 'i-hugeicons-route-01',
+    time: 'i-hugeicons-sun-03',
+    elevation: 'i-hugeicons-mountain',
+  }
+  // Each record gets its own badge outline, so the carousel reads as a set.
+  const SHAPES: Record<string, string> = {
+    // A turned square is wider across its corners, so it starts smaller.
+    distance: 'h-36 w-36 rounded-[30%] rotate-45',
+    time: 'h-44 w-44 rounded-full',
+    elevation: 'h-44 w-44 rounded-[46%_46%_50%_50%/30%_30%_70%_70%]',
+  }
+
+  const slide = derived(() => SLIDES[active()] ?? LAST_SLIDE)
+  const maxMiles = derived(() => Math.max(1, ...months().map((m: any) => m.miles)))
+  // Imported helpers are not in scope in the markup, so the labels are built here.
+  const yearLabel = derived(() => formatMiles(months().reduce((sum: number, m: any) => sum + m.miles, 0)))
+  const maxLabel = derived(() => formatMiles(maxMiles()))
+
+  function iconFor(record: any): string {
+    return ICONS[record.key] ?? 'i-hugeicons-award-01'
+  }
+
+  function shapeFor(record: any): string {
+    return SHAPES[record.key] ?? 'h-44 w-44 rounded-full'
+  }
+
+  /** The diamond is a turned square; its icon turns back. */
+  function iconTurn(record: any): string {
+    return record.key === 'distance' ? '-rotate-45' : ''
+  }
+
+  function barHeight(month: any): string {
+    return `${Math.max(month.miles > 0 ? 4 : 0, Math.round((month.miles / maxMiles()) * 100))}%`
+  }
+
+  function onCarouselScroll(event: any): void {
+    const el = event.target
+    if (el?.clientWidth)
+      active.set(Math.round(el.scrollLeft / el.clientWidth))
+  }
+
+  function openLogin(): void {
+    openAuthGate('Sign in to see your achievements.', 'login')
+  }
+
+  async function shareRecord(record: any): Promise<void> {
+    shareNote.set('')
+    try {
+      await share.share({
+        title: record.label,
+        text: shareText(record),
+        url: `https://wildloop.org/activity/${record.activityId}`,
+      })
+    }
+    catch {
+      shareNote.set('Sharing is not available on this device.')
+    }
+  }
+
+  onMount(async () => {
+    await initializeAuthSession()
+    const userId = wl?.currentUserId() ?? 0
+    if (userId <= 0) {
+      loading.set(false)
+      return
+    }
+    try {
+      const response = await apiFetch(`/api/activities?user_id=${userId}&limit=500`)
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.success)
+        throw new Error('activities')
+      const mine = (payload.activities ?? []).filter((a: any) => a.userId === userId)
+      records.set(personalBests(mine))
+      months.set(monthlyProgress(mine, year))
+    }
+    catch {
+      failed.set(true)
+    }
+    finally {
+      loading.set(false)
+    }
+  })
+</script>
+
+<div x-class="slide().bg + ' ' + slide().text" class="relative -mb-8 min-h-[34rem] overflow-hidden pb-16 transition-colors duration-500">
+  <StxLink to="/profile" aria-label="Back to profile" x-class="slide().button" class="absolute left-4 top-4 z-10 grid h-12 w-14 place-items-center rounded-full shadow-lg shadow-black/10 transition active:scale-95">
+    <i class="i-hugeicons-arrow-left-01 h-6 w-6" aria-hidden="true"></i>
+  </StxLink>
+  <h1 class="pt-20 text-center font-display text-3xl font-semibold tracking-tight">Achievements</h1>
+
+  <div :if="!signedIn" class="mx-auto max-w-sm px-6 pt-16 text-center">
+    <p class="opacity-80">Your personal bests and your year on the trail live here.</p>
+    <button type="button" @click="openLogin()" x-class="slide().button" class="mt-6 min-h-11 rounded-full px-6 text-sm font-semibold shadow-sm transition active:scale-[0.98]">Log in</button>
+  </div>
+
+  <p :if="signedIn && loading" class="pt-24 text-center opacity-70">Loading your records…</p>
+  <p :if="signedIn && failed" role="alert" class="pt-24 text-center opacity-80">Your records could not be loaded. Check your connection and try again.</p>
+
+  <!-- Swipe between records. Scroll-snap does the paging; the scroll position
+       picks the colour. -->
+  <div :if="signedIn && !loading && !failed" @scroll="onCarouselScroll($event)" class="mt-10 flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none]">
+    <template :for="record in records">
+      <section class="flex w-full shrink-0 snap-center flex-col items-center px-8">
+        <div class="grid h-52 place-items-center"><div x-class="shapeFor(record)" class="grid place-items-center bg-[#f7f5ec] shadow-xl shadow-black/15">
+          <i x-class="iconFor(record) + ' ' + iconTurn(record)" class="h-20 w-20 text-stone-900" aria-hidden="true"></i>
+        </div></div>
+        <p class="mt-10 text-sm font-medium opacity-90">{{ record.label }}</p>
+        <p class="mt-1 font-display text-5xl font-semibold tracking-tight">{{ record.value }}</p>
+        <button type="button" @click="shareRecord(record)" x-class="slide().button" class="mt-6 min-h-11 rounded-full px-6 text-sm font-semibold shadow-sm transition active:scale-[0.98]">Share</button>
+      </section>
+    </template>
+    <section class="flex w-full shrink-0 snap-center flex-col items-center px-8">
+      <StxLink to="/record" aria-label="Record an activity" class="grid h-44 w-44 place-items-center rounded-full bg-[#f7f5ec] shadow-xl shadow-black/15 transition active:scale-95">
+        <i class="i-hugeicons-plus-sign h-16 w-16 text-stone-900" aria-hidden="true"></i>
+      </StxLink>
+      <p class="mt-10 text-sm font-medium opacity-90">{{ records().length ? 'That\'s all for now' : 'No records yet' }}</p>
+      <p class="mt-1 font-display text-4xl font-semibold tracking-tight">{{ records().length ? 'Want more?' : 'Go set one' }}</p>
+    </section>
+  </div>
+  <p :if="shareNote" role="status" class="mt-4 text-center text-sm opacity-80">{{ shareNote }}</p>
+</div>
+
+<!-- The year so far, on a sheet that rises over the carousel. -->
+<section :if="signedIn && !loading && !failed" class="relative rounded-t-[2.5rem] bg-white px-6 pb-10 pt-10 dark:bg-slate-900">
+  <h2 class="font-display text-3xl font-semibold tracking-tight text-slate-500 dark:text-slate-400">Progress</h2>
+  <p class="font-display text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ year }}</p>
+  <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ yearLabel }} this year</p>
+
+  <div class="relative mt-8 h-48 border-y border-dashed border-slate-200 dark:border-slate-700">
+    <span class="absolute right-0 -top-6 text-xs text-slate-500 dark:text-slate-400">{{ maxLabel }}</span>
+    <div class="flex h-full items-end gap-2">
+      <template :for="month in months">
+        <div class="flex h-full flex-1 items-end">
+          <div x-class="month.month === thisMonth ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'" class="w-full rounded-full transition-all" x-style="'height: ' + barHeight(month)"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+  <div class="mt-2 flex gap-2">
+    <template :for="month in months">
+      <span x-class="month.month === thisMonth ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-400'" class="flex-1 text-center text-xs">{{ month.label }}</span>
+    </template>
+  </div>
+</section>
+@endsection
