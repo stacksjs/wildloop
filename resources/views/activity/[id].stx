@@ -24,6 +24,35 @@
   // Edit, Export GPX, Delete and Report live behind one button, so the header
   // is the athlete and the run rather than a row of outlined pills.
   const actionsOpen = state(false)
+  const sheetClosing = state(false)
+  // The tab bar comes back where the sheet was, under the same finger, and the
+  // tap that closed the sheet then landed on the Feed tab. It stays away a
+  // moment longer than the sheet.
+  function dismissSheet(): void {
+    actionsOpen.set(false)
+    sheetClosing.set(true)
+    setTimeout(() => sheetClosing.set(false), 450)
+  }
+  function closeActions(): void {
+    dismissSheet()
+    if (confirmingDelete())
+      cancelDelete()
+  }
+  function editFromMenu(): void {
+    dismissSheet()
+    if (editing())
+      closeEditor()
+    else
+      openEditor(activity())
+  }
+  function exportFromMenu(): void {
+    dismissSheet()
+    downloadGpxFile(activity().title, activityRoute())
+  }
+  function reportFromMenu(): void {
+    dismissSheet()
+    reportOpen.set(true)
+  }
   const commentEmpty = derived(() => !String(newComment() ?? '').trim())
   const reportReason = state('unsafe')
   const reportMessage = state<string | null>(null)
@@ -188,29 +217,57 @@
             </p>
           </div>
         </div>
-        <button @click="actionsOpen.set(!actionsOpen())" aria-label="More actions" x-aria-expanded="actionsOpen() ? 'true' : 'false'" class="-mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-700">
+        <button @click="actionsOpen.set(true)" aria-label="More actions" aria-haspopup="dialog" x-aria-expanded="actionsOpen() ? 'true' : 'false'" class="-mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-500 transition active:scale-95 active:bg-gray-100 dark:text-slate-400 dark:active:bg-slate-700">
           <i class="i-lucide-ellipsis h-5 w-5" aria-hidden="true"></i>
         </button>
       </div>
 
-      <div :if="actionsOpen" class="mb-5 flex flex-wrap items-center gap-2">
-        <div :if="isOwner" class="flex flex-wrap items-center gap-2">
-          <button :if="activityRoute.length > 1" @click="downloadGpxFile(activity.title, activityRoute())" class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-600 transition">Export GPX</button>
-          <button
-            @click="editing ? closeEditor() : openEditor(activity)"
-            class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-600 transition"
->{{ editing ? 'Close' : 'Edit' }}</button>
-          <button
-            :if="confirmingDelete"
-            @click="cancelDelete()"
-            class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 transition">Keep it</button>
-          <button
-            @click="deleteRun(activity)"
-            x-class="confirmingDelete ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 dark:border-slate-600 text-red-500 hover:border-red-400'"
-            class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition"
->{{ confirmingDelete ? 'Confirm delete' : 'Delete' }}</button>
+      <!-- Action sheet, the way Facebook and Instagram answer a "..." on a
+           post: it rises from the bottom, within reach of a thumb, with the
+           actions in grouped cards. A tap on the dimmed page closes it. -->
+      <div :if="sheetClosing" data-covers-tab-bar hidden></div>
+      <div :if="actionsOpen" data-covers-tab-bar class="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Activity actions">
+        <div @click="closeActions()" class="action-sheet-backdrop absolute inset-0 bg-black/50"></div>
+        <div class="action-sheet absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-4 pt-3 shadow-2xl dark:bg-slate-900 sm:bottom-4 sm:mx-auto sm:max-w-md sm:rounded-3xl" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem)">
+          <button @click="closeActions()" aria-label="Close" class="mx-auto mb-3 block h-1.5 w-11 rounded-full bg-gray-300 dark:bg-slate-600"></button>
+
+          <div class="overflow-hidden rounded-2xl bg-gray-100 dark:bg-slate-800">
+            <button :if="isOwner" @click="editFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+              <i class="i-lucide-pencil h-6 w-6" aria-hidden="true"></i>
+              {{ editing ? 'Close editor' : 'Edit activity' }}
+            </button>
+            <button :if="isOwner && activityRoute.length > 1" @click="exportFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+              <i class="i-lucide-download h-6 w-6" aria-hidden="true"></i>
+              Export GPX
+            </button>
+            <StxLink :if="!isOwner" x-to="'/athlete/' + activity.user_id" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+              <i class="i-lucide-circle-user h-6 w-6" aria-hidden="true"></i>
+              {{ 'View ' + activity.userName }}
+            </StxLink>
+            <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+              <i class="i-lucide-map h-6 w-6" aria-hidden="true"></i>
+              View trail
+            </StxLink>
+          </div>
+
+          <div class="mt-3 overflow-hidden rounded-2xl bg-gray-100 dark:bg-slate-800">
+            <button :if="isOwner && !confirmingDelete" @click="deleteRun(activity)" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-red-600 dark:text-red-400">
+              <i class="i-lucide-trash-2 h-6 w-6" aria-hidden="true"></i>
+              Delete activity
+            </button>
+            <div :if="isOwner && confirmingDelete" class="p-4">
+              <p class="mb-3 text-sm text-gray-600 dark:text-slate-300">Delete this activity with its kudos and comments? Territory you captured stays yours.</p>
+              <div class="flex gap-2">
+                <button @click="deleteRun(activity)" class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white active:scale-[0.98]">Delete</button>
+                <button @click="cancelDelete()" class="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-700 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-200">Keep it</button>
+              </div>
+            </div>
+            <button :if="!isOwner" @click="reportFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+              <i class="i-lucide-message-square-warning h-6 w-6" aria-hidden="true"></i>
+              Report activity
+            </button>
+          </div>
         </div>
-        <button :if="!isOwner" @click="reportOpen.set(!reportOpen())" class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-slate-600 text-gray-500 dark:text-slate-400 hover:text-red-500 transition">Report</button>
       </div>
 
       <div :if="reportOpen && !isOwner" class="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 p-3">
@@ -383,7 +440,7 @@
         </button>
         <span class="flex items-center gap-2 text-gray-500">
           <Icon name="message-circle" size="18" />
-          <span class="font-medium">{{ comments.length + ' Comments' }}</span>
+          <span class="font-medium">{{ comments.length === 1 ? '1 Comment' : comments.length + ' Comments' }}</span>
         </span>
       </div>
     </div>
@@ -456,4 +513,13 @@
     <p class="text-gray-500 font-medium">Activity not found</p>
     <StxLink to="/feed" class="inline-block mt-4 px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Back to Feed</StxLink>
   </div>
+<style>
+  @keyframes action-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes action-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+  .action-sheet { animation: action-sheet-up 0.24s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .action-sheet-backdrop { animation: action-sheet-fade 0.2s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .action-sheet, .action-sheet-backdrop { animation: none; }
+  }
+</style>
 @endsection

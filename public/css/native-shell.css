@@ -125,6 +125,12 @@
   height: 100%;
 }
 
+/* A sheet or modal inside the page cannot rise above the tab bar: the router
+ * gives <main> a view-transition-name, which makes it a stacking context of
+ * its own, so no z-index inside it clears the bar. An overlay marks itself
+ * with data-covers-tab-bar instead, and the bar steps aside while it is open. */
+.native-app-shell:has([data-covers-tab-bar]) .native-app-tab-slot { display: none; }
+
 .native-tab-bar {
   display: grid;
   grid-auto-flow: column;
