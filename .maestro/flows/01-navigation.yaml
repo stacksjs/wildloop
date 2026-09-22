@@ -11,9 +11,12 @@ tags:
 # The app opens on the Feed. The landing page hands a native shell straight
 # to /feed (index.stx), so its hero is never on screen long enough to assert;
 # waiting for it passed or failed on timing.
+# 90s, not 30s: a cold CI Simulator spent 33s in launchApp and then longer
+# than 30s before the WebView painted, twice in a row (22 Sep 2026), while the
+# same build passed locally in 38s. The wait returns as soon as the Feed shows.
 - extendedWaitUntil:
     visible: Runs, kudos and turf changing hands.
-    timeout: 30000
+    timeout: 90000
 - takeScreenshot: launch
 - tapOn: "^Feed$"
 - extendedWaitUntil:

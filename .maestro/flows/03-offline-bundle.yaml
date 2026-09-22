@@ -16,7 +16,7 @@ onFlowComplete:
 # waiting for it passed or failed on timing.
 - extendedWaitUntil:
     visible: Runs, kudos and turf changing hands.
-    timeout: 30000
+    timeout: 90000
 - tapOn: "^Record$"
 - assertVisible: "Close a loop.*"
 - assertNotVisible: "would like to use your current location"

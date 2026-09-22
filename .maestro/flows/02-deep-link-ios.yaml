@@ -29,7 +29,7 @@ tags:
 - tapOn: "^Feed$"
 - extendedWaitUntil:
     visible: Runs, kudos and turf changing hands.
-    timeout: 30000
+    timeout: 90000
 - tapOn: "^Record$"
 - extendedWaitUntil:
     visible: "Close a loop.*"
