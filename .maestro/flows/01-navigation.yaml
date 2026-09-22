@@ -17,7 +17,7 @@ tags:
 - takeScreenshot: launch
 - tapOn: "^Feed$"
 - extendedWaitUntil:
-    visible: Log activity
+    visible: "^Everyone$"
     timeout: 30000
 - takeScreenshot: feed
 # Trails lives in the Menu, with everything past the feed and recording.
