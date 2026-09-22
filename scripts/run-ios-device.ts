@@ -1,3 +1,4 @@
+import { X509Certificate } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -73,9 +74,30 @@ function developerDir(): string {
   return match
 }
 
-export function inferDevelopmentTeam(identityOutput: string): string | null {
-  const teams = new Set([...identityOutput.matchAll(/Apple Development:.*\(([A-Z0-9]{10})\)/g)].map(match => match[1]))
+/**
+ * The one team the Apple Development certificates on this Mac sign for.
+ *
+ * The team is the certificate subject's OU. The ten characters in brackets in
+ * the certificate's name are the developer's own ID, not the team: Chris's
+ * certificate reads "Apple Development: Chris Breuer (DXBQ84FJL4)" while his
+ * team is 3JJRNQW6B7. Reading the name signed builds for a team no account
+ * has, and put that ID into wildloop.org's apple-app-site-association.
+ */
+export function inferDevelopmentTeam(subjects: string[]): string | null {
+  const teams = new Set(subjects
+    .filter(subject => /CN=Apple Development:/.test(subject))
+    .map(subject => subject.match(/(?:^|[\n,]\s*)OU=([A-Z0-9]{10})(?:$|[\n,])/)?.[1])
+    .filter((team): team is string => !!team))
   return teams.size === 1 ? [...teams][0] : null
+}
+
+function developmentCertificateSubjects(): string[] {
+  const pems = execute(['/usr/bin/security', 'find-certificate', '-a', '-c', 'Apple Development', '-p'], { capture: true })
+  const now = Date.now()
+  return (pems.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) ?? [])
+    .map(pem => new X509Certificate(pem))
+    .filter(certificate => Date.parse(certificate.validTo) > now)
+    .map(certificate => certificate.subject)
 }
 
 export function requiresDevelopmentTeam(args: string[]): boolean {
@@ -84,9 +106,8 @@ export function requiresDevelopmentTeam(args: string[]): boolean {
 
 function developmentTeam(): string {
   if (process.env.APPLE_TEAM_ID) return process.env.APPLE_TEAM_ID
-  const identities = execute(['/usr/bin/security', 'find-identity', '-v', '-p', 'codesigning'], { capture: true })
-  const inferred = inferDevelopmentTeam(identities)
-  if (!inferred) throw new Error('Set APPLE_TEAM_ID to the 10-character team ID used for iOS development signing.')
+  const inferred = inferDevelopmentTeam(developmentCertificateSubjects())
+  if (!inferred) throw new Error('Set APPLE_TEAM_ID to the 10-character team ID used for iOS development signing (the OU of its Apple Development certificate, not the ID in the certificate name).')
   return inferred
 }
 
@@ -201,7 +222,10 @@ function buildForDevice(xcode: string, teamId: string, phone: IosPhone | null, u
     '-configuration', configuration, '-destination', destination, '-derivedDataPath', runtimeRoot,
   ]
   if (unsigned) args.push('CODE_SIGNING_ALLOWED=NO')
-  else args.push('-allowProvisioningUpdates', `DEVELOPMENT_TEAM=${teamId}`, 'CODE_SIGN_STYLE=Automatic')
+  // Device registration is its own opt-in on the command line. A free team
+  // registers the phone without it; a paid team refuses the profile with
+  // "Device ... isn't registered in your developer account".
+  else args.push('-allowProvisioningUpdates', '-allowProvisioningDeviceRegistration', `DEVELOPMENT_TEAM=${teamId}`, 'CODE_SIGN_STYLE=Automatic')
   args.push('build')
 
   try {

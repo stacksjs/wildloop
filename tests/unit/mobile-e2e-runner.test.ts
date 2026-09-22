@@ -90,8 +90,14 @@ describe('mobile E2E runner', () => {
   })
 
   it('infers an unambiguous Apple development team', () => {
-    expect(inferDevelopmentTeam('1) ABC "Apple Development: Chris (DXBQ84FJL4)"')).toBe('DXBQ84FJL4')
-    expect(inferDevelopmentTeam('0 valid identities found')).toBeNull()
+    // Subjects as node:crypto prints them. The ID in the name is the
+    // developer's; the team is the OU.
+    const chris = 'UID=5658SJYV24\nCN=Apple Development: Chris Breuer (DXBQ84FJL4)\nOU=3JJRNQW6B7\nO=Chris Breuer\nC=US'
+    const glenn = 'UID=5JUH3254UW\nCN=Apple Development: gtorregosa@gmail.com (2NLTBJ638X)\nOU=5H3W32DRGW\nO=Glenn Michael Torregosa\nC=US'
+    expect(inferDevelopmentTeam([chris])).toBe('3JJRNQW6B7')
+    expect(inferDevelopmentTeam([chris, chris])).toBe('3JJRNQW6B7')
+    expect(inferDevelopmentTeam([chris, glenn])).toBeNull()
+    expect(inferDevelopmentTeam([])).toBeNull()
   })
 
   it('does not require a signing team for an explicitly unsigned compile', () => {
