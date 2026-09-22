@@ -17,4 +17,8 @@ describe('the tab bar highlight', () => {
     for (const path of ['/menu', '/trails', '/trail/4', '/territories', '/achievements', '/settings', '/profile', '/clubs', '/recordings'])
       expect(activeTabFor(path)).toBe('/menu')
   })
+
+  it('lights nothing on Search, which belongs to no tab', () => {
+    expect(activeTabFor('/search')).toBeNull()
+  })
 })

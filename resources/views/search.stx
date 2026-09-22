@@ -1,0 +1,195 @@
+@extends('layouts/default')
+
+@section('title', 'Search - WildLoop')
+
+@section('content')
+<script server>
+  useSeoMeta({
+    title: 'Search — WildLoop',
+    description: 'Search trails, places and athletes on WildLoop.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
+<script client>
+  import { apiFetch } from '../assets/scripts/auth'
+  import { groupSearchResults } from '../functions/search-results'
+
+  useHead({ title: 'Search — WildLoop' })
+
+  // One box for everything the app can find: places and regions, trails, and
+  // athletes. The top bar's search opens this; before, it went to the trail
+  // catalog, which cannot find a person.
+  const query = state('')
+  const loading = state(false)
+  const failed = state(false)
+  const places = state<any[]>([])
+  const trails = state<any[]>([])
+  const athletes = state<any[]>([])
+  const searched = state('')
+
+  const hasQuery = derived(() => query().trim().length >= 2)
+  const nothingFound = derived(() => hasQuery() && !loading() && !failed() && searched() === query().trim()
+    && places().length + trails().length + athletes().length === 0)
+  const allTrailsHref = derived(() => `/trails?q=${encodeURIComponent(query().trim())}`)
+  const allTrailsLabel = derived(() => `See all trails matching “${query().trim()}”`)
+  const nothingLabel = derived(() => `Nothing matches “${query().trim()}” yet.`)
+
+  const QUICK_LINKS = [
+    { label: 'Trails near me', href: '/trails?near=me', icon: 'i-lucide-locate-fixed' },
+    { label: 'Find athletes', href: '/athletes', icon: 'i-lucide-user-search' },
+    { label: 'Clubs', href: '/clubs', icon: 'i-lucide-users' },
+    { label: 'Events', href: '/events', icon: 'i-lucide-calendar-days' },
+  ]
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let latest = 0
+
+  async function runSearch(text: string): Promise<void> {
+    const ticket = ++latest
+    loading.set(true)
+    failed.set(false)
+    try {
+      const encoded = encodeURIComponent(text)
+      const [suggest, people] = await Promise.all([
+        apiFetch(`/api/search/suggest?q=${encoded}`).then(r => r.json()).catch(() => null),
+        apiFetch(`/api/users/search?q=${encoded}&limit=8`).then(r => r.json()).catch(() => null),
+      ])
+      // A slower answer to an older query must not replace a newer one.
+      if (ticket !== latest)
+        return
+      if (!suggest && !people)
+        throw new Error('search')
+      const grouped = groupSearchResults(suggest?.suggestions ?? [], people?.athletes ?? [])
+      places.set(grouped.places)
+      trails.set(grouped.trails)
+      athletes.set(grouped.athletes)
+      searched.set(text)
+    }
+    catch {
+      if (ticket === latest)
+        failed.set(true)
+    }
+    finally {
+      if (ticket === latest)
+        loading.set(false)
+    }
+  }
+
+  function onInput(event: any): void {
+    const text = String(event?.target?.value ?? '')
+    query.set(text)
+    clearTimeout(timer)
+    const trimmed = text.trim()
+    if (trimmed.length < 2) {
+      latest++
+      loading.set(false)
+      places.set([])
+      trails.set([])
+      athletes.set([])
+      return
+    }
+    // Wait for a pause in typing rather than asking on every key.
+    timer = setTimeout(() => void runSearch(trimmed), 250)
+  }
+
+  function clearQuery(): void {
+    onInput({ target: { value: '' } })
+  }
+</script>
+
+<div class="mx-auto max-w-2xl px-4 pb-10 pt-4">
+  <div class="flex items-center gap-2">
+    <StxLink to="/feed" aria-label="Back" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300">
+      <i class="i-lucide-chevron-left h-6 w-6" aria-hidden="true"></i>
+    </StxLink>
+    <label class="relative flex-1">
+      <span class="sr-only">Search WildLoop</span>
+      <i class="i-lucide-search pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true"></i>
+      <input
+        type="search"
+        autofocus
+        enterkeyhint="search"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="Trails, places, athletes"
+        x-value="query"
+        @input="onInput($event)"
+        class="h-12 w-full rounded-full border border-slate-200 bg-white pl-12 pr-11 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+      />
+      <button :if="query" type="button" @click="clearQuery()" aria-label="Clear search" class="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition active:scale-95">
+        <i class="i-lucide-x h-4 w-4" aria-hidden="true"></i>
+      </button>
+    </label>
+  </div>
+
+  <!-- Before a query: somewhere useful to start. -->
+  <section :if="!hasQuery" class="mt-8">
+    <h2 class="mb-3 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Start here</h2>
+    <div class="grid grid-cols-2 gap-3">
+      <template :for="link in QUICK_LINKS">
+        <StxLink x-to="link.href" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800">
+          <i x-class="link.icon" class="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+          <span class="font-semibold text-slate-900 dark:text-white">{{ link.label }}</span>
+        </StxLink>
+      </template>
+    </div>
+  </section>
+
+  <p :if="hasQuery && loading" class="mt-8 px-1 text-sm text-slate-500 dark:text-slate-400">Searching…</p>
+  <p :if="hasQuery && failed" role="alert" class="mt-8 px-1 text-sm text-red-600 dark:text-red-400">Search is not reachable right now. Check your connection and try again.</p>
+  <p :if="nothingFound" class="mt-8 px-1 text-sm text-slate-500 dark:text-slate-400">{{ nothingLabel }}</p>
+
+  <section :if="hasQuery && places().length > 0" class="mt-8">
+    <h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Places</h2>
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <template :for="place in places">
+        <StxLink x-to="place.href" class="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 transition active:bg-slate-50 dark:border-slate-700 dark:active:bg-slate-700/50">
+          <i class="i-lucide-map-pin h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-medium text-slate-900 dark:text-white">{{ place.label }}</span>
+            <span class="block truncate text-sm text-slate-500 dark:text-slate-400">{{ place.detail }}</span>
+          </span>
+        </StxLink>
+      </template>
+    </div>
+  </section>
+
+  <section :if="hasQuery && trails().length > 0" class="mt-6">
+    <h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Trails</h2>
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <template :for="trail in trails">
+        <StxLink x-to="trail.href" class="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 transition active:bg-slate-50 dark:border-slate-700 dark:active:bg-slate-700/50">
+          <i class="i-lucide-map h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-medium text-slate-900 dark:text-white">{{ trail.label }}</span>
+            <span class="block truncate text-sm text-slate-500 dark:text-slate-400">{{ trail.detail }}</span>
+          </span>
+        </StxLink>
+      </template>
+    </div>
+  </section>
+
+  <section :if="hasQuery && athletes().length > 0" class="mt-6">
+    <h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Athletes</h2>
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <template :for="athlete in athletes">
+        <StxLink x-to="athlete.href" class="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 transition active:bg-slate-50 dark:border-slate-700 dark:active:bg-slate-700/50">
+          <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ athlete.initial }}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-medium text-slate-900 dark:text-white">{{ athlete.label }}</span>
+            <span class="block truncate text-sm text-slate-500 dark:text-slate-400">{{ athlete.detail }}</span>
+          </span>
+        </StxLink>
+      </template>
+    </div>
+  </section>
+
+  <StxLink :if="hasQuery && !loading" x-to="allTrailsHref()" class="mt-6 flex min-h-12 items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-emerald-700 transition active:scale-[0.98] dark:border-slate-700 dark:text-emerald-300">
+    <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
+    {{ allTrailsLabel }}
+  </StxLink>
+</div>
+@endsection

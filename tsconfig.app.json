@@ -72,7 +72,8 @@
     "tests/unit/keychain-session.test.ts",
     "tests/unit/mobile-target.test.ts",
     "tests/unit/personal-bests.test.ts",
-    "tests/unit/native-tabs.test.ts"
+    "tests/unit/native-tabs.test.ts",
+    "tests/unit/search-results.test.ts"
   ],
   "exclude": [
     "cloud/**",

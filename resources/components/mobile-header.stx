@@ -29,7 +29,7 @@ function tap(): void {
   </a>
 
   <div class="flex items-center gap-1">
-    <a href="/trails" aria-label="Search trails" class="grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()">
+    <a href="/search" aria-label="Search" class="grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()">
       <i class="i-lucide-search h-5 w-5" aria-hidden="true"></i>
     </a>
     <!-- The app signs people in from the Menu; a Log in / Sign up pair in its
