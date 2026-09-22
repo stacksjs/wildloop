@@ -1,6 +1,10 @@
 import type { MobileConfig } from '@stacksjs/types/mobile'
 
 const envVars = typeof Bun !== 'undefined' ? Bun.env : process.env
+// A free (personal) Apple team cannot sign Associated Domains or Push
+// Notifications; Xcode refuses the whole profile. A sideload with one
+// (`preview:iphone --personal-team`) leaves both out.
+const personalTeam = envVars.IOS_PERSONAL_TEAM === '1'
 const mobileContent = envVars.MOBILE_E2E === '1'
   ? { webAssets: 'dist' }
   : {
@@ -19,7 +23,7 @@ export default {
     teamId: envVars.APPLE_TEAM_ID,
     ...mobileContent,
     trustedOrigins: ['https://wildloop.org'],
-    associatedDomains: ['applinks:wildloop.org'],
+    associatedDomains: personalTeam ? [] : ['applinks:wildloop.org'],
     appIcon: 'public/images/app/wildloop-app-icon.png',
     backgroundColor: '#003c2f',
     darkMode: true,
@@ -63,7 +67,7 @@ export default {
       watchApp: false,
       localDatabase: true,
       orientationLock: true,
-      pushNotifications: true,
+      pushNotifications: !personalTeam,
       secureStorage: true,
       share: true,
     },

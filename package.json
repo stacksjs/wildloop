@@ -92,6 +92,7 @@
     "test": "./buddy test",
     "preview:android": "bun scripts/run-mobile-e2e.ts android --preview",
     "preview:iphone": "bun scripts/run-ios-device.ts",
+    "preview:iphone:personal": "bun scripts/run-ios-device.ts --personal-team",
     "preview:iphone:bundled": "bun scripts/run-ios-device.ts --bundled",
     "preview:ios": "bun scripts/run-mobile-e2e.ts ios --preview",
     "preview:ios:local": "bun scripts/run-mobile-e2e.ts ios --preview --server=http://localhost:3000",
