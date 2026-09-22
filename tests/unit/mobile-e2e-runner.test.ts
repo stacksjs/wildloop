@@ -14,7 +14,6 @@ function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
     '</header>',
     '<div class="native-tab-visibility"><nav class="native-tab-bar">',
     `<a href="/feed" class="native-tab-item" ${intercepted}>`,
-    '<a href="/trails" class="native-tab-item">',
     '<a href="/record" class="native-tab-item">',
     '<a href="/menu" class="native-tab-item">',
     '</nav></div>',

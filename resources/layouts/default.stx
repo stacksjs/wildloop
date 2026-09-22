@@ -39,7 +39,6 @@
     <div class="native-tab-visibility">
       <NativeTabBar label="WildLoop navigation">
         <NativeTabItem label="Feed" href="/feed" icon="i-lucide-house" />
-        <NativeTabItem label="Trails" href="/trails" icon="i-lucide-map" />
         <NativeTabItem label="Record" href="/record" icon="i-lucide-circle-dot" />
         <NativeTabItem label="Menu" href="/menu" icon="i-lucide-menu" />
       </NativeTabBar>

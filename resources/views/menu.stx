@@ -16,7 +16,8 @@
 
   useHead({ title: 'Menu — WildLoop' })
 
-  // The tab bar holds the three places people go every day; everything else
+  // The tab bar holds the two things people do every day, the feed and
+  // recording; everything else
   // lives here, the way Facebook's Menu does. Most of these screens had no
   // way in from the app at all: its site header, which linked them, is
   // hidden in the native shell.
@@ -28,11 +29,17 @@
 
   const GROUPS = [
     {
+      title: 'Explore',
+      items: [
+        { label: 'Trails', href: '/trails', icon: 'i-lucide-map' },
+        { label: 'Saved trails', href: '/profile?tab=saved', icon: 'i-lucide-bookmark' },
+      ],
+    },
+    {
       title: 'You',
       items: [
         { label: 'Achievements', href: '/achievements', icon: 'i-lucide-trophy' },
         { label: 'Stats', href: '/stats', icon: 'i-lucide-chart-column' },
-        { label: 'Saved trails', href: '/profile?tab=saved', icon: 'i-lucide-bookmark' },
       ],
     },
     {
