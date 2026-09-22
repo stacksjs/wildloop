@@ -5,6 +5,13 @@ import process from 'node:process'
 import mobileConfig from '../config/mobile'
 import { isLoopback, PRODUCTION_URL, resolveMobileServer, serverArgument } from './mobile-target'
 
+/**
+ * A device as `devicectl list devices --json-output` writes it. Newer Xcodes
+ * nest everything under `properties` when asked to omit deprecated fields;
+ * Xcode 26.0 has no such option and writes the older top-level
+ * `connectionProperties` / `hardwareProperties` / `deviceProperties`. Both are
+ * read.
+ */
 interface CoreDevice {
   identifier: string
   properties?: {
@@ -12,6 +19,9 @@ interface CoreDevice {
     hardware?: { deviceType?: string, platform?: string, udid?: string }
     state?: { name?: string }
   }
+  connectionProperties?: { pairingState?: string, tunnelState?: string }
+  hardwareProperties?: { deviceType?: string, platform?: string, udid?: string }
+  deviceProperties?: { name?: string }
 }
 
 interface CoreDevicePayload {
@@ -83,15 +93,17 @@ function developmentTeam(): string {
 export function selectAvailableIphone(payload: CoreDevicePayload, requestedId?: string): IosPhone | null {
   const phones = (payload.result?.devices ?? [])
     .filter((device) => {
-      const properties = device.properties
-      return properties?.connection?.state === 'available'
-        && properties.hardware?.platform === 'iOS'
-        && properties.hardware.deviceType === 'iPhone'
+      const hardware = device.properties?.hardware ?? device.hardwareProperties
+      const legacy = device.connectionProperties
+      const available = device.properties?.connection
+        ? device.properties.connection.state === 'available'
+        : legacy?.pairingState === 'paired' && !!legacy.tunnelState && legacy.tunnelState !== 'unavailable'
+      return available && hardware?.platform === 'iOS' && hardware.deviceType === 'iPhone'
     })
     .map(device => ({
       coreDeviceId: device.identifier,
-      name: device.properties?.state?.name ?? 'iPhone',
-      udid: device.properties?.hardware?.udid ?? device.identifier,
+      name: device.properties?.state?.name ?? device.deviceProperties?.name ?? 'iPhone',
+      udid: device.properties?.hardware?.udid ?? device.hardwareProperties?.udid ?? device.identifier,
     }))
 
   if (!requestedId) return phones.length === 1 ? phones[0] : null
@@ -100,7 +112,7 @@ export function selectAvailableIphone(payload: CoreDevicePayload, requestedId?: 
 
 function availableIphone(xcode: string): IosPhone {
   const output = join(mkdtempSync(join(tmpdir(), 'wildloop-devices-')), 'devices.json')
-  execute(['xcrun', 'devicectl', 'list', 'devices', '--json-output', output, '--omit-deprecated-fields-in-json'], {
+  execute(['xcrun', 'devicectl', 'list', 'devices', '--json-output', output], {
     env: { DEVELOPER_DIR: xcode },
   })
   const payload = JSON.parse(readFileSync(output, 'utf8')) as CoreDevicePayload
@@ -134,7 +146,7 @@ export function assertDeviceServer(config: { devServerURL?: unknown }): void {
     throw new Error(`This build loads ${config.devServerURL}, which an iPhone cannot reach. Rebuild without --skip-generate.`)
 }
 
-function generateProject(xcode: string, teamId: string, bundled: boolean, server: string): void {
+function generateProject(xcode: string, teamId: string, bundled: boolean, server: string, personalTeam: boolean): void {
   if (!Bun.which('xcodegen') && !existsSync(join(homedir(), '.local/bin/xcodegen'))) {
     throw new Error('XcodeGen is required. Install it with `brew install xcodegen` or place `xcodegen` in ~/.local/bin.')
   }
@@ -147,6 +159,7 @@ function generateProject(xcode: string, teamId: string, bundled: boolean, server
     // for that team, and a push to main deploys it: universal links for the
     // real app would break. The file is only ever regenerated on purpose.
     SKIP_MOBILE_ASSOCIATIONS: '1',
+    IOS_PERSONAL_TEAM: personalTeam ? '1' : '0',
   }
   execute(['bun', 'run', 'build:frontend'], {
     env: { ...shared, STX_SOURCE_ROOT: process.env.STX_SOURCE_ROOT ?? localSource('stx') },
@@ -198,7 +211,7 @@ function buildForDevice(xcode: string, teamId: string, phone: IosPhone | null, u
     if (!unsigned) {
       const targets = [bundleId, `${bundleId}.liveactivity`]
       if (watchAppEnabled) targets.push(`${bundleId}.watchkitapp`)
-      throw new Error(`${error instanceof Error ? error.message : error}\n\nSigning needs an Apple account in Xcode > Settings > Accounts and automatic profiles for ${targets.join(', ')}.`)
+      throw new Error(`${error instanceof Error ? error.message : error}\n\nSigning needs an Apple account in Xcode > Settings > Accounts and automatic profiles for ${targets.join(', ')}. A free (personal) Apple team cannot sign Associated Domains or Push Notifications: rerun with --personal-team.`)
     }
     throw error
   }
@@ -226,7 +239,7 @@ if (import.meta.main) {
     const xcode = developerDir()
     const teamId = requiresDevelopmentTeam(argv) ? developmentTeam() : ''
     const phone = buildOnly ? null : availableIphone(xcode)
-    if (!args.has('--skip-generate')) generateProject(xcode, teamId, args.has('--bundled'), server)
+    if (!args.has('--skip-generate')) generateProject(xcode, teamId, args.has('--bundled'), server, args.has('--personal-team') || process.env.IOS_PERSONAL_TEAM === '1')
     if (!args.has('--bundled')) console.log(`This iPhone build loads ${server}.`)
     const app = buildForDevice(xcode, teamId, phone, compileOnly)
     if (phone) installAndLaunch(app, phone, xcode)

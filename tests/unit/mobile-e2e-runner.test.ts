@@ -67,6 +67,28 @@ describe('mobile E2E runner', () => {
     })?.udid).toBe('phone-ready')
   })
 
+  it('reads the older devicectl JSON that Xcode 26.0 writes', () => {
+    const phone = selectAvailableIphone({
+      result: {
+        devices: [
+          {
+            identifier: 'core-unpaired',
+            connectionProperties: { pairingState: 'unpaired', tunnelState: 'disconnected' },
+            hardwareProperties: { deviceType: 'iPhone', platform: 'iOS', udid: 'phone-unpaired' },
+            deviceProperties: { name: 'Unpaired iPhone' },
+          },
+          {
+            identifier: 'core-legacy',
+            connectionProperties: { pairingState: 'paired', tunnelState: 'connected' },
+            hardwareProperties: { deviceType: 'iPhone', platform: 'iOS', udid: 'phone-legacy' },
+            deviceProperties: { name: 'Glenn iPhone' },
+          },
+        ],
+      },
+    })
+    expect(phone).toEqual({ coreDeviceId: 'core-legacy', name: 'Glenn iPhone', udid: 'phone-legacy' })
+  })
+
   it('infers an unambiguous Apple development team', () => {
     expect(inferDevelopmentTeam('1) ABC "Apple Development: Chris (DXBQ84FJL4)"')).toBe('DXBQ84FJL4')
     expect(inferDevelopmentTeam('0 valid identities found')).toBeNull()
