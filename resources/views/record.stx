@@ -232,11 +232,6 @@
 
       <!-- ── Live numbers ────────────────────────────────────────────────── -->
       <div class="metrics">
-        <div class="metric-hero">
-          <p class="metric-clock">{{ fmtDuration(elapsed()) }}</p>
-          <p class="metric-caption">Elapsed</p>
-        </div>
-
         <div class="metric-grid">
           <div class="metric">
             <p class="metric-value">{{ distance.toFixed(2) }}</p>
@@ -279,6 +274,10 @@
          cold hands halfway up a climb, so it stays reachable no matter how
          far the page has scrolled. -->
     <div class="control-dock">
+      <!-- The clock rides with the button. In the panel above, the docked
+           controls sat over it whenever it was near the bottom of the screen,
+           which on a phone is where it starts. -->
+      <p class="metric-clock dock-clock" aria-label="Elapsed time">{{ fmtDuration(elapsed()) }}</p>
       <div class="control-inner">
         <button @click="startManual()" aria-label="Start recording" x-class="recording ? 'hidden' : 'record-btn-start'">
           <i class="i-lucide-play h-8 w-8" aria-hidden="true"></i>
@@ -518,7 +517,10 @@
     .metric-value { font-size: 1.75rem; }
   }
 
-  .metric-hero { text-align: center; }
+  .metric-clock.dock-clock {
+    margin-bottom: 0.5rem;
+    font-size: clamp(2.5rem, 10vw, 3.5rem);
+  }
 
   .metric-clock {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -586,7 +588,9 @@
     z-index: 20;
     padding: 1rem 1rem 1rem;
     text-align: center;
-    background: linear-gradient(180deg, transparent 0%, var(--dock-bg, #fff) 45%);
+    /* Solid by the time the clock starts, so nothing scrolling underneath
+     * shows through the digits. */
+    background: linear-gradient(180deg, transparent 0, var(--dock-bg, #fff) 1rem);
   }
 
   /* A desktop pointer hides the tab bar, so the dock reclaims the bottom edge
@@ -596,6 +600,12 @@
       bottom: 0;
       padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
+  }
+
+  /* In the app the tab bar floats above the home indicator
+   * (native-shell.css), so the dock clears the pill and the gap under it. */
+  .native-app-shell.native-mobile .control-dock {
+    bottom: calc(var(--native-tab-height, 0px) + 0.5rem + var(--native-tab-float-bottom, 0px) + 0.25rem);
   }
 
   .dark .control-dock { --dock-bg: #0b1512; }
