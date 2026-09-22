@@ -99,11 +99,6 @@
         <p class="mt-1 text-slate-600 dark:text-slate-400">Runs, kudos and turf changing hands.</p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <!-- The app's header is hidden, and the bell lived in it. Feed is where
-             it belongs anyway: the screen this notification is usually about. -->
-        <StxLink to="/notifications" aria-label="Notifications" class="native-only h-11 w-11 items-center justify-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300">
-          <i class="i-lucide-bell h-5 w-5" aria-hidden="true"></i>
-        </StxLink>
         <button @click="openManualEntry()" class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">Log activity</button>
         <StxLink to="/record" class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record</StxLink>
       </div>

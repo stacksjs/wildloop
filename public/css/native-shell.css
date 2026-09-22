@@ -82,7 +82,13 @@
  * inside a WebView it is the loudest tell that this is one. Every screen here
  * already carries its own title, and the tab bar is the navigation. The bar
  * stays on the mobile *web*, where it is the only navigation there is. */
-.native-app-shell.native-mobile .native-app-sticky-top { display: none; }
+.native-app-shell.native-mobile .native-app-sticky-top:not(.native-app-header) { display: none; }
+
+/* Except as the app's own top bar on the Feed and the Menu: the brand, search
+ * and notifications, as Instagram and Strava carry theirs. It marks itself
+ * with .native-app-header on those screens (mobile-header.stx). Its website
+ * furniture - Log in, Sign up, the settings gear - is marked .web-only. */
+.native-app-shell.native-mobile .web-only { display: none !important; }
 
 /* Shown only inside the native shell — for the handful of controls that lived
  * in that header and still need somewhere to be. */
@@ -203,3 +209,35 @@
   .dark .native-tab-bar { background: rgb(15 23 42); }
   .dark .native-app-tab-slot { background: rgb(15 23 42); }
 }
+
+/* In the app the tab bar floats: a pill inset from the edges and sitting
+ * above the home indicator, as iOS 26 apps draw theirs, with the page
+ * scrolling on underneath it. The website keeps the full-width bar above. */
+.native-app-shell.native-mobile {
+  --native-tab-float-bottom: max(calc(var(--native-safe-area-bottom) - 0.5rem), 0.75rem);
+}
+
+.native-app-shell.native-mobile .native-app-tab-slot {
+  right: calc(var(--native-safe-area-right) + 1rem);
+  bottom: var(--native-tab-float-bottom);
+  left: calc(var(--native-safe-area-left) + 1rem);
+  height: calc(var(--native-tab-height) + 0.5rem);
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.native-app-shell.native-mobile .native-tab-bar {
+  overflow: hidden;
+  border: 1px solid rgb(148 163 184 / 0.25);
+  border-radius: 9999px;
+  box-shadow: 0 12px 32px -12px rgb(15 23 42 / 0.45);
+}
+
+.native-app-shell.native-mobile:has(.native-app-tab-slot) .native-app-content {
+  padding-bottom: calc(var(--native-tab-height) + 0.5rem + var(--native-tab-float-bottom) + 0.75rem);
+}
+
+.dark .native-app-shell.native-mobile .native-app-tab-slot { background: transparent; }
+.dark .native-app-shell.native-mobile .native-tab-bar { border-color: rgb(71 85 105 / 0.6); }
