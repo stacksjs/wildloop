@@ -10,6 +10,7 @@ const { href, icon, label } = defineProps<NativeTabItemProps>()
 
 <script client>
 import { device, isNativeMobile } from '@stacksjs/mobile'
+import { activeTabFor } from '../functions/native-tabs'
 
 // Craft currently installs its iOS bridge after the document has started.
 // Keeping an iPhone tab change inside the existing document therefore retains
@@ -17,6 +18,15 @@ import { device, isNativeMobile } from '@stacksjs/mobile'
 // navigation below: its packaged fallback needs document loads after a cold
 // start. This is a narrow client-side resilience measure, not auth enforcement.
 const usesIosNativeRouting = state(isNativeMobile() && device.isIOS())
+
+// Highlight from the shared store: this component is layout chrome, and its
+// own state stops rendering after the first in-app navigation (stx#1958).
+const tabHref = useReactiveProp<string>('href', '')
+const wl = useStore('wl')
+const isActive = derived(() => {
+  const path = wl?.currentPath?.() || (typeof location === 'undefined' ? '' : location.pathname)
+  return Boolean(path) && activeTabFor(path) === tabHref()
+})
 
 /** Long enough that a slow page is never mistaken for a stalled router. */
 const ROUTER_STALL_MS = 8000
@@ -74,6 +84,8 @@ function followTab(event: MouseEvent): void {
   href="{{ href }}"
   aria-label="{{ label }}"
   class="native-tab-item"
+  x-class="isActive() ? 'is-active' : ''"
+  x-aria-current="isActive() ? 'page' : 'false'"
   @click="followTab"
 >
   <i aria-hidden="true" class="{{ icon }} native-tab-icon"></i>

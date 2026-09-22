@@ -454,6 +454,12 @@
       savedTrailIds: [] as number[],
       /** User ids the current user follows (hydrated from /api/users/{id}/follows). */
       following: [] as number[],
+      /**
+       * The page on screen, for the tab bar's highlight. Kept here because
+       * layout components stop re-rendering after an in-app navigation
+       * (stacksjs/stx#1958); state every instance shares still updates.
+       */
+      currentPath: '',
     }),
 
     getters: {
@@ -482,6 +488,9 @@
         // folds have to run again once we know whose page this is.
         this.recomputeUserStats()
         this.recomputeConquestStats()
+      },
+      setCurrentPath(path: string) {
+        this.currentPath = path
       },
       clearAuthenticatedUser() {
         this.currentUserId = 0

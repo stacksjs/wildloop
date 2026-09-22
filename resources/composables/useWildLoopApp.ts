@@ -40,6 +40,7 @@ type WildLoopAppStore =
   & {
     hydrateAuthenticatedUser: (user: BootstrapUser) => void
     clearAuthenticatedUser: () => void
+    setCurrentPath?: (path: string) => void
     provideServices: (services: {
       signIn: (email: string, password: string) => Promise<string | null>
       signUp: (name: string, email: string, password: string) => Promise<string | null>
@@ -121,6 +122,32 @@ function forgetStaleShellReload(): void {
 let identityStarted = false
 
 /** Initialize the shared WildLoop store and its browser-side data sources. */
+/**
+ * Keep the store's idea of the page in step with the router, for the tab
+ * bar's highlight. A tab tap on iOS is an in-app navigation, which does not
+ * run this again for the page it lands on, so the router's own event does.
+ */
+function trackCurrentPath(wl: WildLoopAppStore, pathname: string): void {
+  if (typeof wl.setCurrentPath !== 'function')
+    return
+  wl.setCurrentPath(pathname)
+  const page = globalThis as typeof globalThis & { __wildloopTracksPath?: boolean }
+  if (page.__wildloopTracksPath || typeof globalThis.addEventListener !== 'function')
+    return
+  page.__wildloopTracksPath = true
+  globalThis.addEventListener('stx:navigate', (event: Event) => {
+    const url = (event as CustomEvent<{ url?: string }>).detail?.url
+    if (!url || typeof location === 'undefined')
+      return
+    try {
+      wl.setCurrentPath?.(new URL(url, location.href).pathname)
+    }
+    catch {
+      // A URL the router could follow is one URL can parse; nothing to do.
+    }
+  })
+}
+
 export function useWildLoopApp(): void {
   void initializeAuthSession()
   const wl = useStore('wl') as WildLoopAppStore
@@ -142,9 +169,10 @@ export function useWildLoopApp(): void {
   else {
     reloadStaleShellOnce()
   }
+  const pathname = typeof location === 'undefined' ? '/' : location.pathname
+  trackCurrentPath(wl, pathname)
   const localUser = cachedUser()
   const hasSession = Boolean(localUser) || isSignedIn()
-  const pathname = typeof location === 'undefined' ? '/' : location.pathname
   const needs = dataNeedsForPath(pathname)
 
   if (localUser)
