@@ -135,6 +135,19 @@ export async function sitemapPages(): Promise<Response> {
 }
 
 /**
+ * The chunk number in a trail sitemap path, or null for any other path.
+ *
+ * The router cannot hold a parameter inside a segment, so
+ * `/sitemap-trails-{page}.xml` matched every single-segment path under /api
+ * that no other route claimed: `/api/anything` answered 200 with a sitemap
+ * instead of a JSON 404.
+ */
+export function trailSitemapPage(pathname: string): number | null {
+  const match = /\/sitemap-trails-(\d+)\.xml$/.exec(pathname)
+  return match ? Number(match[1]) : null
+}
+
+/**
  * `/sitemap-trails-{page}.xml`
  *
  * A page beyond the last chunk answers with an empty but valid urlset rather

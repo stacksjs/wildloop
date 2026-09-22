@@ -400,8 +400,14 @@ route.group({ prefix: '/shipping' }, () => {
 // frontend proxies here; robots.txt points at it and allows the path.
 route.get('/sitemap.xml', async () => (await import('../app/Actions/Seo/SitemapAction')).sitemapIndex())
 route.get('/sitemap-pages.xml', async () => (await import('../app/Actions/Seo/SitemapAction')).sitemapPages())
-route.get('/sitemap-trails-{page}.xml', async (request: any) =>
-  (await import('../app/Actions/Seo/SitemapAction')).sitemapTrails(request?.params?.page ?? request?.get?.('page')))
+route.get('/sitemap-trails-{page}.xml', async (request: any) => {
+  const { sitemapTrails, trailSitemapPage } = await import('../app/Actions/Seo/SitemapAction')
+  // This pattern also catches every other unmatched single-segment /api path.
+  const page = trailSitemapPage(new URL(request?.url ?? '/', 'http://localhost').pathname)
+  return page === null
+    ? Response.json({ success: false, error: 'Not found' }, { status: 404 })
+    : sitemapTrails(page)
+})
 
 // Where the request appears to be coming from, so the catalog can open on
 // somewhere useful without asking for a location permission first.
