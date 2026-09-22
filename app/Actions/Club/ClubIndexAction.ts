@@ -7,8 +7,10 @@
 // (#964). Public read; private clubs are only listed to members. memberCount
 // comes from club_members; weeklyDistance/activitiesThisWeek are aggregated
 // from members' activities in the last 7 days (real data, not stored fiction).
+// `?q=` narrows it to clubs whose name or location contains the text.
 
 import { Auth } from '@stacksjs/auth'
+import { matchesText, textQuery } from '../../Support/textQuery'
 
 export default new Action({
   name: 'Club Index',
@@ -20,7 +22,12 @@ export default new Action({
       // Session user drives private-club visibility and membership state.
       const sessionUser = (await Auth.user().catch(() => null))?.id ?? null
 
-      const clubs = (await Club.all()) ?? []
+      const query = textQuery(request.get('q'))
+      const clubs = ((await Club.all()) ?? []).filter((c: any) => matchesText(query, c.name, c.location))
+      // A search that matches nothing skips the activity totals below.
+      if (query && clubs.length === 0)
+        return response.json({ success: true, clubs: [], meta: paginate([], readPageParams(request, { defaultLimit: 200, maxLimit: 200 })).meta })
+
       const memberships = (await ClubMember.all()) ?? []
       // Only count activities the viewer is allowed to see (#957) so private
       // member mileage never feeds a public club's weekly numbers.

@@ -6,14 +6,15 @@
 // GET /api/events - the events directory. Public read.
 //
 // `?status=live|scheduled|finished`, `?type=backyard|race|group_run|time_trial`,
-// and `?club=<id>` narrow it. Ordering puts live events first, then the next
-// ones to start, then the most recently finished: what somebody opening this
-// page wants is something to watch right now, and failing that, something to
-// enter.
+// `?club=<id>` and `?q=<text>` (name or location) narrow it. Ordering puts
+// live events first, then the next ones to start, then the most recently
+// finished: what somebody opening this page wants is something to watch right
+// now, and failing that, something to enter.
 
 import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
+import { matchesText, textQuery } from '../../Support/textQuery'
 
 import { currentYard, standings } from '../../../resources/functions/backyard'
 
@@ -34,6 +35,7 @@ export default new Action({
       const wantedType = request.get<string>('type')
       const wantedStatus = request.get<string>('status')
       const wantedClub = positiveInt(request.get('club'))
+      const query = textQuery(request.get('q'))
 
       const all = (await Event.all()) ?? []
       const entrants = (await EventEntrant.all()) ?? []
@@ -77,7 +79,7 @@ export default new Action({
             return false
           if (wantedClub && event.club_id !== wantedClub)
             return false
-          return true
+          return matchesText(query, event.name, event.location)
         })
         .map((event: any) => {
           const field = entrantsByEvent.get(event.id) ?? []
