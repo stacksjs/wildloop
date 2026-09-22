@@ -4,6 +4,7 @@
 // auto-imported as usual.
 
 import { Auth } from '@stacksjs/auth'
+import { log } from '@stacksjs/logging'
 
 export default new Action({
   name: 'RegisterAction',
@@ -30,7 +31,20 @@ export default new Action({
     const password = request.get('password')
     const name = request.get('name')
 
-    const result = await register({ email, password, name })
+    let result: Awaited<ReturnType<typeof register>> | undefined
+    try {
+      result = await register({ email, password, name })
+    }
+    catch (error) {
+      // A refusal the person can act on (a taken email, a short password) is
+      // a 4xx with its own message and not an incident. Anything else goes to
+      // bughq before it becomes a 500: the app only says "Something went
+      // wrong on our end", so this is where the cause is kept.
+      const status = (error as { status?: unknown } | null)?.status
+      if (typeof status !== 'number' || status >= 500)
+        void log.error(error instanceof Error ? error : new Error(`Registration failed: ${String(error)}`))
+      throw error
+    }
 
     if (result) {
       const user = await Auth.getUserFromToken(result.token)
@@ -46,6 +60,7 @@ export default new Action({
       })
     }
 
+    void log.error(new Error('Registration failed: register() returned no token'))
     return response.json({ success: false, error: 'Registration failed' }, 500)
   },
 })
