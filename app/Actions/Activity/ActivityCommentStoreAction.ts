@@ -40,10 +40,11 @@ export default new Action({
       if (!canViewActivity(activity, userId, following, blockedIds))
         return response.json({ success: false, error: 'Activity not found' }, 404)
 
+      const text = body.slice(0, 2000)
       const comment = await ActivityComment.forceCreate({
         user_id: userId,
         activity_id: activityId,
-        body: body.slice(0, 2000),
+        body: text,
       })
 
       const user = await User.find(userId)
@@ -67,8 +68,11 @@ export default new Action({
           id: comment.id,
           userId,
           userName: user?.name ?? 'Unknown',
-          body: comment.body,
-          createdAt: comment.created_at,
+          // The created model does not carry every column back: `body` and
+          // `created_at` arrived undefined, so a new comment showed its
+          // author with no text until the page was reloaded.
+          body: comment.body ?? text,
+          createdAt: comment.created_at ?? new Date().toISOString(),
         },
       }, 201)
     }
