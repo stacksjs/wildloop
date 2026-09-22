@@ -41,8 +41,7 @@
         <NativeTabItem label="Feed" href="/feed" icon="i-lucide-house" />
         <NativeTabItem label="Trails" href="/trails" icon="i-lucide-map" />
         <NativeTabItem label="Record" href="/record" icon="i-lucide-circle-dot" />
-        <NativeTabItem label="Territory" href="/territories" icon="i-lucide-flag" />
-        <NativeTabItem label="Profile" href="/profile" icon="i-lucide-user" />
+        <NativeTabItem label="Menu" href="/menu" icon="i-lucide-menu" />
       </NativeTabBar>
     </div>
   </template>

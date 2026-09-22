@@ -16,12 +16,11 @@ function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
     `<a href="/feed" class="native-tab-item" ${intercepted}>`,
     '<a href="/trails" class="native-tab-item">',
     '<a href="/record" class="native-tab-item">',
-    '<a href="/territories" class="native-tab-item">',
-    '<a href="/profile" class="native-tab-item">',
+    '<a href="/menu" class="native-tab-item">',
     '</nav></div>',
   ].join('')
 
-  for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])
+  for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'menu.html', 'profile.html', 'settings.html', 'login.html'])
     writeFileSync(join(output, page), markup)
 }
 
@@ -151,7 +150,7 @@ describe('mobile E2E runner', () => {
   it('rejects a mobile bundle that lost reactive page setup', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-dist-'))
     const reactivePage = '<script>window.__stx_latestSetup = () => ({})</script>'
-    for (const page of ['index.html', 'feed.html', 'trails.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])
+    for (const page of ['index.html', 'feed.html', 'trails.html', 'territories.html', 'menu.html', 'profile.html', 'settings.html', 'login.html'])
       writeFileSync(join(output, page), reactivePage)
     writeFileSync(join(output, 'record.html'), '<main>Record</main>')
 
@@ -176,7 +175,7 @@ describe('mobile E2E runner', () => {
 
   it('rejects a bundle with shell styles emitted after the document head', () => {
     const output = mkdtempSync(join(tmpdir(), 'wildloop-mobile-shell-css-'))
-    for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'profile.html', 'settings.html', 'login.html'])
+    for (const page of ['index.html', 'feed.html', 'trails.html', 'record.html', 'territories.html', 'menu.html', 'profile.html', 'settings.html', 'login.html'])
       writeFileSync(join(output, page), '<head><link rel="stylesheet" href="/css/native-shell.css"></head>')
     writeFileSync(join(output, 'trails.html'), '<head></head><link rel="stylesheet" href="/css/native-shell.css">')
 

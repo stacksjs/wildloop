@@ -36,6 +36,7 @@ const requiredReactivePages = [
   'trails.html',
   'record.html',
   'territories.html',
+  'menu.html',
   'profile.html',
   'settings.html',
   'login.html',
@@ -154,7 +155,7 @@ export function validateNativeTabLinks(outputRoot: string): void {
     if (!/<div\b(?=[^>]*\bclass="[^"]*\bnative-tab-visibility\b")[^>]*>[\s\S]*?\bnative-tab-bar\b/i.test(output))
       throw new Error(`Built ${page} is missing the native touch-navigation wrapper`)
 
-    for (const route of ['/feed', '/trails', '/record', '/territories', '/profile']) {
+    for (const route of ['/feed', '/trails', '/record', '/menu']) {
       const link = output.match(new RegExp(`<a\\b(?=[^>]*\\bhref="${route}")(?=[^>]*\\bclass="[^"]*\\bnative-tab-item\\b")[^>]*>`, 'i'))?.[0]
       if (!link) throw new Error(`Built ${page} is missing the native ${route} tab link`)
       if (/\bdata-stx-link\b/i.test(link))
