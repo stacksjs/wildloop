@@ -197,6 +197,16 @@
     </div>
 
     <!-- Achievements -->
+    <StxLink :if="currentUser && activeTab === 'achievements'" to="/achievements" class="mb-4 flex items-center gap-4 rounded-2xl bg-[#e6d8c3] p-4 text-stone-800 transition active:scale-[0.99]">
+      <span class="grid h-12 w-12 shrink-0 place-items-center rounded-[44%] bg-[#f7f5ec]" aria-hidden="true">
+        <i class="i-hugeicons-mountain h-6 w-6 text-stone-900"></i>
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block font-semibold">Personal bests</span>
+        <span class="block text-sm opacity-80">Your longest, highest and most time outside, and your year so far.</span>
+      </span>
+      <i class="i-hugeicons-arrow-right-01 h-5 w-5 shrink-0" aria-hidden="true"></i>
+    </StxLink>
     <div :if="currentUser && activeTab === 'achievements' && achievements.length > 0" class="grid gap-4 grid-cols-1 sm:grid-cols-2">
       <template :for="achievement in achievements">
         <div class="flex gap-4 items-center card">
@@ -205,10 +215,10 @@
             <p class="font-semibold text-sm dark:text-white">{{ achievement.name }}</p>
             <p class="text-gray-500 text-xs dark:text-slate-400">{{ achievement.description }}</p>
             <div class="overflow-hidden mt-2 h-1.5 bg-gray-200 dark:bg-slate-600 rounded-full">
-              <div class="h-full bg-emerald-500 rounded-full" x-style="'width: ' + (achievement.progress / achievement.total * 100) + '%'"></div>
+              <div class="h-full bg-emerald-500 rounded-full" x-style="'width: ' + (Math.min(achievement.progress, achievement.total) / achievement.total * 100) + '%'"></div>
             </div>
           </div>
-          <p class="shrink-0 text-gray-400 text-xs dark:text-slate-500">{{ achievement.progress + '/' + achievement.total }}</p>
+          <p class="shrink-0 text-gray-400 text-xs dark:text-slate-500">{{ Math.min(achievement.progress, achievement.total) + '/' + achievement.total }}</p>
         </div>
       </template>
     </div>
