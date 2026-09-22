@@ -33,13 +33,20 @@ export function useManualActivity(wl: ManualStoreLike | null) {
   const mNotes = state('')
   const mVisibility = state('followers')
 
+  // Today in the athlete's own calendar, as a date input writes it. The box
+  // opens on it rather than blank, which read as a broken field.
+  function todayLocal(): string {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
+
   function openManualEntry() {
     mType.set('Trail Run')
     mDistance.set('')
     mDuration.set('')
     mElevation.set('')
     mTrailId.set('')
-    mDate.set('')
+    mDate.set(todayLocal())
     mNotes.set('')
     mVisibility.set('followers')
     manualError.set(null)
@@ -83,7 +90,8 @@ export function useManualActivity(wl: ManualStoreLike | null) {
     const trail = trailId ? wl.findTrail(trailId) : undefined
     const pace = paceString(distance, seconds)
     // Date-only input → pin to midday local so timezone shifts can't move the day.
-    const completedAt = mDate()
+    // Today is logged as now, so a morning entry is not stamped in the future.
+    const completedAt = mDate() && mDate() !== todayLocal()
       ? new Date(`${mDate()}T12:00:00`).toISOString()
       : new Date().toISOString()
     const notes = mNotes().trim()
