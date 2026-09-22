@@ -45,6 +45,19 @@ describe('native shell readiness', () => {
     expect(await nativeShellReady(40)).toBe(true)
   })
 
+  it('answers true straight away in the iPhone app, before its bridge installs', async () => {
+    host.webkit = { messageHandlers: { craft: {} } }
+    const agent = Object.getOwnPropertyDescriptor(globalThis.navigator, 'userAgent')
+    Object.defineProperty(globalThis.navigator, 'userAgent', { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15', configurable: true })
+    try {
+      expect(await nativeShellReady(40)).toBe(true)
+    }
+    finally {
+      if (agent) Object.defineProperty(globalThis.navigator, 'userAgent', agent)
+      else delete (globalThis.navigator as { userAgent?: string }).userAgent
+    }
+  })
+
   it('gives up rather than hanging when a host never finishes installing', async () => {
     host.webkit = { messageHandlers: { craft: {} } }
     expect(await nativeShellReady(40)).toBe(false)

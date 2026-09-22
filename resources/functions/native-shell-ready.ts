@@ -41,6 +41,21 @@ function isAndroidShell(): boolean {
   return typeof globalThis !== 'undefined' && Boolean((globalThis as typeof globalThis & { CraftAndroid?: unknown }).CraftAndroid)
 }
 
+/**
+ * Craft's iOS shell, for the same reason: it installs `window.craft` when the
+ * page finishes loading too, and on a slow start that missed the timeout just
+ * as often. Its message handler is there from the start, but Craft's macOS
+ * desktop windows have one as well, so an iPhone or iPad user agent is what
+ * makes it the phone app.
+ */
+function isIosShell(): boolean {
+  if (typeof globalThis === 'undefined')
+    return false
+  const host = globalThis as typeof globalThis & { webkit?: { messageHandlers?: { craft?: unknown } } }
+  const agent = typeof navigator === 'undefined' ? '' : navigator.userAgent
+  return Boolean(host.webkit?.messageHandlers?.craft) && /iPhone|iPad|iPod/.test(agent)
+}
+
 /** The bridge, once it has finished installing. */
 function craftInstalled(): boolean {
   return typeof globalThis !== 'undefined' && Boolean((globalThis as typeof globalThis & { craft?: unknown }).craft)
@@ -57,7 +72,7 @@ export function nativeShellReady(timeoutMs = 2000): Promise<boolean> {
   if (!hasCraftHost())
     return Promise.resolve(false)
 
-  if (craftInstalled() || isAndroidShell())
+  if (craftInstalled() || isAndroidShell() || isIosShell())
     return Promise.resolve(true)
 
   return new Promise<boolean>((resolve) => {
