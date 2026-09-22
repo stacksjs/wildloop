@@ -7,7 +7,9 @@
     "url": "git+https://github.com/stacksjs/wildloop.git"
   },
   "dependencies": {
+    "@bughq/stacks": "^0.2.2",
     "@iconify-json/lucide": "^1.2.131",
+    "@loghq/stacks": "^0.2.6",
     "@stacksjs/mobile": "^0.74.45",
     "@ts-analytics/tracking": "^0.1.15",
     "bun-query-builder": "0.2.70",
