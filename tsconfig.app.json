@@ -71,6 +71,7 @@
     "scripts/test-recording-browser.ts",
     "scripts/test-recording-app.ts",
     "scripts/test-recording-api.ts",
+    "scripts/start-recording-qa.ts",
     "tests/unit/account-deletion.test.ts",
     "tests/unit/battle-rows.test.ts",
     "tests/unit/toggle-intent.test.ts",

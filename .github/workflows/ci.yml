@@ -147,6 +147,36 @@ jobs:
           AWS_DYNAMODB_ENDPOINT: http://localhost:8000
         run: bun test
 
+  recording-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: canary
+      - name: Install app dependencies
+        run: bun install
+      # Isolated test dependencies: no changes to the app's hoisted ORM tree.
+      - name: Install browser test dependencies
+        working-directory: tests/browser
+        run: bun install --frozen-lockfile
+      - name: Install Chromium
+        working-directory: tests/browser
+        run: bunx playwright install --with-deps chromium
+      - name: Recording browser and API regressions
+        working-directory: tests/browser
+        run: bun run test
+      - name: Upload browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recording-browser-traces
+          path: tests/browser/test-results/
+          retention-days: 7
+
   publish-commit:
     runs-on: ubuntu-latest
     env:

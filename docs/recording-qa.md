@@ -24,6 +24,15 @@ Keep the web recorder visible with the screen unlocked. Use one recording tab.
   `requestRecordingExit`; this is not a framework-wide router hook.
 - Activity options expose Hike, Walk, Bike and Trail Run. A trail guide is not
   selected implicitly, preventing unrelated wrong-turn warnings.
+- New uploads cap moving time at the server's elapsed duration. For live GPS,
+  the GPS sample span is authoritative, not the submitted timer. Paused/zero
+  moving time is preserved. Existing historical rows are not rewritten.
+- Permanent HTTP refusals stop automatic retries immediately. The Record page
+  shows the API's validation reason and owner-scoped export/retry controls.
+  Export is a lossless JSON backup, including precise GPS, not a GPX import file.
+  It does not delete the local recording. Keep exported files private.
+- Session expiry (401), timeouts (408), rate limits (429), network and server
+  failures remain retryable. A rejected manual retry parks the recording again.
 
 ## Repeatable local checks
 
@@ -66,9 +75,29 @@ No test harness should be deployed or pointed at a production database.
 7. Run the regular checks with pinned Bun on PATH: `./buddy test`,
    `bun run typecheck:app`, and `bunx --bun pickier .`.
 
-The browser checks are manually initiated test harnesses, not part of
-`buddy test`. Both harnesses bind only to loopback. Their synthetic locations
-must never be used against the production territory game.
+### Automated browser suite
+
+The CI workflow includes a `recording-browser` job, so its failure blocks the
+CI-gated deployment. It uses Chromium at 390 x 844, a fresh temporary SQLite
+database, log-only mail and fictional accounts. The Playwright dependency and
+lockfile live under `tests/browser` without changing the app's dependency tree.
+
+From `tests/browser`, with Bun on PATH:
+
+```sh
+bun install --frozen-lockfile
+bunx playwright install chromium
+bun run test
+```
+
+The suite starts its own servers on ports 4319, 4320, 4321 and 4322. They must be
+free. `RECORDING_QA_REUSE=1` is only for reusing the isolated local QA app described
+above, never a normal developer database. Test accounts remain in the temporary
+database. CI uploads failure traces for seven days; they contain only QA data.
+
+These browser checks are separate from `buddy test`. The fault-injection
+harnesses bind only to loopback. Synthetic locations must never be used against
+the production territory game. Browser automation does not replace real-phone QA.
 
 ## Observed results
 
@@ -82,16 +111,18 @@ must never be used against the production territory game.
 - Browser storage harness and direct API smoke test passed.
 - Expired-session Finish opened in-place sign-in and saved afterward. Reopening
   a paused checkpoint through the sign-in gate installed exactly one GPS watcher.
-- Rapid synthetic fixes deliberately/accidentally rejected by speed validation
-  remained queued with an explicit not-yet-accepted message; they were not
-  reported as server saves. These local QA rows were retained for inspection.
-- Full test suite: 564 passed, zero failed. Typecheck passed. Lint had zero errors
+- Rejected uploads survive reload, expose the server reason, export intact GPS,
+  and upload successfully after an explicit retry with the original upload ID.
+- Browser storage tests cover repeated rejection, owner isolation, lossless
+  export and removal only after confirmed server acceptance.
+- The API regression submits 40 seconds elapsed and 35 seconds moving against a
+  30-second GPS span. Both stored/retrieved times are 30 seconds. Shorter, zero
+  and omitted moving times are also covered.
+- Full test suite: 596 passed, zero failed. Typecheck passed. Lint had zero errors
   and six existing warnings under the vendored stacks-browse skill scripts.
 
-One existing metric inconsistency was visible: the server derives elapsed time
-from the GPS sample span but accepts the client's moving time. A short test
-displayed 28 seconds moving versus 27 seconds elapsed. This needs a separate
-metrics policy/test change; the recovery patch does not change server metrics.
+The API's elapsed-time-based pace policy is unchanged. No historical activity
+metrics were migrated by these fixes.
 
 ## Physical-phone release gate
 
