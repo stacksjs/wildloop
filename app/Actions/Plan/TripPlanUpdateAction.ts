@@ -1,6 +1,6 @@
 import { Auth } from '@stacksjs/auth'
 import TripPlan from '../../Models/TripPlan'
-import { applyTrail, planResponse, readPlanInput, validatePlanRequest, validationFailed } from './plan-support'
+import { applyRoute, applyTrail, planResponse, readPlanInput, validatePlanRequest, validationFailed } from './plan-support'
 
 /**
  * PATCH /api/plans/{id} — change the date, time, notes or destination.
@@ -26,6 +26,7 @@ export default new Action({
 
     const { value, fields } = validatePlanRequest(readPlanInput(request), true)
     await applyTrail(value, fields)
+    await applyRoute(value, fields, user.id)
     if (Object.keys(fields).length)
       return validationFailed(fields)
 

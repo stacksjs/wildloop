@@ -248,6 +248,11 @@
     return current ? planDirections({ latitude: current.lat, longitude: current.lng, activity_type: null }) : null
   }
 
+  /** The route planner, starting from this trail's line. */
+  function customizeRouteUrl(): string {
+    return `/routes?trail=${trailId()}`
+  }
+
   function appleDirectionsUrl(): string {
     return trailDirections()?.apple ?? ''
   }
@@ -642,6 +647,10 @@
                 <i class="i-lucide-map h-4 w-4 text-emerald-600" aria-hidden="true"></i>
                 Directions in Google Maps
               </a>
+              <StxLink x-to="customizeRouteUrl()" @click="closeMenu()" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60">
+                <i class="i-lucide-route h-4 w-4 text-emerald-600" aria-hidden="true"></i>
+                Customize route
+              </StxLink>
               <button @click="onCopyLink()" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60">
                 <i class="i-lucide-link h-4 w-4 text-emerald-600" aria-hidden="true"></i>
                 Copy link
@@ -1081,6 +1090,10 @@
               <i class="i-lucide-calendar-plus h-4 w-4" aria-hidden="true"></i>
               {{ trailPlan() ? 'Plan another visit' : 'Plan a visit' }}
             </button>
+            <StxLink x-to="customizeRouteUrl()" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+              <i class="i-lucide-route h-4 w-4" aria-hidden="true"></i>
+              Customize route
+            </StxLink>
             <div class="grid grid-cols-2 gap-2">
               <a x-href="appleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
                 <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>

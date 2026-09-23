@@ -52,6 +52,8 @@ export const actions = {
   'Actions/Garmin/GarminStatusAction': '../../../app/Actions/Garmin/GarminStatusAction.ts',
   'Actions/Garmin/GarminWebhookAction': '../../../app/Actions/Garmin/GarminWebhookAction.ts',
   'Actions/Garmin/garmin': '../../../app/Actions/Garmin/garmin.ts',
+  'Actions/Geo/GeoClimbAction': '../../../app/Actions/Geo/GeoClimbAction.ts',
+  'Actions/Geo/GeoPathAction': '../../../app/Actions/Geo/GeoPathAction.ts',
   'Actions/Geo/GeoReverseAction': '../../../app/Actions/Geo/GeoReverseAction.ts',
   'Actions/Geo/GeoSearchAction': '../../../app/Actions/Geo/GeoSearchAction.ts',
   'Actions/Geo/VisitorLocationAction': '../../../app/Actions/Geo/VisitorLocationAction.ts',

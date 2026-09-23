@@ -29,6 +29,9 @@ export default new Action({
       elevation: Math.max(0, Number(request.get('elevation')) || 0),
       closed_loop: closedLoop,
     })
-    return response.json({ success: true, route: routeResponse(saved) }, 201)
+    // Read back: the create result does not carry every column, and the
+    // echo came back with no line and closedLoop false for every route.
+    const stored = await CustomRoute.find((saved as any).id)
+    return response.json({ success: true, route: routeResponse(stored ?? saved) }, 201)
   },
 })

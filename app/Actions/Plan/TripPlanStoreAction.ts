@@ -1,6 +1,6 @@
 import { Auth } from '@stacksjs/auth'
 import TripPlan from '../../Models/TripPlan'
-import { applyTrail, planResponse, readPlanInput, validatePlanRequest, validationFailed } from './plan-support'
+import { applyRoute, applyTrail, planResponse, readPlanInput, validatePlanRequest, validationFailed } from './plan-support'
 
 /** POST /api/plans — plan a trail or a spot for a day. */
 export default new Action({
@@ -14,12 +14,14 @@ export default new Action({
 
     const { value, fields } = validatePlanRequest(readPlanInput(request))
     await applyTrail(value, fields)
+    await applyRoute(value, fields, user.id)
     if (Object.keys(fields).length)
       return validationFailed(fields)
 
     const saved = await TripPlan.forceCreate({
       user_id: user.id,
       trail_id: value.trail_id ?? null,
+      custom_route_id: value.custom_route_id ?? null,
       title: value.title,
       place_label: value.place_label ?? null,
       latitude: value.latitude,

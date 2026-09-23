@@ -14,11 +14,11 @@
    */
   useSeoMeta({
     title: 'Route Planner — Wildloop',
-    description: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
+    description: 'Draw a running or hiking route anywhere by tapping the map — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
     canonical: 'https://wildloop.org/routes',
     robots: 'index, follow, max-image-preview:large',
     ogTitle: 'Route Planner — Wildloop',
-    ogDescription: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
+    ogDescription: 'Draw a running or hiking route anywhere by tapping the map — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/routes',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
@@ -26,32 +26,32 @@
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
     twitterTitle: 'Route Planner — Wildloop',
-    twitterDescription: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
+    twitterDescription: 'Draw a running or hiking route anywhere by tapping the map — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
 
 <script client>
+  import type { LatLngLike, RouteBuilder as RouteBuilderType, SegmentRouter } from 'ts-maps/services'
+  import type { PlaceResult } from '../composables/usePlaceSearch'
+  import type { TrailMapHandle } from '../composables/useTrailMap'
   import { apiFetch, readyToken } from '../assets/scripts/auth'
+  import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
+  import { requireAuth } from '../composables/useAuthGate'
+  import { usePlaceSearch } from '../composables/usePlaceSearch'
   import { routeShapeFor } from '../composables/useRouteShape'
+  import { createTrailMap, ensureTsMaps, runWhenMapReady } from '../composables/useTrailMap'
+  import { encodePolyline } from '../functions/polyline'
+  import { planDirections } from '../functions/trip-plans'
 
   useHead({ title: 'Route Planner — Wildloop' })
   const wl = useStore('wl')
 
-  // The catalog itself is hydrated by the layout, which decides per path what
-  // this page needs — `/routes` was missing from that list, so the picker
-  // below listed the store's demo fixtures and offered trails that do not
-  // exist.
-
-  const name = state('')
-  const selectedTrailId = state(0)
+  // ── Saved routes ────────────────────────────────────────────────────────
   const routes = state<any[]>([])
-  const message = state('')
   /** Whether the list has answered once, so "no routes" is not said while loading. */
   const loaded = state(false)
-  const saving = state(false)
-  /** Every message but the two success lines is a problem to fix. */
-  const messageIsSuccess = derived(() => message().startsWith('Saved'))
+  const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
 
   const NO_SHAPE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
   const shapes = new Map<number, typeof NO_SHAPE>()
@@ -69,9 +69,8 @@
   }
 
   async function loadRoutes() {
-    const bearer = await readyToken()
-    if (!bearer) {
-      navigate('/login')
+    if (!(await readyToken())) {
+      loaded.set(true)
       return
     }
     const res = await apiFetch('/api/custom-routes', {}).catch(() => null)
@@ -80,108 +79,441 @@
     loaded.set(true)
   }
 
-  async function saveRoute() {
-    if (saving())
+  async function deleteRoute(id: number) {
+    await apiFetch(`/api/custom-routes/${id}`, { method: 'DELETE' })
+    if (savedRouteId() === id)
+      savedRouteId.set(0)
+    await loadRoutes()
+  }
+
+  function planRouteUrl(route: any): string {
+    return `/plans?route=${route.id}`
+  }
+
+  function routeStartDirections(route: any): string {
+    const start = Array.isArray(route?.route) ? route.route[0] : null
+    return start ? planDirections({ latitude: start[0], longitude: start[1], activity_type: null })?.apple ?? '' : ''
+  }
+
+  // ── The builder ─────────────────────────────────────────────────────────
+  // Everything the markup shows is a signal copied from the RouteBuilder on
+  // each change; the builder itself lives outside the reactive graph.
+  let builder: RouteBuilderType | null = null
+  let builderMap: TrailMapHandle | null = null
+  let line: any = null
+  let casing: any = null
+  let startPin: any = null
+  let endPin: any = null
+  let climbTimer: ReturnType<typeof setTimeout> | null = null
+  let climbToken = 0
+
+  const followPaths = state(true)
+  const pointCount = state(0)
+  const distanceMi = state(0)
+  const climbFt = state<number | null>(null)
+  const climbing = state(false)
+  const isLoop = state(false)
+  /** Ends meet because the way back retraces the way out, not a loop. */
+  const isOutAndBack = state(false)
+  const pending = state(0)
+  const canUndo = state(false)
+  const hint = state<string | null>(null)
+  const routeName = state('')
+  const saving = state(false)
+  const saveMessage = state<string | null>(null)
+  const savedRouteId = state(0)
+  /** The town the map was moved to, for a default route name. */
+  const townName = state('')
+
+  const hasRoute = derived(() => pointCount() >= 2)
+  const statsLine = derived(() => {
+    if (pointCount() === 0)
+      return ''
+    const miles = distanceMi() >= 10 ? distanceMi().toFixed(1) : distanceMi().toFixed(2)
+    const climb = climbFt() === null ? (climbing() ? ' · climb…' : '') : ` · +${climbFt()!.toLocaleString()} ft`
+    const shape = isOutAndBack() ? ' · out & back' : isLoop() ? ' · loop' : ''
+    return `${miles} mi${climb}${shape}`
+  })
+  const defaultName = derived(() => {
+    const miles = distanceMi().toFixed(1)
+    const shape = isOutAndBack() ? 'out & back' : isLoop() ? 'loop' : 'route'
+    return townName() ? `${miles} mi ${shape} in ${townName()}` : `${miles} mi ${shape}`
+  })
+
+  /** Each tapped leg along footpaths, through the server's router. */
+  const pathRouter: SegmentRouter = async (from, to) => {
+    const res = await fetch(`/api/geo/path?from=${from.lat},${from.lng}&to=${to.lat},${to.lng}`)
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok || !body.routed || !Array.isArray(body.points))
+      throw new Error(body.reason || 'No path between these points')
+    return body.points.map(([lat, lng]: [number, number]) => ({ lat, lng }))
+  }
+
+  async function currentRouter(): Promise<SegmentRouter> {
+    const { services } = await ensureTsMaps() as any
+    return followPaths() ? pathRouter : services.straightRouter
+  }
+
+  /** Waypoints that read the same both ways: out, then back the same way. */
+  function mirrors(points: LatLngLike[]): boolean {
+    if (points.length < 3 || points.length % 2 === 0)
+      return false
+    for (let i = 0; i < points.length / 2; i++) {
+      const a = points[i]
+      const b = points[points.length - 1 - i]
+      if (a.lat !== b.lat || a.lng !== b.lng)
+        return false
+    }
+    return true
+  }
+
+  function toPairs(points: LatLngLike[]): [number, number][] {
+    return points.map(p => [p.lat, p.lng])
+  }
+
+  async function redraw(): Promise<void> {
+    if (!builder || !builderMap)
+      return
+    const maps = await ensureTsMaps() as any
+    const path = builder.path
+    pointCount.set(builder.waypoints.length)
+    distanceMi.set(builder.distanceMeters / 1609.344)
+    isLoop.set(builder.isLoop)
+    isOutAndBack.set(mirrors(builder.waypoints))
+    pending.set(builder.pending)
+    canUndo.set(builder.canUndo)
+
+    const coords = toPairs(path)
+    if (!line) {
+      casing = new maps.Polyline(coords, { color: '#0b1b15', weight: 8, opacity: 0.35, lineCap: 'round', lineJoin: 'round' }).addTo(builderMap.map)
+      line = new maps.Polyline(coords, { color: '#10b981', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(builderMap.map)
+    }
+    else {
+      casing.setLatLngs(coords)
+      line.setLatLngs(coords)
+    }
+
+    const waypoints = builder.waypoints
+    const first = waypoints[0]
+    const last = waypoints[waypoints.length - 1]
+    if (first) {
+      if (!startPin)
+        startPin = new maps.CircleMarker([first.lat, first.lng], { radius: 8, color: '#ffffff', weight: 3, fillColor: '#059669', fillOpacity: 1 }).addTo(builderMap.map)
+      else
+        startPin.setLatLng([first.lat, first.lng])
+    }
+    else if (startPin) {
+      builderMap.map.removeLayer(startPin)
+      startPin = null
+    }
+    if (last && waypoints.length > 1 && !builder.isLoop) {
+      if (!endPin)
+        endPin = new maps.CircleMarker([last.lat, last.lng], { radius: 7, color: '#ffffff', weight: 3, fillColor: '#0f172a', fillOpacity: 1 }).addTo(builderMap.map)
+      else
+        endPin.setLatLng([last.lat, last.lng])
+    }
+    else if (endPin) {
+      builderMap.map.removeLayer(endPin)
+      endPin = null
+    }
+
+    if (builder.lastError && followPaths())
+      hint.set(`${builder.lastError} — drew that stretch straight.`)
+    scheduleClimb()
+  }
+
+  /** The climb, a moment after drawing stops: one lookup per pause, not per tap. */
+  function scheduleClimb(): void {
+    if (climbTimer)
+      clearTimeout(climbTimer)
+    const token = ++climbToken
+    if (!builder || builder.waypoints.length < 2) {
+      climbFt.set(null)
+      climbing.set(false)
+      return
+    }
+    climbing.set(true)
+    climbTimer = setTimeout(async () => {
+      if (!builder || builder.pending > 0)
+        return
+      const { services } = await ensureTsMaps() as any
+      const encoded = encodePolyline(toPairs(services.resamplePath(builder.path, 200)))
+      try {
+        const res = await fetch(`/api/geo/climb?path=${encodeURIComponent(encoded)}`)
+        const body = await res.json()
+        if (token === climbToken)
+          climbFt.set(typeof body.gainFt === 'number' ? body.gainFt : null)
+      }
+      catch {
+        if (token === climbToken)
+          climbFt.set(null)
+      }
+      finally {
+        if (token === climbToken)
+          climbing.set(false)
+      }
+    }, 700)
+  }
+
+  async function mountBuilder(): Promise<void> {
+    const maps = await ensureTsMaps() as any
+    builderMap = await createTrailMap('route-builder-map', { chrome: 'compact', zoom: 4 })
+    if (!builderMap)
+      return
+    builder = new maps.services.RouteBuilder({ router: await currentRouter() }) as RouteBuilderType
+    builder.onChange(() => void redraw())
+    builderMap.map.on('click', (event: any) => {
+      if (!event?.latlng || !builder)
+        return
+      hint.set(null)
+      saveMessage.set(null)
+      void builder.add({ lat: event.latlng.lat, lng: event.latlng.lng })
+    })
+    await startFromQuery()
+  }
+
+  async function setFollowPaths(value: boolean): Promise<void> {
+    followPaths.set(value)
+    builder?.setRouter(await currentRouter())
+  }
+
+  function undo(): void {
+    hint.set(null)
+    void builder?.undo()
+  }
+
+  function clearRoute(): void {
+    hint.set(null)
+    saveMessage.set(null)
+    savedRouteId.set(0)
+    void builder?.clear()
+  }
+
+  function loopBack(): void {
+    void builder?.closeLoop()
+  }
+
+  function outAndBack(): void {
+    void builder?.outAndBack()
+  }
+
+  // ── Where to start ──────────────────────────────────────────────────────
+  const place = usePlaceSearch({ limit: 5 })
+  const placeResults = place.results
+  const placeQuery = place.query
+
+  function onPlaceInput(event: any): void {
+    place.onInput(String(event?.target?.value ?? ''))
+  }
+
+  function goTo(result: PlaceResult): void {
+    place.clear()
+    townName.set(result.name)
+    builderMap?.map.setView([result.lat, result.lng], 14)
+    hint.set(`Tap the map in ${result.name} to set your start.`)
+  }
+
+  /** `?trail=<id>` starts from a catalog trail; `?open=<id>` from a saved route. */
+  async function startFromQuery(): Promise<void> {
+    const query = useRoute().query ?? {}
+    const trailId = Number(query.trail)
+    const openId = Number(query.open)
+    let path: [number, number][] = []
+    let name = ''
+    if (Number.isInteger(trailId) && trailId > 0) {
+      const res = await apiFetch(`/api/trails/${trailId}`).catch(() => null)
+      const payload = await res?.json().catch(() => null)
+      if (payload) {
+        const { trails, geometryById } = normalizeTrailsPayload(payload)
+        path = (geometryById[trailId] ?? []) as [number, number][]
+        name = trails[0]?.name ? `${trails[0].name} (my version)` : ''
+        townName.set(trails[0]?.location?.split(',')[0] ?? '')
+      }
+    }
+    else if (Number.isInteger(openId) && openId > 0) {
+      await loadRoutes()
+      const saved = routes().find((r: any) => r.id === openId)
+      if (saved) {
+        path = saved.route
+        name = saved.name
+        savedRouteId.set(saved.id)
+      }
+    }
+    if (path.length >= 2 && builder && builderMap) {
+      await builder.load(path.map(([lat, lng]) => ({ lat, lng })))
+      builderMap.fitPoints(path)
+      routeName.set(name)
+      hint.set('Tap the map to extend it, or undo to start over.')
+    }
+  }
+
+  // ── Saving, then planning ───────────────────────────────────────────────
+  async function saveRoute(): Promise<void> {
+    if (!builder || builder.waypoints.length < 2 || saving())
+      return
+    if (!requireAuth('Sign in to save routes and plan them for a day.', () => void saveRoute()))
       return
     saving.set(true)
+    saveMessage.set(null)
     try {
-      await saveRouteNow()
+      const { services } = await ensureTsMaps() as any
+      // The API keeps up to 10,000 points; a routed line rarely needs 2,000.
+      const path = builder.path.length > 2000 ? services.resamplePath(builder.path, 2000) : builder.path
+      const res = await apiFetch('/api/custom-routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: routeName().trim() || defaultName(), route: toPairs(path), elevation: climbFt() ?? 0 }),
+      })
+      const payload = await res.json().catch(() => null)
+      if (!res.ok || !payload?.route) {
+        saveMessage.set(payload?.error || 'The route could not be saved')
+        return
+      }
+      savedRouteId.set(payload.route.id)
+      saveMessage.set(`Saved “${payload.route.name}”.`)
+      await loadRoutes()
     }
     finally {
       saving.set(false)
     }
   }
 
-  async function saveRouteNow() {
-    const bearer = await readyToken()
-    if (!bearer) {
-      navigate('/login')
-      return
-    }
-    const trailId = Number(selectedTrailId())
-    const trail = wl?.findTrail(trailId)
-    const route = wl?.trailRoutes()[trailId] ?? []
-    if (!trail || route.length < 2) {
-      message.set('Choose a trail with verified route geometry.')
-      return
-    }
-    const res = await apiFetch('/api/custom-routes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name().trim() || `${trail.name} route`, route, elevation: trail.elevation }),
-    })
-    const payload = await res.json().catch(() => null)
-    if (!res.ok) {
-      message.set(payload?.error || 'Could not save route')
-      return
-    }
-    message.set(payload.route.closedLoop ? 'Saved as a closed loop.' : 'Saved. This route does not close within 50 metres.')
-    name.set('')
-    await loadRoutes()
+  function planSavedUrl(): string {
+    return `/plans?route=${savedRouteId()}`
   }
 
-  async function deleteRoute(id) {
-    const bearer = await readyToken()
-    if (!bearer) {
-      navigate('/login')
-      return
-    }
-    await apiFetch(`/api/custom-routes/${id}`, { method: 'DELETE' })
-    await loadRoutes()
-  }
+  onMount(() => {
+    void loadRoutes()
+    const cancel = runWhenMapReady('route-builder-map', () => mountBuilder())
+    return () => cancel()
+  })
 
-  onMount(() => void loadRoutes())
+  onDestroy(() => {
+    if (climbTimer)
+      clearTimeout(climbTimer)
+    builderMap?.destroy()
+    builderMap = null
+    builder = null
+  })
 </script>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-  <header class="mb-6">
+<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
+  <header class="mb-4">
     <p class="mb-2 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
       <i class="i-lucide-route h-3.5 w-3.5" aria-hidden="true"></i>
       Route planner
     </p>
-    <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">Your routes</h1>
-    <p class="mt-2 max-w-[60ch] text-slate-600 dark:text-slate-400">Turn verified catalog geometry into a saved route for offline preparation and navigation.</p>
+    <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">Draw a route</h1>
+    <p class="mt-1.5 max-w-[60ch] text-sm text-slate-600 dark:text-slate-400">Tap the map to add points — the line follows real paths and trails. Save it, then plan it for a day.</p>
   </header>
 
-  <section class="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none" aria-labelledby="new-route-title">
-    <h2 id="new-route-title" class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Save a new route</h2>
-    <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-      <div>
-        <label for="route-trail" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Trail</label>
-        <select id="route-trail" @change="selectedTrailId.set(Number($event.target.value))" class="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-          <option value="0">Choose a trail…</option>
-          <template :for="trail in wl?.trails() || []"><option x-value="trail.id" :text="trail.name"></option></template>
-        </select>
+  <!-- Start somewhere: any town. -->
+  <div class="relative mb-3">
+    <label for="route-place" class="sr-only">Start in a town or city</label>
+    <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800">
+      <i class="i-lucide-search h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+      <input id="route-place" type="search" autocomplete="off" placeholder="Start in… San Diego, Boulder, Chamonix" x-value="placeQuery()" @input="onPlaceInput($event)" class="min-h-12 w-full min-w-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-sm dark:text-white" />
+    </div>
+    <ul :if="placeResults().length > 0" class="absolute inset-x-0 top-full z-30 mt-1 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800">
+      <template :for="result in placeResults()">
+        <li>
+          <button type="button" @click="goTo(result)" class="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/60">
+            <i class="i-lucide-map-pin h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true"></i>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">{{ result.name }}</span>
+              <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ result.detail }}</span>
+            </span>
+          </button>
+        </li>
+      </template>
+    </ul>
+  </div>
+
+  <!-- The map you draw on. -->
+  <div class="relative overflow-hidden rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700">
+    <div id="route-builder-map" data-stx-ignore class="ts-map-container h-[58vh] min-h-[320px] w-full sm:h-[480px]"></div>
+
+    <!-- What the line adds up to, over the map where the eye already is. -->
+    <!-- z-[500]: above the map's own panes, which stack from 400. -->
+    <div class="pointer-events-none absolute inset-x-0 bottom-8 z-[500] flex justify-center px-3">
+      <p :if="pointCount() === 0" class="rounded-full bg-slate-900/85 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">Tap the map to set your start</p>
+      <p :if="pointCount() === 1" class="rounded-full bg-slate-900/85 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">Now tap where you want to go</p>
+      <p :if="pointCount() > 1" class="flex items-center gap-2 rounded-full bg-slate-900/85 px-4 py-2 text-sm font-semibold tabular-nums text-white shadow-lg backdrop-blur" aria-live="polite">
+        <i :if="pending() > 0" class="i-lucide-loader-circle h-4 w-4 animate-spin" aria-hidden="true"></i>
+        {{ statsLine() }}
+      </p>
+    </div>
+  </div>
+
+  <p :if="hint()" class="mt-2 text-sm text-slate-600 dark:text-slate-300" role="status">{{ hint() }}</p>
+
+  <!-- Tools, thumb-sized. -->
+  <div class="mt-3 flex flex-wrap items-center gap-2">
+    <div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="group" aria-label="How new legs are drawn">
+      <button type="button" @click="setFollowPaths(true)" :aria-pressed="followPaths() ? 'true' : 'false'" x-class="followPaths() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition">
+        <i class="i-lucide-footprints h-4 w-4" aria-hidden="true"></i>
+        Follow paths
+      </button>
+      <button type="button" @click="setFollowPaths(false)" :aria-pressed="followPaths() ? 'false' : 'true'" x-class="!followPaths() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition">
+        <i class="i-lucide-pencil-line h-4 w-4" aria-hidden="true"></i>
+        Straight
+      </button>
+    </div>
+    <button type="button" @click="undo()" x-disabled="!canUndo()" class="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200">
+      <i class="i-lucide-undo-2 h-4 w-4" aria-hidden="true"></i>
+      Undo
+    </button>
+    <button type="button" @click="loopBack()" x-disabled="pointCount() < 2 || isLoop()" class="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200">
+      <i class="i-lucide-rotate-cw h-4 w-4" aria-hidden="true"></i>
+      Loop back
+    </button>
+    <button type="button" @click="outAndBack()" x-disabled="pointCount() < 2 || isLoop()" class="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200">
+      <i class="i-lucide-arrow-left-right h-4 w-4" aria-hidden="true"></i>
+      Out &amp; back
+    </button>
+    <button type="button" @click="clearRoute()" x-disabled="pointCount() === 0" class="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-slate-500 transition hover:text-rose-600 disabled:opacity-40 dark:text-slate-400">
+      <i class="i-lucide-trash-2 h-4 w-4" aria-hidden="true"></i>
+      Clear
+    </button>
+  </div>
+
+  <!-- Save, then plan. -->
+  <section :if="hasRoute()" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none" aria-label="Save this route">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div class="min-w-0 flex-1">
+        <label for="route-name" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Name</label>
+        <input id="route-name" x-value="routeName" @input="routeName.set($event.target.value)" x-placeholder="defaultName()" maxlength="200" class="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
       </div>
-      <div>
-        <label for="route-name" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Name <span class="font-normal text-slate-400">(optional)</span></label>
-        <input id="route-name" x-value="name" @input="name.set($event.target.value)" placeholder="Saturday long run" class="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
-      </div>
-      <button @click="saveRoute()" x-disabled="saving()" class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+      <button type="button" @click="saveRoute()" x-disabled="saving() || pending() > 0" class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
         <i x-class="saving() ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : 'i-lucide-bookmark-plus h-4 w-4'" aria-hidden="true"></i>
         {{ saving() ? 'Saving…' : 'Save route' }}
       </button>
     </div>
-    <p :if="message" role="status" x-class="messageIsSuccess() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'" class="mt-3 flex items-center gap-1.5 text-sm">
-      <i x-class="messageIsSuccess() ? 'i-lucide-circle-check h-4 w-4 shrink-0' : 'i-lucide-circle-alert h-4 w-4 shrink-0'" aria-hidden="true"></i>
-      {{ message }}
-    </p>
+    <div :if="saveMessage()" class="mt-3 flex flex-wrap items-center gap-2">
+      <p class="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400" role="status">
+        <i class="i-lucide-circle-check h-4 w-4 shrink-0" aria-hidden="true"></i>
+        {{ saveMessage() }}
+      </p>
+      <StxLink :if="savedRouteId() > 0" x-to="planSavedUrl()" class="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700">
+        <i class="i-lucide-calendar-plus h-4 w-4" aria-hidden="true"></i>
+        Plan this route
+      </StxLink>
+    </div>
   </section>
 
-  <div class="mb-3 flex items-baseline justify-between">
-    <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Saved</h2>
-    <span :if="routes.length > 0" class="text-sm text-slate-500 tabular-nums dark:text-slate-400">{{ routes.length === 1 ? '1 route' : routes.length + ' routes' }}</span>
+  <!-- Saved -->
+  <div class="mb-3 mt-8 flex items-baseline justify-between">
+    <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Your routes</h2>
+    <span :if="routes().length > 0" class="text-sm text-slate-500 tabular-nums dark:text-slate-400">{{ routes().length === 1 ? '1 route' : routes().length + ' routes' }}</span>
   </div>
 
-  <!-- Row-shaped placeholders until the list answers. -->
   <div :if="!loaded()" class="space-y-3" role="status" aria-label="Loading saved routes">
     <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-16 w-16 rounded-xl bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3.5 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
-    <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-16 w-16 rounded-xl bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3.5 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/4 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
   </div>
 
   <div :if="loaded()" class="space-y-3">
-    <template :for="route in routes">
-      <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
+    <template :for="route in routes()">
+      <div :id="'route-' + route.id" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
         <div class="wl-topo relative h-16 w-16 shrink-0 overflow-hidden rounded-xl" aria-hidden="true">
           <svg :if="routeShape(route).points !== ''" viewBox="0 0 100 100" class="absolute inset-0 h-full w-full">
             <polyline x-points="routeShape(route).points" class="wl-route-casing" />
@@ -193,25 +525,32 @@
           <p class="truncate font-semibold text-slate-900 dark:text-white">{{ route.name }}</p>
           <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
             <span class="font-medium text-slate-700 tabular-nums dark:text-slate-200">{{ route.distance.toFixed(1) + ' mi' }}</span>
-            <span :if="route.elevation > 0" class="tabular-nums">{{ route.elevation.toLocaleString() + ' ft' }}</span>
+            <span :if="route.elevation > 0" class="tabular-nums">{{ '+' + Math.round(route.elevation).toLocaleString() + ' ft' }}</span>
             <span x-class="route.closedLoop ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold">
               <i x-class="route.closedLoop ? 'i-lucide-rotate-cw h-3 w-3' : 'i-lucide-move-right h-3 w-3'" aria-hidden="true"></i>
-              {{ route.closedLoop ? 'Closed loop' : 'Point to point' }}
+              {{ route.closedLoop ? 'Loop' : 'Point to point' }}
             </span>
           </p>
+          <div class="mt-2 flex flex-wrap gap-1">
+            <StxLink x-to="planRouteUrl(route)" class="inline-flex min-h-9 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <i class="i-lucide-calendar-plus h-3.5 w-3.5" aria-hidden="true"></i>
+              Plan
+            </StxLink>
+            <a x-href="routeStartDirections(route)" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60">
+              <i class="i-lucide-navigation h-3.5 w-3.5" aria-hidden="true"></i>
+              To the start
+            </a>
+          </div>
         </div>
-        <button @click="deleteRoute(route.id)" x-aria-label="'Delete ' + route.name" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 active:scale-95 dark:hover:bg-rose-500/10 dark:hover:text-rose-400">
+        <button @click="deleteRoute(route.id)" x-aria-label="'Delete ' + route.name" class="grid h-11 w-11 shrink-0 place-items-center self-start rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 active:scale-95 dark:hover:bg-rose-500/10 dark:hover:text-rose-400">
           <i class="i-lucide-trash-2 h-4 w-4" aria-hidden="true"></i>
         </button>
       </div>
     </template>
 
-    <div :if="routes.length === 0" class="rounded-2xl border border-dashed border-slate-200 px-6 py-12 text-center dark:border-slate-700">
-      <div class="wl-topo mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl">
-        <i class="i-lucide-route h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-      </div>
-      <p class="font-semibold text-slate-900 dark:text-white">No saved routes yet</p>
-      <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Pick a trail above and save it — it stays ready for offline navigation.</p>
+    <div :if="routes().length === 0" class="rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center dark:border-slate-700">
+      <p class="font-semibold text-slate-900 dark:text-white">{{ signedIn() ? 'No saved routes yet' : 'Your routes, on every device' }}</p>
+      <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{{ signedIn() ? 'Draw one above and save it — then plan it for a day.' : 'Draw one above; sign in when you save it.' }}</p>
     </div>
   </div>
 </div>

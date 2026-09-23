@@ -33,6 +33,7 @@
       items: [
         { label: 'Trails', href: '/trails', icon: 'i-lucide-map' },
         { label: 'Plans', href: '/plans', icon: 'i-lucide-calendar-days' },
+        { label: 'Draw a route', href: '/routes', icon: 'i-lucide-route' },
         { label: 'Saved trails', href: '/profile?tab=saved', icon: 'i-lucide-bookmark' },
       ],
     },

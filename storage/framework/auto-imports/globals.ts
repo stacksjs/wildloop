@@ -126,6 +126,8 @@ declare global {
   const personalBests: typeof autoImports.personalBests
   const monthlyProgress: typeof autoImports.monthlyProgress
   const shareText: typeof autoImports.shareText
+  const encodePolyline: typeof autoImports.encodePolyline
+  const decodePolyline: typeof autoImports.decodePolyline
   const qrSvg: typeof autoImports.qrSvg
   const qrSvgMarkup: typeof autoImports.qrSvgMarkup
   const qrBrandedMarkup: typeof autoImports.qrBrandedMarkup

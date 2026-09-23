@@ -420,6 +420,15 @@ route.group({ middleware: 'throttle:120,1' }, () => {
   route.get('/geo/reverse', 'Actions/Geo/GeoReverseAction')
 })
 
+// The route builder: each tapped leg along footpaths, and the drawn route's
+// climb. Proxied to Valhalla (VALHALLA_URL, or the public FOSSGIS server),
+// so the page's content policy stays closed and a self-hosted router is a
+// config change. A leg per tap, so the throttle is per-tap generous.
+route.group({ middleware: 'throttle:90,1' }, () => {
+  route.get('/geo/path', 'Actions/Geo/GeoPathAction')
+  route.get('/geo/climb', 'Actions/Geo/GeoClimbAction')
+})
+
 // Autocomplete for the home search: regions, places and trail names, all from
 // the catalog itself. Kept off /trails so it stays cheap enough per keystroke.
 route.get('/search/suggest', 'Actions/Search/SearchSuggestAction')

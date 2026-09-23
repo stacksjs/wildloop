@@ -121,3 +121,60 @@ test('plan a spot that is not a trail by searching a town', async ({ page }) => 
   await card.getByRole('button', { name: 'Remove' }).click()
   await expect(page.getByText('Nothing planned yet')).toBeVisible()
 })
+
+test('draw a route in a town, save it, plan it for a day, and open it again', async ({ page }) => {
+  await signUp(page)
+  await page.goto(`${origin}/routes`)
+  await page.waitForFunction(() => (document.getElementById('route-builder-map')?.children.length ?? 0) > 0)
+
+  await page.getByPlaceholder(/Start in/).fill('San Diego')
+  await page.getByRole('button', { name: /San Diego/ }).first().click()
+  await expect(page.getByText('Tap the map in San Diego to set your start.')).toBeVisible()
+  // Straight legs: path routing is a network call to Valhalla, and a deploy
+  // gate must not depend on a public server.
+  await page.getByRole('button', { name: 'Straight' }).click()
+
+  const map = page.locator('#route-builder-map')
+  await map.click({ position: { x: 80, y: 90 } })
+  await expect(page.getByText('Now tap where you want to go')).toBeVisible()
+  await map.click({ position: { x: 220, y: 120 } })
+  await map.click({ position: { x: 160, y: 230 } })
+  await page.getByRole('button', { name: 'Loop back' }).click()
+  await expect(page.getByText(/\d+\.\d+ mi.* · loop/)).toBeVisible()
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect(page.getByText(/ · loop/)).toBeHidden()
+  await page.getByRole('button', { name: 'Loop back' }).click()
+  await expect(page.getByText(/ · loop/)).toBeVisible()
+
+  await page.locator('#route-name').fill('Harbor loop')
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/custom-routes') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Save route' }).click()
+  const response = await saved
+  expect(response.status(), await response.text()).toBe(201)
+  const { route } = await response.json()
+  expect(route.closedLoop).toBe(true)
+  await expect(page.getByText('Saved “Harbor loop”.')).toBeVisible()
+
+  // Plan it: the planner opens on the route's start, under its name.
+  await page.getByRole('link', { name: 'Plan this route' }).click()
+  await expect(page).toHaveURL(new RegExp(`/plans\\?route=${route.id}`))
+  const sheet = page.getByRole('dialog', { name: 'Plan this route' })
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByLabel('Name')).toHaveValue('Harbor loop')
+  await sheet.getByLabel('Date').fill(await dateIn(page, 8))
+  const planned = page.waitForResponse(r => r.url().endsWith('/api/plans') && r.request().method() === 'POST')
+  await sheet.getByRole('button', { name: 'Save plan' }).click()
+  const planResponse = await planned
+  expect(planResponse.status(), await planResponse.text()).toBe(201)
+  const { plan } = await planResponse.json()
+  const [startLat, startLng] = route.route[0]
+  expect(plan).toMatchObject({ custom_route_id: route.id, title: 'Harbor loop', latitude: startLat, longitude: startLng })
+
+  const card = page.locator(`#plan-${plan.id}`)
+  const six = (n: number) => String(Number(n.toFixed(6)))
+  await expect(card.getByRole('link', { name: 'Apple Maps' })).toHaveAttribute('href', `https://maps.apple.com/?daddr=${six(startLat)}%2C${six(startLng)}&dirflg=d`)
+  await card.getByRole('link', { name: 'Route' }).click()
+  await expect(page).toHaveURL(new RegExp(`/routes\\?open=${route.id}`))
+  await expect(page.getByText(/ · loop/)).toBeVisible()
+  await expect(page.locator('#route-name')).toHaveValue('Harbor loop')
+})

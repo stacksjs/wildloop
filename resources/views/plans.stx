@@ -15,6 +15,7 @@
   import type { TripPlan } from '../functions/trip-plans'
   import type { PlaceResult } from '../composables/usePlaceSearch'
   import type { TrailMapHandle } from '../composables/useTrailMap'
+  import { apiFetch } from '../assets/scripts/auth'
   import { openAuthGate } from '../composables/useAuthGate'
   import { deviceToday, useTripPlans } from '../composables/useTripPlans'
   import { nearestPlace, usePlaceSearch } from '../composables/usePlaceSearch'
@@ -78,6 +79,9 @@
   function trailUrl(plan: TripPlan): string {
     return plan.trail_id ? `/trail/${plan.trail_id}` : ''
   }
+  function routeUrl(plan: TripPlan): string {
+    return plan.custom_route_id ? `/routes?open=${plan.custom_route_id}` : ''
+  }
   function planTrailsNearUrl(plan: TripPlan): string {
     return trailsNearUrl({ lat: plan.latitude, lng: plan.longitude, name: plan.place_label?.split(',')[0] || plan.title })
   }
@@ -93,6 +97,8 @@
   const fLat = state<number | null>(null)
   const fLng = state<number | null>(null)
   const fPlace = state('')
+  /** A drawn route this plan is for; its start is the destination. */
+  const fRouteId = state<number | null>(null)
   const saving = state(false)
   const formError = state<string | null>(null)
   const fieldErrors = state<Record<string, string>>({})
@@ -132,6 +138,7 @@
     }
     resetForm()
     editing.set(null)
+    fRouteId.set(null)
     fTitle.set(at?.name ? `Run in ${at.name}` : '')
     fDate.set(defaultDate())
     fTime.set('')
@@ -232,6 +239,7 @@
       ...(isTrailPlan()
         ? {}
         : { latitude: fLat(), longitude: fLng(), place_label: fPlace() || null, trail_id: null }),
+      ...(fRouteId() ? { custom_route_id: fRouteId() } : {}),
     }
     const current = editing()
     const result = current ? await update(current.id, input) : await create(input)
@@ -250,6 +258,22 @@
     notice.set(result.ok ? `Removed ${plan.title}.` : result.error ?? 'The plan could not be removed')
   }
 
+  /** Plan a saved route: its start, its name, and the link back to it. */
+  async function openForRoute(routeId: number): Promise<void> {
+    const res = await apiFetch('/api/custom-routes').catch(() => null)
+    const body = await res?.json().catch(() => null)
+    const route = Array.isArray(body?.routes) ? body.routes.find((r: any) => r.id === routeId) : null
+    const start = Array.isArray(route?.route) ? route.route[0] : null
+    if (!route || !start) {
+      notice.set('That route is not in your saved routes.')
+      return
+    }
+    const near = await nearestPlace(start[0], start[1])
+    openNew({ lat: start[0], lng: start[1], label: near?.label ?? '', name: near?.name })
+    fRouteId.set(route.id)
+    fTitle.set(route.name)
+  }
+
   function fieldError(name: string): string {
     return fieldErrors()[name] || ''
   }
@@ -261,8 +285,14 @@
   onMount(() => {
     today.set(deviceToday())
     void load()
-    // A link from the trails page or a reminder can ask to plan somewhere.
+    // A link from the trails page or a reminder can ask to plan somewhere,
+    // and one from the route planner to plan a drawn route.
     const query = useRoute().query ?? {}
+    const routeId = Number(query.route)
+    if (Number.isInteger(routeId) && routeId > 0) {
+      void openForRoute(routeId)
+      return
+    }
     const lat = Number(query.lat)
     const lng = Number(query.lng)
     if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && query.lat !== undefined) {
@@ -370,7 +400,11 @@
                 <i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>
                 Trail
               </StxLink>
-              <StxLink :if="!plan.trail_id" x-to="planTrailsNearUrl(plan)" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+              <StxLink :if="plan.custom_route_id" x-to="routeUrl(plan)" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+                <i class="i-lucide-route h-3.5 w-3.5" aria-hidden="true"></i>
+                Route
+              </StxLink>
+              <StxLink :if="!plan.trail_id && !plan.custom_route_id" x-to="planTrailsNearUrl(plan)" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
                 <i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>
                 Trails nearby
               </StxLink>
@@ -456,7 +490,7 @@
 
     <div class="flex items-start justify-between gap-4 px-6 pt-5">
       <div>
-        <h2 id="plan-sheet-title" class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ editing() ? 'Edit plan' : 'Plan a spot' }}</h2>
+        <h2 id="plan-sheet-title" class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ editing() ? 'Edit plan' : (fRouteId() ? 'Plan this route' : 'Plan a spot') }}</h2>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ isTrailPlan() ? 'The trailhead is set by the trail.' : 'Search a place, then tap the map to set the exact spot.' }}</p>
       </div>
       <button type="button" @click="closeSheet()" aria-label="Close" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">

@@ -47,6 +47,8 @@ export type { PageParams, PageMeta } from '../../../resources/functions/paginati
 export { passwordChangeError, PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '../../../resources/functions/password-change'
 export { formatMiles, formatDuration, formatFeet, personalBests, monthlyProgress, shareText } from '../../../resources/functions/personal-bests'
 export type { BestsActivity, PersonalBestKey, PersonalBest, MonthProgress } from '../../../resources/functions/personal-bests'
+export { encodePolyline, decodePolyline } from '../../../resources/functions/polyline'
+export type { LatLngPair } from '../../../resources/functions/polyline'
 export { qrSvg, qrSvgMarkup, qrBrandedMarkup } from '../../../resources/functions/qr'
 export type { QrLevel, QrOptions, QrSvg, QrBrandOptions } from '../../../resources/functions/qr'
 export { computeTerritoryRankAssignments } from '../../../resources/functions/ranks'

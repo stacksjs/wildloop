@@ -25,6 +25,8 @@ export interface TripPlan {
   id: number
   uuid?: string | null
   trail_id: number | null
+  /** A route the person drew; the plan starts at its first point. */
+  custom_route_id?: number | null
   title: string
   place_label: string | null
   latitude: number
@@ -182,6 +184,16 @@ export function validateTripPlan(input: TripPlanInput, opts: { today: string, pa
       value.trail_id = id
     else
       fields.trail_id = 'Unknown trail'
+  }
+
+  if (input.custom_route_id !== undefined) {
+    const id = Number(input.custom_route_id)
+    if (input.custom_route_id === null || input.custom_route_id === '')
+      value.custom_route_id = null
+    else if (Number.isInteger(id) && id > 0)
+      value.custom_route_id = id
+    else
+      fields.custom_route_id = 'Unknown route'
   }
 
   if (input.place_label !== undefined)

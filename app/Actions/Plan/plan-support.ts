@@ -1,10 +1,11 @@
 import type { TripPlan, TripPlanFields, TripPlanInput } from '../../../resources/functions/trip-plans'
 import { localDate, validateTripPlan } from '../../../resources/functions/trip-plans'
+import CustomRoute from '../../Models/CustomRoute'
 import Trail from '../../Models/Trail'
 
 /** The fields a request may set on a plan; anything else is ignored. */
 const INPUT_KEYS = [
-  'trail_id', 'title', 'place_label', 'latitude', 'longitude', 'planned_for',
+  'trail_id', 'custom_route_id', 'title', 'place_label', 'latitude', 'longitude', 'planned_for',
   'start_time', 'timezone', 'activity_type', 'notes',
 ] as const
 
@@ -60,11 +61,44 @@ export async function applyTrail(value: Partial<TripPlanFields>, fields: Record<
   }
 }
 
+/**
+ * A plan on a drawn route starts where the route starts, under its name.
+ * Only the person's own routes: someone else's route id is refused as
+ * unknown rather than confirmed to exist.
+ */
+export async function applyRoute(value: Partial<TripPlanFields>, fields: Record<string, string>, userId: number): Promise<void> {
+  if (!value.custom_route_id)
+    return
+  const route = await CustomRoute.find(value.custom_route_id).catch(() => null) as any
+  if (!route || route.user_id !== userId) {
+    fields.custom_route_id = 'Unknown route'
+    return
+  }
+  let start: unknown
+  try {
+    start = JSON.parse(route.route_data)?.[0]
+  }
+  catch {
+    start = null
+  }
+  const [lat, lng] = Array.isArray(start) ? start.map(Number) : [Number.NaN, Number.NaN]
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    value.latitude = lat
+    value.longitude = lng
+    delete fields.location
+  }
+  if (!value.title && route.name) {
+    value.title = String(route.name).slice(0, 120)
+    delete fields.title
+  }
+}
+
 export function planResponse(row: any): TripPlan {
   return {
     id: Number(row.id),
     uuid: row.uuid ?? null,
     trail_id: row.trail_id ? Number(row.trail_id) : null,
+    custom_route_id: row.custom_route_id ? Number(row.custom_route_id) : null,
     title: row.title,
     place_label: row.place_label ?? null,
     latitude: Number(row.latitude),

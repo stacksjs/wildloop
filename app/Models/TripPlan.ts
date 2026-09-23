@@ -20,7 +20,7 @@ export default defineModel({
   primaryKey: 'id',
   autoIncrement: true,
   traits: { useUuid: true, useTimestamps: true },
-  belongsTo: ['User', 'Trail'],
+  belongsTo: ['User', 'Trail', 'CustomRoute'],
   indexes: [
     { name: 'trip_plans_user_date_index', columns: ['user_id', 'planned_for'] },
     { name: 'trip_plans_reminder_index', columns: ['reminded_at', 'planned_for'] },
@@ -28,6 +28,7 @@ export default defineModel({
   attributes: {
     user_id: { fillable: true, validation: { rule: schema.number().required() } },
     trail_id: { fillable: true, nullable: true, validation: { rule: schema.number() } },
+    custom_route_id: { fillable: true, nullable: true, validation: { rule: schema.number() } },
     title: { fillable: true, validation: { rule: schema.string().min(1).max(120).required() } },
     place_label: { fillable: true, nullable: true, validation: { rule: schema.string().max(200) } },
     latitude: { fillable: true, validation: { rule: schema.float().min(-90).max(90).required() } },

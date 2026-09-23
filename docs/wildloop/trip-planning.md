@@ -22,6 +22,14 @@ A plan (`trip_plans`, `app/Models/TripPlan.ts`) is a destination point and a cal
 
 `GET/POST /api/plans`, `PATCH/DELETE /api/plans/{id}` — owner only; someone else's plan is a 404. Validation and every label live in `resources/functions/trip-plans.ts`, shared by the API and the pages.
 
+## Drawing a route
+
+`/routes` is a map you draw on: search a town, tap to add points, and each leg follows footpaths and trails (**Follow paths**) or runs straight (**Straight**). **Undo**, **Loop back** and **Out & back** do what they say; the pill over the map shows distance, climb and shape as you go. The logic is ts-maps' `RouteBuilder`; the page only draws it.
+
+- Each leg is routed by `GET /api/geo/path?from=&to=` and the climb by `GET /api/geo/climb?path=<encoded polyline>` — proxied to Valhalla (`VALHALLA_URL`, or the public FOSSGIS server) so the page's content policy stays closed and a self-hosted router is a config change. A leg that cannot be routed is drawn straight and the page says so.
+- Drawing needs no account; **Save route** asks to sign in. After saving, **Plan this route** opens the planner at the route's start (`/plans?route=<id>`), and the plan links back (`custom_route_id`, migration 164).
+- A trail page's **Customize route** opens the builder on that trail's line (`/routes?trail=<id>`), to extend or reshape.
+
 ## Directions
 
 `planDirections()` builds https links with ts-maps `directionsLinks`: `maps.apple.com/?daddr=…&dirflg=d` and `google.com/maps/dir/?api=1&destination=…&travelmode=driving`. Driving, because the trip to a trailhead is. In the native app the shell hands any link that is not wildloop.org to the system, so these open Apple Maps and, when installed, Google Maps.
@@ -40,4 +48,5 @@ The service worker still never caches page HTML (see `public/sw.js`), so in a br
 ## Tests
 
 - `tests/unit/trip-plans.test.ts` — validation, dates across timezones, sorting, directions, when a reminder is due.
-- `tests/browser/planning.pw.ts` — the whole flow against the isolated QA stack, with a five-town gazetteer (`tests/browser/fixtures/geonames-sample.txt`) and one seeded trail.
+- `tests/unit/polyline.test.ts` — the encoded-polyline format the climb endpoint takes.
+- `tests/browser/planning.pw.ts` — planning a trail, a spot and a drawn route (draw, loop, undo, save, plan, reopen), against the isolated QA stack with a five-town gazetteer (`tests/browser/fixtures/geonames-sample.txt`) and one seeded trail. Routes are drawn straight there: path routing is a network call to Valhalla, and a deploy gate must not depend on a public server.
