@@ -67,7 +67,7 @@ export type { TerritoryAppearance, TerritorySnapshot } from '../../../resources/
 export { normalizeTagKey, readTags, featureFromTag, trailFeatures, trailHighlight, routeTypeLabel, routeTypeIcon, trailNotices } from '../../../resources/functions/trail-features'
 export type { TrailFeature, TrailNotice, FeatureTrail } from '../../../resources/functions/trail-features'
 export { parsePhotoList, trailGallery } from '../../../resources/functions/trail-photos'
-export type { GalleryPhoto, GalleryTrail, GalleryReview } from '../../../resources/functions/trail-photos'
+export type { GalleryPhoto, GalleryTrail, GalleryReview, GalleryContribution } from '../../../resources/functions/trail-photos'
 export { formatTrailTime, parseTrailTime, displayTrailTime } from '../../../resources/functions/trail-time'
 export { durationSeconds, computeTrainingStats } from '../../../resources/functions/training-stats'
 export type { TrainingActivity, TrainingStats } from '../../../resources/functions/training-stats'
