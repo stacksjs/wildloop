@@ -21,10 +21,20 @@ export function nextUploadDelayMs(attempts: number): number {
   return Math.min(MAX_RETRY_DELAY_MS, BASE_RETRY_DELAY_MS * 2 ** Math.max(0, attempts - 1))
 }
 
-export function queuedRunDisposition(row: Pick<QueuedRun, 'attempts' | 'nextAttemptAt'>, now = Date.now()): 'ready' | 'deferred' | 'failed' {
-  if ((row.attempts ?? 0) >= MAX_UPLOAD_ATTEMPTS) return 'failed'
+export function queuedRunDisposition(row: Pick<QueuedRun, 'attempts' | 'nextAttemptAt'> & Partial<Pick<QueuedRun, 'failedAt'>>, now = Date.now()): 'ready' | 'deferred' | 'failed' {
+  if (row.failedAt || (row.attempts ?? 0) >= MAX_UPLOAD_ATTEMPTS) return 'failed'
   if (row.nextAttemptAt && Date.parse(row.nextAttemptAt) > now) return 'deferred'
   return 'ready'
+}
+
+export function uploadNeedsAttention(error: unknown): boolean {
+  const status = (error as { status?: number } | null)?.status
+  return !!status && status >= 400 && status < 500 && ![401, 408, 429].includes(status)
+}
+
+function notifyQueueChanged() {
+  if (typeof globalThis.dispatchEvent === 'function')
+    globalThis.dispatchEvent(new Event('wildloop:uploads-changed'))
 }
 
 function openDatabase(): Promise<IDBDatabase | null> {
@@ -88,6 +98,8 @@ export async function enqueueRun(payload: ActivityPayload, error: unknown = null
   if (!payload.upload_id)
     throw new Error('Queued runs require an upload_id')
   const existing = await withStore<QueuedRun>('readonly', store => store.get(payload.upload_id!))
+  if (existing && existing.ownerId !== payload.user_id)
+    throw new Error('Sign in to the account that recorded this activity.')
   const attempts = nextAttemptCount(existing?.attempts ?? 0, error)
   const queued: QueuedRun = {
     uploadId: payload.upload_id,
@@ -97,9 +109,10 @@ export async function enqueueRun(payload: ActivityPayload, error: unknown = null
     attempts,
     lastError: error instanceof Error ? error.message : error ? String(error) : null,
     nextAttemptAt: new Date(now + nextUploadDelayMs(attempts)).toISOString(),
-    failedAt: attempts >= MAX_UPLOAD_ATTEMPTS ? new Date(now).toISOString() : null,
+    failedAt: uploadNeedsAttention(error) || attempts >= MAX_UPLOAD_ATTEMPTS ? new Date(now).toISOString() : null,
   }
   await withStore('readwrite', store => store.put(queued))
+  notifyQueueChanged()
 }
 
 export async function queuedRuns(ownerId?: number): Promise<QueuedRun[]> {
@@ -111,6 +124,44 @@ export async function queuedRuns(ownerId?: number): Promise<QueuedRun[]> {
 
 export async function removeQueuedRun(uploadId: string): Promise<void> {
   await withStore('readwrite', store => store.delete(uploadId))
+  notifyQueueChanged()
+}
+
+/** Explicit recovery only. Keep the original payload and idempotency key. */
+export async function retryQueuedRun(ownerId: number, uploadId: string): Promise<void> {
+  const database = await openDatabase()
+  if (!database) throw new Error('Device storage is unavailable.')
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.get(uploadId)
+    let failure: Error | null = null
+    request.onsuccess = () => {
+      const row = request.result as QueuedRun | undefined
+      if (!ownerId || !row || row.ownerId !== ownerId) {
+        failure = new Error('Sign in to the account that recorded this activity.')
+        transaction.abort()
+        return
+      }
+      store.put({ ...row, attempts: 0, failedAt: null, nextAttemptAt: new Date().toISOString() })
+    }
+    transaction.oncomplete = () => { database.close(); resolve() }
+    transaction.onabort = transaction.onerror = () => {
+      database.close()
+      reject(failure ?? transaction.error ?? new Error('Could not retry this recording.'))
+    }
+  })
+  notifyQueueChanged()
+  if (typeof globalThis.dispatchEvent === 'function')
+    globalThis.dispatchEvent(new Event('wildloop:retry-uploads'))
+}
+
+/** Lossless local backup, including timestamps and the original GPS payload. */
+export async function exportQueuedRun(ownerId: number, uploadId: string): Promise<string> {
+  const row = await withStore<QueuedRun>('readonly', store => store.get(uploadId))
+  if (!ownerId || !row || row.ownerId !== ownerId)
+    throw new Error('Sign in to the account that recorded this activity.')
+  return JSON.stringify({ format: 'wildloop-recording-v1', recording: row }, null, 2)
 }
 
 export async function flushQueuedRuns(
@@ -147,6 +198,6 @@ export async function flushQueuedRuns(
     uploaded,
     remaining: remainingRows.length,
     deferred,
-    failed: remainingRows.filter(row => (row.attempts ?? 0) >= MAX_UPLOAD_ATTEMPTS).length,
+    failed: remainingRows.filter(row => queuedRunDisposition(row, now) === 'failed').length,
   }
 }

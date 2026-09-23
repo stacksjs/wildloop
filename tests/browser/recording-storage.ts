@@ -1,4 +1,4 @@
-import { enqueueRun, queuedRuns, removeQueuedRun } from '../../resources/assets/scripts/run-upload-queue'
+import { enqueueRun, queuedRuns, queuedRunDisposition, flushQueuedRuns, removeQueuedRun, retryQueuedRun, exportQueuedRun } from '../../resources/assets/scripts/run-upload-queue'
 import { clearRecordingCheckpoint, loadRecordingCheckpoint, saveRecordingCheckpoint } from '../../resources/assets/scripts/recording-checkpoint'
 import { saveFinishedRecording } from '../../resources/assets/scripts/finished-recording'
 import { installRecordingNavigationGuard, requestRecordingExit } from '../../resources/assets/scripts/recording-navigation'
@@ -11,6 +11,11 @@ const payload = {
   distance: 1,
   duration: '20:00',
   upload_id: 'browser-storage-rollback',
+  moving_time: '18:00',
+  visibility: 'private',
+  completed_at: '2026-09-24T01:00:00.000Z',
+  gpx_data: JSON.stringify({ type: 'LineString', coordinates: [[-118.49, 34.01], [-118.49, 34.01001]], properties: { samples: [{ time: 1790210400000, accuracy: 5, altitude: 10 }, { time: 1790210420000, accuracy: 5, altitude: 12 }] } }),
+  splits: [{ mile: 1, pace: '18:00', elev: 2 }],
 }
 
 run.addEventListener('click', async () => {
@@ -108,6 +113,38 @@ run.addEventListener('click', async () => {
         throw new Error(`HTTP ${status} lost its recoverable track`)
       if (status === 401 && !result.error?.includes('Sign in again'))
         throw new Error('An expired session must explain how to resume uploading')
+      if (status === 422) {
+        const row = rows.find(row => row.uploadId === refused.upload_id)!
+        if (queuedRunDisposition(row, Date.now() + 86400000) !== 'failed')
+          throw new Error('A permanently rejected upload must stop automatic retries immediately')
+        let uploads = 0
+        await flushQueuedRuns(payload.user_id, async () => { uploads++; return { activityId: 1 } }, Date.now() + 86400000)
+        if (uploads || !(await queuedRuns(payload.user_id)).length)
+          throw new Error('A rejected upload must stay on the device without automatic retries')
+        for (const recover of [retryQueuedRun, exportQueuedRun]) {
+          let denied = false
+          try { await recover(payload.user_id + 1, refused.upload_id) }
+          catch { denied = true }
+          if (!denied) throw new Error('Another account could recover a private recording')
+        }
+        const backup = JSON.parse(await exportQueuedRun(payload.user_id, refused.upload_id))
+        if (JSON.stringify(backup.recording.payload) !== JSON.stringify(refused))
+          throw new Error('Export did not preserve the entire original payload')
+        await retryQueuedRun(payload.user_id, refused.upload_id)
+        const retry = (await queuedRuns(payload.user_id))[0]
+        if (queuedRunDisposition(retry) !== 'ready' || retry.uploadId !== refused.upload_id)
+          throw new Error('Manual retry must reset the wait, without changing the recording identity')
+        await flushQueuedRuns(payload.user_id, async () => { throw Object.assign(new Error('Still rejected'), { status: 422 }) })
+        const refusedAgain = (await queuedRuns(payload.user_id))[0]
+        if (queuedRunDisposition(refusedAgain) !== 'failed' || JSON.stringify(refusedAgain.payload) !== JSON.stringify(refused))
+          throw new Error('Another rejection must park the same intact recording again')
+        await flushQueuedRuns(payload.user_id, async () => { uploads++; return { activityId: 1 } }, Date.now() + 86400000)
+        if (uploads) throw new Error('Repeated rejection restarted automatic retries')
+        await retryQueuedRun(payload.user_id, refused.upload_id)
+        await flushQueuedRuns(payload.user_id, async () => { uploads++; return { activityId: 1 } })
+        if (uploads !== 1 || (await queuedRuns(payload.user_id)).length)
+          throw new Error('Manual recovery must upload once and remove only the confirmed saved recording')
+      }
       await removeQueuedRun(refused.upload_id)
     }
     // If the final checkpoint update fails, the last active checkpoint must
@@ -167,7 +204,7 @@ run.addEventListener('click', async () => {
     cleanup()
     anchor.remove()
     if (!unlocked) throw new Error('Navigation stayed locked after the recording was safely saved')
-    output.textContent = 'PASS: transaction rollback, committed recovery, failed-save retention, stable retry identity, account isolation, HTTP 401/422 retention, offline handoff, and click/history/unload/logout protection.'
+    output.textContent = 'PASS: transaction rollback, committed recovery, failed-save retention, stable retry identity, account isolation, HTTP 401/422 retention, permanent rejection parking, lossless export, manual retry, offline handoff, and click/history/unload/logout protection.'
   }
   catch (error) {
     output.textContent = `FAIL: ${error instanceof Error ? error.message : error}`

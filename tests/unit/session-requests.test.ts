@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { apiFetch, changePassword } from '../../resources/assets/scripts/auth'
-import { fetchAchievements, fetchFollows, persistRunAndProcess, queuedRunMessage } from '../../resources/assets/scripts/game-api'
-import { nextAttemptCount } from '../../resources/assets/scripts/run-upload-queue'
+import { createActivity, fetchAchievements, fetchFollows, persistRunAndProcess, queuedRunMessage } from '../../resources/assets/scripts/game-api'
+import { nextAttemptCount, uploadNeedsAttention } from '../../resources/assets/scripts/run-upload-queue'
 
 const store = new Map<string, string>()
 const calls: Array<{ url: string, init: any }> = []
@@ -96,6 +96,28 @@ describe('recorded runs', () => {
   it('tell the athlete why their run is waiting', () => {
     expect(queuedRunMessage(new TypeError('Failed to fetch'))).toBe('Saved on this device and will sync when Wildloop is online')
     expect(queuedRunMessage(Object.assign(new Error('Unauthenticated'), { status: 401 }))).toContain('Sign in again')
+  })
+
+  it('parks permanent refusals but keeps session, timeout and rate-limit failures retryable', () => {
+    for (const status of [400, 403, 404, 409, 413, 422])
+      expect(uploadNeedsAttention({ status })).toBe(true)
+    for (const status of [401, 408, 429, 500, 503])
+      expect(uploadNeedsAttention({ status })).toBe(false)
+    expect(uploadNeedsAttention(new TypeError('Failed to fetch'))).toBe(false)
+    expect(queuedRunMessage(Object.assign(new Error('Track needs review'), { status: 422 }))).toContain('Automatic retries stopped')
+  })
+
+  it('shows validation field reasons instead of a generic rejection', async () => {
+    store.set('auth_token', 'abc')
+    for (const body of [
+      { error: 'Validation failed', fields: { gpx_data: 'Track needs review' } },
+      { error: 'Validation failed', errors: { gpx_data: ['Track needs review'] } },
+    ]) {
+      respondWith(422, body)
+      await expect(createActivity({ ...run })).rejects.toThrow('Track needs review')
+    }
+    globalThis.fetch = mock(async () => new Response('Not JSON', { status: 413 })) as any
+    await expect(createActivity({ ...run })).rejects.toThrow('That request could not be completed')
   })
 })
 

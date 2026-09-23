@@ -7,6 +7,9 @@
  * Keys are snake_case to match the backend Actions / ORM.
  */
 
+import { describeResponseError } from './request-error'
+import { uploadNeedsAttention } from './run-upload-queue'
+
 export interface CreatedActivity {
   id: number
   userId: number
@@ -144,7 +147,9 @@ export async function createActivity(payload: ActivityPayload): Promise<CreatedA
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    const error = new Error(body?.error || `Activity upload failed with HTTP ${res.status}`) as Error & { retryable?: boolean, status?: number }
+    const failure = describeResponseError(res.status, { ...body, errors: body?.fields ?? body?.errors })
+    const message = failure.fields ? Object.values(failure.fields).join(' ') : failure.message
+    const error = new Error(message) as Error & { retryable?: boolean, status?: number }
     error.retryable = res.status >= 500 || res.status === 408 || res.status === 429
     error.status = res.status
     throw error
@@ -158,9 +163,9 @@ export function queuedRunMessage(error: unknown): string {
   const status = (error as { status?: number } | null)?.status
   if (status === 401)
     return 'Saved on this device. Sign in again and it will upload.'
-  if (status && status >= 400 && status < 500) {
+  if (uploadNeedsAttention(error)) {
     const reason = error instanceof Error && error.message ? ` (${error.message})` : ''
-    return `Saved on this device, but Wildloop did not accept it yet${reason}. It will keep trying.`
+    return `Saved on this device, but Wildloop did not accept it${reason}. Automatic retries stopped. Open Record to export a backup or retry after resolving the issue.`
   }
   return 'Saved on this device and will sync when Wildloop is online'
 }

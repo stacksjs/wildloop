@@ -196,8 +196,9 @@ export function useWildLoopApp(): void {
     if (needs.follows)
       useFollows(wl)
     useNotifications(wl)
-    useRunUploadQueue(wl)
   }
+  // Also mount for guests so an in-place sign-in can resume their own queue.
+  useRunUploadQueue(wl)
 
   const onAuthReady = (event: Event) => {
     const user = authReadyUser((event as CustomEvent).detail)

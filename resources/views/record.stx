@@ -23,10 +23,12 @@
   import { useRecorder } from '../composables/useRecorder'
   import { useActivityImport } from '../composables/useActivityImport'
   import { useMyLiveEvent } from '../composables/useMyLiveEvent'
+  import { useRecordingRecovery } from '../composables/useRecordingRecovery'
 
   useHead({ title: 'Record a Run — Wildloop' })
 
   const wl = useStore('wl')
+  const { recordings, recoveryMessage, recoveringUpload, retryRecording, exportRecording } = useRecordingRecovery()
   const { importing, importMessage, importError, importFile } = useActivityImport(wl)
   const {
     recording,
@@ -117,6 +119,23 @@
           </button>
         </div>
       </div>
+
+      <section :if="recordings.length" aria-label="Recordings on this device" class="mb-5 space-y-3 rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
+        <h2 class="font-bold dark:text-white">Recordings on this device</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">These have not finished uploading. Do not clear your browser data. Export a backup before changing devices.</p>
+        <template :for="item in recordings">
+          <div class="space-y-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+            <p class="font-semibold dark:text-white">{{ item.payload.activity_type }} · {{ item.payload.duration }}</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ item.needsAttention ? 'Needs attention. Automatic retries stopped.' : 'Waiting to upload when you are signed in and connected.' }}</p>
+            <p :if="item.lastError" class="break-words text-sm text-slate-600 dark:text-slate-300">{{ item.lastError }}</p>
+            <div class="flex flex-wrap gap-3">
+              <button @click="exportRecording(item.uploadId)" :disabled="recoveringUpload !== ''" class="ghost-btn">Export backup</button>
+              <button :if="item.needsAttention" @click="retryRecording(item.uploadId)" :disabled="recoveringUpload !== ''" class="ghost-btn">Retry upload</button>
+            </div>
+          </div>
+        </template>
+      </section>
+      <p :if="recoveryMessage" role="status" class="mb-4 text-sm text-slate-600 dark:text-slate-300">{{ recoveryMessage }}</p>
 
       <!-- No pre-flight location card here. Starting a recording asks for the
            permission itself (useRecorder -> startRecording / watchPosition),
