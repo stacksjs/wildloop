@@ -542,7 +542,15 @@
           this.apiTrailIds.includes(trail.id) && !incoming.has(trail.id))
 
         this.trails = [...trails, ...kept]
-        this.trailRoutes = { ...this.trailRoutes, ...routes }
+        // A trail the API sent without a line has no route, whatever the seed
+        // filed under the same id. Merging over the old map kept the seed's,
+        // which drew Sedona's loop under Half Dome.
+        const merged = { ...this.trailRoutes, ...routes }
+        for (const id of incoming) {
+          if (!routes[id])
+            delete merged[id]
+        }
+        this.trailRoutes = merged
       },
       upsertTrailFromApi(trail: Trail, route?: [number, number][]) {
         const index = this.trails.findIndex((candidate: Trail) => candidate.id === trail.id)
@@ -550,8 +558,16 @@
         else this.trails.push(trail)
         if (!this.apiTrailIds.includes(trail.id))
           this.apiTrailIds = [...this.apiTrailIds, trail.id]
-        if (route && route.length >= 2)
+        // The API is the truth for this id, including when it has no line.
+        // Keeping whatever was stored drew a demo trail's route (Sedona,
+        // seeded under the same id) under a real trail that has none.
+        if (route && route.length >= 2) {
           this.trailRoutes = { ...this.trailRoutes, [trail.id]: route }
+        }
+        else if (this.trailRoutes[trail.id]) {
+          const { [trail.id]: _stale, ...rest } = this.trailRoutes
+          this.trailRoutes = rest
+        }
       },
       /** Replace seed territories with live data from /api/territories/map. */
       hydrateTerritoriesFromApi(
