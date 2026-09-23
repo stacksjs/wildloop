@@ -145,7 +145,7 @@
               type="text"
               id="name"
               x-value="name"
-              @input="e => name.set(e.target.value)"
+              @input="name.set($event.target.value)"
               required
               minlength="5"
               class="px-4 py-3 w-full text-gray-900 dark:text-white bg-white dark:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition"
@@ -159,7 +159,7 @@
               type="email"
               id="email"
               x-value="email"
-              @input="e => email.set(e.target.value)"
+              @input="email.set($event.target.value)"
               required
               class="px-4 py-3 w-full text-gray-900 dark:text-white bg-white dark:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition"
               placeholder="you@example.com"
@@ -173,7 +173,7 @@
                 :type="showPassword() ? 'text' : 'password'"
                 id="password"
                 x-value="password"
-                @input="e => password.set(e.target.value)"
+                @input="password.set($event.target.value)"
                 required
                 minlength="6"
                 class="pr-12 px-4 py-3 w-full text-gray-900 dark:text-white bg-white dark:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition"
@@ -199,7 +199,7 @@
               type="password"
               id="password_confirmation"
               x-value="passwordConfirm"
-              @input="e => passwordConfirm.set(e.target.value)"
+              @input="passwordConfirm.set($event.target.value)"
               required
               class="px-4 py-3 w-full text-gray-900 dark:text-white bg-white dark:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 transition"
               placeholder="Confirm your password"
@@ -208,7 +208,7 @@
           </div>
 
           <div class="flex items-start">
-            <input type="checkbox" id="terms" required @change="e => terms.set(e.target.checked)" class="mt-1 h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+            <input type="checkbox" id="terms" required @change="terms.set($event.target.checked)" class="mt-1 h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
             <label for="terms" class="ml-2 text-gray-600 text-sm dark:text-slate-400">
               I agree to the <StxLink to="/terms" class="text-emerald-600 hover:text-emerald-700">Terms of Service</StxLink> and <StxLink to="/privacy" class="text-emerald-600 hover:text-emerald-700">Privacy Policy</StxLink>
             </label>
