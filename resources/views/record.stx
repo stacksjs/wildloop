@@ -48,6 +48,10 @@
     saveStatus,
     saveMessage,
     recordingError,
+    hasPendingRecording,
+    recoveryReady,
+    isWebRecorder,
+    retrySave,
     wrongTurn,
     trailOptions,
     simulate,
@@ -137,6 +141,15 @@
       <!-- ── Options ─────────────────────────────────────────────────────── -->
       <div :show="setupOpen() && !recording" x-cloak class="mb-5 space-y-4 rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
         <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="record-activity-type" class="field-label">Activity</label>
+            <select id="record-activity-type" x-model="activityType" :disabled="hasPendingRecording" class="field">
+              <option value="Trail Run">Trail Run</option>
+              <option value="Hike">Hike</option>
+              <option value="Walk">Walk</option>
+              <option value="Bike">Bike</option>
+            </select>
+          </div>
           <div>
             <label for="record-visibility" class="field-label">Who can see it</label>
             <select id="record-visibility" x-value="visibility" @change="visibility.set($event.target.value)" class="field">
@@ -279,7 +292,7 @@
            which on a phone is where it starts. -->
       <p class="metric-clock dock-clock" aria-label="Elapsed time">{{ fmtDuration(elapsed()) }}</p>
       <div class="control-inner">
-        <button @click="startManual()" aria-label="Start recording" x-class="recording ? 'hidden' : 'record-btn-start'">
+        <button @click="startManual()" aria-label="Start recording" :disabled="!recoveryReady || saveStatus === 'saving'" x-class="recording || hasPendingRecording ? 'hidden' : 'record-btn-start'">
           <i class="i-lucide-play h-8 w-8" aria-hidden="true"></i>
         </button>
         <button @click="togglePause()" :aria-label="paused ? 'Resume recording' : 'Pause recording'" x-class="!recording ? 'hidden' : paused ? 'record-btn-resume' : 'record-btn-pause'">
@@ -288,12 +301,17 @@
         <button @click="stop()" aria-label="Finish recording" x-class="recording ? 'record-btn-stop' : 'hidden'">
           <i class="i-lucide-square h-7 w-7" aria-hidden="true"></i>
         </button>
+        <button :if="hasPendingRecording" @click="retrySave()" :disabled="saveStatus === 'saving'" class="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white disabled:opacity-50">
+          {{ saveStatus === 'saving' ? 'Saving...' : 'Retry saving' }}
+        </button>
       </div>
       <p class="control-hint">
-        <span :if="!recording">Tap to start GPS capture</span>
+        <span :if="!recording && !hasPendingRecording">Tap to start GPS capture</span>
+        <span :if="hasPendingRecording">Keep this page open until your activity is saved.</span>
         <span :if="recording && !paused">Recording</span>
         <span :if="recording && paused">Paused</span>
       </p>
+      <p :if="isWebRecorder" class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">On the web, keep this page visible and your screen unlocked. Background GPS is not guaranteed.</p>
     </div>
   </div>
 

@@ -15,6 +15,7 @@
 
 import { describeResponseError, describeThrownError, type UserFacingError } from './request-error'
 import { secureStorage } from '@stacksjs/mobile'
+import { requestRecordingExit } from './recording-navigation'
 
 /** Where the bearer token lives. `game-api.ts` reads the same key. */
 export const TOKEN_KEY = 'auth_token'
@@ -336,6 +337,7 @@ function withTimeout<T>(work: Promise<T>): Promise<T | null> {
  * still happens on this device.
  */
 export async function signOut(): Promise<void> {
+  if (!requestRecordingExit()) return
   const bearer = token()
   if (bearer) {
     await Promise.all([...session.signOutTasks].map(task => withTimeout(task())))

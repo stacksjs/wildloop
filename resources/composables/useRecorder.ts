@@ -17,7 +17,7 @@ import {
   type LiveRouteLine,
 } from './useTrailMap'
 import {
-  persistRunAndProcess,
+  type ActivityPayload,
   routeToGeoJson,
   runSaveMessage,
   runResultMessage,
@@ -26,13 +26,11 @@ import {
   computeSplitsFromSamples,
   ELEVATION_NOISE_FLOOR_FT,
   METERS_TO_FEET,
-  type MileSplit,
   type RecorderSample,
 } from '../functions/splits'
 import { loadTerritories } from './useTerritoryCatalog'
 import { loadActivityVisibilityDefault } from '../assets/scripts/privacy-defaults'
 import {
-  clearRecordingCheckpoint,
   isRecordingCheckpointStale,
   loadRecordingCheckpoint,
   mergeNativeLocationSamples,
@@ -40,6 +38,8 @@ import {
   saveRecordingCheckpoint,
 } from '../assets/scripts/recording-checkpoint'
 import { withLocationRequestTimeout } from '../assets/scripts/location-request'
+import { saveFinishedRecording } from '../assets/scripts/finished-recording'
+import { installRecordingNavigationGuard } from '../assets/scripts/recording-navigation'
 
 type ActivityType = 'Trail Run' | 'Hike' | 'Walk' | 'Bike'
 type RecordMode = 'idle' | 'simulated' | 'manual'
@@ -168,7 +168,8 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   const distance = state(0)
   const elevation = state(0)
   const gpsStatus = state<GpsStatus>('stopped')
-  const selectedTrailId = state<number>(wl?.trails()[0]?.id ?? 0)
+  // A free recording has no trail guide until the person explicitly picks one.
+  const selectedTrailId = state<number>(0)
   const conqueredIds = state<number[]>([])
   const captureProgress = state<Record<number, number>>({})
   const sessionXp = state(0)
@@ -178,9 +179,18 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   const saveStatus = state<'idle' | 'saving' | 'saved' | 'queued' | 'error'>('idle')
   const saveMessage = state<string | null>(null)
   const recordingError = state<string | null>(null)
+  const pendingRecording = state<ActivityPayload | null>(null)
+  const hasPendingRecording = derived(() => pendingRecording() !== null)
+  const recoveryReady = state(false)
+  const isWebRecorder = !isNativeMobile()
+  let removeNavigationGuard: (() => void) | null = null
   const wrongTurn = state(false)
 
   onMount(async () => {
+    removeNavigationGuard = installRecordingNavigationGuard(
+      () => (isWebRecorder && recording()) || hasPendingRecording() || refs.finishing || refs.starting,
+      () => recordingError.set('Finish and save your recording before leaving this page.'),
+    )
     if (!recording())
       visibility.set(await loadActivityVisibilityDefault())
   })
@@ -206,7 +216,11 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     watchId: number | null
     toastTimer: ReturnType<typeof setTimeout> | null
     lastPanAt: number
-    checkpointPending: boolean
+    checkpointPending: Promise<void> | null
+    finishing: boolean
+    starting: boolean
+    recovering: boolean
+    uploadId: string | null
     lifecycleCleanup: (() => void) | null
     authCleanup: (() => void) | null
     watchCleanup: (() => void) | null
@@ -229,7 +243,11 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     watchId: null,
     toastTimer: null,
     lastPanAt: 0,
-    checkpointPending: false,
+    checkpointPending: null,
+    finishing: false,
+    starting: false,
+    recovering: false,
+    uploadId: null,
     lifecycleCleanup: null,
     authCleanup: null,
     watchCleanup: null,
@@ -342,30 +360,32 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       paintTerritory(t.id, t.user_id === uid)
   }
 
+  function recordingSnapshot() {
+    return {
+      userId: refs.recordingUserId,
+      uploadId: refs.uploadId ?? undefined,
+      activityType: activityType(),
+      visibility: visibility(),
+      runMode: runMode(),
+      targetTerritoryId: targetTerritoryId(),
+      startedAtMs: refs.startedAtMs,
+      elapsed: elapsed(),
+      distance: distance(),
+      elevation: elevation(),
+      paused: paused(),
+      samples: [...refs.samples],
+    }
+  }
+
   async function checkpointRecording(): Promise<void> {
-    if (!recording() || mode() !== 'manual' || !refs.startedAtMs || !refs.recordingUserId || refs.checkpointPending) return
-    refs.checkpointPending = true
-    try {
-      await saveRecordingCheckpoint({
-        userId: refs.recordingUserId,
-        activityType: activityType(),
-        visibility: visibility(),
-        runMode: runMode(),
-        targetTerritoryId: targetTerritoryId(),
-        startedAtMs: refs.startedAtMs,
-        elapsed: elapsed(),
-        distance: distance(),
-        elevation: elevation(),
-        paused: paused(),
-        samples: [...refs.samples],
+    if (!recording() || mode() !== 'manual' || !refs.startedAtMs || !refs.recordingUserId) return
+    if (refs.checkpointPending) return refs.checkpointPending
+    refs.checkpointPending = saveRecordingCheckpoint(recordingSnapshot())
+      .catch(() => {
+        recordingError.set('Recovery storage is unavailable. Keep this page open until your activity is saved online.')
       })
-    }
-    catch (error) {
-      console.error('recording checkpoint failed:', error)
-    }
-    finally {
-      refs.checkpointPending = false
-    }
+      .finally(() => { refs.checkpointPending = null })
+    return refs.checkpointPending
   }
 
   function rebuildTrackFromSamples(samples: RecorderSample[]): void {
@@ -493,12 +513,14 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     saveStatus.set('idle')
     saveMessage.set(null)
     recordingError.set(null)
+    pendingRecording.set(null)
     wrongTurn.set(false)
     paused.set(false)
     if (wl) wl.resetCaptureSamples()
     refs.routeCoords = []
     refs.samples = []
     refs.startedAtMs = null
+    refs.uploadId = null
     refs.lastPanAt = 0
     refs.liveActivityStarted = false
     refs.lastLiveActivityUpdateAt = 0
@@ -524,6 +546,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   }
 
   async function simulate() {
+    if (!recoveryReady() || recording() || hasPendingRecording() || refs.finishing || refs.starting || saveStatus() === 'saving') return
     if (!wl || !refs.map) return
     if (!requireAuth('Sign in to preview a run.', () => { void simulate() }))
       return
@@ -536,6 +559,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     if (!route || route.length < 2) return
     resetRun()
     mode.set('simulated')
+    refs.uploadId = `run:${crypto.randomUUID()}`
     recording.set(true)
     gpsStatus.set('active')
     void haptics.impact('medium')
@@ -567,6 +591,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   }
 
   async function startManual() {
+    if (!recoveryReady() || recording() || hasPendingRecording() || refs.finishing || refs.starting || saveStatus() === 'saving') return
     recordingError.set(null)
 
     // Opens the app's sign-in gate rather than answering the one control on
@@ -591,67 +616,81 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       recordingError.set('The map is still loading. Try again in a moment.')
       return
     }
-    const checkpoint = await loadRecordingCheckpoint().catch(() => null)
-    const nativeState = isNativeMobile()
-      ? await location.getRecordingState().catch(() => null)
-      : null
-    if (nativeState?.active) {
-      recordingError.set(ownsRecordingCheckpoint(checkpoint, userId)
-        ? 'An existing recording is ready to resume. Reopen the Record screen to continue it.'
-        : 'A recording is already active for another account on this device.')
-      return
-    }
+    refs.starting = true
+    try {
+      const checkpoint = await loadRecordingCheckpoint().catch(() => null)
+      if (ownsRecordingCheckpoint(checkpoint, userId)) {
+        await recoverRecording()
+        return
+      }
+      const nativeState = isNativeMobile()
+        ? await location.getRecordingState().catch(() => null)
+        : null
+      if (nativeState?.active) {
+        recordingError.set(ownsRecordingCheckpoint(checkpoint, userId)
+          ? 'An existing recording is ready to resume. Reopen the Record screen to continue it.'
+          : 'A recording is already active for another account on this device.')
+        return
+      }
 
-    if (ownsRecordingCheckpoint(checkpoint, userId))
-      await clearRecordingCheckpoint().catch(() => undefined)
-    resetRun()
-    mode.set('manual')
-    refs.recordingUserId = userId
-    gpsStatus.set('searching')
-    refs.routeCoords = []
-    refs.routeLine = await createLiveRouteLine(refs.map, YOURS)
+      if (checkpoint) {
+        recordingError.set('Another account has an unfinished recording on this device. Sign in as that account to save it first.')
+        return
+      }
+      resetRun()
+      mode.set('manual')
+      refs.uploadId = `run:${crypto.randomUUID()}`
+      refs.recordingUserId = userId
+      gpsStatus.set('searching')
+      refs.routeCoords = []
+      refs.routeLine = await createLiveRouteLine(refs.map, YOURS)
 
-    const beginTracking = async (startLat: number, startLng: number, startAltM: number | null, accuracy: number | null) => {
-      if (isNativeMobile())
-        await location.startRecording({ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 })
-      recording.set(true)
-      gpsStatus.set('active')
-      void haptics.impact('medium')
-      refs.startedAtMs = Date.now()
-      addRoutePoint(startLat, startLng, startAltM, accuracy)
-      refs.map!.setView([startLat, startLng], 17)
-      startTicker()
-      void keepAwake.enable().catch(() => undefined)
-      void startNativeLiveActivity()
-      void updateWatchState('Recording')
-      refs.watchId = location.watchPosition(
-        (position) => {
-          gpsStatus.set('active')
-          addRoutePoint(position.latitude, position.longitude, position.altitude ?? null, position.accuracy)
-          const now = Date.now()
-          if (now - refs.lastPanAt >= 1_500) {
-            refs.lastPanAt = now
-            refs.map!.panTo([position.latitude, position.longitude])
+      const beginTracking = async (startLat: number, startLng: number, startAltM: number | null, accuracy: number | null) => {
+        if (isNativeMobile())
+          await location.startRecording({ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 })
+        recording.set(true)
+        gpsStatus.set('active')
+        void haptics.impact('medium')
+        refs.startedAtMs = Date.now()
+        addRoutePoint(startLat, startLng, startAltM, accuracy)
+        refs.map!.setView([startLat, startLng], 17)
+        startTicker()
+        void keepAwake.enable().catch(() => undefined)
+        void startNativeLiveActivity()
+        void updateWatchState('Recording')
+        refs.watchId = location.watchPosition(
+          (position) => {
+            gpsStatus.set('active')
+            addRoutePoint(position.latitude, position.longitude, position.altitude ?? null, position.accuracy)
+            const now = Date.now()
+            if (now - refs.lastPanAt >= 1_500) {
+              refs.lastPanAt = now
+              refs.map!.panTo([position.latitude, position.longitude])
+            }
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+        )
+        await checkpointRecording()
+      }
+
+      await withLocationRequestTimeout(location.getCurrentPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 }))
+        .then(position => beginTracking(position.latitude, position.longitude, position.altitude ?? null, position.accuracy))
+        .catch((error: unknown) => {
+          gpsStatus.set('stopped')
+          if (refs.routeLine && refs.map) {
+            refs.map.removeLayer(refs.routeLine)
+            refs.routeLine = null
           }
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
-      )
-      await checkpointRecording()
+          const code = typeof error === 'object' && error !== null && 'code' in error ? Number(error.code) : 0
+          recordingError.set(code === 1
+            ? 'Location access is off. Allow location for Wildloop in device settings, then try again.'
+            : 'Could not get your location. Try again in a moment.')
+        })
     }
-
-    void withLocationRequestTimeout(location.getCurrentPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 }))
-      .then(position => beginTracking(position.latitude, position.longitude, position.altitude ?? null, position.accuracy))
-      .catch((error: unknown) => {
-        gpsStatus.set('stopped')
-        if (refs.routeLine && refs.map) {
-          refs.map.removeLayer(refs.routeLine)
-          refs.routeLine = null
-        }
-        const code = typeof error === 'object' && error !== null && 'code' in error ? Number(error.code) : 0
-        recordingError.set(code === 1
-          ? 'Location access is off. Allow location for Wildloop in device settings, then try again.'
-          : 'Could not get your location. Try again in a moment.')
-      })
+    catch {
+      recordingError.set('Could not start recording. Please try again.')
+    }
+    finally { refs.starting = false }
   }
 
   async function togglePause() {
@@ -672,44 +711,24 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     await updateWatchState(shouldPause ? 'Paused' : 'Recording')
   }
 
-  interface RunMetrics {
-    durationStr: string
-    movingTimeStr: string
-    paceStr: string | null
-    splits: MileSplit[]
-  }
-
   // Persist the run before inserting it into the local catalog. A stable
   // upload id makes retries idempotent; transient failures are queued in
   // IndexedDB and retried by the app shell when connectivity returns.
-  const persistRun = async (
-    routeSnapshot: LatLng[],
-    sampleSnapshot: RecorderSample[],
-    trailId: number | null,
-    metrics: RunMetrics,
-  ): Promise<number | null> => {
-    if (!wl || routeSnapshot.length < 2) return null
+  const persistRun = async (): Promise<number | null> => {
+    const payload = pendingRecording()
+    if (!payload || saveStatus() === 'saving') return null
+    if (!requireAuth('Sign back in to save your recorded activity.', () => { void retrySave() })) return null
+    if (wl?.currentUserId() !== payload.user_id) {
+      saveStatus.set('error')
+      saveMessage.set('Sign back in as the account that started this recording before saving it.')
+      return null
+    }
     saveStatus.set('saving')
-    saveMessage.set('Saving activity…')
+    saveMessage.set('Saving activity...')
     try {
-      const result = await persistRunAndProcess({
-        user_id: wl.currentUserId(),
-        trail_id: trailId,
-        activity_type: activityType(),
-        distance: Number(distance().toFixed(2)),
-        duration: metrics.durationStr,
-        moving_time: metrics.movingTimeStr,
-        pace: metrics.paceStr,
-        elevation: elevation(),
-        gpx_data: routeToGeoJson(routeSnapshot, sampleSnapshot),
-        splits: metrics.splits,
-        visibility: visibility(),
-        completed_at: new Date().toISOString(),
-        upload_id: `run:${crypto.randomUUID()}`,
-        recording_source: mode() === 'simulated' ? 'simulation' : isNativeMobile() ? 'native_gps' : 'web_gps',
-        game_mode: runMode(),
-        target_territory_id: targetTerritoryId(),
-      })
+      const result = await saveFinishedRecording(recordingSnapshot(), payload)
+      pendingRecording.set(null)
+      recordingError.set(null)
       const message = runResultMessage(result)
       if (message) {
         conquestToast.set(message)
@@ -719,8 +738,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       // Re-hydrate territories from the backend so the map reflects the real
       // claim/conquest outcome (single source of truth), then repaint.
       if ((result.claim && result.claim.success) || (result.conquest && (result.conquest.conqueredCount ?? 0) > 0)) {
-        await loadTerritories(wl)
-        repaintTerritories()
+        await loadTerritories(wl).then(repaintTerritories).catch(() => undefined)
       }
       if (result.queued) {
         saveStatus.set('queued')
@@ -729,168 +747,226 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       }
       saveStatus.set(result.activityId ? 'saved' : 'error')
       saveMessage.set(runSaveMessage(result))
+      if (result.activityId) wl.addActivity({
+        id: result.activityId,
+        user_id: payload.user_id,
+        userName: 'You',
+        trail_id: payload.trail_id,
+        trail_name: `${payload.activity_type} Activity`,
+        title: `${payload.activity_type}, ${new Date(payload.completed_at!).toLocaleDateString()}`,
+        activityType: payload.activity_type,
+        distance: payload.distance,
+        duration: payload.duration,
+        moving_time: payload.moving_time,
+        pace: payload.pace ?? '--',
+        elevation_gain: payload.elevation,
+        calories: Math.round(elapsed() / 60 * 10),
+        heartRateAvg: null,
+        heartRateMax: null,
+        cadence: null,
+        splits: payload.splits,
+        kudos_count: 0,
+        comments: [],
+        visibility: payload.visibility,
+        hasGps: true,
+      })
       return result.activityId
     }
     catch (err) {
       console.error('persistRun failed:', err)
       saveStatus.set('error')
-      saveMessage.set(err instanceof Error ? err.message : 'Activity could not be saved')
+      saveMessage.set('Activity is not saved yet. Keep this page open and retry saving. Your track has not been discarded.')
       return null
     }
   }
 
   async function stop() {
+    if (!recording() || refs.finishing) return
+    if (!requireAuth('Sign back in to finish and save your recorded activity.', () => { void stop() })) return
     const endedAt = Date.now()
     const recordingUserId = refs.recordingUserId
     if (mode() === 'manual' && (!recordingUserId || recordingUserId !== wl?.currentUserId())) {
       recordingError.set('Sign back in as the account that started this recording before saving it.')
       return
     }
-    if (isNativeMobile() && mode() === 'manual') {
-      try {
-        const nativeResult = await location.stopRecording()
-        const merged = mergeNativeLocationSamples(refs.samples, nativeResult.locations)
-        const startedAt = refs.startedAtMs ?? merged[0]?.t ?? Date.now()
-        for (const sample of merged) {
-          if (sample.movingS === 0 && sample.t > startedAt)
-            sample.movingS = Math.max(0, Math.round((sample.t - startedAt) / 1000))
+    refs.finishing = true
+    try {
+      if (isNativeMobile() && mode() === 'manual') await mergeNativeTrack()
+      if (refs.samples.length < 2 || !wl) {
+        recordingError.set('Not enough GPS points to save yet. Keep recording to collect your route.')
+        return
+      }
+      if (isNativeMobile() && mode() === 'manual') {
+        try {
+          const nativeResult = await location.stopRecording()
+          const merged = mergeNativeLocationSamples(refs.samples, nativeResult.locations)
+          const startedAt = refs.startedAtMs ?? merged[0]?.t ?? Date.now()
+          for (const sample of merged) {
+            if (sample.movingS === 0 && sample.t > startedAt)
+              sample.movingS = Math.max(0, Math.round((sample.t - startedAt) / 1000))
+          }
+          rebuildTrackFromSamples(merged)
+          // Preserve the final native samples before beginning a potentially slow
+          // network save. If the app is interrupted here, recovery can resume
+          // the complete route instead of silently dropping its final segment.
+          await checkpointRecording()
         }
-        rebuildTrackFromSamples(merged)
-        // Preserve the final native samples before beginning a potentially slow
-        // network save. If the app is interrupted here, recovery can resume
-        // the complete route instead of silently dropping its final segment.
-        await checkpointRecording()
+        catch (error) {
+          console.error('native recording stop failed:', error)
+          await mergeNativeTrack()
+        }
       }
-      catch (error) {
-        console.error('native recording stop failed:', error)
-        await mergeNativeTrack()
+      recording.set(false)
+      paused.set(false)
+      gpsStatus.set('stopped')
+      void haptics.notification('success')
+      clearTimers()
+      void keepAwake.disable().catch(() => undefined)
+      await endNativeLiveActivity()
+      await refs.checkpointPending
+      if (refs.samples.length >= 2 && wl) {
+        const trail = mode() === 'simulated' ? wl.findTrail(selectedTrailId()) : null
+
+        // Moving time is the pause-aware ticker; elapsed is wall-clock (#960).
+        // Pace derives from moving time, splits from the timestamped samples.
+        const movingS = elapsed()
+        const wallS = refs.startedAtMs
+          ? Math.max(movingS, Math.round((Date.now() - refs.startedAtMs) / 1000))
+          : movingS
+        const splits = computeSplitsFromSamples(refs.samples)
+        const paceStr = distance() > 0.01 ? `${fmtDuration(Math.round(movingS / distance()))}/mi` : null
+
+        // Persist to the backend + run the territory engine using the recorded
+        // GPS track (snapshot before it's cleared on the next run).
+        pendingRecording.set({
+          user_id: recordingUserId ?? wl.currentUserId(),
+          trail_id: trail?.id ?? null,
+          activity_type: activityType(),
+          distance: Number(distance().toFixed(2)),
+          duration: fmtDuration(wallS),
+          moving_time: fmtDuration(movingS),
+          pace: paceStr,
+          elevation: elevation(),
+          gpx_data: routeToGeoJson([...refs.routeCoords], [...refs.samples]),
+          splits,
+          visibility: visibility(),
+          completed_at: new Date(endedAt).toISOString(),
+          upload_id: refs.uploadId ??= `run:${crypto.randomUUID()}`,
+          recording_source: mode() === 'simulated' ? 'simulation' : isNativeMobile() ? 'native_gps' : 'web_gps',
+          game_mode: runMode(),
+          target_territory_id: targetTerritoryId(),
+        })
+        refs.recordingUserId = pendingRecording()!.user_id
+        const activityId = await persistRun()
+        await saveNativeWorkout(activityId, endedAt).catch(error => console.error('native workout save failed:', error))
+        if (activityId) void maybeRequestNativeReview()
+      }
+      if (!hasPendingRecording()) {
+        refs.recordingUserId = null
+        mode.set('idle')
+      }
+      await updateWatchState('Finished')
+    }
+    finally {
+      refs.finishing = false
+    }
+  }
+
+  async function retrySave() {
+    if (refs.finishing) return
+    refs.finishing = true
+    try {
+      const finishedAt = pendingRecording()?.completed_at
+      const activityId = await persistRun()
+      if (activityId && finishedAt)
+        await saveNativeWorkout(activityId, Date.parse(finishedAt)).catch(() => undefined)
+      if (!hasPendingRecording()) {
+        refs.recordingUserId = null
+        mode.set('idle')
       }
     }
-    recording.set(false)
-    paused.set(false)
-    gpsStatus.set('stopped')
-    void haptics.notification('success')
-    clearTimers()
-    void keepAwake.disable().catch(() => undefined)
-    await endNativeLiveActivity()
-    if (distance() > 0 && wl) {
-      const trail = mode() === 'simulated' ? wl.findTrail(selectedTrailId()) : null
-
-      // Moving time is the pause-aware ticker; elapsed is wall-clock (#960).
-      // Pace derives from moving time, splits from the timestamped samples.
-      const movingS = elapsed()
-      const wallS = refs.startedAtMs
-        ? Math.max(movingS, Math.round((Date.now() - refs.startedAtMs) / 1000))
-        : movingS
-      const splits = computeSplitsFromSamples(refs.samples)
-      const paceStr = distance() > 0.01 ? `${fmtDuration(Math.round(movingS / distance()))}/mi` : null
-
-      // Persist to the backend + run the territory engine using the recorded
-      // GPS track (snapshot before it's cleared on the next run).
-      const activityId = await persistRun([...refs.routeCoords], [...refs.samples], trail?.id ?? null, {
-        durationStr: fmtDuration(wallS),
-        movingTimeStr: fmtDuration(movingS),
-        paceStr,
-        splits,
-      })
-      const title = mode() === 'simulated'
-        ? `Route preview: ${trail?.name ?? activityType()}`
-        : `${runMode() === 'capture' ? 'Capture Run' : activityType()}, ${new Date().toLocaleDateString()}`
-      if (activityId) wl.addActivity({
-        id: activityId,
-        user_id: wl.currentUserId(),
-        userName: 'You',
-        trail_id: trail?.id ?? null,
-        trail_name: trail?.name ?? `${activityType()} Activity`,
-        title,
-        activityType: activityType(),
-        distance: Number(distance().toFixed(2)),
-        duration: fmtDuration(wallS),
-        moving_time: fmtDuration(movingS),
-        pace: paceStr ?? '--',
-        elevation_gain: elevation(),
-        calories: Math.round(movingS / 60 * 10),
-        heartRateAvg: null,
-        heartRateMax: null,
-        cadence: null,
-        splits,
-        kudos_count: 0,
-        comments: [],
-        visibility: visibility(),
-        hasGps: true,
-      })
-      await saveNativeWorkout(activityId, endedAt).catch(error => console.error('native workout save failed:', error))
-      if (activityId) void maybeRequestNativeReview()
+    finally {
+      refs.finishing = false
     }
-    await clearRecordingCheckpoint().catch(() => undefined)
-    refs.recordingUserId = null
-    mode.set('idle')
-    await updateWatchState('Finished')
   }
 
   async function recoverRecording(): Promise<void> {
-    const userId = wl?.currentUserId()
-    if (!userId) return
-    const checkpoint = await loadRecordingCheckpoint().catch(() => null)
-    if (!ownsRecordingCheckpoint(checkpoint, userId)) return
-    let nativeState = null
-    if (isNativeMobile())
-      nativeState = await location.getRecordingState().catch(() => null)
-    if (!checkpoint && !nativeState?.active) return
-    if (checkpoint && isRecordingCheckpointStale(checkpoint) && !nativeState?.active) {
-      await clearRecordingCheckpoint().catch(() => undefined)
-      return
-    }
+    // Auth-ready and the queued Start action can both request recovery.
+    // Only one may restore state and install the GPS watcher.
+    if (refs.recovering || recording() || hasPendingRecording()) return
+    refs.recovering = true
+    try {
+      const userId = wl?.currentUserId()
+      if (!userId) return
+      const checkpoint = await loadRecordingCheckpoint().catch(() => null)
+      if (!ownsRecordingCheckpoint(checkpoint, userId)) return
+      let nativeState = null
+      if (isNativeMobile())
+        nativeState = await location.getRecordingState().catch(() => null)
+      if (!checkpoint && !nativeState?.active) return
 
-    const restored = checkpoint
-    mode.set('manual')
-    recording.set(true)
-    refs.recordingUserId = userId
-    paused.set(nativeState?.paused ?? restored?.paused ?? false)
-    gpsStatus.set('active')
-    if (restored) {
-      activityType.set(restored.activityType)
-      visibility.set(restored.visibility)
-      runMode.set(restored.runMode)
-      targetTerritoryId.set(restored.targetTerritoryId)
-      refs.startedAtMs = restored.startedAtMs
-      elapsed.set(restored.elapsed)
-      distance.set(restored.distance)
-      elevation.set(restored.elevation)
-      refs.samples = restored.samples
-      refs.routeCoords = restored.samples.map(sample => [sample.lat, sample.lng])
-    }
-    else {
-      refs.startedAtMs = nativeState?.startedAt ?? Date.now()
-    }
-
-    refs.routeLine = await createLiveRouteLine(refs.map!, YOURS)
-    if (refs.samples.length) refs.routeLine.setLatLngs(refs.routeCoords)
-    if (isNativeMobile()) {
-      if (!nativeState?.active)
-        await location.startRecording({ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 })
-      await mergeNativeTrack()
-    }
-
-    const lastSample = refs.samples[refs.samples.length - 1]
-    if (lastSample && refs.startedAtMs && !paused())
-      elapsed.set(Math.max(elapsed(), Math.round((lastSample.t - refs.startedAtMs) / 1000)))
-    refs.watchId = location.watchPosition((position) => {
+      const restored = checkpoint
+      refs.uploadId = restored?.pendingUpload?.upload_id ?? restored?.uploadId ?? `run:${crypto.randomUUID()}`
+      mode.set('manual')
+      recording.set(true)
+      refs.recordingUserId = userId
+      paused.set(nativeState?.paused ?? (isRecordingCheckpointStale(checkpoint!) || restored?.paused || false))
       gpsStatus.set('active')
-      addRoutePoint(position.latitude, position.longitude, position.altitude ?? null, position.accuracy)
-      const now = Date.now()
-      if (now - refs.lastPanAt >= 1_500) {
-        refs.lastPanAt = now
-        refs.map?.panTo([position.latitude, position.longitude])
+      if (restored) {
+        activityType.set(restored.activityType)
+        visibility.set(restored.visibility)
+        runMode.set(restored.runMode)
+        targetTerritoryId.set(restored.targetTerritoryId)
+        refs.startedAtMs = restored.startedAtMs
+        elapsed.set(restored.elapsed)
+        distance.set(restored.distance)
+        elevation.set(restored.elevation)
+        refs.samples = restored.samples
+        refs.routeCoords = restored.samples.map(sample => [sample.lat, sample.lng])
       }
-    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 })
-    if (lastSample) refs.map?.setView([lastSample.lat, lastSample.lng], 17)
-    startTicker()
-    void keepAwake.enable().catch(() => undefined)
-    void startNativeLiveActivity()
-    await updateNativeLiveActivity(true)
-    saveStatus.set('queued')
-    saveMessage.set('Recovered your in-progress activity')
+      else {
+        refs.startedAtMs = nativeState?.startedAt ?? Date.now()
+      }
+
+      refs.routeLine = await createLiveRouteLine(refs.map!, YOURS)
+      if (refs.samples.length) refs.routeLine.setLatLngs(refs.routeCoords)
+      if (restored?.pendingUpload) {
+        pendingRecording.set(restored.pendingUpload)
+        recording.set(false)
+        gpsStatus.set('stopped')
+        saveStatus.set('error')
+        saveMessage.set('Recovered your finished activity. Retry saving to upload the original track.')
+        return
+      }
+      if (isNativeMobile()) {
+        if (!nativeState?.active)
+          await location.startRecording({ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 })
+        await mergeNativeTrack()
+      }
+
+      const lastSample = refs.samples[refs.samples.length - 1]
+      if (lastSample && refs.startedAtMs && !paused())
+        elapsed.set(Math.max(elapsed(), Math.round((lastSample.t - refs.startedAtMs) / 1000)))
+      refs.watchId = location.watchPosition((position) => {
+        gpsStatus.set('active')
+        addRoutePoint(position.latitude, position.longitude, position.altitude ?? null, position.accuracy)
+        const now = Date.now()
+        if (now - refs.lastPanAt >= 1_500) {
+          refs.lastPanAt = now
+          refs.map?.panTo([position.latitude, position.longitude])
+        }
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 })
+      if (lastSample) refs.map?.setView([lastSample.lat, lastSample.lng], 17)
+      startTicker()
+      void keepAwake.enable().catch(() => undefined)
+      void startNativeLiveActivity()
+      await updateNativeLiveActivity(true)
+      saveStatus.set('queued')
+      saveMessage.set('Recovered your in-progress activity')
+    }
+    finally {
+      refs.recovering = false
+    }
   }
 
   async function initRecordMap() {
@@ -959,8 +1035,9 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       else refs.map.setView([37.7749, -122.4194], 5)
 
       await recoverRecording()
+      recoveryReady.set(true)
       const recoverAfterAuth = () => {
-        if (!recording()) void recoverRecording()
+        if (!recording() && !hasPendingRecording() && !refs.starting) void recoverRecording()
       }
       globalThis.addEventListener('wildloop:auth-ready', recoverAfterAuth)
       refs.authCleanup = () => globalThis.removeEventListener('wildloop:auth-ready', recoverAfterAuth)
@@ -986,6 +1063,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   }
 
   onDestroy(() => {
+    removeNavigationGuard?.()
     void checkpointRecording()
     clearTimers()
     void keepAwake.disable().catch(() => undefined)
@@ -1021,6 +1099,10 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     saveStatus,
     saveMessage,
     recordingError,
+    hasPendingRecording,
+    recoveryReady,
+    isWebRecorder,
+    retrySave,
     wrongTurn,
     trailOptions,
     simulate,

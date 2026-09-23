@@ -1,6 +1,6 @@
 <script client>
   import { watchScrolled } from '../composables/watchScrolled'
-
+  import { requestRecordingExit } from '../assets/scripts/recording-navigation'
   const mobileOpen = state(false)
   const accountOpen = state(false)
 
@@ -30,6 +30,7 @@
   const unreadCount = derived(() => (signedIn() ? wl.unreadCount() : 0))
 
   async function handleSignOut() {
+    if (!requestRecordingExit()) return
     accountOpen.set(false)
     await wl?.signOut()
     navigate('/')

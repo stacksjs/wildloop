@@ -71,24 +71,20 @@ describe('recorded runs', () => {
     game_mode: 'capture',
   } as const
 
-  it('are kept when the upload is refused because the session ended', async () => {
+  it('does not promise an offline save after session expiry when device storage is unavailable', async () => {
     store.set('auth_token', 'abc')
     respondWith(401, { error: 'Unauthenticated' })
 
-    const result = await persistRunAndProcess({ ...run })
-
-    expect(result).toMatchObject({ activityId: null, queued: true })
-    expect(result.error).toBe('Saved on this device. Sign in again and it will upload.')
+    // Bun has no IndexedDB. Durable retention is exercised separately in
+    // tests/browser/recording-storage.ts using the real browser database.
+    await expect(persistRunAndProcess({ ...run })).rejects.toThrow('storage')
   })
 
-  it('are kept when the API rejects them as invalid', async () => {
+  it('does not promise an offline save after validation failure when device storage is unavailable', async () => {
     store.set('auth_token', 'abc')
     respondWith(422, { success: false, error: 'Validation failed' })
 
-    const result = await persistRunAndProcess({ ...run })
-
-    expect(result.queued).toBe(true)
-    expect(result.error).toContain('Validation failed')
+    await expect(persistRunAndProcess({ ...run })).rejects.toThrow('storage')
   })
 
   it('do not spend an upload attempt on an ended session', () => {

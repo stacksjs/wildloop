@@ -52,16 +52,24 @@ async function withStore<T>(
   operation: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T | null> {
   const database = await openDatabase()
+  if (!database && mode === 'readwrite')
+    throw new Error('Device storage is unavailable. Keep this page open and retry saving when connected.')
   if (!database)
     return null
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode)
     const request = operation(transaction.objectStore(STORE_NAME))
-    request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
-    transaction.oncomplete = () => database.close()
-    transaction.onabort = () => database.close()
-    transaction.onerror = () => database.close()
+    // A successful request can still be rolled back. Only the transaction
+    // commit is evidence that a recording will survive closing this page.
+    transaction.oncomplete = () => {
+      database.close()
+      resolve(request.result)
+    }
+    transaction.onabort = transaction.onerror = () => {
+      database.close()
+      reject(transaction.error ?? new Error('Device storage could not save the recording. Keep this page open and retry.'))
+    }
   })
 }
 

@@ -1,4 +1,5 @@
 import type { RecorderSample } from '../../functions/splits'
+import type { ActivityPayload } from './game-api'
 
 const DATABASE_NAME = 'wildloop-offline'
 const DATABASE_VERSION = 3
@@ -21,6 +22,10 @@ export interface RecordingCheckpoint {
   paused: boolean
   samples: RecorderSample[]
   savedAt: number
+  /** Assigned before the first checkpoint and reused after any recovery. */
+  uploadId?: string
+  /** Frozen on Finish, including a stable upload id. Recovery must not resume GPS. */
+  pendingUpload?: ActivityPayload
 }
 
 export interface NativeLocationSample {
@@ -48,15 +53,21 @@ function database(): Promise<IDBDatabase | null> {
 
 async function request<T>(mode: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
   const db = await database()
+  if (!db && mode === 'readwrite')
+    throw new Error('Device storage is unavailable. Keep this page open and retry saving when connected.')
   if (!db) return null
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, mode)
     const result = operation(transaction.objectStore(STORE_NAME))
-    result.onsuccess = () => resolve(result.result)
     result.onerror = () => reject(result.error)
-    transaction.oncomplete = () => db.close()
-    transaction.onabort = () => db.close()
-    transaction.onerror = () => db.close()
+    transaction.oncomplete = () => {
+      db.close()
+      resolve(result.result ?? null)
+    }
+    transaction.onabort = transaction.onerror = () => {
+      db.close()
+      reject(transaction.error ?? new Error('Device storage could not save the recording. Keep this page open and retry.'))
+    }
   })
 }
 
