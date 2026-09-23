@@ -45,6 +45,7 @@ export default defineModel({
     observe: true,
   },
 
+
   hasMany: ['Post'],
   belongsTo: ['User'],
 

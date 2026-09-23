@@ -52,6 +52,28 @@ auth/src/
 - `Auth.login(credentials: AuthCredentials, options?: TokenCreateOptions): Promise<{ user, token } | null>` — login and create token
 - `Auth.loginUsingId(userId: number, options?: TokenCreateOptions): Promise<{ user, token } | null>` — login by user ID
 - `Auth.logout(): Promise<void>` — revoke current token
+
+### Personal access tokens (Sanctum-shaped)
+
+`oauth_access_tokens` is polymorphic: `tokenable_type` holds the owner's TABLE
+name (`users`, `authors`) and `tokenable_id` its id there, so any model
+declaring `useAuth` can hold tokens - not only `User`.
+
+- `createToken(id, name, scopes, { tokenableType })` — mint one. Returns the
+  plaintext ONCE (`plainTextToken`); the table stores a hash and nothing can
+  recover it afterwards. `tokenableType` defaults to `users`.
+- `tokens(id, tokenableType?)` — list an owner's live tokens.
+- `tokenCan(scope)` / `tokenCanAll` / `tokenCanAny` / `tokenAbilities` — check
+  the current request's token.
+- `revokeToken`, `revokeTokenById`, `revokeAllTokens(id, type?)`,
+  `revokeOtherTokens(id, type?)` — revocation also revokes the paired refresh
+  token, which a raw row delete does not.
+- `setTrailActor(id)` — attribute writes in a queue job or CLI run that has no
+  request to read a user from.
+
+The `PersonalAccessToken` model maps the same table, so `owner.with('tokenable')`
+lists exactly what `createToken` minted. It deliberately generates no CRUD
+routes: minting and revoking both carry semantics a generic route does not.
 - `Auth.once(credentials: AuthCredentials): Promise<boolean>` — one-time auth without token
 - `Auth.requestToken(credentials, clientId, clientSecret): Promise<{ token } | null>` — OAuth token request
 
@@ -236,7 +258,7 @@ interface RbacStore { findRoleByName, createRole, deleteRole, getAllRoles, findP
 - `SessionAuth.logout(sessionId): void`
 - `SessionAuth.user(sessionId): Promise<UserModel | undefined>`
 - `SessionAuth.check(sessionId): boolean`
-- `SessionAuth.refresh(sessionId, ttlMs?): boolean`
+- `SessionAuth.refresh(sessionId, ttlMs?): boolean`, rejects non-positive or non-finite TTLs without changing the session
 
 Internal: in-memory Map with 10k session limit, 5-minute eviction interval, timing-safe password comparison with dummy bcrypt hash.
 
@@ -378,7 +400,7 @@ import { defineGates } from '@stacksjs/auth'
 
 export default defineGates({
   gates: {
-    'access-admin': user => user?.email?.endsWith('@stacksjs.org') ?? false,
+    'access-admin': user => user?.email?.endsWith('@stacksjs.com') ?? false,
     'edit-settings': user => !!user,
     'view-dashboard': user => !!user,
   },

@@ -290,7 +290,7 @@ are enforced rather than using their legacy warn-once compatibility path.
 Reprocessing refreshes existing messages instead of skipping them, preserves their read state, and repairs body and attachment metadata written by older versions. The dashboard receives opaque attachment IDs, resolves them against the stored message before download, and never accepts arbitrary S3 keys from a client.
 
 ## CLI Commands
-- `buddy email` / `buddy mail` - email management
+- `buddy email` - email management (there is no `buddy mail` alias: `mail:*` is the separate mail-server namespace)
 - `buddy email:verify` - check domain verification
 - `buddy email:test [recipient]` - send test email
 - `buddy email:list` - list mailboxes
@@ -301,6 +301,7 @@ Reprocessing refreshes existing messages instead of skipping them, preserves the
 - `buddy mail:user:add <email>` - add mail user
 - `buddy mail:user:list` - list mail users
 - `buddy mail:user:delete <email>` - delete mail user
+- `buddy mail:storage:machine-bind` - restore unattended reboot recovery with a systemd machine-bound encrypted LUKS credential
 
 ## Gotchas
 - Default driver is `ses` - requires AWS credentials
@@ -314,6 +315,7 @@ Reprocessing refreshes existing messages instead of skipping them, preserves the
 - Mailtrap requires `inboxId` for sandbox mode
 - EmailSDK reads inbox from S3 (bucket configured via env)
 - EmailSDK attachment downloads use binary-safe S3 reads and opaque IDs
+- Externally keyed mail storage stays locked after a host reboot by design. Use `buddy mail:storage:machine-bind` when unattended recovery is required; the AWS recovery secret remains escrowed.
 - `buddy email:reprocess` preserves existing read state and exits nonzero on failure
 - Email categorization auto-sorts incoming mail by domain/substring patterns
 - The `text` fallback is auto-generated from HTML via `htmlToText()`

@@ -16,6 +16,7 @@
  * unauthenticated.
  */
 
+import { isLocalDeployment } from '@stacksjs/env'
 import { route } from '@stacksjs/router'
 
 // The `/api/dashboard/*` surface is unauthenticated by design for the local
@@ -25,8 +26,15 @@ import { route } from '@stacksjs/router'
 // (assign-any-role-to-any-user = privilege escalation) and the model-row dump
 // (arbitrary DB read) — must be gated server-side. In a local/dev/test env the
 // guard is a no-op so the dev dashboard keeps working without a token.
-const APP_ENV = (process.env.APP_ENV ?? process.env.NODE_ENV ?? '').toLowerCase()
-const IS_LOCAL_ENV = APP_ENV === '' || APP_ENV === 'local' || APP_ENV === 'development' || APP_ENV === 'dev' || APP_ENV === 'test' || APP_ENV === 'testing'
+//
+// The gate is the deployment, not the environment NAME. `.env.example` ships
+// `APP_ENV=development`, so every app that never edited that line called
+// itself development in production - and this gate then attached no
+// middleware at all to the 300-plus routes below, including the ones that
+// read and rewrite the project's `.env`, write the deploy script, sync RBAC
+// roles and dump arbitrary model rows. `@stacksjs/auth`'s cookie policy hit
+// the same shape in stacksjs/stacks#2275 and moved to the URL; this follows.
+const IS_LOCAL_ENV = isLocalDeployment()
 
 // Apply auth + admin-role middleware to a sensitive route outside local envs.
 // Returns the route builder so calls read as `guard(route.post(...))`.
@@ -245,7 +253,35 @@ route.group({ prefix: '/api/dashboard', apiResponse: true }, () => {
   guard(route.get('/files', 'Actions/Dashboard/Content/FileIndexAction'))
   guard(route.post('/files/directories', 'Actions/Dashboard/Content/FileDirectoryStoreAction'))
   guard(route.post('/files/uploads', 'Actions/Dashboard/Content/FileUploadAction'))
+  guard(route.patch('/files', 'Actions/Dashboard/Content/FileRenameAction'))
+  guard(route.put('/files/visibility', 'Actions/Dashboard/Content/FileVisibilityAction'))
+  // Favourites and tags are the metadata layer, not a storage operation: a disk
+  // has nowhere to record either, so both write `storage_items` and the listing
+  // above joins them back on (stacksjs/stacks#2577).
+  guard(route.put('/files/favorite', 'Actions/Dashboard/Content/FileFavoriteAction'))
+  guard(route.put('/files/tags', 'Actions/Dashboard/Content/FileTagsAction'))
+  // Re-running the background processing (stacksjs/stacks#2578). Not optional:
+  // the first version of any of these produces output somebody wants
+  // regenerated - a better ladder, a model that has improved, an optimization
+  // that ran before a preset changed.
+  guard(route.post('/files/reprocess', 'Actions/Dashboard/Content/FileReprocessAction'))
+  guard(route.post('/files/duplicates', 'Actions/Dashboard/Content/FileDuplicateAction'))
   guard(route.delete('/files', 'Actions/Dashboard/Content/FileDestroyAction'))
+
+  /*
+   * Remote commands (stacksjs/stacks#960).
+   *
+   * Deliberately NOT behind `guard()`. That helper drops auth entirely when
+   * `APP_ENV` is local, development or test - which is a reasonable trade for
+   * operational telemetry on a developer machine, and an unauthenticated
+   * command runner for this. `authenticatedGuard` keeps `auth` in every
+   * environment, the same treatment billing gets and for the same reason.
+   *
+   * Authorization proper is the `run-remote-command` gate, checked per host and
+   * per command inside the action. Being authenticated is not being allowed.
+   */
+  authenticatedGuard(route.get('/remote/commands', 'Actions/Dashboard/Remote/RemoteCommandIndexAction'))
+  authenticatedGuard(route.post('/remote/run', 'Actions/Dashboard/Remote/RemoteCommandRunAction'))
 
   guard(route.get('/ci/status', 'Actions/Dashboard/Ci/StatusAction'))
   // CI drilldown (stacksjs/stacks#1848): per-repo run history + per-run

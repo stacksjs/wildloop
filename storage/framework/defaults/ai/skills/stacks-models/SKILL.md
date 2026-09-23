@@ -1,6 +1,6 @@
 ---
 name: stacks-models
-description: Use when working with data models in Stacks - the defineModel() API, model attributes with validation and factories, relationships (hasOne/hasMany/belongsTo/belongsToMany), traits (useAuth, useUuid, useTimestamps, useSearch, useApi, billable, taggable, categorizable, commentable, likeable, observe), computed properties (get/set), model generation, and the 50+ built-in framework models. Covers model definitions and storage/framework/defaults/app/Models/.
+description: Use when working with data models in Stacks - the defineModel() API, model attributes with validation and factories, relationships (hasOne/hasMany/belongsTo/belongsToMany), traits (useAuth, useUuid, useTimestamps, useSearch, useApi, billable, taggable, categorizable, commentable, likeable, observe), computed properties (get/set), model generation, and the 103 built-in framework models. Covers model definitions and storage/framework/defaults/app/Models/.
 license: MIT
 compatibility: Bun >= 1.3.0, TypeScript, SQLite >= 3.47.2
 allowed-tools: Read Edit Write Bash Grep Glob
@@ -98,11 +98,12 @@ generated model types stay precise.
 | `useUuid` | UUID column alongside the primary key |
 | `useTimestamps` (alias `timestampable`) | `created_at` / `updated_at`. On by default |
 | `useSoftDeletes` (alias `softDeletable`) | `deleted_at` plus soft-delete query scopes |
-| `useAuth` (alias `authenticatable`) | Auth columns; `{ usePasskey: true }` adds passkeys |
+| `useAuth` (alias `authenticatable`) | Auth columns; `{ usePasskey: true }` adds passkeys. Also confers `morphMany: { tokenable: 'PersonalAccessToken' }`, so any authenticatable model can hold API tokens |
 | `useApi` | Generates REST actions and routes: `{ uri, routes, middleware? }` |
 | `useSearch` (alias `searchable`) | Search-engine indexing: `{ displayable, searchable, sortable, filterable }` |
 | `useSocials` | OAuth identities, e.g. `['github']` |
-| `useActivityLog` | Writes an `Activity` row per change |
+| `useActivityLog` | Writes an `activities` feed row per change: `{ logOnly }` / `{ include }` / `{ exclude }` pick the attributes |
+| `useAudit` | Writes a `model_audits` row per change with an old/new diff |
 | `observe` | Emits `{model}:created` / `:updated` / `:deleted` events |
 | `billable` | Stripe methods (`checkout()`, `activeSubscription()`, ...) |
 | `taggable` / `categorizable` / `commentable` / `likeable` | Pivot tables and their relation methods |
@@ -261,7 +262,21 @@ A model with no `useSeeder` trait is never seeded. Auth and OAuth models are
 skipped on a non-fresh database so re-seeding cannot invalidate live sessions -
 pass `--allow-protected` to override.
 
-## All 62 built-in models by category
+## Built-in models by category
+
+The ones below are worth knowing by name. They are a selection, not the set:
+`storage/framework/defaults/app/Models/` holds 103, and that directory is the
+authority. This section said "All 62 built-in models by category" while
+listing fewer than that against 102 on disk, so an agent reading to the end
+had no way to tell it was short.
+
+No count of what this section itself lists, deliberately - that number is
+maintained by hand, drifts the moment anyone adds a bullet, and is the same
+habit that produced the "All 62". The total above is pinned by
+`buddy docs:agent-counts`.
+
+Run `find storage/framework/defaults/app/Models -name '*.ts'` for the full
+list, or `buddy list` for what a given project resolves.
 
 ### Users & Auth
 - **User** — name, email, password | traits: useAuth(passkey), useUuid, useTimestamps, useSocials(github) | hasOne: Subscriber, Driver, Author | hasMany: PersonalAccessToken, Customer

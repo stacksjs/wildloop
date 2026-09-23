@@ -66,10 +66,10 @@ export default defineModel({
   hasOne: ['Subscriber', 'Courier', 'Author'],
 
   hasMany: [
-    'PersonalAccessToken',
     'Customer',
     'TeamMember',
   ],
+
   attributes: {
     name: {
       order: 2,
