@@ -178,3 +178,13 @@ test('draw a route in a town, save it, plan it for a day, and open it again', as
   await expect(page.getByText(/ · loop/)).toBeVisible()
   await expect(page.locator('#route-name')).toHaveValue('Harbor loop')
 })
+
+test('a link with stops draws the route through them, ready to save', async ({ page }) => {
+  const stops = '32.7314,-117.1496|32.7093,-117.1707|32.7494,-117.2527'
+  await page.goto(`${origin}/routes?via=${encodeURIComponent(stops)}&mode=straight&name=${encodeURIComponent('Beaches draft')}`)
+  await expect(page.getByText('Drawn through every stop.', { exact: false })).toBeVisible()
+  await expect(page.getByText(/\d+\.\d+ mi/).first()).toBeVisible()
+  await expect(page.locator('#route-name')).toHaveValue('Beaches draft')
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect(page.getByText(/\d+\.\d+ mi/).first()).toBeVisible()
+})

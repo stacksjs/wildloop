@@ -313,13 +313,42 @@
     hint.set(`Tap the map in ${result.name} to set your start.`)
   }
 
-  /** `?trail=<id>` starts from a catalog trail; `?open=<id>` from a saved route. */
+  /**
+   * `?via=lat,lng|lat,lng|…` draws a route through those stops in order —
+   * a shareable draft ("our long run past the beaches"), each leg routed
+   * like a tap. `name` and `town` are optional.
+   */
+  function readVia(raw: unknown): LatLngLike[] {
+    if (typeof raw !== 'string')
+      return []
+    return raw.split('|').slice(0, 60).map((pair) => {
+      const [lat, lng] = pair.split(',').map(Number)
+      return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null
+    }).filter((p): p is LatLngLike => p !== null)
+  }
+
+  /** `?trail=<id>` starts from a catalog trail; `?open=<id>` from a saved route; `?via=` from stops. */
   async function startFromQuery(): Promise<void> {
     const query = useRoute().query ?? {}
     const trailId = Number(query.trail)
     const openId = Number(query.open)
+    const via = readVia(query.via)
     let path: [number, number][] = []
     let name = ''
+    if (via.length >= 2 && builder && builderMap) {
+      if (query.mode === 'straight')
+        await setFollowPaths(false)
+      routeName.set(typeof query.name === 'string' ? query.name.slice(0, 200) : '')
+      townName.set(typeof query.town === 'string' ? query.town.slice(0, 80) : '')
+      builderMap.fitPoints(via.map(p => [p.lat, p.lng]))
+      hint.set(`Drawing through ${via.length} stops along paths…`)
+      for (const stop of via)
+        void builder.add(stop)
+      await builder.settled()
+      builderMap.fitPoints(toPairs(builder.path))
+      hint.set(builder.lastError ? `${builder.lastError} — one stretch is drawn straight.` : 'Drawn through every stop. Tap to extend, undo to trim, then save.')
+      return
+    }
     if (Number.isInteger(trailId) && trailId > 0) {
       const res = await apiFetch(`/api/trails/${trailId}`).catch(() => null)
       const payload = await res?.json().catch(() => null)
