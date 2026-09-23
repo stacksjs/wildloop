@@ -54,6 +54,11 @@
     return STATUS_LABELS[status] ?? status
   }
 
+  function initials(name) {
+    const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean)
+    return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '·'
+  }
+
   function whenLabel(iso) {
     const date = new Date(iso)
     if (Number.isNaN(date.getTime())) return ''
@@ -103,12 +108,16 @@
   <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 class="font-display text-3xl font-bold tracking-[-0.03em] dark:text-white">Records</h1>
+        <p class="mb-1.5 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <Icon name="timer" size="14" />
+          Fastest known times
+        </p>
+        <h1 class="font-display text-3xl font-bold tracking-[-0.03em] sm:text-4xl dark:text-white">Records</h1>
         <p class="mt-1.5 max-w-[56ch] text-sm leading-relaxed text-gray-500 dark:text-slate-400">
           The fastest known times on WildLoop's routes. Every time is filed under the style it was run in, verified against its GPS trace, and ranked on elapsed time from the trailhead.
         </p>
       </div>
-      <StxLink to="/trails" class="shrink-0 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <StxLink to="/trails" class="shrink-0 self-start rounded-full bg-emerald-600 px-5 py-2.5 sm:self-auto text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
         Find a route
       </StxLink>
     </div>
@@ -125,27 +134,33 @@
     <!-- Style and category narrow the latest feed. The tracking board is
          deliberately unfiltered: there are rarely more than a handful of
          attempts out at once, and hiding any of them defeats the point. -->
-    <div :if="tab === 'latest'" class="mb-6 flex flex-wrap gap-2">
-      <button @click="applyFilter({ style: 'all', category: 'all' })" x-class="stylePill('all')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">All</button>
-      <button @click="applyFilter({ style: 'unsupported' })" x-class="stylePill('unsupported')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">Unsupported</button>
-      <button @click="applyFilter({ style: 'self_supported' })" x-class="stylePill('self_supported')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">Self-supported</button>
-      <button @click="applyFilter({ style: 'supported' })" x-class="stylePill('supported')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">Supported</button>
+    <div :if="tab === 'latest'" class="wl-pill-scroll -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <button @click="applyFilter({ style: 'all', category: 'all' })" x-class="stylePill('all')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">All</button>
+      <button @click="applyFilter({ style: 'unsupported' })" x-class="stylePill('unsupported')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Unsupported</button>
+      <button @click="applyFilter({ style: 'self_supported' })" x-class="stylePill('self_supported')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Self-supported</button>
+      <button @click="applyFilter({ style: 'supported' })" x-class="stylePill('supported')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Supported</button>
       <span class="mx-1 self-center text-slate-300 dark:text-slate-600">|</span>
-      <button @click="applyFilter({ category: 'womens' })" x-class="categoryPill('womens')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">Women's</button>
-      <button @click="applyFilter({ category: 'mens' })" x-class="categoryPill('mens')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">Men's</button>
-      <button @click="applyFilter({ category: 'nonbinary' })" x-class="categoryPill('nonbinary')" class="rounded-full px-3.5 py-1.5 text-xs font-medium transition">Non-binary</button>
+      <button @click="applyFilter({ category: 'womens' })" x-class="categoryPill('womens')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Women's</button>
+      <button @click="applyFilter({ category: 'mens' })" x-class="categoryPill('mens')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Men's</button>
+      <button @click="applyFilter({ category: 'nonbinary' })" x-class="categoryPill('nonbinary')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Non-binary</button>
     </div>
 
     <div :if="loadError" class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
       {{ loadError }}
     </div>
 
-    <div :if="loading" class="py-16 text-center text-sm text-gray-400 dark:text-slate-500">Loading records…</div>
+    <div :if="loading" class="space-y-2" aria-busy="true" aria-label="Loading records">
+      <div class="h-[68px] animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60"></div>
+      <div class="h-[68px] animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60"></div>
+      <div class="h-[68px] animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60"></div>
+      <div class="h-[68px] animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60"></div>
+    </div>
 
     <!-- Latest records -->
     <div :if="!loading &amp;&amp; tab === 'latest'" class="space-y-2">
       <template :for="record in records">
-        <StxLink x-to="'/effort/' + record.id" class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 transition hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-emerald-700">
+        <StxLink x-to="'/effort/' + record.id" class="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm transition hover:-translate-y-px hover:border-emerald-300 hover:shadow-md sm:gap-4 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-emerald-700">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800/60" aria-hidden="true">{{ initials(record.userName) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ record.trailName }}</p>
             <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
@@ -153,7 +168,7 @@
             </p>
           </div>
           <div class="shrink-0 text-right">
-            <p class="font-bold text-sm text-emerald-600">{{ record.elapsedLabel }}</p>
+            <p class="text-base font-bold tabular-nums text-emerald-600">{{ record.elapsedLabel }}</p>
             <p class="text-xs text-slate-400 dark:text-slate-500">{{ whenLabel(record.finishedAt || record.startedAt) }}</p>
           </div>
           <span class="hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline" x-class="statusTone(record.status)">{{ statusLabel(record.status) }}</span>
@@ -175,7 +190,7 @@
     <!-- Tracking now -->
     <div :if="!loading &amp;&amp; tab === 'tracking'" class="space-y-2">
       <template :for="attempt in tracking">
-        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3.5 dark:border-slate-700 dark:bg-slate-800/60">
+        <div class="rounded-2xl border border-red-100 bg-white px-4 py-3.5 shadow-sm dark:border-red-900/40 dark:bg-slate-800/60">
           <div class="flex items-center gap-4">
             <span class="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
               <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
@@ -188,7 +203,7 @@
               </p>
             </div>
             <div class="shrink-0 text-right">
-              <p class="font-bold text-sm text-red-600 dark:text-red-400">{{ attempt.elapsedSoFarLabel }}</p>
+              <p class="text-base font-bold tabular-nums text-red-600 dark:text-red-400">{{ attempt.elapsedSoFarLabel }}</p>
               <p class="text-xs text-slate-400 dark:text-slate-500">on the course</p>
             </div>
           </div>
@@ -210,4 +225,10 @@
       </div>
     </div>
   </div>
+<style>
+  /* The filter row scrolls sideways on a phone rather than wrapping into three
+     lines; the scrollbar under it is noise on a row of pills. */
+  .wl-pill-scroll { scrollbar-width: none; }
+  .wl-pill-scroll::-webkit-scrollbar { display: none; }
+</style>
 @endsection
