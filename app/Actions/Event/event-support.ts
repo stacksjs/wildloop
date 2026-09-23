@@ -31,7 +31,51 @@ export interface EventRow {
   start_time: string
   max_yards: number | null
   winner_id: number | null
+  latitude?: number | null
+  longitude?: number | null
   created_at?: string
+}
+
+export interface EventPoint {
+  lat: number
+  lng: number
+}
+
+/**
+ * A coordinate pair the directory can measure from, or null.
+ *
+ * Strings are accepted because a form posts them. (0, 0) is refused: it is in
+ * the Gulf of Guinea, and far more often a default nobody replaced than a
+ * backyard ultra. An event without a point sorts last on the page, which is
+ * the honest place for one; a bogus point would sort it somewhere wrong.
+ */
+export function toEventPoint(lat: unknown, lng: unknown): EventPoint | null {
+  const toNumber = (value: unknown) =>
+    typeof value === 'string' && value.trim() !== '' ? Number(value) : value
+  const la = toNumber(lat)
+  const ln = toNumber(lng)
+  if (typeof la !== 'number' || typeof ln !== 'number' || !Number.isFinite(la) || !Number.isFinite(ln))
+    return null
+  if (la < -90 || la > 90 || ln < -180 || ln > 180)
+    return null
+  if (la === 0 && ln === 0)
+    return null
+  return { lat: la, lng: ln }
+}
+
+/**
+ * Where an event is: its own point, else its trail's.
+ *
+ * New events copy the trail's point when they are created, but an event made
+ * before the columns existed only has the trail, and the trail is still the
+ * right answer for it.
+ */
+export function eventPointOf(
+  event: { latitude?: unknown, longitude?: unknown },
+  trail?: { latitude?: unknown, longitude?: unknown } | null,
+): EventPoint | null {
+  return toEventPoint(event.latitude, event.longitude)
+    ?? (trail ? toEventPoint(trail.latitude, trail.longitude) : null)
 }
 
 export function scheduleOf(event: EventRow): BackyardSchedule {

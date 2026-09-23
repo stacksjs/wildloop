@@ -28,6 +28,13 @@ interface SeedEvent {
   name: string
   description: string
   location: string
+  /**
+   * The point the events page measures distance from. Kept next to
+   * `location` so the words and the pin cannot drift apart, and written on
+   * every run, so rows seeded before the columns existed pick them up.
+   */
+  latitude: number
+  longitude: number
   event_type: 'backyard' | 'race' | 'group_run' | 'time_trial'
   status: 'scheduled' | 'live' | 'finished'
   /** Hours from now; negative is in the past. */
@@ -47,6 +54,9 @@ const EVENTS: SeedEvent[] = [
       'A yard every hour until one runner is left. Open corral, crew welcome, '
       + 'and the standings publish live for anyone with the link.',
     location: 'Lehigh Valley, PA',
+    // Allentown, the middle of the Lehigh Valley.
+    latitude: 40.6084,
+    longitude: -75.4902,
     event_type: 'backyard',
     status: 'live',
     startsInHours: -14,
@@ -64,6 +74,8 @@ const EVENTS: SeedEvent[] = [
     name: 'Winter Trail Half',
     description: 'A rolling half on fire road and singletrack. Chip timed, one aid station at the turn.',
     location: 'Boulder, CO',
+    latitude: 40.0150,
+    longitude: -105.2705,
     event_type: 'race',
     status: 'finished',
     startsInHours: -72,
@@ -79,6 +91,8 @@ const EVENTS: SeedEvent[] = [
     name: 'Sunday Long Run',
     description: 'Easy group effort, no drop. Meet at the trailhead, back by lunch.',
     location: 'Munich, Bayern',
+    latitude: 48.1351,
+    longitude: 11.5820,
     event_type: 'group_run',
     status: 'scheduled',
     startsInHours: 60,
@@ -119,6 +133,8 @@ export default class EventSeeder extends Seeder {
         name: seed.name,
         description: seed.description,
         location: seed.location,
+        latitude: seed.latitude,
+        longitude: seed.longitude,
         event_type: seed.event_type,
         status: seed.status,
         visibility: 'public' as const,

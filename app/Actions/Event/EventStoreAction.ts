@@ -6,12 +6,18 @@
 // POST /api/events (auth) - host an event. The host is the session user, never
 // the body, and is entered automatically: somebody who sets up a backyard
 // ultra is running it unless they say otherwise.
+//
+// Coordinates: an event on a trail takes the trail's point, because that is
+// where the corral is. Otherwise optional `lat`/`lng` (or `latitude`/
+// `longitude`) place it. Without either it has no point and sorts last on the
+// events page.
 
 import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 
 import { STANDARD_YARD_MILES, STANDARD_YARD_MINUTES } from '../../../resources/functions/backyard'
+import { toEventPoint } from './event-support'
 
 const EVENT_TYPES = ['backyard', 'race', 'group_run', 'time_trial']
 const VISIBILITIES = ['public', 'club', 'private']
@@ -40,6 +46,12 @@ export default new Action({
     const yardMinutes = Number(request.get('yard_minutes') ?? request.get('yardMinutes') ?? STANDARD_YARD_MINUTES)
     const maxYards = positiveInt(request.get('max_yards') ?? request.get('maxYards'))
 
+    const rawLat = request.get('lat') ?? request.get('latitude')
+    const rawLng = request.get('lng') ?? request.get('longitude')
+    const hasPoint = (rawLat !== undefined && rawLat !== null && rawLat !== '')
+      || (rawLng !== undefined && rawLng !== null && rawLng !== '')
+    const requestedPoint = hasPoint ? toEventPoint(rawLat, rawLng) : null
+
     const fields: Record<string, string> = {}
     if (name.length < 3)
       fields.name = 'required: at least 3 characters'
@@ -58,6 +70,9 @@ export default new Action({
       fields.loop_distance = 'must be between 0.1 and 100 miles'
     if (!Number.isInteger(yardMinutes) || yardMinutes < 5 || yardMinutes > 720)
       fields.yard_minutes = 'must be a whole number of minutes between 5 and 720'
+
+    if (hasPoint && !requestedPoint)
+      fields.lat = 'lat and lng must both be given, within -90..90 and -180..180'
 
     // A club event that names no club has no audience it could be visible to,
     // which would silently hide it from everyone including its own entrants.
@@ -78,6 +93,10 @@ export default new Action({
           return response.json({ success: false, error: 'You must be a member of that club to host its events' }, 403)
       }
 
+      // The trail wins over a posted point: the event is where the loop is.
+      const trail = trailId ? await Trail.find(trailId).catch(() => null) : null
+      const point = toEventPoint(trail?.latitude, trail?.longitude) ?? requestedPoint
+
       const event = await Event.forceCreate({
         host_id: userId,
         club_id: clubId ?? null,
@@ -85,6 +104,8 @@ export default new Action({
         name,
         description: description ?? null,
         location: location ?? null,
+        latitude: point?.lat ?? null,
+        longitude: point?.lng ?? null,
         event_type: eventType,
         // A host can open the gate early, but an event is never born live.
         status: 'scheduled',
@@ -118,6 +139,8 @@ export default new Action({
           yardMinutes: event.yard_minutes,
           maxYards: event.max_yards,
           location: event.location,
+          lat: point?.lat ?? null,
+          lng: point?.lng ?? null,
           description: event.description,
           clubId: event.club_id,
           hostId: event.host_id,

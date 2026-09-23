@@ -177,6 +177,27 @@ export default defineModel({
       nullable: true,
       validation: { rule: schema.number() },
     },
+
+    /**
+     * Where the event happens, so the directory can sort by distance and
+     * filter by radius. `location` is the words, these are the point. Taken
+     * from the trail when the event is on one; null when nobody said.
+     */
+    latitude: {
+      order: 15,
+      fillable: true,
+      nullable: true,
+      validation: { rule: schema.float().min(-90).max(90) },
+      factory: faker => faker.location.latitude(),
+    },
+
+    longitude: {
+      order: 16,
+      fillable: true,
+      nullable: true,
+      validation: { rule: schema.float().min(-180).max(180) },
+      factory: faker => faker.location.longitude(),
+    },
   },
 
   dashboard: {

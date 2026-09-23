@@ -10,11 +10,16 @@
 // live events first, then the next ones to start, then the most recently
 // finished: what somebody opening this page wants is something to watch right
 // now, and failing that, something to enter.
+//
+// Each row carries `lat`/`lng` (null when unknown) so the page can sort by
+// distance from the visitor and filter by radius. That happens in the browser:
+// the visitor's position never has to be sent here to get a local list.
 
 import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 import { matchesText, textQuery } from '../../Support/textQuery'
+import { eventPointOf } from './event-support'
 
 import { currentYard, standings } from '../../../resources/functions/backyard'
 
@@ -70,6 +75,13 @@ export default new Action({
       const clubs = clubIds.length ? await Club.whereIn('id', clubIds).get() : []
       const clubName = new Map((clubs ?? []).map((club: any) => [club.id, club.name]))
 
+      // Only events that predate their own coordinates need their trail's.
+      const trailIds = [...new Set(visible
+        .filter((event: any) => event.trail_id && (event.latitude == null || event.longitude == null))
+        .map((event: any) => event.trail_id))] as number[]
+      const trails = trailIds.length ? await Trail.whereIn('id', trailIds).get().catch(() => []) : []
+      const trailById = new Map((trails ?? []).map((trail: any) => [trail.id, trail]))
+
       const now = Date.now()
       const rows = visible
         .filter((event: any) => {
@@ -100,11 +112,15 @@ export default new Action({
             now,
           )
 
+          const point = eventPointOf(event, event.trail_id ? trailById.get(event.trail_id) : null)
+
           return {
             id: event.id,
             name: event.name,
             description: event.description,
             location: event.location,
+            lat: point?.lat ?? null,
+            lng: point?.lng ?? null,
             type: event.event_type,
             status: event.status,
             visibility: event.visibility,

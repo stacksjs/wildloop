@@ -11,7 +11,7 @@ import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 
-import { buildLiveBoard, canViewEvent, syncFieldStatus } from './event-support'
+import { buildLiveBoard, canViewEvent, eventPointOf, syncFieldStatus } from './event-support'
 
 export default new Action({
   name: 'Event Show',
@@ -41,6 +41,8 @@ export default new Action({
       const club = event.club_id ? await Club.find(event.club_id).catch(() => null) : null
       const trail = event.trail_id ? await Trail.find(event.trail_id).catch(() => null) : null
 
+      const point = eventPointOf(event, trail)
+
       const mine = sessionUser === null
         ? null
         : entrants.find((entrant: any) => entrant.user_id === sessionUser) ?? null
@@ -52,6 +54,8 @@ export default new Action({
           name: event.name,
           description: event.description,
           location: event.location,
+          lat: point?.lat ?? null,
+          lng: point?.lng ?? null,
           type: event.event_type,
           status: event.status,
           visibility: event.visibility,

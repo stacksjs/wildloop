@@ -38,8 +38,10 @@
 
   const {
     events, loading, loadError, typeFilter, statusFilter, applyFilter,
+    shownEvents, searchText, setSearch, radiusChoice, setRadius, clearLocationFilters,
+    nearKnown, nearLabel, nearIsPrecise, nearBusy, nearMessage, refineNearPlace,
     createOpen, submitting, createError,
-    fName, fType, fLocation, fDescription, fStart, fYardMinutes, fLoopDistance, fVisibility,
+    fName, fType, fLocation, fDescription, fStart, fYardMinutes, fLoopDistance, fVisibility, fPinHere,
     openCreate, closeCreate, submitCreate,
   } = useEvents()
 
@@ -62,9 +64,29 @@
     })
   }
 
-  const liveEvents = derived(() => events().filter(e => e.status === 'live'))
-  const upcoming = derived(() => events().filter(e => e.status === 'scheduled'))
-  const past = derived(() => events().filter(e => e.status === 'finished' || e.status === 'cancelled'))
+  // `shownEvents` is already closest-first when the visitor's area is known,
+  // and already cut to the radius and the search. Splitting it by status keeps
+  // live events in their own section at the top, nearest first within it.
+  const liveEvents = derived(() => shownEvents().filter(e => e.status === 'live'))
+  const upcoming = derived(() => shownEvents().filter(e => e.status === 'scheduled'))
+  const past = derived(() => shownEvents().filter(e => e.status === 'finished' || e.status === 'cancelled'))
+
+  const radiusMiles = derived(() => Number.parseInt(radiusChoice(), 10) || 0)
+  const narrowed = derived(() => radiusMiles() > 0 || searchText().trim() !== '')
+  const nothingMatches = derived(() => !loading() && events().length > 0 && shownEvents().length === 0)
+
+  const emptyMatchNote = derived(() => {
+    const term = searchText().trim()
+    const within = nearKnown() && radiusMiles() > 0 ? `within ${radiusMiles()} mi of ${nearLabel()}` : ''
+    if (term && within)
+      return `Nothing matching “${term}” ${within}.`
+    if (term)
+      return `Nothing matching “${term}”.`
+    return `No events ${within} yet.`
+  })
+
+  /** Shown beside the section headings, so the order explains itself. */
+  const orderNote = derived(() => (nearKnown() ? 'Closest first' : ''))
 </script>
 
   <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -79,6 +101,49 @@
         Host an event
       </button>
     </div>
+
+    <!-- Where. Events are something you travel to, so the list is ordered by
+         distance from the visitor's area and this bar says which area that is,
+         with the radius and a search beside it. -->
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <label class="relative block min-w-0 sm:flex-1">
+        <span class="sr-only">Search events by name or place</span>
+        <i class="i-lucide-search pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true"></i>
+        <input type="search" placeholder="Search by name or place" x-value="searchText" @input="setSearch($event.target.value)" class="w-full rounded-full border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500" />
+      </label>
+
+      <div class="flex min-w-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 pl-3.5 pr-1 dark:border-slate-700 dark:bg-slate-800">
+        <i class="i-lucide-map-pin h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+        <span class="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300 sm:flex-none sm:max-w-[14rem]">
+          <span :if="nearKnown()">Near <span class="font-semibold text-slate-900 dark:text-white">{{ nearLabel() }}</span></span>
+          <span :if="!nearKnown()">{{ nearBusy() ? 'Finding you…' : 'Anywhere' }}</span>
+        </span>
+
+        <label :if="nearKnown()" class="relative shrink-0">
+          <span class="sr-only">Distance</span>
+          <select x-value="radiusChoice" @change="setRadius($event.target.value)" class="appearance-none rounded-full border-0 bg-slate-100 py-1.5 pl-3 pr-7 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+            <option value="25">25 mi</option>
+            <option value="50">50 mi</option>
+            <option value="100">100 mi</option>
+            <option value="250">250 mi</option>
+            <option value="0">Anywhere</option>
+          </select>
+          <i class="i-lucide-chevron-down pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 dark:text-slate-400" aria-hidden="true"></i>
+        </label>
+
+        <!-- The area above is usually the edge's guess from the network, which
+             can be a city off. Asking the browser is offered, never forced:
+             a prompt on page load is how a site gets told no for good. -->
+        <button :if="!nearIsPrecise()" @click="refineNearPlace()" x-disabled="nearBusy()" title="Use my precise location" aria-label="Use my precise location" class="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60 dark:text-emerald-400 dark:hover:bg-emerald-950/40">
+          <i class="i-lucide-locate-fixed h-3.5 w-3.5" aria-hidden="true"></i>
+          <span :if="nearBusy()">Locating…</span>
+          <span :if="!nearBusy() && nearKnown()" class="hidden sm:inline">Use precise location</span>
+          <span :if="!nearBusy() && !nearKnown()">Use my location</span>
+        </button>
+      </div>
+    </div>
+
+    <p :if="nearMessage()" class="mb-3 px-1 text-xs text-amber-600 dark:text-amber-400">{{ nearMessage() }}</p>
 
     <div class="mb-6 flex flex-wrap gap-2">
       <button @click="applyFilter({ status: 'all', type: 'all' })" x-class="statusFilter === 'all' &amp;&amp; typeFilter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="rounded-full px-4 py-2 text-sm font-medium transition active:scale-[0.98]">Everything</button>
@@ -103,6 +168,7 @@
       <h2 class="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-red-600 dark:text-red-400">
         <span class="live-pip" aria-hidden="true"></span>
         Live now
+        <span :if="orderNote() && liveEvents().length > 1" class="font-medium normal-case tracking-normal text-slate-400 dark:text-slate-500">{{ '· ' + orderNote() }}</span>
       </h2>
       <div class="space-y-3">
         <template :for="event in liveEvents">
@@ -112,8 +178,11 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.1em] text-red-600 dark:text-red-400">{{ 'Yard ' + event.currentYard + ' · ' + typeLabel(event.type) }}</p>
                 <h3 class="mt-1 truncate font-bold text-lg dark:text-white">{{ event.name }}</h3>
                 <p class="mt-0.5 truncate text-sm text-gray-500 dark:text-slate-400">{{ event.location || 'Location to be confirmed' }}</p>
+                <p :if="event.distanceText" class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <i class="i-lucide-navigation h-3 w-3" aria-hidden="true"></i>{{ event.distanceText }}
+                </p>
               </div>
-              <div class="shrink-0 text-right">
+              <div class="ml-auto shrink-0 text-right">
                 <p class="font-display text-2xl font-bold tabular-nums dark:text-white">{{ event.stillIn }}</p>
                 <p class="text-xs text-gray-500 dark:text-slate-400">{{ 'of ' + event.entrantCount + ' still in' }}</p>
               </div>
@@ -124,7 +193,10 @@
     </section>
 
     <section :if="upcoming().length > 0" class="mb-10">
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Upcoming</h2>
+      <h2 class="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+        Upcoming
+        <span :if="orderNote() && upcoming().length > 1" class="font-medium normal-case tracking-normal">{{ '· ' + orderNote() }}</span>
+      </h2>
       <div class="space-y-3">
         <template :for="event in upcoming">
           <StxLink x-to="'/event/' + event.id" class="card block transition hover:border-emerald-300 dark:hover:border-emerald-700">
@@ -135,8 +207,11 @@
                 <p class="mt-0.5 truncate text-sm text-gray-500 dark:text-slate-400">
                   {{ whenLabel(event.startTime) }}<span :if="event.location">{{ ' · ' + event.location }}</span>
                 </p>
+                <p :if="event.distanceText" class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  <i class="i-lucide-navigation h-3 w-3" aria-hidden="true"></i>{{ event.distanceText }}
+                </p>
               </div>
-              <div class="shrink-0 text-right">
+              <div class="ml-auto shrink-0 text-right">
                 <p class="font-display text-2xl font-bold tabular-nums dark:text-white">{{ event.entrantCount }}</p>
                 <p class="text-xs text-gray-500 dark:text-slate-400">entered</p>
                 <span :if="event.isEntered" class="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">You're in</span>
@@ -159,9 +234,12 @@
               <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">{{ typeLabel(event.type) + ' · ' + (event.status === 'cancelled' ? 'Cancelled' : 'Finished') }}</p>
                 <h3 class="mt-1 truncate font-bold dark:text-white">{{ event.name }}</h3>
-                <p class="mt-0.5 truncate text-sm text-gray-500 dark:text-slate-400">{{ whenLabel(event.startTime) }}</p>
+                <p class="mt-0.5 truncate text-sm text-gray-500 dark:text-slate-400">{{ whenLabel(event.startTime) + (event.location ? ' · ' + event.location : '') }}</p>
+                <p :if="event.distanceText" class="mt-1 inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+                  <i class="i-lucide-navigation h-3 w-3" aria-hidden="true"></i>{{ event.distanceText }}
+                </p>
               </div>
-              <div class="shrink-0 text-right">
+              <div class="ml-auto shrink-0 text-right">
                 <p class="font-display text-xl font-bold tabular-nums dark:text-white">{{ event.leaderYards }}</p>
                 <p class="text-xs text-gray-500 dark:text-slate-400">{{ event.type === 'backyard' ? 'yards' : 'laps' }}</p>
               </div>
@@ -170,6 +248,15 @@
         </template>
       </div>
     </section>
+
+    <!-- Events exist, just none inside the radius or the search. Say so and
+         offer the way out, rather than the "nothing on the calendar" state,
+         which would be untrue. -->
+    <div :if="nothingMatches()" class="rounded-2xl border border-dashed border-slate-200 px-6 py-14 text-center dark:border-slate-700">
+      <i class="i-lucide-map-pin mx-auto mb-3 block h-7 w-7 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ emptyMatchNote() }}</p>
+      <button :if="narrowed()" @click="clearLocationFilters()" class="mt-4 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 active:scale-[0.98] dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">Show events anywhere</button>
+    </div>
 
     <div :if="!loading() && events().length === 0" class="py-20 text-center">
       <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
@@ -195,13 +282,13 @@
       <div class="space-y-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Name</label>
-          <input type="text" placeholder="Cascade Backyard Ultra" x-value="fName" @input="e => fName.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
+          <input type="text" placeholder="Cascade Backyard Ultra" x-value="fName" @input="fName.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Format</label>
-            <select x-value="fType" @change="e => fType.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700">
+            <select x-value="fType" @change="fType.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700">
               <option value="backyard">Backyard ultra</option>
               <option value="race">Race</option>
               <option value="group_run">Group run</option>
@@ -210,7 +297,7 @@
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Who can see it</label>
-            <select x-value="fVisibility" @change="e => fVisibility.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700">
+            <select x-value="fVisibility" @change="fVisibility.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700">
               <option value="public">Anyone</option>
               <option value="private">Entrants only</option>
             </select>
@@ -219,30 +306,37 @@
 
         <div>
           <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">First start</label>
-          <input type="datetime-local" x-value="fStart" @input="e => fStart.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
+          <input type="datetime-local" x-value="fStart" @input="fStart.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
           <p class="mt-1 text-xs text-gray-400 dark:text-slate-500">In your local time. Everyone watching sees their own.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Yard length (minutes)</label>
-            <input type="number" min="5" max="720" x-value="fYardMinutes" @input="e => fYardMinutes.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
+            <input type="number" min="5" max="720" x-value="fYardMinutes" @input="fYardMinutes.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Loop distance (miles)</label>
-            <input type="number" min="0.1" step="0.001" x-value="fLoopDistance" @input="e => fLoopDistance.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
+            <input type="number" min="0.1" step="0.001" x-value="fLoopDistance" @input="fLoopDistance.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
           </div>
         </div>
         <p class="text-xs text-gray-400 dark:text-slate-500">The classic backyard yard is 4.167 mi (6.706 km) every 60 minutes — 24 of them make 100 miles.</p>
 
         <div>
           <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Location</label>
-          <input type="text" placeholder="Mill Valley, CA" x-value="fLocation" @input="e => fLocation.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
+          <input type="text" placeholder="Mill Valley, CA" x-value="fLocation" @input="fLocation.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
+          <!-- The directory sorts by distance, and a typed place name is not
+               something it can measure. Opt-in, because the host is not always
+               standing where the race is. -->
+          <label :if="nearKnown()" class="mt-2 flex cursor-pointer items-start gap-2 text-xs text-gray-500 dark:text-slate-400">
+            <input type="checkbox" x-checked="fPinHere" @change="fPinHere.set($event.target.checked)" class="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-emerald-600 dark:border-slate-600" />
+            <span>{{ 'It is near me (' + nearLabel() + '), so it shows up for runners nearby' }}</span>
+          </label>
         </div>
 
         <div>
           <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Details</label>
-          <textarea rows="2" placeholder="Where the corral is, what the loop looks like, aid." x-value="fDescription" @input="e => fDescription.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700"></textarea>
+          <textarea rows="2" placeholder="Where the corral is, what the loop looks like, aid." x-value="fDescription" @input="fDescription.set($event.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700"></textarea>
         </div>
 
         <p :if="createError" class="text-sm text-red-500">{{ createError }}</p>

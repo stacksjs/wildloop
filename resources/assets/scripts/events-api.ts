@@ -18,6 +18,9 @@ export interface EventSummary {
   name: string
   description: string | null
   location: string | null
+  /** Where the event is, or null when nobody said. Drives "closest first". */
+  lat: number | null
+  lng: number | null
   type: EventType
   status: EventStatus
   visibility: 'public' | 'club' | 'private'
@@ -128,6 +131,8 @@ export interface EventFilters {
   type?: EventType | 'all'
   status?: EventStatus | 'all'
   club?: number
+  /** Page size. The directory sorts by distance in the browser, so it asks for the lot. */
+  limit?: number
 }
 
 export async function fetchEvents(filters: EventFilters = {}): Promise<EventSummary[] | null> {
@@ -138,6 +143,8 @@ export async function fetchEvents(filters: EventFilters = {}): Promise<EventSumm
     params.set('status', filters.status)
   if (filters.club)
     params.set('club', String(filters.club))
+  if (filters.limit)
+    params.set('limit', String(filters.limit))
 
   try {
     const query = params.toString()
@@ -185,6 +192,9 @@ export interface CreateEventInput {
   visibility?: 'public' | 'club' | 'private'
   description?: string | null
   location?: string | null
+  /** Ignored when `trail_id` names a trail: the event takes the trail's point. */
+  lat?: number | null
+  lng?: number | null
   club_id?: number | null
   trail_id?: number | null
   max_yards?: number | null
