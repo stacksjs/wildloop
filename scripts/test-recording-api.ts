@@ -48,8 +48,8 @@ const payload = {
   user_id: stranger.id,
   activity_type: 'Hike',
   distance: 0.01,
-  duration: '00:30',
-  moving_time: '00:30',
+  duration: '00:40',
+  moving_time: '00:35',
   visibility: 'private',
   game_mode: 'free',
   recording_source: 'web_gps',
@@ -72,9 +72,19 @@ assert.equal(replayBody.activity.id, savedBody.activity.id, 'Retry must not crea
 const detail = `/activities/${savedBody.activity.id}`
 const retrieved = await request(detail, 'GET', undefined, owner.token)
 assert.equal(retrieved.status, 200, 'Owner retrieval')
-const retrievedBody = await retrieved.json() as { activity: { route: unknown[], activityType: string } }
+const retrievedBody = await retrieved.json() as { activity: { route: unknown[], activityType: string, duration: string, movingTime: string } }
 assert.equal(retrievedBody.activity.activityType, 'Hike')
 assert.equal(retrievedBody.activity.route.length, coordinates.length, 'Stored route retrieval')
+assert.equal(retrievedBody.activity.duration, '0:30', 'Elapsed time comes from timestamped GPS')
+assert.equal(retrievedBody.activity.movingTime, '0:30', 'Moving time cannot exceed GPS elapsed time')
+for (const [moving, expected] of [['00:12', '00:12'], ['00:00', '00:00'], [undefined, '0:30']] as const) {
+  const response = await request('/activities', 'POST', { ...payload, moving_time: moving, upload_id: `qa:${crypto.randomUUID()}` }, owner.token)
+  assert(response.ok, `Paused recording save returned ${response.status}`)
+  const body = await response.json() as { activity: { id: number } }
+  const read = await request(`/activities/${body.activity.id}`, 'GET', undefined, owner.token)
+  const result = await read.json() as { activity: { movingTime: string } }
+  assert.equal(result.activity.movingTime, expected, 'Preserve shorter/zero moving time and missing-time fallback')
+}
 assert.equal((await request(detail)).status, 403, 'Guest cannot read the private hike')
 assert.equal((await request(detail, 'GET', undefined, stranger.token)).status, 403, 'Another account cannot read the private hike')
 assert.equal((await request(detail, 'PATCH', { notes: 'unauthorized' }, stranger.token)).status, 403, 'Another account cannot edit the hike')

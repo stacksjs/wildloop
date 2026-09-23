@@ -8,6 +8,7 @@
 // territory engine (claim / process-conquest) later reads. Snake_case keys
 // match the ORM's column-based attributes.
 import { Auth } from '@stacksjs/auth'
+import { parseDurationToSeconds } from '../../../resources/functions/duration'
 
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
 import { durationLabel, evaluateTrackIntegrity, isLiveGpsSource, type RecordingSource } from '../../../resources/functions/activity-integrity'
@@ -129,6 +130,14 @@ export default new Action({
       const serverDuration = isLiveGpsSource(recordingSource) && integrity.durationSeconds !== null
         ? durationLabel(integrity.durationSeconds)
         : duration
+      // The device timer can include time before the first or after the last
+      // GPS fix. Moving time must fit the authoritative elapsed interval.
+      const submittedMovingTime = durationString(movingTime)
+      const elapsedSeconds = parseDurationToSeconds(serverDuration!)!
+      const movingSeconds = submittedMovingTime === null ? null : parseDurationToSeconds(submittedMovingTime)
+      const serverMovingTime = movingSeconds !== null && movingSeconds > elapsedSeconds
+        ? serverDuration
+        : submittedMovingTime
       const paceSeconds = integrity.durationSeconds && integrity.distanceMiles && integrity.distanceMiles > 0.01
         ? Math.round(integrity.durationSeconds / integrity.distanceMiles)
         : null
@@ -142,7 +151,7 @@ export default new Action({
         activity_type: activityType,
         distance: serverDistance,
         duration: serverDuration,
-        moving_time: durationString(movingTime) ?? null,
+        moving_time: serverMovingTime,
         pace: serverPace,
         elevation,
         kudos_count: 0,
