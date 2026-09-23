@@ -52,6 +52,14 @@ export default {
     file: 'RecomputeCounters',
     enabled: true,
   },
+  'geo:import': {
+    file: 'ImportGazetteer',
+    enabled: true,
+  },
+  'plans:remind': {
+    file: 'RemindTripPlans',
+    enabled: true,
+  },
   // Physical-iPhone build and preview. Buddy supplies build:android,
   // build:ios, and build:mobile itself; these two drive repo-local scripts
   // that have no upstream equivalent.

@@ -71,6 +71,8 @@ export type { GalleryPhoto, GalleryTrail, GalleryReview, GalleryContribution } f
 export { formatTrailTime, parseTrailTime, displayTrailTime } from '../../../resources/functions/trail-time'
 export { durationSeconds, computeTrainingStats } from '../../../resources/functions/training-stats'
 export type { TrainingActivity, TrainingStats } from '../../../resources/functions/training-stats'
+export { isCalendarDate, isClockTime, isTimeZone, localDate, localHour, addDays, validateTripPlan, planDayLabel, planTimeLabel, daysUntil, sortPlans, planTravelMode, planDirections, planReminderDue, planReminderBody, PLAN_TITLE_MAX, PLAN_PLACE_MAX, PLAN_NOTES_MAX, PLAN_MAX_DAYS_AHEAD, PLAN_REMINDER_HOUR, PLAN_ACTIVITIES } from '../../../resources/functions/trip-plans'
+export type { PlanActivity, TripPlan, TripPlanInput, TripPlanFields, TripPlanValidation } from '../../../resources/functions/trip-plans'
 export { positiveInt, boundedNumber, boundedString, durationString } from '../../../resources/functions/validate'
 export type { FieldErrors } from '../../../resources/functions/validate'
 export { blockedUserIdsFor, canViewActivity, maskRouteEndpoints } from '../../../resources/functions/visibility'

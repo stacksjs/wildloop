@@ -66,6 +66,9 @@ export default {
       // runtime, which this machine and CI do not install yet.
       watchApp: false,
       localDatabase: true,
+      // The evening-before reminder for a planned trip, scheduled on the
+      // device so it rings with no signal (useTripPlans).
+      localNotifications: true,
       orientationLock: true,
       pushNotifications: !personalTeam,
       secureStorage: true,
@@ -93,6 +96,7 @@ export default {
       haptics: true,
       healthConnect: true,
       keepAwake: true,
+      localNotifications: true,
       // Craft hard-fails Android generation when push is enabled without a
       // google-services.json (packages/android/src/index.ts:371). That file is
       // written by the workflow only when the ANDROID_GOOGLE_SERVICES_JSON

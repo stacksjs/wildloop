@@ -1,0 +1,529 @@
+@extends('layouts/default')
+
+@section('title', 'Plans - Wildloop')
+
+@section('content')
+<script server>
+  useSeoMeta({
+    title: 'Plans — Wildloop',
+    description: 'The trails and spots you have planned, with directions ready.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
+<script client>
+  import type { TripPlan } from '../functions/trip-plans'
+  import type { PlaceResult } from '../composables/usePlaceSearch'
+  import type { TrailMapHandle } from '../composables/useTrailMap'
+  import { openAuthGate } from '../composables/useAuthGate'
+  import { deviceToday, useTripPlans } from '../composables/useTripPlans'
+  import { nearestPlace, usePlaceSearch } from '../composables/usePlaceSearch'
+  import { createTrailMap, ensureTsMaps, runWhenMapReady } from '../composables/useTrailMap'
+  import { addDays, daysUntil, PLAN_ACTIVITIES, planDayLabel, planDirections, planTimeLabel, sortPlans } from '../functions/trip-plans'
+
+  useHead({ title: 'Plans — Wildloop' })
+
+  const wl = useStore('wl')
+  const { plans, loading, loaded, fromCache, loadError, load, create, update, remove } = useTripPlans(wl)
+  const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
+  /** Plans can be shown: signed in, or the device copy while offline. */
+  const canShow = derived(() => signedIn() || fromCache())
+
+  const today = state(deviceToday())
+  const upcoming = derived(() => sortPlans(plans(), today()).upcoming)
+  const past = derived(() => sortPlans(plans(), today()).past)
+  const showPast = state(false)
+  const notice = state<string | null>(null)
+  const activities = PLAN_ACTIVITIES
+
+  // "Where to?" — a city, then the trails near it or a spot to plan there.
+  const where = usePlaceSearch({ limit: 6 })
+  const whereQuery = where.query
+  const whereResults = where.results
+  const whereSearching = where.searching
+  const whereUnavailable = where.unavailable
+
+  function onWhereInput(event: any): void {
+    where.onInput(String(event?.target?.value ?? ''))
+  }
+
+  function trailsNearUrl(place: { lat: number, lng: number, label?: string, name?: string }): string {
+    const params = new URLSearchParams({ near: place.name || place.label || '', lat: String(place.lat), lng: String(place.lng) })
+    return `/trails?${params.toString()}`
+  }
+
+  function planSpotAt(place: PlaceResult): void {
+    where.clear()
+    openNew({ lat: place.lat, lng: place.lng, label: place.label, name: place.name })
+  }
+
+  // One plan's facts, as the markup reads them. Local wrappers because the
+  // template only sees this script's own declarations.
+  function dayLabel(plan: TripPlan): string {
+    return planDayLabel(plan.planned_for, today())
+  }
+  function timeLabel(plan: TripPlan): string {
+    return planTimeLabel(plan.start_time)
+  }
+  function countdown(plan: TripPlan): string {
+    const days = daysUntil(plan.planned_for, today())
+    return days > 1 ? `in ${days} days` : ''
+  }
+  function appleUrl(plan: TripPlan): string {
+    return planDirections(plan)?.apple ?? ''
+  }
+  function googleUrl(plan: TripPlan): string {
+    return planDirections(plan)?.google ?? ''
+  }
+  function trailUrl(plan: TripPlan): string {
+    return plan.trail_id ? `/trail/${plan.trail_id}` : ''
+  }
+  function planTrailsNearUrl(plan: TripPlan): string {
+    return trailsNearUrl({ lat: plan.latitude, lng: plan.longitude, name: plan.place_label?.split(',')[0] || plan.title })
+  }
+
+  // ── The plan sheet: a new spot, or editing any plan ─────────────────────
+  const sheetOpen = state(false)
+  const editing = state<TripPlan | null>(null)
+  const fTitle = state('')
+  const fDate = state('')
+  const fTime = state('')
+  const fActivity = state('')
+  const fNotes = state('')
+  const fLat = state<number | null>(null)
+  const fLng = state<number | null>(null)
+  const fPlace = state('')
+  const saving = state(false)
+  const formError = state<string | null>(null)
+  const fieldErrors = state<Record<string, string>>({})
+  const minDate = derived(() => today())
+  const isTrailPlan = derived(() => Boolean(editing()?.trail_id))
+  const hasPoint = derived(() => fLat() !== null && fLng() !== null)
+
+  const spot = usePlaceSearch({ limit: 5 })
+  const spotResults = spot.results
+  const spotSearching = spot.searching
+
+  function onSpotInput(event: any): void {
+    spot.onInput(String(event?.target?.value ?? ''))
+  }
+
+  let sheetMap: TrailMapHandle | null = null
+  let pin: any = null
+  let cancelMapMount: (() => void) | null = null
+
+  /** Saturday coming, or tomorrow when that is sooner — a weekend default. */
+  function defaultDate(): string {
+    const now = new Date(`${today()}T12:00:00Z`)
+    const toSaturday = (6 - now.getUTCDay() + 7) % 7
+    return addDays(today(), Math.max(1, toSaturday))
+  }
+
+  function resetForm(): void {
+    formError.set(null)
+    fieldErrors.set({})
+    spot.clear()
+  }
+
+  function openNew(at?: { lat: number, lng: number, label?: string, name?: string }): void {
+    if (!signedIn()) {
+      openAuthGate('Sign in to plan trips and keep them on this device.', 'login')
+      return
+    }
+    resetForm()
+    editing.set(null)
+    fTitle.set(at?.name ? `Run in ${at.name}` : '')
+    fDate.set(defaultDate())
+    fTime.set('')
+    fActivity.set('Trail Run')
+    fNotes.set('')
+    fLat.set(at ? at.lat : null)
+    fLng.set(at ? at.lng : null)
+    fPlace.set(at?.label ?? '')
+    sheetOpen.set(true)
+    mountSheetMap()
+  }
+
+  function openEdit(plan: TripPlan): void {
+    resetForm()
+    editing.set(plan)
+    fTitle.set(plan.title)
+    fDate.set(plan.planned_for)
+    fTime.set(plan.start_time ?? '')
+    fActivity.set(plan.activity_type ?? '')
+    fNotes.set(plan.notes ?? '')
+    fLat.set(plan.latitude)
+    fLng.set(plan.longitude)
+    fPlace.set(plan.place_label ?? '')
+    sheetOpen.set(true)
+    if (!plan.trail_id)
+      mountSheetMap()
+  }
+
+  function closeSheet(): void {
+    sheetOpen.set(false)
+    cancelMapMount?.()
+    cancelMapMount = null
+  }
+
+  /** The pin map: tap anywhere to put the meeting point there. */
+  function mountSheetMap(): void {
+    cancelMapMount?.()
+    cancelMapMount = runWhenMapReady('plan-spot-map', async () => {
+      if (!sheetMap) {
+        sheetMap = await createTrailMap('plan-spot-map', { chrome: 'compact', terrain: false, zoom: 3 })
+        sheetMap?.map.on('click', (event: any) => {
+          if (event?.latlng)
+            void setPoint(event.latlng.lat, event.latlng.lng, true)
+        })
+      }
+      await showPin()
+    })
+  }
+
+  async function showPin(): Promise<void> {
+    if (!sheetMap)
+      return
+    const lat = fLat()
+    const lng = fLng()
+    if (lat === null || lng === null) {
+      sheetMap.map.setView([39.5, -98.35], 3)
+      return
+    }
+    const { CircleMarker } = await ensureTsMaps()
+    if (!pin) {
+      pin = new CircleMarker([lat, lng], { radius: 9, color: '#ffffff', weight: 3, fillColor: '#059669', fillOpacity: 1 })
+      pin.addTo(sheetMap.map)
+    }
+    else {
+      pin.setLatLng([lat, lng])
+    }
+    sheetMap.map.setView([lat, lng], Math.max(sheetMap.map.getZoom?.() ?? 0, 12))
+  }
+
+  async function setPoint(lat: number, lng: number, fromMap: boolean): Promise<void> {
+    fLat.set(lat)
+    fLng.set(lng)
+    fieldErrors.set({ ...fieldErrors(), location: '' })
+    await showPin()
+    if (fromMap) {
+      const near = await nearestPlace(lat, lng)
+      fPlace.set(near ? near.label : '')
+    }
+  }
+
+  function pickSpot(place: PlaceResult): void {
+    spot.clear()
+    fPlace.set(place.label)
+    if (!fTitle())
+      fTitle.set(`Run in ${place.name}`)
+    void setPoint(place.lat, place.lng, false)
+  }
+
+  async function savePlan(): Promise<void> {
+    saving.set(true)
+    formError.set(null)
+    const input = {
+      title: fTitle(),
+      planned_for: fDate(),
+      start_time: fTime() || null,
+      activity_type: fActivity() || null,
+      notes: fNotes() || null,
+      ...(isTrailPlan()
+        ? {}
+        : { latitude: fLat(), longitude: fLng(), place_label: fPlace() || null, trail_id: null }),
+    }
+    const current = editing()
+    const result = current ? await update(current.id, input) : await create(input)
+    saving.set(false)
+    if (!result.ok) {
+      formError.set(result.error ?? 'The plan could not be saved')
+      fieldErrors.set(result.fields ?? {})
+      return
+    }
+    closeSheet()
+    notice.set(current ? 'Plan updated.' : `Planned for ${planDayLabel(result.plan!.planned_for, today())}. Directions are ready below.`)
+  }
+
+  async function cancelPlan(plan: TripPlan): Promise<void> {
+    const result = await remove(plan.id)
+    notice.set(result.ok ? `Removed ${plan.title}.` : result.error ?? 'The plan could not be removed')
+  }
+
+  function fieldError(name: string): string {
+    return fieldErrors()[name] || ''
+  }
+
+  function openLogin(): void {
+    openAuthGate('Sign in to plan trips and keep them on this device.', 'login')
+  }
+
+  onMount(() => {
+    today.set(deviceToday())
+    void load()
+    // A link from the trails page or a reminder can ask to plan somewhere.
+    const query = useRoute().query ?? {}
+    const lat = Number(query.lat)
+    const lng = Number(query.lng)
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && query.lat !== undefined) {
+      const label = typeof query.place === 'string' ? query.place : ''
+      openNew({ lat, lng, label, name: label.split(',')[0] })
+    }
+  })
+
+  onDestroy(() => {
+    cancelMapMount?.()
+    sheetMap?.destroy()
+    sheetMap = null
+    pin = null
+  })
+</script>
+
+  <div class="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+    <header class="mb-5 flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Plans</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Where you're headed, with directions ready for Apple Maps or Google Maps.</p>
+      </div>
+      <button :if="signedIn()" type="button" @click="openNew()" class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+        <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>
+        Plan a spot
+      </button>
+    </header>
+
+    <!-- Where to? A town anywhere, then its trails or a spot there. -->
+    <section class="relative mb-6" aria-label="Find a place">
+      <label for="plan-where" class="sr-only">Where are you going?</label>
+      <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800">
+        <i class="i-lucide-search h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+        <input id="plan-where" type="search" autocomplete="off" placeholder="Where to? San Diego, Chamonix, Moab…" x-value="whereQuery()" @input="onWhereInput($event)" class="min-h-12 w-full min-w-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-sm dark:text-white" />
+        <span :if="whereSearching()" class="text-xs text-slate-400">…</span>
+      </div>
+      <p :if="whereUnavailable() && whereQuery().length > 1" class="mt-2 text-xs text-amber-600 dark:text-amber-400">Place search is still being set up on this server. Try again in a few minutes.</p>
+      <ul :if="whereResults().length > 0" class="mt-2 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800">
+        <template :for="place in whereResults()">
+          <li class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ place.name }}</p>
+              <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ place.detail }}</p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <StxLink x-to="trailsNearUrl(place)" class="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>
+                Trails
+              </StxLink>
+              <button type="button" @click="planSpotAt(place)" class="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200">
+                <i class="i-lucide-calendar-plus h-3.5 w-3.5" aria-hidden="true"></i>
+                Plan here
+              </button>
+            </div>
+          </li>
+        </template>
+      </ul>
+    </section>
+
+    <p :if="notice()" class="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" role="status">{{ notice() }}</p>
+    <p :if="fromCache()" class="mb-4 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300" role="status">
+      <i class="i-lucide-wifi-off h-4 w-4 shrink-0" aria-hidden="true"></i>
+      Offline — showing the plans saved on this device. Directions still open.
+    </p>
+    <p :if="loadError()" class="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300" role="alert">{{ loadError() }}</p>
+
+    <!-- Upcoming -->
+    <section :if="canShow() && upcoming().length > 0" aria-labelledby="upcoming-heading">
+      <h2 id="upcoming-heading" class="metric-label mb-2 px-1">Upcoming</h2>
+      <div class="space-y-3">
+        <template :for="plan in upcoming()">
+          <article :id="'plan-' + plan.id" class="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <div class="flex items-start gap-3 px-4 pt-4">
+              <div class="grid w-14 shrink-0 place-items-center rounded-xl bg-emerald-50 py-2 text-center dark:bg-emerald-500/10">
+                <i class="i-lucide-calendar-days h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                  {{ dayLabel(plan) }}<span :if="timeLabel(plan)">{{ ' · ' + timeLabel(plan) }}</span><span :if="countdown(plan)" class="font-medium normal-case tracking-normal text-slate-400">{{ ' · ' + countdown(plan) }}</span>
+                </p>
+                <h3 class="mt-0.5 truncate text-base font-semibold text-slate-900 dark:text-white">{{ plan.title }}</h3>
+                <p :if="plan.place_label" class="mt-0.5 flex items-center gap-1 truncate text-sm text-slate-500 dark:text-slate-400">
+                  <i class="i-lucide-map-pin h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>
+                  <span class="truncate">{{ plan.place_label }}</span>
+                </p>
+                <p :if="plan.activity_type" class="mt-1.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">{{ plan.activity_type }}</p>
+                <p :if="plan.notes" class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ plan.notes }}</p>
+              </div>
+            </div>
+
+            <!-- Directions first: this is the card somebody opens in the car. -->
+            <div class="mt-4 grid grid-cols-2 gap-2 px-4">
+              <a x-href="appleUrl(plan)" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] dark:bg-white dark:text-slate-900">
+                <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>
+                Apple Maps
+              </a>
+              <a x-href="googleUrl(plan)" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-800 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-100">
+                <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
+                Google Maps
+              </a>
+            </div>
+
+            <div class="mt-2 flex flex-wrap items-center gap-1 border-t border-slate-100 px-2 py-1.5 dark:border-slate-700">
+              <StxLink :if="plan.trail_id" x-to="trailUrl(plan)" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+                <i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>
+                Trail
+              </StxLink>
+              <StxLink :if="!plan.trail_id" x-to="planTrailsNearUrl(plan)" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+                <i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>
+                Trails nearby
+              </StxLink>
+              <button type="button" @click="openEdit(plan)" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60">
+                <i class="i-lucide-pencil h-3.5 w-3.5" aria-hidden="true"></i>
+                Edit
+              </button>
+              <button type="button" @click="cancelPlan(plan)" class="ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300">
+                <i class="i-lucide-trash-2 h-3.5 w-3.5" aria-hidden="true"></i>
+                Remove
+              </button>
+            </div>
+          </article>
+        </template>
+      </div>
+    </section>
+
+    <!-- Nothing planned yet -->
+    <div :if="signedIn() && loaded() && !loadError() && upcoming().length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <i class="i-lucide-calendar-plus h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+      </div>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Nothing planned yet</h3>
+      <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Search a town above to see its trails, or plan a trail from its page. You'll get a reminder the evening before, with directions ready.</p>
+      <StxLink to="/trails" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+        <i class="i-lucide-mountain h-4 w-4" aria-hidden="true"></i>
+        Browse trails
+      </StxLink>
+    </div>
+
+    <p :if="signedIn() && loading() && !loaded()" class="py-10 text-center text-sm text-slate-400">Loading your plans…</p>
+
+    <!-- Past -->
+    <section :if="canShow() && past().length > 0" class="mt-8">
+      <button type="button" @click="showPast.set(!showPast())" x-aria-expanded="showPast() ? 'true' : 'false'" class="flex min-h-10 w-full items-center justify-between rounded-xl px-1 text-left">
+        <span class="metric-label">{{ 'Past · ' + past().length }}</span>
+        <i x-class="showPast() ? 'i-lucide-chevron-up h-4 w-4 text-slate-400' : 'i-lucide-chevron-down h-4 w-4 text-slate-400'" aria-hidden="true"></i>
+      </button>
+      <ul :if="showPast()" class="mt-2 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800">
+        <template :for="plan in past()">
+          <li class="flex items-center gap-3 px-4 py-3">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{{ plan.title }}</p>
+              <p class="truncate text-xs text-slate-400">{{ dayLabel(plan) + (plan.place_label ? ' · ' + plan.place_label : '') }}</p>
+            </div>
+            <button type="button" @click="cancelPlan(plan)" aria-label="Remove this past plan" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700/60">
+              <i class="i-lucide-x h-4 w-4" aria-hidden="true"></i>
+            </button>
+          </li>
+        </template>
+      </ul>
+    </section>
+
+    <!-- Signed out -->
+    <div :if="!canShow() && loaded()" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <i class="i-lucide-calendar-days h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+      </div>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Plan your next trip</h3>
+      <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Sign in to plan trails anywhere, get a reminder the evening before, and keep directions on this device.</p>
+      <button type="button" @click="openLogin()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in</button>
+    </div>
+  </div>
+
+<!--
+  New spot or edit. A bottom sheet on a phone, a centred dialog wider up.
+  Visibility is a class rather than :if so the pin map is not rebuilt, and a
+  half-typed note survives closing the sheet by accident.
+-->
+<div
+  data-page-overlay
+  :data-open="sheetOpen() ? 'true' : 'false'"
+  x-class="sheetOpen() ? 'flex' : 'hidden'"
+  class="fixed inset-0 z-[90] items-end justify-center sm:items-center sm:p-4"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="plan-sheet-title"
+>
+  <div @click="closeSheet()" class="absolute inset-0 bg-slate-900/50"></div>
+
+  <div class="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl dark:bg-slate-900">
+    <div aria-hidden="true" class="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+
+    <div class="flex items-start justify-between gap-4 px-6 pt-5">
+      <div>
+        <h2 id="plan-sheet-title" class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ editing() ? 'Edit plan' : 'Plan a spot' }}</h2>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ isTrailPlan() ? 'The trailhead is set by the trail.' : 'Search a place, then tap the map to set the exact spot.' }}</p>
+      </div>
+      <button type="button" @click="closeSheet()" aria-label="Close" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+        <i aria-hidden="true" class="i-lucide-x h-5 w-5"></i>
+      </button>
+    </div>
+
+    <div class="flex-1 space-y-5 overflow-y-auto px-6 pb-6 pt-5">
+      <!-- Where: only for a spot. A trail plan goes to the trailhead. -->
+      <section x-class="isTrailPlan() ? 'hidden' : ''" class="space-y-2.5">
+        <label for="plan-spot-search" class="text-sm font-semibold text-slate-900 dark:text-white">Where</label>
+        <input id="plan-spot-search" type="search" autocomplete="off" placeholder="Town or city" @input="onSpotInput($event)" class="block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+        <ul :if="spotResults().length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-700/70 dark:border-slate-700">
+          <template :for="place in spotResults()">
+            <li>
+              <button type="button" @click="pickSpot(place)" class="flex min-h-11 w-full flex-col items-start px-3 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                <span class="text-sm font-semibold text-slate-900 dark:text-white">{{ place.name }}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">{{ place.detail }}</span>
+              </button>
+            </li>
+          </template>
+        </ul>
+        <div id="plan-spot-map" data-stx-ignore class="ts-map-container h-56 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"></div>
+        <p class="text-xs" x-class="fieldError('location') ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'">
+          {{ fieldError('location') || (hasPoint() ? (fPlace() ? 'Pinned near ' + fPlace() : 'Pinned') : 'Tap the map to drop a pin.') }}
+        </p>
+      </section>
+
+      <div class="space-y-1.5">
+        <label for="plan-title" class="text-sm font-semibold text-slate-900 dark:text-white">Name</label>
+        <input id="plan-title" type="text" maxlength="120" placeholder="Sunset run at Torrey Pines" x-model="fTitle" class="block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+        <p :if="fieldError('title')" class="text-xs text-rose-600">{{ fieldError('title') }}</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1.5">
+          <label for="plan-date" class="text-sm font-semibold text-slate-900 dark:text-white">Date</label>
+          <input id="plan-date" type="date" :min="minDate()" x-value="fDate" @input="fDate.set($event.target.value)" class="block h-[2.75rem] w-full min-w-0 appearance-none rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+          <p :if="fieldError('planned_for')" class="text-xs text-rose-600">{{ fieldError('planned_for') }}</p>
+        </div>
+        <div class="space-y-1.5">
+          <label for="plan-time" class="text-sm font-semibold text-slate-900 dark:text-white">Start <span class="font-normal text-slate-400">(optional)</span></label>
+          <input id="plan-time" type="time" x-value="fTime" @input="fTime.set($event.target.value)" class="block h-[2.75rem] w-full min-w-0 appearance-none rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+          <p :if="fieldError('start_time')" class="text-xs text-rose-600">{{ fieldError('start_time') }}</p>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <span class="text-sm font-semibold text-slate-900 dark:text-white">Activity</span>
+        <div class="flex flex-wrap gap-2">
+          <template :for="kind in activities">
+            <button type="button" @click="fActivity.set(fActivity() === kind ? '' : kind)" :aria-pressed="fActivity() === kind ? 'true' : 'false'" x-class="fActivity() === kind ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200'" class="min-h-10 rounded-full border-2 px-4 text-sm font-semibold transition">{{ kind }}</button>
+          </template>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <label for="plan-notes" class="text-sm font-semibold text-slate-900 dark:text-white">Notes <span class="font-normal text-slate-400">(optional)</span></label>
+        <textarea id="plan-notes" rows="3" maxlength="1000" placeholder="Park at the south lot. Bring headlamps." x-model="fNotes" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"></textarea>
+      </div>
+
+      <p :if="formError()" class="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300" role="alert">{{ formError() }}</p>
+    </div>
+
+    <div class="border-t border-slate-100 px-6 py-4 dark:border-slate-800">
+      <button type="button" @click="savePlan()" x-disabled="saving()" class="min-h-12 w-full rounded-full bg-emerald-600 text-base font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">{{ saving() ? 'Saving…' : (editing() ? 'Save changes' : 'Save plan') }}</button>
+    </div>
+  </div>
+</div>
+@endsection

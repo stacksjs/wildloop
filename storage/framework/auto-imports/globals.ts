@@ -189,6 +189,27 @@ declare global {
   const displayTrailTime: typeof autoImports.displayTrailTime
   const durationSeconds: typeof autoImports.durationSeconds
   const computeTrainingStats: typeof autoImports.computeTrainingStats
+  const isCalendarDate: typeof autoImports.isCalendarDate
+  const isClockTime: typeof autoImports.isClockTime
+  const isTimeZone: typeof autoImports.isTimeZone
+  const localDate: typeof autoImports.localDate
+  const localHour: typeof autoImports.localHour
+  const addDays: typeof autoImports.addDays
+  const validateTripPlan: typeof autoImports.validateTripPlan
+  const planDayLabel: typeof autoImports.planDayLabel
+  const planTimeLabel: typeof autoImports.planTimeLabel
+  const daysUntil: typeof autoImports.daysUntil
+  const sortPlans: typeof autoImports.sortPlans
+  const planTravelMode: typeof autoImports.planTravelMode
+  const planDirections: typeof autoImports.planDirections
+  const planReminderDue: typeof autoImports.planReminderDue
+  const planReminderBody: typeof autoImports.planReminderBody
+  const PLAN_TITLE_MAX: typeof autoImports.PLAN_TITLE_MAX
+  const PLAN_PLACE_MAX: typeof autoImports.PLAN_PLACE_MAX
+  const PLAN_NOTES_MAX: typeof autoImports.PLAN_NOTES_MAX
+  const PLAN_MAX_DAYS_AHEAD: typeof autoImports.PLAN_MAX_DAYS_AHEAD
+  const PLAN_REMINDER_HOUR: typeof autoImports.PLAN_REMINDER_HOUR
+  const PLAN_ACTIVITIES: typeof autoImports.PLAN_ACTIVITIES
   const positiveInt: typeof autoImports.positiveInt
   const boundedNumber: typeof autoImports.boundedNumber
   const boundedString: typeof autoImports.boundedString

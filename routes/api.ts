@@ -412,6 +412,14 @@ route.get('/sitemap-trails-{page}.xml', async (request: any) => {
 // somewhere useful without asking for a location permission first.
 route.get('/geo/here', 'Actions/Geo/VisitorLocationAction')
 
+// Towns and cities by name, and the town nearest a point, from the GeoNames
+// gazetteer on this server — for planning a trip somewhere you are not.
+// Throttled like any per-keystroke endpoint; nothing here leaves the box.
+route.group({ middleware: 'throttle:120,1' }, () => {
+  route.get('/geo/search', 'Actions/Geo/GeoSearchAction')
+  route.get('/geo/reverse', 'Actions/Geo/GeoReverseAction')
+})
+
 // Autocomplete for the home search: regions, places and trail names, all from
 // the catalog itself. Kept off /trails so it stays cheap enough per keystroke.
 route.get('/search/suggest', 'Actions/Search/SearchSuggestAction')
@@ -589,6 +597,11 @@ route.group({ middleware: 'auth' }, () => {
     route.get('/custom-routes', 'Actions/Route/CustomRouteIndexAction')
     route.post('/custom-routes', 'Actions/Route/CustomRouteStoreAction')
     route.delete('/custom-routes/{id}', 'Actions/Route/CustomRouteDestroyAction')
+    // Trips someone has planned: a trail or any spot, on a date.
+    route.get('/plans', 'Actions/Plan/TripPlanIndexAction')
+    route.post('/plans', 'Actions/Plan/TripPlanStoreAction')
+    route.patch('/plans/{id}', 'Actions/Plan/TripPlanUpdateAction')
+    route.delete('/plans/{id}', 'Actions/Plan/TripPlanDestroyAction')
   })
 })
 

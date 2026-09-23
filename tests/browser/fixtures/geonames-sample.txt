@@ -1,0 +1,5 @@
+5391811	San Diego	San Diego	SAN,Сан-Диего	32.71571	-117.16472	P	PPLA2	US		CA	073			1394928		20	America/Los_Angeles	2024-01-01
+5342353	Del Mar	Del Mar		32.95949	-117.26531	P	PPL	US		CA	073			4351		33	America/Los_Angeles	2024-01-01
+4726491	San Diego	San Diego		27.76391	-98.2389	P	PPL	US		TX	131			4488		96	America/Chicago	2024-01-01
+5419384	Denver	Denver		39.73915	-104.9847	P	PPLA	US		CO	031			715522		1609	America/Denver	2024-01-01
+3025055	Chamonix-Mont-Blanc	Chamonix-Mont-Blanc	Chamonix	45.92375	6.86933	P	PPL	FR		84	74			8906		1035	Europe/Paris	2024-01-01

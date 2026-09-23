@@ -7,7 +7,7 @@ import { schema } from '@stacksjs/validation'
 
 // conquest_attack / conquest_defend / conquest_win match the frontend's
 // notification vocabulary (icons + styling in notifications.stx).
-const types = ['kudos', 'comment', 'follow', 'conquest', 'conquest_attack', 'conquest_defend', 'conquest_win', 'achievement', 'challenge', 'record'] as const
+const types = ['kudos', 'comment', 'follow', 'conquest', 'conquest_attack', 'conquest_defend', 'conquest_win', 'achievement', 'challenge', 'record', 'plan'] as const
 
 export default defineModel({
   name: 'UserNotification',

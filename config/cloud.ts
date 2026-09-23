@@ -211,6 +211,10 @@ export const tsCloud: TsCloudConfig = {
         // before migrate runs — on a fresh box nothing else would.
         'mkdir -p /var/www/wildloop-shared/database',
         './buddy migrate --no-generate',
+        // Place search (GeoNames, ~60 MB beside the database). Built once per
+        // server and never fatal: an unreachable GeoNames leaves search
+        // saying it is not ready, and the next deploy tries again.
+        './buddy geo:import --if-missing',
         // This is an active test deployment with no real users, so the
         // fixtures it is browsed with are kept current on every release.
         //

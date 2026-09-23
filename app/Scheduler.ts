@@ -15,6 +15,13 @@ export default function () {
     .onOneServer()
     .withName('wildloop-territory-ranks')
 
+  // Tomorrow's trip plans, at six in the evening where each was made.
+  schedule.command('./buddy plans:remind')
+    .hourly()
+    .withoutOverlapping(30)
+    .onOneServer()
+    .withName('wildloop-plan-reminders')
+
   schedule.command('./buddy territory:decay --apply')
     .at('03:10')
     .setTimeZone('UTC')

@@ -22,6 +22,7 @@ export { default as TerritoryHistory } from '../../../app/Models/TerritoryHistor
 export { default as TerritoryStats } from '../../../app/Models/TerritoryStats'
 export { default as Trail } from '../../../app/Models/Trail'
 export { default as TrailIngestShard } from '../../../app/Models/TrailIngestShard'
+export { default as TripPlan } from '../../../app/Models/TripPlan'
 export { default as User } from '../../../app/Models/User'
 export { default as UserAchievement } from '../../../app/Models/UserAchievement'
 export { default as UserBlock } from '../../../app/Models/UserBlock'

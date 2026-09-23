@@ -94,6 +94,8 @@
     // athlete is actually waiting for, so it gets the stopwatch, not a
     // generic bell.
     if (type === 'record') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600'
+    // Tomorrow's trip: the calendar, so it reads as a plan and not a result.
+    if (type === 'plan') return 'bg-sky-100 dark:bg-sky-500/15 text-sky-600'
     return 'bg-slate-100 dark:bg-slate-700 text-slate-500'
   }
 
@@ -149,6 +151,7 @@
                   <Icon :if="notif.type === 'achievement'" name="award" size="18" />
                   <Icon :if="notif.type === 'club'" name="users" size="18" />
                   <Icon :if="notif.type === 'record'" name="timer" size="18" />
+                  <Icon :if="notif.type === 'plan'" name="calendar-check" size="18" />
                 </div>
 
                 <!-- Body -->

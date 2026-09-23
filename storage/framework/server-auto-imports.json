@@ -138,6 +138,7 @@
     "TrailIngestShard": true,
     "Transaction": true,
     "TranscodeStorageVideoJob": true,
+    "TripPlan": true,
     "UsageEvent": true,
     "User": true,
     "UserAchievement": true,

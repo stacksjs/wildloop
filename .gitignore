@@ -24,6 +24,8 @@ data.ms
 !.gitkeep
 database/stacks_testing.sqlite
 database/stacks.sqlite
+database/gazetteer.sqlite
+database/gazetteer.sqlite.building
 database/*.sqlite-wal
 database/*.sqlite-shm
 custom-cli

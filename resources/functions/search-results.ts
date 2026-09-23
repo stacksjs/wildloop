@@ -1,8 +1,9 @@
 /**
  * The Search screen's results, grouped the way it shows them: places and
  * regions, trails, athletes, clubs, then events. Each group comes straight
- * from an existing endpoint (`/api/search/suggest`, `/api/users/search`,
- * `/api/clubs?q=`, `/api/events?q=`); this shapes them into the same row.
+ * from an existing endpoint (`/api/geo/search`, `/api/search/suggest`,
+ * `/api/users/search`, `/api/clubs?q=`, `/api/events?q=`); this shapes them
+ * into the same row.
  */
 
 export interface SearchRow {
@@ -49,7 +50,16 @@ interface Event {
   startTime?: string
 }
 
+/** A town from /api/geo/search (the ts-maps gazetteer's result shape). */
+interface Town {
+  text?: string
+  center?: { lat?: number, lng?: number }
+  properties?: { name?: string, region?: string | null, countryName?: string | null, country?: string }
+}
+
 export interface SearchAnswers {
+  /** Towns and cities anywhere, so a trip can start from any of them. */
+  towns?: Town[]
   suggestions?: Suggestion[]
   athletes?: Athlete[]
   clubs?: Club[]
@@ -82,10 +92,30 @@ export function groupSearchResults(answers: SearchAnswers): SearchGroups {
   const row = (s: Suggestion): SearchRow | null =>
     s.label && s.href ? { label: s.label, detail: s.detail ?? '', href: s.href } : null
 
-  const places = suggestions
-    .filter(s => s.kind === 'region' || s.kind === 'place')
-    .map(row)
+  // Towns first: somebody typing "San Diego" is asking where to go there,
+  // and the catalog's own places are parks and forests inside some town.
+  const towns = (answers.towns ?? [])
+    .map((t): SearchRow | null => {
+      const lat = Number(t.center?.lat)
+      const lng = Number(t.center?.lng)
+      const name = t.properties?.name || t.text?.split(',')[0]
+      if (!name || !Number.isFinite(lat) || !Number.isFinite(lng))
+        return null
+      const params = new URLSearchParams({ near: name, lat: String(lat), lng: String(lng) })
+      return {
+        label: name,
+        detail: joined([t.properties?.region, t.properties?.countryName || t.properties?.country].filter(Boolean).join(', '), 'Trails nearby'),
+        href: `/trails?${params.toString()}`,
+      }
+    })
     .filter((r): r is SearchRow => r !== null)
+  const places = [
+    ...towns,
+    ...suggestions
+      .filter(s => s.kind === 'region' || s.kind === 'place')
+      .map(row)
+      .filter((r): r is SearchRow => r !== null),
+  ]
   const trails = suggestions
     .filter(s => s.kind === 'trail')
     .map(row)

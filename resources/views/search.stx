@@ -74,7 +74,8 @@
     try {
       const encoded = encodeURIComponent(text)
       const ask = (path: string) => apiFetch(path).then(r => r.json()).catch(() => null)
-      const [suggest, people, clubs, events] = await Promise.all([
+      const [towns, suggest, people, clubs, events] = await Promise.all([
+        ask(`/api/geo/search?q=${encoded}&limit=3`),
         ask(`/api/search/suggest?q=${encoded}`),
         ask(`/api/users/search?q=${encoded}&limit=5`),
         ask(`/api/clubs?q=${encoded}&limit=4`),
@@ -83,9 +84,10 @@
       // A slower answer to an older query must not replace a newer one.
       if (ticket !== latest)
         return
-      if (!suggest && !people && !clubs && !events)
+      if (!towns && !suggest && !people && !clubs && !events)
         throw new Error('search')
       groups.set(groupSearchResults({
+        towns: towns?.results,
         suggestions: suggest?.suggestions,
         athletes: people?.athletes,
         clubs: clubs?.clubs,

@@ -58,6 +58,7 @@
   import { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../functions/avatars'
   import { useSavedTrails } from '../composables/useSavedTrails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
+  import { usePlaceSearch, type PlaceResult } from '../composables/usePlaceSearch'
   import { isStockTrailPhoto } from '../functions/stock-photos'
   import { routeTypeLabel, trailHighlight } from '../functions/trail-features'
   import {
@@ -413,6 +414,42 @@
   // reaches a `const` further down the script is a reference error.
   const nearMeActive = derived(() => useNearMe() && !!nearby() && !activeState() && !activeCountry())
 
+  /*
+   * Somewhere else: a town somebody searched for, to plan a trip there.
+   * It outranks "near me" while it is set — the question is "what is good
+   * near San Diego", not near wherever this phone happens to be — and a
+   * state or country filter outranks it, as it does near-me.
+   */
+  const placeOrigin = state<{ lat: number, lng: number, label: string } | null>(null)
+  const placeActive = derived(() => !!placeOrigin() && !activeState() && !activeCountry())
+  const placeLabel = derived(() => placeOrigin()?.label ?? '')
+  const placeSearch = usePlaceSearch({ limit: 5 })
+  const placeResults = placeSearch.results
+  const placeQuery = placeSearch.query
+
+  function onPlaceInput(event: any): void {
+    placeSearch.onInput(String(event?.target?.value ?? ''))
+  }
+
+  function choosePlace(place: PlaceResult): void {
+    placeSearch.clear()
+    placeOrigin.set({ lat: place.lat, lng: place.lng, label: place.name })
+    activeState.set('')
+    activeCountry.set('')
+    runSearch()
+  }
+
+  function clearPlace(): void {
+    placeOrigin.set(null)
+    runSearch()
+  }
+
+  /** The plans page, opened on this place with the planner ready. */
+  function planHereUrl(): string {
+    const place = placeOrigin()
+    return place ? `/plans?lat=${place.lat}&lng=${place.lng}&place=${encodeURIComponent(place.label)}` : '/plans'
+  }
+
   const chipCountry = derived(() => {
     if (activeCountry())
       return activeCountry()
@@ -461,6 +498,10 @@
     if (country)
       return `Every trail in ${countryName(country)}`
 
+    const searched = placeActive() ? placeOrigin() : null
+    if (searched)
+      return `Popular trails near ${searched.label}`
+
     const place = nearMeActive() ? nearby() : null
     if (place)
       return place.source === 'gps' ? 'Popular trails near you' : `Popular trails near ${place.label}`
@@ -478,7 +519,7 @@
     searchFailed.set(false)
 
     try {
-      let near = nearMeActive() ? nearby() : null
+      let near: { lat: number, lng: number } | null = placeActive() ? placeOrigin() : nearMeActive() ? nearby() : null
 
       const query = {
         q: search(),
@@ -502,6 +543,7 @@
         res = await queryTrails({ ...query, sort: 'longest', lat: undefined, lng: undefined, radius: undefined })
         near = null
         useNearMe.set(false)
+        placeOrigin.set(null)
       }
 
       // A slower earlier request must not overwrite a newer result.
@@ -674,6 +716,7 @@
    * it is the last resort rather than the first.
    */
   async function openNearMeFromLink() {
+    placeOrigin.set(null)
     useNearMe.set(true)
     activeState.set('')
     activeCountry.set('')
@@ -687,6 +730,7 @@
 
   /** Turn "near me" on, asking for a precise fix if there is nothing yet. */
   async function enableNearMe() {
+    placeOrigin.set(null)
     useNearMe.set(true)
     activeState.set('')
     activeCountry.set('')
@@ -763,6 +807,13 @@
     if (q || code || country || knownSort || activeFilterCount(linked) > 0)
       useNearMe.set(false)
 
+    // `?near=San Diego&lat=..&lng=..` — trails near a town somebody searched
+    // for, from the plans page or a shared link.
+    const lat = Number(query.lat)
+    const lng = Number(query.lng)
+    if (near && near !== 'me' && query.lat !== undefined && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180)
+      placeOrigin.set({ lat, lng, label: text(query.near) })
+
     // Answered in onMount by the same path the button takes, because turning
     // the flag on here is not enough: with no fix resolved yet, `nearMeActive`
     // stays false and the shortcut quietly lands on the national list.
@@ -823,23 +874,36 @@
         <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
           <i class="i-lucide-map-pin h-4 w-4"></i>
         </span>
-        <span :if="nearMeActive()">
+        <span :if="placeActive()">
+          <span class="font-semibold text-slate-900 dark:text-white">{{ 'Near ' + placeLabel() }}</span>
+          <span :if="nearRadius() > 0" class="text-slate-500 dark:text-slate-400">{{ ' · within ' + nearRadius() + ' mi' }}</span>
+        </span>
+        <span :if="!placeActive() && nearMeActive()">
           <span class="font-semibold text-slate-900 dark:text-white">{{ nearbyLabel() }}</span>
           <span :if="nearRadius() > 0" class="text-slate-500 dark:text-slate-400">{{ ' · within ' + nearRadius() + ' mi' }}</span>
         </span>
-        <span :if="!nearMeActive() && nearbyBusy()">Finding you…</span>
+        <span :if="!placeActive() && !nearMeActive() && nearbyBusy()">Finding you…</span>
         <!-- Naming the country matters most when nobody picked it: the list is
              scoped to wherever the request came from, and "the whole catalog"
              was the page describing a scope it did not have. -->
-        <span :if="!nearMeActive() && !nearbyBusy()">{{ countryInView() ? 'Showing trails in ' + countryName(countryInView()) : 'Showing the whole catalog' }}</span>
+        <span :if="!placeActive() && !nearMeActive() && !nearbyBusy()">{{ countryInView() ? 'Showing trails in ' + countryName(countryInView()) : 'Showing the whole catalog' }}</span>
       </span>
 
       <div class="ml-auto flex flex-wrap items-center gap-2">
+        <!-- Browsing somewhere else: plan it, or go back to here. -->
+        <StxLink :if="placeActive()" x-to="planHereUrl()" class="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+          <i class="i-lucide-calendar-plus h-3.5 w-3.5" aria-hidden="true"></i>
+          Plan a run here
+        </StxLink>
+        <button :if="placeActive()" @click="clearPlace()" class="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-white">
+          Clear
+        </button>
+
         <!-- A coarse fix came from the request's network, so it can be a city
              off. Offering to improve it is more useful than pretending it is
              exact. -->
         <button
-          :if="nearMeActive() && nearbyIsCoarse()"
+          :if="!placeActive() && nearMeActive() && nearbyIsCoarse()"
           @click="refineLocation()"
           x-disabled="nearbyBusy()"
           class="min-h-9 rounded-full border border-slate-300 px-3.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] disabled:opacity-60 dark:border-slate-600 dark:text-slate-300">
@@ -847,14 +911,14 @@
         </button>
 
         <button
-          :if="nearMeActive()"
+          :if="!placeActive() && nearMeActive()"
           @click="forgetLocation()"
           class="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-white">
           Browse everywhere
         </button>
 
         <button
-          :if="!nearMeActive()"
+          :if="!placeActive() && !nearMeActive()"
           @click="enableNearMe()"
           x-disabled="nearbyBusy()"
           class="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
@@ -864,6 +928,28 @@
       </div>
 
       <p :if="nearbyMessage()" class="w-full text-xs text-amber-600 dark:text-amber-400">{{ nearbyMessage() }}</p>
+
+      <!-- Anywhere else: a town or city, for planning a trip there. -->
+      <div class="relative w-full">
+        <label for="trails-place" class="sr-only">Trails near a town or city</label>
+        <div class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 dark:bg-slate-900/50">
+          <i class="i-lucide-search h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true"></i>
+          <input id="trails-place" type="search" autocomplete="off" placeholder="Trails near a town or city…" x-value="placeQuery()" @input="onPlaceInput($event)" class="min-h-10 w-full min-w-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-sm dark:text-white" />
+        </div>
+        <ul :if="placeResults().length > 0" class="absolute inset-x-0 top-full z-30 mt-1 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800">
+          <template :for="place in placeResults()">
+            <li>
+              <button type="button" @click="choosePlace(place)" class="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/60">
+                <i class="i-lucide-map-pin h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true"></i>
+                <span class="min-w-0">
+                  <span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">{{ place.name }}</span>
+                  <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ place.detail }}</span>
+                </span>
+              </button>
+            </li>
+          </template>
+        </ul>
+      </div>
     </div>
 
     <!-- Browse by country. Shown only once there is more than one: a single
