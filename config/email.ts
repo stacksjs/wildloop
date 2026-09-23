@@ -44,6 +44,8 @@ export default {
 
   server: {
     enabled: true,
+    // Share the Stacks mail server, as BugHQ does, but keep our own mailboxes.
+    attachTo: 'stacks',
     scan: true, // scans for spam and viruses
 
     /**
@@ -71,10 +73,10 @@ export default {
 
     /**
      * Server mode:
-     * - 'serverless': Lightweight TypeScript/Bun server (default, ~$3/month)
-     * - 'server': Full-featured Zig mail server with IMAP, POP3, CalDAV, etc.
+     * - 'serverless': Lightweight TypeScript/Bun server
+     * - 'server': Shared Zig mail server with IMAP, POP3, CalDAV, etc. (default)
      */
-    mode: (envVars.MAIL_SERVER_MODE || 'serverless') as 'serverless' | 'server',
+    mode: (envVars.MAIL_SERVER_MODE || 'server') as 'serverless' | 'server',
 
     /**
      * Path to the Zig mail server repository (only used when mode is 'server')
