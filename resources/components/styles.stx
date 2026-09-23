@@ -162,9 +162,15 @@
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: var(--r-card);
-    padding: 1.25rem;
     box-shadow: var(--shadow-sm);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  /* Padding at zero specificity, so a padding utility on the same element
+     wins. As a plain `.card` rule it beat `p-0`, and every map dropped into
+     a card sat inside a 20px white frame. */
+  :where(.card) {
+    padding: 1.25rem;
   }
 
   .dark .card {
