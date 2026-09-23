@@ -386,6 +386,29 @@ export async function changePassword(input: {
   }
 }
 
+/** Request a reset without turning an HTTP failure into an inbox confirmation. */
+export async function requestPasswordReset(email: string): Promise<{ ok: boolean, message: string }> {
+  try {
+    const response = await apiFetch('/api/password/forgot', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: headers(),
+      body: JSON.stringify({ email: email.trim() }),
+    })
+    if (response.status === 429)
+      return { ok: false, message: 'Too many reset attempts. Please try again in a few minutes.' }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      return { ok: false, message: describeResponseError(response.status, payload).message }
+    }
+    // Keep the server's neutral response for both registered and unknown emails.
+    return { ok: true, message: '' }
+  }
+  catch (error) {
+    return { ok: false, message: describeThrownError(error).message }
+  }
+}
+
 /**
  * Delete the signed-in account (DELETE /api/me). Resolves to a message to
  * show, or null once the account is gone and this device has forgotten it.

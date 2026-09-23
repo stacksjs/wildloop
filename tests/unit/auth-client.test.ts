@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { refreshCurrentUser, signIn, signOut, signUp } from '../../resources/assets/scripts/auth'
+import { refreshCurrentUser, requestPasswordReset, signIn, signOut, signUp } from '../../resources/assets/scripts/auth'
 
 /**
  * The sign-in page called a bare `auth` global that nothing defined, so
@@ -45,6 +45,51 @@ function stubFetch(outcome: { status?: number, body?: unknown } | Error): { call
   }) as any
   return { calls }
 }
+
+describe('requestPasswordReset', () => {
+  it('accepts a neutral success without creating a session', async () => {
+    const { calls } = stubFetch({ body: { success: true } })
+    expect((await requestPasswordReset(' person@example.com ')).ok).toBe(true)
+    expect(calls[0].url).toBe('/api/password/forgot')
+    expect(JSON.parse(calls[0].init.body)).toEqual({ email: 'person@example.com' })
+    expect(calls[0].init.headers['X-CSRF-Token']).toBe('tok-123')
+    expect(store.has('auth_token')).toBe(false)
+  })
+
+  it.each([403, 422, 500, 503])('does not confirm an inbox on HTTP %i', async (status) => {
+    stubFetch({ status })
+    const result = await requestPasswordReset('person@example.com')
+    expect(result.ok).toBe(false)
+    expect(result.message.length).toBeGreaterThan(0)
+  })
+
+  it('shows email validation feedback', async () => {
+    stubFetch({ status: 422, body: { errors: { email: ['Enter a valid email address.'] } } })
+    expect((await requestPasswordReset('invalid')).message).toBe('Enter a valid email address.')
+  })
+
+  it('explains rate limiting', async () => {
+    stubFetch({ status: 429 })
+    expect(await requestPasswordReset('person@example.com')).toEqual({
+      ok: false,
+      message: 'Too many reset attempts. Please try again in a few minutes.',
+    })
+  })
+
+  it('handles a non-JSON proxy failure', async () => {
+    globalThis.fetch = mock(async () => new Response('<html>Bad gateway</html>', { status: 502 })) as any
+    const result = await requestPasswordReset('person@example.com')
+    expect(result.ok).toBe(false)
+    expect(result.message).not.toContain('JSON')
+  })
+
+  it('explains a network failure', async () => {
+    stubFetch(new TypeError('Failed to fetch'))
+    const result = await requestPasswordReset('person@example.com')
+    expect(result.ok).toBe(false)
+    expect(result.message).toContain('connection')
+  })
+})
 
 describe('signIn', () => {
   it('stores the session and reports success', async () => {
