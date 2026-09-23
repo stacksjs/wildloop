@@ -52,6 +52,7 @@
   import { useAppInstall } from '../composables/useAppInstall'
   import { locatePrecisely, locating as nearbyLocating, resolveNearby } from '../composables/useNearby'
   import { activitySharePreview } from '../functions/activity-share'
+  import { routeShapeFor } from '../composables/useRouteShape'
 
 
   const { canPrompt, installed, platform, promptInstall } = useAppInstall()
@@ -87,6 +88,8 @@
   const featured = state([])
   const featuredLabel = state('Popular right now')
   const featuredLoading = state(true)
+  /** The shelf's route lines, by trail id, from the same answer as the trails. */
+  const featuredRoutes = state({})
   const topTrails = state([])
 
   const trailCount = derived(() => coverage().total)
@@ -309,6 +312,8 @@
     featuredLoading.set(true)
     try {
       const result = await queryTrails({ sort: 'featured', limit: 4, ...query })
+      // Lines first: the tiles read them as they render.
+      featuredRoutes.set(result.geometryById ?? {})
       featured.set(result.trails)
       featuredLabel.set(label)
     }
@@ -318,6 +323,30 @@
       featured.set([])
     }
     featuredLoading.set(false)
+  }
+
+  /**
+   * A tile with no photo draws its route instead, which is the one picture of
+   * the trail the catalog nearly always has. Cached once drawn: the line for a
+   * trail does not change when the shelf reloads around it.
+   */
+  const NO_TILE_ROUTE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const tileShapes = new Map()
+
+  function tileRoute(id) {
+    const cached = tileShapes.get(id)
+    if (cached)
+      return cached
+    const shape = routeShapeFor(featuredRoutes()[id], 160, 120, 18)
+    if (!shape)
+      return NO_TILE_ROUTE
+    tileShapes.set(id, shape)
+    return shape
+  }
+
+  /** One of four contour layouts, so a shelf of photo-less tiles is not one tile four times. */
+  function tileTopo(trail) {
+    return `trail-tile-blank wl-topo wl-topo-${Math.abs(Number(trail?.id) || 0) % 4}`
   }
 
   /** Load the shelf for a place, however that place was arrived at. */
@@ -502,32 +531,45 @@
         <StxLink to="/trails" class="text-sm font-semibold text-emerald-700 underline underline-offset-4 dark:text-emerald-400">See all trails</StxLink>
       </div>
 
-      <div class="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- A swipeable shelf on a phone, where four full-width tiles stacked
+           cost four screens of scrolling before anything else on the page; a
+           grid from `sm` up. -->
+      <div class="wl-shelf -mx-4 mt-7 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
         <template :if="featuredLoading() && featured().length === 0">
-          <div class="trail-tile animate-pulse"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div>
-          <div class="trail-tile animate-pulse"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div>
-          <div class="trail-tile animate-pulse"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-4/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div>
-          <div class="trail-tile animate-pulse"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="trail-tile w-[78%] shrink-0 animate-pulse sm:w-auto"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="trail-tile w-[78%] shrink-0 animate-pulse sm:w-auto"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="trail-tile w-[78%] shrink-0 animate-pulse sm:w-auto"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-4/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div>
+          <div class="trail-tile w-[78%] shrink-0 animate-pulse sm:w-auto"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div>
         </template>
 
         <template :for="trail in featured">
-          <StxLink x-to="'/trail/' + trail.id" class="trail-tile group">
+          <StxLink x-to="'/trail/' + trail.id" class="trail-tile group w-[78%] min-w-0 shrink-0 snap-start sm:w-auto">
             <div class="trail-tile-photo">
               <Image :if="trail.image" x-src="trail.image" x-alt="trail.name" width="640" height="480" sizes="(max-width: 768px) 100vw, 33vw" placeholder="blur" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
-              <div :if="!trail.image" class="trail-tile-blank" aria-hidden="true">
-                <i class="i-lucide-mountain h-8 w-8"></i>
+              <div :if="!trail.image" x-class="tileTopo(trail)" aria-hidden="true">
+                <svg :if="tileRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="absolute inset-0 h-full w-full">
+                  <polyline x-points="tileRoute(trail.id).points" class="wl-route-casing" />
+                  <polyline x-points="tileRoute(trail.id).points" class="wl-route-line" />
+                  <circle x-cx="tileRoute(trail.id).endX" x-cy="tileRoute(trail.id).endY" r="3" x-class="tileRoute(trail.id).loop ? 'hidden' : 'wl-route-end'" />
+                  <circle x-cx="tileRoute(trail.id).startX" x-cy="tileRoute(trail.id).startY" r="3" class="wl-route-start" />
+                </svg>
+                <i :if="tileRoute(trail.id).points === ''" class="i-lucide-mountain h-10 w-10"></i>
               </div>
             </div>
-            <h3 class="mt-3 truncate font-semibold">{{ trail.name }}</h3>
+            <h3 class="mt-3 truncate font-semibold transition group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{{ trail.name }}</h3>
             <p class="mt-0.5 truncate text-sm text-current/55">{{ trail.location || trail.managedBy || '—' }}</p>
             <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-current/70">
               <span class="inline-flex items-center gap-1 font-semibold">
                 <i class="i-lucide-star h-3.5 w-3.5 text-amber-500" aria-hidden="true"></i>{{ trail.rating ? trail.rating.toFixed(1) : '—' }}
               </span>
               <span aria-hidden="true">·</span>
-              <span class="capitalize">{{ trail.difficulty }}</span>
+              <span class="inline-flex items-center gap-1.5 capitalize">
+                <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>{{ trail.difficulty }}
+              </span>
               <span aria-hidden="true">·</span>
               <span class="tabular-nums">{{ trail.distance.toFixed(1) + ' mi' }}</span>
+              <span :if="trail.estimatedTime" aria-hidden="true">·</span>
+              <span :if="trail.estimatedTime" class="tabular-nums">{{ trail.estimatedTime }}</span>
             </p>
           </StxLink>
         </template>
@@ -855,7 +897,13 @@
             <template :for="region in topRegions">
               <StxLink x-to="'/trails?state=' + region.code" class="directory-link">{{ region.name }}</StxLink>
             </template>
-            <p :if="topRegions().length === 0" class="text-sm text-current/50">Loading regions…</p>
+            <!-- Bars the width of a name while the list is on its way. -->
+            <div :if="topRegions().length === 0" class="animate-pulse space-y-3.5 pt-1.5" role="status" aria-label="Loading regions">
+              <div class="h-3 w-3/4 rounded bg-current/10"></div>
+              <div class="h-3 w-1/2 rounded bg-current/10"></div>
+              <div class="h-3 w-2/3 rounded bg-current/10"></div>
+              <div class="h-3 w-2/5 rounded bg-current/10"></div>
+            </div>
           </div>
           <StxLink to="/trails" class="directory-more">Show more</StxLink>
         </div>
@@ -866,7 +914,13 @@
             <template :for="country in topCountries">
               <StxLink x-to="'/trails?country=' + country.code" class="directory-link">{{ countryName(country.code) }}</StxLink>
             </template>
-            <p :if="topCountries().length === 0" class="text-sm text-current/50">Loading countries…</p>
+            <!-- Bars the width of a name while the list is on its way. -->
+            <div :if="topCountries().length === 0" class="animate-pulse space-y-3.5 pt-1.5" role="status" aria-label="Loading countries">
+              <div class="h-3 w-3/4 rounded bg-current/10"></div>
+              <div class="h-3 w-1/2 rounded bg-current/10"></div>
+              <div class="h-3 w-2/3 rounded bg-current/10"></div>
+              <div class="h-3 w-2/5 rounded bg-current/10"></div>
+            </div>
           </div>
           <StxLink to="/trails" class="directory-more">Show more</StxLink>
         </div>
@@ -877,7 +931,13 @@
             <template :for="trail in topTrails">
               <StxLink x-to="'/trail/' + trail.id" class="directory-link">{{ trail.name }}</StxLink>
             </template>
-            <p :if="topTrails().length === 0" class="text-sm text-current/50">Loading trails…</p>
+            <!-- Bars the width of a name while the list is on its way. -->
+            <div :if="topTrails().length === 0" class="animate-pulse space-y-3.5 pt-1.5" role="status" aria-label="Loading trails">
+              <div class="h-3 w-3/4 rounded bg-current/10"></div>
+              <div class="h-3 w-1/2 rounded bg-current/10"></div>
+              <div class="h-3 w-2/3 rounded bg-current/10"></div>
+              <div class="h-3 w-2/5 rounded bg-current/10"></div>
+            </div>
           </div>
           <StxLink to="/trails?sort=rating" class="directory-more">Show more</StxLink>
         </div>
@@ -1181,16 +1241,76 @@
     aspect-ratio: 4 / 3;
     border-radius: 1rem;
     background: color-mix(in srgb, currentColor 8%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 7%, transparent);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .trail-tile:hover .trail-tile-photo {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 7%, transparent), 0 14px 32px -16px rgb(6 32 24 / 45%);
+    transform: translateY(-2px);
   }
 
   .trail-tile-blank {
+    position: relative;
     display: grid;
     place-items: center;
     width: 100%;
     height: 100%;
-    color: color-mix(in srgb, currentColor 35%, transparent);
-    background: color-mix(in srgb, currentColor 6%, transparent);
+    color: color-mix(in srgb, #047857 30%, transparent);
   }
+
+  .dark .trail-tile-blank { color: color-mix(in srgb, #a7f3d0 22%, transparent); }
+
+  /* The shelf swipes on a phone. No scrollbar under it, and a snap that
+     leaves the page gutter in place rather than slamming tiles to the edge. */
+  .wl-shelf {
+    scroll-padding-inline: 1rem;
+    scrollbar-width: none;
+  }
+
+  .wl-shelf::-webkit-scrollbar { display: none; }
+
+  /* Contour-tinted ground for a card with no photo. Four layouts, picked by
+     id, so a grid of them reads as different places rather than one tile. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
+  .wl-route-casing,
+  .wl-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-route-casing { stroke: #fff; stroke-width: 6; }
+  .wl-route-line { stroke: #059669; stroke-width: 3; }
+  .wl-route-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
+  .wl-route-end { fill: #0f172a; stroke: #fff; stroke-width: 2; }
+
+  .dark .wl-route-casing { stroke: #0b1411; }
+  .dark .wl-route-line { stroke: #34d399; }
+  .dark .wl-route-start { stroke: #0b1411; }
+  .dark .wl-route-end { fill: #e2e8f0; stroke: #0b1411; }
 
   /* ── Shared section furniture ───────────────────────────────────────── */
 

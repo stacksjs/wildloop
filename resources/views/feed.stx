@@ -38,7 +38,8 @@
 </script>
 
 <script client>
-  import { routePreviewDataUri } from '../composables/useRoutePreview'
+  import { routeShapeFor } from '../composables/useRouteShape'
+  import { avatarInitial, avatarTint } from '../functions/avatars'
   import { useManualActivity } from '../composables/useManualActivity'
   import { followAthlete, giveKudos } from '../composables/useSocialActions'
 
@@ -85,10 +86,42 @@
    * store's trail geometry, which holds the two hundred featured trails the
    * catalog page loads — against a catalog of ~600,000 that never matched, so
    * every card in the feed rendered the "no route" placeholder instead.
+   *
+   * Drawn inline, fitted to the banner's own proportions. The square data-URI
+   * thumbnail it used to be was cropped by `object-cover` into a 4:1 strip,
+   * which blew one corner of the line up to fill the card. Cached per activity
+   * because the feed re-renders on every kudos, and the line never changes.
    */
-  function activityRoutePreview(activity: { route?: Array<[number, number]> }): string | null {
-    const coords = activity.route
-    return coords && coords.length > 1 ? routePreviewDataUri(coords) : null
+  const NO_ROUTE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const routeShapes = new Map<number, typeof NO_ROUTE>()
+
+  function feedRoute(activity: { id: number, route?: Array<[number, number]> }) {
+    const cached = routeShapes.get(activity.id)
+    if (cached)
+      return cached
+    const shape = routeShapeFor(activity.route, 360, 120, 14)
+    if (!shape)
+      return NO_ROUTE
+    routeShapes.set(activity.id, shape)
+    return shape
+  }
+
+  // Faces, mirrored locally: the template only resolves this script's own
+  // declarations, and an imported helper called from the markup is undefined.
+  function faceInitial(name: string) {
+    return avatarInitial(name)
+  }
+
+  function faceTint(activity: { user_id?: number, userName?: string }) {
+    return avatarTint(activity.user_id ?? activity.userName)
+  }
+
+  function activityIcon(type: string) {
+    if (type === 'Hike')
+      return 'i-lucide-mountain h-3 w-3'
+    if (type === 'Bike')
+      return 'i-lucide-bike h-3 w-3'
+    return 'i-lucide-footprints h-3 w-3'
   }
 </script>
 
@@ -119,33 +152,38 @@
          which made the page look like it had one filter applied twice. -->
     <div class="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700">
       <div class="flex gap-1">
-        <button @click="scope.set('all')" x-class="scope === 'all' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Everyone</button>
-        <button @click="scope.set('following')" x-class="scope === 'following' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Following</button>
+        <button @click="scope.set('all')" x-class="scope === 'all' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Everyone</button>
+        <button @click="scope.set('following')" x-class="scope === 'following' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Following</button>
       </div>
-      <StxLink to="/athletes" class="pb-2 text-sm font-medium text-emerald-600 transition hover:text-emerald-700">Find athletes</StxLink>
+      <StxLink to="/athletes" class="inline-flex min-h-11 items-center gap-1.5 pb-1 text-sm font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
+        <i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>
+        Find athletes
+      </StxLink>
     </div>
 
-    <div class="mb-6 flex gap-2 overflow-x-auto pb-2">
-      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">All</button>
-      <button @click="filter.set('Trail Run')" x-class="filter === 'Trail Run' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Runs</button>
-      <button @click="filter.set('Hike')" x-class="filter === 'Hike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Hikes</button>
-      <button @click="filter.set('Walk')" x-class="filter === 'Walk' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Walks</button>
-      <button @click="filter.set('Bike')" x-class="filter === 'Bike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.98]">Rides</button>
+    <!-- Sport filter. Bleeds to the screen edge on a phone so the row reads as
+         something that scrolls sideways rather than as a row that got cut off. -->
+    <div class="feed-chips -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">All</button>
+      <button @click="filter.set('Trail Run')" x-class="filter === 'Trail Run' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-footprints h-3.5 w-3.5" aria-hidden="true"></i>Runs</button>
+      <button @click="filter.set('Hike')" x-class="filter === 'Hike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>Hikes</button>
+      <button @click="filter.set('Walk')" x-class="filter === 'Walk' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-footprints h-3.5 w-3.5" aria-hidden="true"></i>Walks</button>
+      <button @click="filter.set('Bike')" x-class="filter === 'Bike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-bike h-3.5 w-3.5" aria-hidden="true"></i>Rides</button>
     </div>
 
     <!-- Activity cards -->
     <div class="space-y-5">
       <template :for="activity in filtered">
-        <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
-          <div class="flex items-start gap-3 p-4 pb-3">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ activity.userName.charAt(0) }}</div>
+        <article class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800 dark:shadow-none">
+          <div class="flex items-center gap-3 px-4 pb-3 pt-4">
+            <div x-class="'grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ' + faceTint(activity)" aria-hidden="true">{{ faceInitial(activity.userName) }}</div>
 
             <div class="min-w-0 flex-1">
-              <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white">{{ activity.userName }}</StxLink>
-              <span :else class="font-semibold text-slate-900 dark:text-white">Deleted athlete</span>
-              <p class="flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="block truncate font-semibold leading-tight text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ activity.userName }}</StxLink>
+              <span :else class="block truncate font-semibold leading-tight text-slate-900 dark:text-white">Deleted athlete</span>
+              <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <span class="inline-flex items-center gap-1">
-                  <i x-class="activity.activityType === 'Hike' ? 'i-lucide-mountain h-3 w-3' : activity.activityType === 'Bike' ? 'i-lucide-bike h-3 w-3' : activity.activityType === 'Walk' ? 'i-lucide-footprints h-3 w-3' : 'i-lucide-footprints h-3 w-3'" aria-hidden="true"></i>
+                  <i x-class="activityIcon(activity.activityType)" aria-hidden="true"></i>
                   {{ activity.activityType }}
                 </span>
                 <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
@@ -156,69 +194,87 @@
             <button
               :if="activity.user_id && activity.user_id !== wl.currentUserId()"
               @click="onFollow(activity.user_id)"
-              x-class="wl.isFollowing(activity.user_id) ? 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300' : 'border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10'"
-              class="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition active:scale-[0.98]"
+              x-class="wl.isFollowing(activity.user_id) ? 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300' : 'border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-500/10'"
+              class="min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition active:scale-[0.98]"
             >{{ wl.isFollowing(activity.user_id) ? 'Following' : 'Follow' }}</button>
           </div>
 
           <div class="px-4 pb-3">
-            <StxLink x-to="'/activity/' + activity.id" class="block font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white">{{ activity.title }}</StxLink>
-            <p :if="activity.title.includes('Capture')" class="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+            <StxLink x-to="'/activity/' + activity.id" class="block text-[15px] font-semibold leading-snug text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ activity.title }}</StxLink>
+            <p :if="activity.title.includes('Capture')" class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
               <i class="i-lucide-flag h-3 w-3" aria-hidden="true"></i>Territory capture
             </p>
           </div>
 
           <StxLink x-to="'/activity/' + activity.id" class="block">
-            <Image :if="activityRoutePreview(activity)" x-src="activityRoutePreview(activity)" x-alt="'Route preview for ' + activity.title" width="800" height="320" sizes="(max-width: 768px) 100vw, 640px" placeholder="blur" class="h-44 w-full bg-slate-100 object-cover dark:bg-slate-900" />
+            <!-- The route, fitted to the banner and drawn in the page's own
+                 colours, over a contour-tinted ground so it reads as a map. -->
+            <div :if="feedRoute(activity).points !== ''" class="wl-topo relative h-44 w-full overflow-hidden">
+              <svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 h-full w-full" role="img" x-aria-label="'Route map for ' + activity.title">
+                <polyline x-points="feedRoute(activity).points" class="wl-route-casing" />
+                <polyline x-points="feedRoute(activity).points" class="wl-route-line" />
+                <circle x-cx="feedRoute(activity).endX" x-cy="feedRoute(activity).endY" r="4" x-class="feedRoute(activity).loop ? 'hidden' : 'wl-route-end'" />
+                <circle x-cx="feedRoute(activity).startX" x-cy="feedRoute(activity).startY" r="4" class="wl-route-start" />
+              </svg>
+              <span :if="activity.trail_id" class="absolute bottom-2.5 left-3 inline-flex max-w-[75%] items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-900/80 dark:text-slate-200">
+                <i class="i-lucide-map-pin h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+                <span class="truncate">{{ activity.trail_name }}</span>
+              </span>
+            </div>
             <!-- Nothing to draw. Two different reasons, and the card should
                  say which: an activity logged by hand has no route at all,
                  while one on a named trail has a place even when the catalog
                  holds no line for it. "No route recorded" under a run that is
-                 plainly attached to a trail reads as a bug. -->
-            <div :else class="flex h-44 items-center justify-center bg-slate-50 dark:bg-slate-900/60">
-              <div class="px-6 text-center text-slate-400 dark:text-slate-500">
-                <!-- `trail_id`, not `trail_name`: the store fills the name
-                     with "<Type> Activity" when there is no trail, so it is
-                     never empty and cannot be used to tell the two apart. -->
-                <i x-class="activity.trail_id ? 'i-lucide-mountain mx-auto mb-1.5 block h-7 w-7' : 'i-lucide-pencil-line mx-auto mb-1.5 block h-7 w-7'" aria-hidden="true"></i>
-                <p :if="activity.trail_id" class="text-xs font-medium text-slate-500 dark:text-slate-400 line-clamp-1">{{ activity.trail_name }}</p>
-                <p :if="activity.trail_id" class="text-[11px]">No mapped route for this trail</p>
-                <p :else class="text-xs">Logged by hand — no route recorded</p>
-              </div>
+                 plainly attached to a trail reads as a bug. A slim strip rather
+                 than a full-height frame: an empty map is not worth 176px. -->
+            <div :else class="wl-topo flex h-20 items-center gap-3 px-4">
+              <!-- `trail_id`, not `trail_name`: the store fills the name
+                   with "<Type> Activity" when there is no trail, so it is
+                   never empty and cannot be used to tell the two apart. -->
+              <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/80 text-slate-500 shadow-sm dark:bg-slate-900/60 dark:text-slate-400" aria-hidden="true">
+                <i x-class="activity.trail_id ? 'i-lucide-mountain h-5 w-5' : 'i-lucide-pencil-line h-5 w-5'"></i>
+              </span>
+              <span class="min-w-0">
+                <span :if="activity.trail_id" class="block truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{{ activity.trail_name }}</span>
+                <span :if="activity.trail_id" class="block text-xs text-slate-500 dark:text-slate-400">No mapped route for this trail</span>
+                <span :else class="block text-xs font-medium text-slate-500 dark:text-slate-400">Logged by hand — no route recorded</span>
+              </span>
             </div>
           </StxLink>
 
           <!-- The four numbers, on one baseline. A run is compared by these,
                so they get equal weight and tabular figures that line up
-               between cards as you scroll. -->
+               between cards as you scroll. Term first in the markup, value
+               first on screen. -->
           <dl class="grid grid-cols-4 divide-x divide-slate-100 border-y border-slate-100 dark:divide-slate-700 dark:border-slate-700">
-            <div class="px-2 py-3 text-center">
-              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.distance.toFixed(1) }}</dd>
-              <dt class="metric-label">Miles</dt>
+            <div class="flex flex-col-reverse px-2 py-3 text-center">
+              <dt class="metric-label mt-0.5">Miles</dt>
+              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.distance.toFixed(1) }}</dd>
             </div>
-            <div class="px-2 py-3 text-center">
-              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.duration }}</dd>
-              <dt class="metric-label">Time</dt>
+            <div class="flex flex-col-reverse px-2 py-3 text-center">
+              <dt class="metric-label mt-0.5">Time</dt>
+              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.duration }}</dd>
             </div>
-            <div class="px-2 py-3 text-center">
-              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.pace }}</dd>
-              <dt class="metric-label">Pace</dt>
+            <div class="flex flex-col-reverse px-2 py-3 text-center">
+              <dt class="metric-label mt-0.5">Pace</dt>
+              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.pace }}</dd>
             </div>
-            <div class="px-2 py-3 text-center">
-              <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.elevation_gain.toLocaleString() }}</dd>
-              <dt class="metric-label">Elev ft</dt>
+            <div class="flex flex-col-reverse px-2 py-3 text-center">
+              <dt class="metric-label mt-0.5">Elev ft</dt>
+              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.elevation_gain.toLocaleString() }}</dd>
             </div>
           </dl>
 
-          <div class="flex items-center gap-1 p-2">
-            <button @click="onKudos(activity)" x-class="kudosed[activity.id] ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400'" class="flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-slate-50 dark:hover:bg-slate-700/50">
+          <div class="flex items-center gap-1 p-1.5">
+            <button @click="onKudos(activity)" x-class="kudosed[activity.id] ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400'" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition hover:bg-slate-50 active:scale-[0.98] dark:hover:bg-slate-700/50">
               <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="kudosed[activity.id] ? 'currentColor' : 'none'" aria-hidden="true">
                 <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
               </svg>
               <span class="tabular-nums">{{ activity.kudos_count }}</span>
               <span>{{ activity.kudos_count === 1 ? 'kudo' : 'kudos' }}</span>
             </button>
-            <StxLink x-to="'/activity/' + activity.id" class="flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-slate-700/50">
+            <span class="h-5 w-px bg-slate-100 dark:bg-slate-700" aria-hidden="true"></span>
+            <StxLink x-to="'/activity/' + activity.id" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-emerald-400">
               <i class="i-lucide-message-circle h-4 w-4" aria-hidden="true"></i>
               Comment
             </StxLink>
@@ -230,8 +286,9 @@
            no runs needs a different sentence from somebody who follows nobody
            yet, and telling the second one to "head outside" is useless. -->
       <div :if="filtered.length === 0" class="py-20 text-center">
-        <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
-          <Icon name="zap" size="36" class="text-emerald-500" />
+        <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-emerald-50 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/20">
+          <i :if="scope === 'following'" class="i-lucide-users h-9 w-9 text-emerald-500" aria-hidden="true"></i>
+          <i :else class="i-lucide-activity h-9 w-9 text-emerald-500" aria-hidden="true"></i>
         </div>
         <h3 class="mb-2 text-lg font-semibold text-slate-900 dark:text-white">
           <span :if="scope === 'following'">Nothing from the people you follow</span>
@@ -241,25 +298,31 @@
           <span :if="scope === 'following'">Follow a few athletes and their runs land here.</span>
           <span :else>Record a run and it shows up here — yours and everyone else's.</span>
         </p>
-        <StxLink :if="scope === 'following'" to="/athletes" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Find athletes</StxLink>
-        <StxLink :else to="/record" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
+        <StxLink :if="scope === 'following'" to="/athletes" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>Find athletes</StxLink>
+        <StxLink :else to="/record" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-circle-dot h-4 w-4" aria-hidden="true"></i>Record an activity</StxLink>
       </div>
     </div>
   </div>
 
   <!-- Manual entry modal (#955) -->
-  <div :if="manualOpen" data-covers-tab-bar class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div @click="closeManualEntry()" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative w-full max-w-md card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-bold text-lg dark:text-white">Log an activity</h2>
-        <button @click="closeManualEntry()" class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 text-xl leading-none">×</button>
+  <div :if="manualOpen" data-covers-tab-bar class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="manual-entry-title">
+    <div @click="closeManualEntry()" class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6 dark:bg-slate-900" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
+      <div aria-hidden="true" class="mx-auto -mt-2 mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <h2 id="manual-entry-title" class="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Log an activity</h2>
+          <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">For the ones the watch missed.</p>
+        </div>
+        <button @click="closeManualEntry()" aria-label="Close" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+          <i class="i-lucide-x h-5 w-5" aria-hidden="true"></i>
+        </button>
       </div>
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Type</label>
-            <select x-value="mType" @change="mType.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+            <label for="manual-type" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Type</label>
+            <select id="manual-type" x-value="mType" @change="mType.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
               <option value="Trail Run">Trail Run</option>
               <option value="Hike">Hike</option>
               <option value="Walk">Walk</option>
@@ -269,27 +332,27 @@
           <!-- min-w-0 and no native appearance: iOS gives a date input an
                intrinsic width, and it ran out past the edge of the card. -->
           <div class="min-w-0">
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Date</label>
-            <input type="date" x-value="mDate" @input="mDate.set($event.target.value)" class="block h-[2.375rem] w-full min-w-0 appearance-none px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-left text-sm dark:text-white" />
+            <label for="manual-date" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Date</label>
+            <input id="manual-date" type="date" x-value="mDate" @input="mDate.set($event.target.value)" class="block h-[2.75rem] w-full min-w-0 appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
           </div>
         </div>
         <div class="grid grid-cols-3 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Miles</label>
-            <input type="text" inputmode="decimal" placeholder="5.2" x-value="mDistance" @input="mDistance.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
+            <label for="manual-distance" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Miles</label>
+            <input id="manual-distance" type="text" inputmode="decimal" placeholder="5.2" x-value="mDistance" @input="mDistance.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Duration</label>
-            <input type="text" placeholder="45:30" x-value="mDuration" @input="mDuration.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
+            <label for="manual-duration" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Duration</label>
+            <input id="manual-duration" type="text" placeholder="45:30" x-value="mDuration" @input="mDuration.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Elev (ft)</label>
-            <input type="text" inputmode="numeric" placeholder="350" x-value="mElevation" @input="mElevation.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
+            <label for="manual-elevation" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Elev (ft)</label>
+            <input id="manual-elevation" type="text" inputmode="numeric" placeholder="350" x-value="mElevation" @input="mElevation.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
           </div>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Trail (optional)</label>
-          <select @change="mTrailId.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+          <label for="manual-trail" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Trail (optional)</label>
+          <select id="manual-trail" @change="mTrailId.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
             <option value="">No trail</option>
             <template :for="trail in wl.trails()">
               <option x-value="trail.id" x-selected="String(trail.id) === mTrailId" :text="trail.name"></option>
@@ -297,12 +360,12 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Notes</label>
-          <textarea rows="2" placeholder="How did it go?" x-value="mNotes" @input="mNotes.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm"></textarea>
+          <label for="manual-notes" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Notes</label>
+          <textarea id="manual-notes" rows="2" placeholder="How did it go?" x-value="mNotes" @input="mNotes.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"></textarea>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Who can see this</label>
-          <select x-value="mVisibility" @change="mVisibility.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+          <label for="manual-visibility" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Who can see this</label>
+          <select id="manual-visibility" x-value="mVisibility" @change="mVisibility.set($event.target.value)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
             <option value="public">Public (everyone)</option>
             <option value="followers">Followers only</option>
             <option value="private">Private (just me)</option>
@@ -310,11 +373,59 @@
         </div>
         <p :if="manualError" class="text-sm text-red-500">{{ manualError }}</p>
         <div class="flex gap-2 pt-1">
-          <button @click="submitManualEntry()" class="flex-1 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">{{ submitting ? 'Saving…' : 'Log activity' }}</button>
-          <button @click="closeManualEntry()" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition">Cancel</button>
+          <button @click="submitManualEntry()" class="min-h-11 flex-1 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">{{ submitting ? 'Saving…' : 'Log activity' }}</button>
+          <button @click="closeManualEntry()" class="min-h-11 rounded-full px-5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">Cancel</button>
         </div>
-        <p class="text-xs text-gray-400">Manual entries don't capture territory. Record with GPS to claim ground.</p>
+        <p class="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400"><i class="i-lucide-info mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>Manual entries don't capture territory. Record with GPS to claim ground.</p>
       </div>
     </div>
   </div>
+<style>
+  /* Chip rows scroll sideways on a phone; the scrollbar under them read as a
+     stray grey rule rather than as a hint. */
+  .feed-chips { scrollbar-width: none; }
+  .feed-chips::-webkit-scrollbar { display: none; }
+
+  /* Contour-tinted ground for a card with no photo. Four layouts, picked by
+     id, so a grid of them reads as different places rather than one tile. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
+  .wl-route-casing,
+  .wl-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-route-casing { stroke: #fff; stroke-width: 6; }
+  .wl-route-line { stroke: #059669; stroke-width: 3; }
+  .wl-route-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
+  .wl-route-end { fill: #0f172a; stroke: #fff; stroke-width: 2; }
+
+  .dark .wl-route-casing { stroke: #0b1411; }
+  .dark .wl-route-line { stroke: #34d399; }
+  .dark .wl-route-start { stroke: #0b1411; }
+  .dark .wl-route-end { fill: #e2e8f0; stroke: #0b1411; }
+</style>
 @endsection

@@ -53,6 +53,7 @@
   } from '../composables/useTrailFilters'
   import { downloadedTrailIds, downloadMessage, downloadingTrailId, refreshDownloads, toggleDownload } from '../composables/useOfflineDownloads'
   import { routePreviewDataUri } from '../composables/useRoutePreview'
+  import { routeShapeFor } from '../composables/useRouteShape'
   import { loadReviewers, trailReviewers } from '../composables/useTrailReviewers'
   import { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../functions/avatars'
   import { useSavedTrails } from '../composables/useSavedTrails'
@@ -304,6 +305,33 @@
     if (uri)
       thumbnails.set(id, uri)
     return uri
+  }
+
+  /**
+   * The route drawn big, as the cover of a card that has no photo.
+   *
+   * Most of the catalog publishes no pictures, so this is what most cards
+   * actually show. The line is fitted to the cover's own proportions and drawn
+   * in the page's colours, which is what the square data-URI chip above
+   * cannot do. Cached like the chip, and only once there is a line.
+   */
+  const NO_SHAPE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const coverShapes = new Map<number, typeof NO_SHAPE>()
+
+  function coverRoute(id: number) {
+    const cached = coverShapes.get(id)
+    if (cached)
+      return cached
+    const shape = routeShapeFor(routes()[id], 160, 120, 18)
+    if (!shape)
+      return NO_SHAPE
+    coverShapes.set(id, shape)
+    return shape
+  }
+
+  /** One of four contour layouts, so a grid of photo-less cards is not one card repeated. */
+  function coverClass(trail: any) {
+    return `wl-topo wl-topo-${Math.abs(Number(trail?.id) || 0) % 4}`
   }
 
   /**
@@ -777,8 +805,8 @@
     <!-- Catalog header. The count is the product: it is what tells someone
          this is a national database rather than a demo list. -->
     <div class="mb-6">
-      <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">{{ heading() }}</h1>
-      <p class="mt-2 text-slate-600 dark:text-slate-400">
+      <h1 class="font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-slate-900 dark:text-white md:text-4xl">{{ heading() }}</h1>
+      <p class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">
         <span :if="coverage().total > 0" class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ coverage().total.toLocaleString() }}</span>
         <span :if="coverage().total > 0"> trails across {{ coverage().states.length }} regions in {{ countries().length }} countries, from OpenStreetMap, the Forest Service and the Park Service.</span>
         <span :if="coverage().total === 0">Trail search across the US, Germany, Austria and Switzerland.</span>
@@ -790,9 +818,11 @@
          is the control that states the answer it is using and lets it be
          corrected — in one line, above the filters, because it changes what
          every filter below it means. -->
-    <div class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60">
-      <span class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-        <i class="i-lucide-map-pin h-4 w-4 text-emerald-600" aria-hidden="true"></i>
+    <div class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none">
+      <span class="flex min-w-0 items-center gap-2.5 text-sm text-slate-600 dark:text-slate-300">
+        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
+          <i class="i-lucide-map-pin h-4 w-4"></i>
+        </span>
         <span :if="nearMeActive()">
           <span class="font-semibold text-slate-900 dark:text-white">{{ nearbyLabel() }}</span>
           <span :if="nearRadius() > 0" class="text-slate-500 dark:text-slate-400">{{ ' · within ' + nearRadius() + ' mi' }}</span>
@@ -812,14 +842,14 @@
           :if="nearMeActive() && nearbyIsCoarse()"
           @click="refineLocation()"
           x-disabled="nearbyBusy()"
-          class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300">
+          class="min-h-9 rounded-full border border-slate-300 px-3.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] disabled:opacity-60 dark:border-slate-600 dark:text-slate-300">
           {{ nearbyBusy() ? 'Locating…' : 'Use my exact location' }}
         </button>
 
         <button
           :if="nearMeActive()"
           @click="forgetLocation()"
-          class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">
+          class="min-h-9 rounded-full px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-white">
           Browse everywhere
         </button>
 
@@ -827,7 +857,8 @@
           :if="!nearMeActive()"
           @click="enableNearMe()"
           x-disabled="nearbyBusy()"
-          class="rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+          class="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+          <i class="i-lucide-locate-fixed h-3.5 w-3.5" aria-hidden="true"></i>
           {{ nearbyBusy() ? 'Locating…' : 'Trails near me' }}
         </button>
       </div>
@@ -837,18 +868,18 @@
 
     <!-- Browse by country. Shown only once there is more than one: a single
          pill reading "United States" is a control that cannot do anything. -->
-    <div :if="countries().length > 1" class="mb-4 flex gap-2 overflow-x-auto pb-1">
+    <div :if="countries().length > 1" class="wl-scroll-row -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
       <button
         @click="selectCountry('all')"
-        x-class="chipCountry === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'"
-        class="shrink-0 px-4 py-2 text-sm font-medium rounded-full transition active:scale-[0.98]">
+        x-class="chipCountry === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700'"
+        class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">
         Everywhere
       </button>
       <template :for="c in countries">
         <button
           @click="selectCountry(c.code)"
-          x-class="chipCountry === c.code ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:text-slate-300 dark:bg-slate-800'"
-          class="shrink-0 px-4 py-2 text-sm font-medium rounded-full transition active:scale-[0.98]">
+          x-class="chipCountry === c.code ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700'"
+          class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">
           {{ countryName(c.code) }}
           <span class="ml-1.5 text-xs opacity-60 tabular-nums">{{ c.count.toLocaleString() }}</span>
         </button>
@@ -872,7 +903,7 @@
             x-value="search"
             @input="onSearchInput($event.target.value)"
             placeholder="Search trails by name, park, forest or Land"
-            class="w-full py-3 pl-11 pr-11 text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition"
+            class="h-12 w-full rounded-full border border-slate-200 bg-white pl-11 pr-11 text-base text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:shadow-none"
           />
           <!-- Clearing a search by selecting the text and deleting it is work
                nobody should have to do on a phone. -->
@@ -880,17 +911,17 @@
             :if="search().length > 0"
             @click="clearSearchText()"
             aria-label="Clear search"
-            class="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
+            class="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
             <i class="i-lucide-x h-4 w-4" aria-hidden="true"></i>
           </button>
         </div>
       </div>
 
-      <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+      <div class="wl-scroll-row -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         <button
           @click="togglePanel('all')"
           x-class="openFilter === 'all' || filterCount() > 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
           <i class="i-lucide-sliders-horizontal h-4 w-4" aria-hidden="true"></i>
           <span>All filters</span>
           <span :if="filterCount() > 0" class="grid h-5 min-w-5 place-items-center rounded-full bg-emerald-600 px-1 text-[11px] font-bold text-white tabular-nums">{{ filterCount() }}</span>
@@ -899,7 +930,7 @@
         <button
           @click="togglePanel('difficulty')"
           x-class="difficulty !== 'all' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
           <span>{{ difficultyLabel() }}</span>
           <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
         </button>
@@ -907,7 +938,7 @@
         <button
           @click="togglePanel('length')"
           x-class="lengthBucket !== 'any' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
           <span>{{ lengthLabel() }}</span>
           <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
         </button>
@@ -915,7 +946,7 @@
         <button
           @click="togglePanel('elevation')"
           x-class="elevationBucket !== 'any' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
           <span>{{ elevationLabel() }}</span>
           <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
         </button>
@@ -923,7 +954,7 @@
         <button
           @click="togglePanel('route')"
           x-class="routeType !== 'all' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
           <span>{{ routeLabel() }}</span>
           <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
         </button>
@@ -931,7 +962,7 @@
         <button
           @click="togglePanel('rating')"
           x-class="minRating > 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
-          class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.98]">
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
           <span>{{ ratingLabel() }}</span>
           <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
         </button>
@@ -939,7 +970,7 @@
         <button
           :if="filterCount() > 0"
           @click="clearFilters()"
-          class="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white">
+          class="min-h-10 shrink-0 rounded-full px-3 text-sm font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white">
           Clear
         </button>
       </div>
@@ -953,7 +984,7 @@
           <button
             @click="choosePanelOption(option.id)"
             x-class="option.active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60'"
-            class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition">
+            class="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left text-sm font-medium transition">
             <span>{{ option.label }}</span>
             <i x-class="option.active ? 'i-lucide-check h-4 w-4' : 'hidden'" aria-hidden="true"></i>
           </button>
@@ -1007,18 +1038,18 @@
     <!-- Browse by region. Horizontal pills rather than a long list: the
          catalog covers every state and Land, and a dropdown hides that fact.
          Scoped to the country in view once one is picked. -->
-    <div :if="topStates().length > 0" class="mb-8 flex gap-2 overflow-x-auto pb-2">
+    <div :if="topStates().length > 0" class="wl-scroll-row -mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
       <button
         @click="activeState.set(''); runSearch()"
         x-class="activeState === '' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-        class="shrink-0 px-4 py-2 text-sm font-medium border rounded-full transition hover:border-emerald-400">
+        class="min-h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition hover:border-emerald-400">
         All regions
       </button>
       <template :for="s in topStates">
         <button
           @click="selectState(s.code)"
           x-class="activeState === s.code ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-          class="shrink-0 px-4 py-2 text-sm font-medium border rounded-full transition hover:border-emerald-400">
+          class="min-h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition hover:border-emerald-400">
           <span>{{ s.name }}</span>
           <span class="ml-1.5 text-xs tabular-nums opacity-60">{{ s.count.toLocaleString() }}</span>
         </button>
@@ -1037,10 +1068,11 @@
     <!-- How many matched. Above the split because the list it used to sit in
          is desktop-only, and the count is the one part of that list a phone
          still needs. -->
-    <p class="mb-3 text-sm text-slate-500 dark:text-slate-400">
+    <p class="mb-3 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+      <i :if="searching()" class="i-lucide-loader-circle h-4 w-4 animate-spin text-emerald-600" aria-hidden="true"></i>
       <span :if="searching()">Searching…</span>
-      <span :if="!searching()">{{ matchCount().toLocaleString() + (matchCount() === 1 ? ' trail' : ' trails') }}</span>
-      <span :if="!searching() && matchCount() > results().length" class="opacity-70">{{ ' · showing first ' + results().length }}</span>
+      <span :if="!searching()" class="font-semibold text-slate-700 tabular-nums dark:text-slate-200">{{ matchCount().toLocaleString() + (matchCount() === 1 ? ' trail' : ' trails') }}</span>
+      <span :if="!searching() && matchCount() > results().length">{{ '· showing first ' + results().length }}</span>
     </p>
 
     <!-- Split: result list + map.
@@ -1056,9 +1088,9 @@
         <!-- Skeletons match the row shape so the list does not jump. -->
         <template :if="searching() && results().length === 0">
           <div class="space-y-3">
-            <div class="flex gap-3 items-center p-3 card animate-pulse"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
-            <div class="flex gap-3 items-center p-3 card animate-pulse"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
-            <div class="flex gap-3 items-center p-3 card animate-pulse"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+            <div class="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+            <div class="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+            <div class="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
           </div>
         </template>
 
@@ -1066,33 +1098,39 @@
           <StxLink
             x-to="'/trail/' + trail.id"
             @click="selectedTrailId.set(trail.id)"
-            x-class="selectedTrailId === trail.id ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : ''"
-            class="flex gap-3 items-center p-3 card hover:shadow-md transition"
+            x-class="selectedTrailId === trail.id ? 'border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 bg-white hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-800'"
+            class="flex items-center gap-3 rounded-2xl border p-2.5 pr-3 transition hover:shadow-md dark:hover:border-emerald-700"
           >
-            <div class="shrink-0 overflow-hidden h-14 w-14 rounded-lg bg-slate-100 dark:bg-slate-800">
+            <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
               <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="trail.name" width="56" height="56" sizes="56px" placeholder="blur" class="object-cover h-full w-full" />
-              <span :if="cardPhoto(trail) === ''" class="grid h-full w-full place-items-center text-slate-400 dark:text-slate-600" aria-hidden="true">
-                <i class="i-lucide-mountain h-5 w-5"></i>
+              <span :if="cardPhoto(trail) === ''" x-class="coverClass(trail)" class="absolute inset-0 grid place-items-center text-emerald-700/40 dark:text-emerald-300/30" aria-hidden="true">
+                <svg :if="coverRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="h-full w-full">
+                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-casing" />
+                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-line" />
+                </svg>
+                <i :if="coverRoute(trail.id).points === ''" class="i-lucide-mountain h-5 w-5"></i>
               </span>
             </div>
             <div class="min-w-0 flex-1">
-              <p class="font-semibold text-sm dark:text-white truncate">{{ trail.name }}</p>
-              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ trail.location }}</p>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                <span>{{ trail.distance + ' mi' }}</span>
-                <span class="mx-1">·</span>
-                <span x-class="'capitalize difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
+              <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ trail.name }}</p>
+              <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ trail.location }}</p>
+              <p class="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <span x-class="'rounded-md px-1.5 py-px text-[10px] font-bold uppercase tracking-wide difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
+                <span class="tabular-nums">{{ trail.distance + ' mi' }}</span>
+                <span :if="trail.rating > 0" class="inline-flex items-center gap-0.5 tabular-nums"><i class="i-lucide-star h-3 w-3 text-amber-500" aria-hidden="true"></i>{{ trail.rating.toFixed(1) }}</span>
               </p>
             </div>
+            <i class="i-lucide-chevron-right h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
           </StxLink>
         </template>
 
-        <div :if="!searching() && results().length === 0" class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        <div :if="!searching() && results().length === 0" class="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
           No trails match your filters.
         </div>
       </div>
 
-      <div class="lg:col-span-3 card p-0 overflow-hidden">
+      <!-- Not `card`: its padding framed the map in a white border. -->
+      <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm lg:col-span-3 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
         <div id="trails-explore-map" data-stx-ignore class="trail-map-panel ts-map-container"></div>
       </div>
     </div>
@@ -1106,16 +1144,33 @@
          line, in the order a decision gets made: how good, how hard, how far,
          how long. -->
     <div class="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <!-- Card-shaped skeletons while the first answer is on its way, so the
+           grid arrives into space already held for it. -->
+      <template :if="searching() && results().length === 0">
+        <div class="animate-pulse"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+        <div class="animate-pulse"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+        <div class="hidden animate-pulse sm:block"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-4/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+        <div class="hidden animate-pulse xl:block"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-3/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+      </template>
+
       <template :for="trail in results">
         <article class="group">
-          <div class="relative overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+          <div class="relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 dark:bg-slate-800 dark:ring-white/5">
             <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block h-48 sm:h-52">
               <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
               <!-- No photo published for this trail. A neutral frame says that
                    much; the stand-in forest that used to sit here said this is
                    what the trail looks like, for every trail alike. -->
-              <span :if="cardPhoto(trail) === ''" class="grid h-full w-full place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-900 dark:text-slate-600" aria-hidden="true">
-                <i class="i-lucide-mountain h-10 w-10"></i>
+              <!-- When the catalog does hold the line, the line is the picture:
+                   it is the one thing on the card that is actually this trail. -->
+              <span :if="cardPhoto(trail) === ''" x-class="coverClass(trail)" class="relative grid h-full w-full place-items-center text-emerald-800/25 transition-transform duration-500 group-hover:scale-[1.03] dark:text-emerald-200/20" aria-hidden="true">
+                <svg :if="coverRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="absolute inset-0 h-full w-full">
+                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-casing" />
+                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-line" />
+                  <circle x-cx="coverRoute(trail.id).endX" x-cy="coverRoute(trail.id).endY" r="3" x-class="coverRoute(trail.id).loop ? 'hidden' : 'wl-route-end'" />
+                  <circle x-cx="coverRoute(trail.id).startX" x-cy="coverRoute(trail.id).startY" r="3" class="wl-route-start" />
+                </svg>
+                <i :if="coverRoute(trail.id).points === ''" class="i-lucide-mountain h-12 w-12"></i>
               </span>
             </StxLink>
 
@@ -1135,8 +1190,8 @@
                    mean opening each trail in turn to press the same button. -->
               <button
                 @click.stop.prevent="onDownload(trail)"
-                x-class="isDownloaded(trail.id) ? 'text-emerald-600' : 'text-slate-700 hover:text-emerald-600'"
-                class="grid h-8 w-8 place-items-center rounded-full bg-white shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60"
+                x-class="isDownloaded(trail.id) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400'"
+                class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 disabled:opacity-60 sm:h-9 sm:w-9 dark:bg-slate-900/85"
                 x-disabled="isDownloading(trail.id)"
                 x-aria-label="isDownloaded(trail.id) ? 'Remove offline copy' : 'Download for offline use'">
                 <i x-class="isDownloading(trail.id) ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : (isDownloaded(trail.id) ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4')" aria-hidden="true"></i>
@@ -1148,8 +1203,8 @@
                    could ever show. -->
               <button
                 @click.stop.prevent="onToggleSave(trail.id)"
-                x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500'"
-                class="grid h-8 w-8 place-items-center rounded-full bg-white shadow-md transition hover:scale-105 active:scale-95"
+                x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500 dark:text-slate-200'"
+                class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 sm:h-9 sm:w-9 dark:bg-slate-900/85"
                 x-aria-label="wl.isTrailSaved(trail.id) ? 'Remove from saved trails' : 'Save this trail'">
                 <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="wl.isTrailSaved(trail.id) ? 'currentColor' : 'none'" aria-hidden="true">
                   <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
@@ -1160,7 +1215,7 @@
             <!-- The route's own shape, which is what tells a loop from an out
                  and back at a glance. Drawn from the geometry the search
                  already returned, so it costs no request. -->
-            <span :if="routeThumb(trail.id) !== ''" class="absolute bottom-3 right-3 h-14 w-14 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md">
+            <span :if="cardPhoto(trail) !== '' && routeThumb(trail.id) !== ''" class="absolute bottom-3 right-3 h-14 w-14 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md">
               <Image x-src="routeThumb(trail.id)" x-alt="'Route shape for ' + trail.name" width="56" height="56" sizes="56px" class="h-full w-full object-cover" />
             </span>
           </div>
@@ -1258,13 +1313,67 @@
       Map
     </a>
 
-    <div :if="!searching() && results().length === 0" class="py-20 text-center">
-      <div class="w-20 h-20 mx-auto mb-6 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="mountain" size="40" class="text-emerald-400" />
+    <div :if="!searching() && results().length === 0" class="py-16 text-center sm:py-20">
+      <div class="wl-topo wl-topo-1 mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl ring-1 ring-emerald-900/5 dark:ring-white/5">
+        <i class="i-lucide-mountain h-9 w-9 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
       </div>
-      <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-2">No trails found</h3>
-      <p class="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Try a wider search, or clear the filters to browse the whole catalog.</p>
-      <button @click="search.set(''); activeState.set(''); clearFilters()" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-full hover:bg-emerald-700 transition active:scale-[0.98]">Clear filters</button>
+      <h3 class="mb-2 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">No trails found</h3>
+      <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">Try a wider search, or clear the filters to browse the whole catalog.</p>
+      <button @click="search.set(''); activeState.set(''); clearFilters()" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+        <i class="i-lucide-rotate-ccw h-4 w-4" aria-hidden="true"></i>
+        Clear filters
+      </button>
     </div>
   </div>
+<style>
+  /* Chip rows scroll sideways on a phone; the scrollbar under them read as a
+     stray grey rule rather than as a hint. */
+  .wl-scroll-row { scrollbar-width: none; }
+  .wl-scroll-row::-webkit-scrollbar { display: none; }
+
+  /* The field draws its own clear button; the native one doubled it. */
+  input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+  /* Contour-tinted ground for a card with no photo. Four layouts, picked by
+     id, so a grid of them reads as different places rather than one tile. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
+  .wl-route-casing,
+  .wl-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-route-casing { stroke: #fff; stroke-width: 6; }
+  .wl-route-line { stroke: #059669; stroke-width: 3; }
+  .wl-route-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
+  .wl-route-end { fill: #0f172a; stroke: #fff; stroke-width: 2; }
+
+  .dark .wl-route-casing { stroke: #0b1411; }
+  .dark .wl-route-line { stroke: #34d399; }
+  .dark .wl-route-start { stroke: #0b1411; }
+  .dark .wl-route-end { fill: #e2e8f0; stroke: #0b1411; }
+</style>
 @endsection

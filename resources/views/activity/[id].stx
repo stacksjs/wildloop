@@ -12,6 +12,7 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { fetchActivityDetail, postComment, reportContent, toggleKudos } from '../../assets/scripts/game-api'
   import { downloadGpxFile } from '../../functions/activity-files'
+  import { avatarInitial, avatarTint } from '../../functions/avatars'
 
   useHead({ title: 'Activity Details - WildLoop' })
 
@@ -20,6 +21,9 @@
   const newComment = state('')
   const comments = state<Array<{ id: number, userName: string, body: string, createdAt: string }>>([])
   const activityRoute = state<Array<{ lat: number, lng: number }>>([])
+  /** Set once the map has a line on it; until then the frame shows why not. */
+  const mapDrawn = state(false)
+  const detailLoaded = state(false)
   const reportOpen = state(false)
   // Edit, Export GPX, Delete and Report live behind one button, so the header
   // is the athlete and the run rather than a row of outlined pills.
@@ -54,6 +58,18 @@
     reportOpen.set(true)
   }
   const commentEmpty = derived(() => !String(newComment() ?? '').trim())
+
+  /**
+   * Enter posts the comment. One handler for every key rather than a
+   * `.enter` modifier, which stx does not reliably honour, and never while an
+   * input method is composing: that Enter confirms a conversion, not a post.
+   */
+  function onCommentKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229)
+      return
+    event.preventDefault()
+    void handlers.submitComment()
+  }
   const reportReason = state('unsafe')
   const reportMessage = state<string | null>(null)
 
@@ -63,6 +79,29 @@
 
   const activity = derived(() => wl ? wl.findActivity(activityId) : null)
   const isOwner = derived(() => !!(wl && activity() && activity().user_id === wl.currentUserId()))
+
+  /** Whether there is any line to draw: the recording, or the trail it was on. */
+  const hasMapRoute = derived(() => {
+    if (activityRoute().length > 1)
+      return true
+    const trailId = activity()?.trail_id
+    return !!(wl && trailId && (wl.trailRoutes()[trailId] ?? []).length > 1)
+  })
+
+  // Faces and figures, local because the template only sees this script.
+  function athleteInitial(name: string) {
+    return avatarInitial(name)
+  }
+
+  function athleteTint(seed: unknown) {
+    return avatarTint(seed as string)
+  }
+
+  /** A number that was never recorded reads as a dash, not as a zero. */
+  function orDash(value: unknown) {
+    const number = Number(value)
+    return Number.isFinite(number) && number > 0 ? Math.round(number).toLocaleString() : '—'
+  }
   const shareRoute = derived(() => {
     if (activityRoute().length > 1)
       return activityRoute()
@@ -99,6 +138,7 @@
     // from before #954 don't carry them).
     if (detail && wl && typeof detail.hasGps === 'boolean')
       wl.patchActivity(activityId, { hasGps: detail.hasGps, notes: detail.notes ?? '', visibility: detail.visibility ?? 'public' })
+    detailLoaded.set(true)
     runWhenMapReady('activity-map', mountActivityMap)
   })
 
@@ -161,6 +201,7 @@
       if (!activityMap) return
       await drawTrailRoute(activityMap.map, route, { color: '#059669', weight: 4, opacity: 0.9 })
       activityMap.fitPoints(route, [30, 30])
+      mapDrawn.set(true)
     }
     finally {
       activityMapMounting = false
@@ -205,19 +246,19 @@
       Feed
     </StxLink>
     <div class="card mb-6">
-      <div class="flex items-center justify-between gap-3 mb-5">
+      <div class="mb-5 flex items-center justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
-          <div class="w-12 h-12 shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 text-lg font-bold">{{ activity.userName.charAt(0) }}</div>
+          <div x-class="'grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg font-bold ' + athleteTint(activity.user_id ?? activity.userName)" aria-hidden="true">{{ athleteInitial(activity.userName) }}</div>
           <div class="min-w-0">
-            <p class="truncate font-bold dark:text-white">{{ activity.userName }}</p>
-            <p class="text-sm text-gray-500 dark:text-slate-400">
+            <p class="truncate font-bold text-slate-900 dark:text-white">{{ activity.userName }}</p>
+            <p class="flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500 dark:text-slate-400">
               <span>{{ activity.activityType }}</span>
-              <span class="mx-1">·</span>
+              <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
               <span>{{ wl.timeAgo(activity.created_at) }}</span>
             </p>
           </div>
         </div>
-        <button @click="actionsOpen.set(true)" aria-label="More actions" aria-haspopup="dialog" x-aria-expanded="actionsOpen() ? 'true' : 'false'" class="-mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-500 transition active:scale-95 active:bg-gray-100 dark:text-slate-400 dark:active:bg-slate-700">
+        <button @click="actionsOpen.set(true)" aria-label="More actions" aria-haspopup="dialog" x-aria-expanded="actionsOpen() ? 'true' : 'false'" class="-mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 active:scale-95 active:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 dark:active:bg-slate-700">
           <i class="i-lucide-ellipsis h-5 w-5" aria-hidden="true"></i>
         </button>
       </div>
@@ -229,40 +270,40 @@
       <div :if="actionsOpen" data-covers-tab-bar class="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Activity actions">
         <div @click="closeActions()" class="action-sheet-backdrop absolute inset-0 bg-black/50"></div>
         <div class="action-sheet absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-4 pt-3 shadow-2xl dark:bg-slate-900 sm:bottom-4 sm:mx-auto sm:max-w-md sm:rounded-3xl" style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem)">
-          <button @click="closeActions()" aria-label="Close" class="mx-auto mb-3 block h-1.5 w-11 rounded-full bg-gray-300 dark:bg-slate-600"></button>
+          <button @click="closeActions()" aria-label="Close" class="mx-auto mb-3 block h-1.5 w-11 rounded-full bg-slate-300 dark:bg-slate-600"></button>
 
-          <div class="overflow-hidden rounded-2xl bg-gray-100 dark:bg-slate-800">
-            <button :if="isOwner" @click="editFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+          <div class="overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+            <button :if="isOwner" @click="editFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-slate-900 dark:text-white">
               <i class="i-lucide-pencil h-6 w-6" aria-hidden="true"></i>
               {{ editing ? 'Close editor' : 'Edit activity' }}
             </button>
-            <button :if="isOwner && activityRoute.length > 1" @click="exportFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+            <button :if="isOwner && activityRoute.length > 1" @click="exportFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-slate-900 dark:text-white">
               <i class="i-lucide-download h-6 w-6" aria-hidden="true"></i>
               Export GPX
             </button>
-            <StxLink :if="!isOwner" x-to="'/athlete/' + activity.user_id" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+            <StxLink :if="!isOwner" x-to="'/athlete/' + activity.user_id" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-slate-900 dark:text-white">
               <i class="i-lucide-circle-user h-6 w-6" aria-hidden="true"></i>
               {{ 'View ' + activity.userName }}
             </StxLink>
-            <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+            <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-slate-900 dark:text-white">
               <i class="i-lucide-map h-6 w-6" aria-hidden="true"></i>
               View trail
             </StxLink>
           </div>
 
-          <div class="mt-3 overflow-hidden rounded-2xl bg-gray-100 dark:bg-slate-800">
+          <div class="mt-3 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
             <button :if="isOwner && !confirmingDelete" @click="deleteRun(activity)" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-red-600 dark:text-red-400">
               <i class="i-lucide-trash-2 h-6 w-6" aria-hidden="true"></i>
               Delete activity
             </button>
             <div :if="isOwner && confirmingDelete" class="p-4">
-              <p class="mb-3 text-sm text-gray-600 dark:text-slate-300">Delete this activity with its kudos and comments? Territory you captured stays yours.</p>
+              <p class="mb-3 text-sm text-slate-600 dark:text-slate-300">Delete this activity with its kudos and comments? Territory you captured stays yours.</p>
               <div class="flex gap-2">
                 <button @click="deleteRun(activity)" class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white active:scale-[0.98]">Delete</button>
-                <button @click="cancelDelete()" class="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-700 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-200">Keep it</button>
+                <button @click="cancelDelete()" class="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-200">Keep it</button>
               </div>
             </div>
-            <button :if="!isOwner" @click="reportFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-gray-900 dark:text-white">
+            <button :if="!isOwner" @click="reportFromMenu()" class="flex w-full items-center gap-4 px-4 py-3.5 text-left text-base font-medium transition active:bg-black/5 dark:active:bg-white/5 text-slate-900 dark:text-white">
               <i class="i-lucide-message-square-warning h-6 w-6" aria-hidden="true"></i>
               Report activity
             </button>
@@ -270,8 +311,9 @@
         </div>
       </div>
 
-      <div :if="reportOpen && !isOwner" class="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 p-3">
-        <select x-value="reportReason" @change="event => reportReason.set(event.target.value)" class="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700">
+      <div :if="reportOpen && !isOwner" class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/20 dark:bg-amber-900/10">
+        <label for="report-reason" class="w-full text-xs font-semibold text-amber-900 dark:text-amber-300">What is wrong with this activity?</label>
+        <select id="report-reason" x-value="reportReason" @change="reportReason.set($event.target.value)" class="min-h-10 flex-1 rounded-xl border border-amber-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
           <option value="unsafe">Unsafe behavior</option>
           <option value="cheating">Cheating</option>
           <option value="harassment">Harassment</option>
@@ -279,30 +321,34 @@
           <option value="privacy">Privacy concern</option>
           <option value="other">Other</option>
         </select>
-        <button @click="handlers.reportActivity()" class="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500 text-white">Submit report</button>
+        <button @click="handlers.reportActivity()" class="min-h-10 rounded-full bg-amber-500 px-4 text-xs font-semibold text-amber-950 transition hover:bg-amber-400 active:scale-[0.98]">Submit report</button>
+        <button @click="reportOpen.set(false)" class="min-h-10 rounded-full px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-500/10">Cancel</button>
       </div>
-      <p :if="reportMessage" class="mb-3 text-xs text-gray-500 dark:text-slate-400">{{ reportMessage }}</p>
+      <p :if="reportMessage" role="status" class="mb-3 text-xs text-slate-500 dark:text-slate-400">{{ reportMessage }}</p>
 
       <div class="flex flex-wrap items-center gap-2">
-        <h1 class="text-xl font-bold leading-snug dark:text-white sm:text-2xl">{{ activity.title }}</h1>
-        <span :if="activity.visibility && activity.visibility !== 'public'" class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">{{ activity.visibility === 'private' ? '🔒 Private' : '👥 Followers' }}</span>
+        <h1 class="font-display text-2xl font-bold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white sm:text-3xl">{{ activity.title }}</h1>
+        <span :if="activity.visibility && activity.visibility !== 'public'" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+          <i x-class="activity.visibility === 'private' ? 'i-lucide-lock h-3 w-3' : 'i-lucide-users h-3 w-3'" aria-hidden="true"></i>
+          {{ activity.visibility === 'private' ? 'Private' : 'Followers' }}
+        </span>
       </div>
-      <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="mt-3 flex items-start gap-1.5 text-sm leading-snug text-emerald-600 hover:underline dark:text-emerald-400">
+      <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="mt-3 inline-flex items-start gap-1.5 text-sm font-medium leading-snug text-emerald-700 hover:underline dark:text-emerald-400">
         <i class="i-lucide-map-pin mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>
         <span>{{ activity.trail_name }}</span>
       </StxLink>
       <!-- Hidden when the note IS the title. With no title column on an
            activity, the feed uses what the athlete wrote as its heading,
            and printing it again underneath reads as a rendering bug. -->
-      <p :if="activity.notes && !editing && activity.notes.trim() !== activity.title" class="mt-3 text-sm text-gray-600 dark:text-slate-300">{{ activity.notes }}</p>
+      <p :if="activity.notes && !editing && activity.notes.trim() !== activity.title" class="mt-3 max-w-[65ch] text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ activity.notes }}</p>
       <p :if="editorError && !editing" class="mt-2 text-sm text-red-500">{{ editorError }}</p>
 
       <!-- Owner edit panel (#954) -->
-      <div :if="editing" class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 space-y-3">
+      <div :if="editing" class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Type</label>
-            <select x-value="formType" @change="e => formType.set(e.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+            <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Type</label>
+            <select x-value="formType" @change="formType.set($event.target.value)" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white">
               <option value="Trail Run">Trail Run</option>
               <option value="Hike">Hike</option>
               <option value="Walk">Walk</option>
@@ -310,42 +356,129 @@
             </select>
           </div>
           <div :if="!activity.hasGps">
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Miles</label>
-            <input type="text" inputmode="decimal" x-value="formDistance" @input="e => formDistance.set(e.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
+            <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Miles</label>
+            <input type="text" inputmode="decimal" x-value="formDistance" @input="formDistance.set($event.target.value)" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div :if="!activity.hasGps">
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Duration</label>
-            <input type="text" placeholder="45:30" x-value="formDuration" @input="e => formDuration.set(e.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
+            <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Duration</label>
+            <input type="text" placeholder="45:30" x-value="formDuration" @input="formDuration.set($event.target.value)" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div :if="!activity.hasGps">
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Elev (ft)</label>
-            <input type="text" inputmode="numeric" x-value="formElevation" @input="e => formElevation.set(e.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
+            <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Elev (ft)</label>
+            <input type="text" inputmode="numeric" x-value="formElevation" @input="formElevation.set($event.target.value)" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Notes</label>
-          <textarea rows="2" x-value="formNotes" @input="e => formNotes.set(e.target.value)" placeholder="How did it go?" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm"></textarea>
+          <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Notes</label>
+          <textarea rows="2" x-value="formNotes" @input="formNotes.set($event.target.value)" placeholder="How did it go?" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"></textarea>
         </div>
         <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Who can see this</label>
-          <select x-value="formVisibility" @change="e => formVisibility.set(e.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+          <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Who can see this</label>
+          <select x-value="formVisibility" @change="formVisibility.set($event.target.value)" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white">
             <option value="public">Public (everyone)</option>
             <option value="followers">Followers only</option>
             <option value="private">Private (just me)</option>
           </select>
         </div>
-        <p :if="activity.hasGps" class="text-xs text-gray-400">Distance, time and elevation come from the GPS track and can't be edited.</p>
+        <p :if="activity.hasGps" class="text-xs text-slate-400">Distance, time and elevation come from the GPS track and can't be edited.</p>
         <p :if="editorError" class="text-sm text-red-500">{{ editorError }}</p>
         <div class="flex gap-2">
-          <button @click="saveEdit(activity)" class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">{{ saving ? 'Saving…' : 'Save changes' }}</button>
-          <button @click="closeEditor()" class="px-4 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 transition">Cancel</button>
+          <button @click="saveEdit(activity)" class="min-h-11 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">{{ saving ? 'Saving…' : 'Save changes' }}</button>
+          <button @click="closeEditor()" class="min-h-11 rounded-full px-4 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">Cancel</button>
         </div>
+      </div>
+
+      <!-- Kudos and comments, on the card they are about rather than on a
+           card of their own further down the page. -->
+      <div class="-mx-5 -mb-5 mt-5 flex items-center gap-1 border-t border-slate-100 px-2 py-1.5 dark:border-slate-700">
+        <button @click="handlers.toggleKudos()" x-class="hasKudos ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400'" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition hover:bg-slate-50 active:scale-[0.98] dark:hover:bg-slate-700/50" x-aria-pressed="hasKudos() ? 'true' : 'false'">
+          <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="hasKudos ? 'currentColor' : 'none'" aria-hidden="true">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+          <span class="tabular-nums">{{ activity.kudos_count }}</span>
+          <span>{{ activity.kudos_count === 1 ? 'kudo' : 'kudos' }}</span>
+        </button>
+        <span class="h-5 w-px bg-slate-100 dark:bg-slate-700" aria-hidden="true"></span>
+        <a href="#comments" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-emerald-400">
+          <i class="i-lucide-message-circle h-4 w-4" aria-hidden="true"></i>
+          <span>{{ comments.length === 1 ? '1 comment' : comments.length + ' comments' }}</span>
+        </a>
       </div>
     </div>
 
-    <!-- Map -->
-    <div class="card p-0 overflow-hidden mb-6">
-      <div id="activity-map" data-stx-ignore class="h-64"></div>
+    <!-- Stats. The three a run is compared by, large; the three that
+         describe the effort, small underneath. One panel with hairline
+         dividers rather than six cards in six colours. -->
+    <div class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+      <dl class="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-700">
+        <div class="flex flex-col-reverse px-3 py-4 text-center sm:py-5">
+          <dt class="metric-label mt-1">Miles</dt>
+          <dd class="font-display text-2xl font-bold tabular-nums text-emerald-600 sm:text-3xl dark:text-emerald-400">{{ activity.distance.toFixed(1) }}</dd>
+        </div>
+        <div class="flex flex-col-reverse px-3 py-4 text-center sm:py-5">
+          <dt class="metric-label mt-1">Moving time</dt>
+          <dd class="font-display text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl dark:text-white">{{ activity.moving_time || activity.duration }}</dd>
+        </div>
+        <div class="flex flex-col-reverse px-3 py-4 text-center sm:py-5">
+          <dt class="metric-label mt-1">Pace</dt>
+          <dd class="font-display text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl dark:text-white">{{ activity.pace }}</dd>
+        </div>
+      </dl>
+      <dl class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/60 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-900/30">
+        <div class="flex items-center justify-center gap-2 px-2 py-3">
+          <i class="i-lucide-mountain h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+          <div class="flex min-w-0 flex-col-reverse">
+            <dt class="text-[11px] text-slate-500 dark:text-slate-400">Elev ft</dt>
+            <dd class="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ activity.elevation_gain.toLocaleString() }}</dd>
+          </div>
+        </div>
+        <div class="flex items-center justify-center gap-2 px-2 py-3">
+          <i class="i-lucide-flame h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+          <div class="flex min-w-0 flex-col-reverse">
+            <dt class="text-[11px] text-slate-500 dark:text-slate-400">Calories</dt>
+            <dd class="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ orDash(activity.calories) }}</dd>
+          </div>
+        </div>
+        <div class="flex items-center justify-center gap-2 px-2 py-3">
+          <i class="i-lucide-heart-pulse h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+          <div class="flex min-w-0 flex-col-reverse">
+            <dt class="text-[11px] text-slate-500 dark:text-slate-400">Avg HR</dt>
+            <dd class="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ orDash(activity.heartRateAvg) }}</dd>
+          </div>
+        </div>
+      </dl>
+      <p :if="activity.moving_time && activity.moving_time !== activity.duration" class="border-t border-slate-100 px-4 py-2 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">{{ 'Elapsed ' + activity.duration }}</p>
+    </div>
+
+    <!-- Map. The frame shrinks and says so when there is no line to draw,
+         rather than holding 256px of blank tile space. -->
+    <div class="relative mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none" x-class="hasMapRoute() ? 'h-64 sm:h-80' : 'h-28'">
+      <div id="activity-map" data-stx-ignore class="h-full w-full"></div>
+      <div :if="!mapDrawn()" class="wl-topo absolute inset-0 flex items-center justify-center gap-3 px-6 text-sm" aria-live="polite">
+        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/85 text-slate-500 shadow-sm dark:bg-slate-900/70 dark:text-slate-400" aria-hidden="true">
+          <i x-class="hasMapRoute() || !detailLoaded() ? 'i-lucide-map h-5 w-5 animate-pulse' : 'i-lucide-route-off h-5 w-5'"></i>
+        </span>
+        <span class="font-medium text-slate-600 dark:text-slate-300">{{ hasMapRoute() || !detailLoaded() ? 'Loading the map…' : 'No GPS route recorded for this activity' }}</span>
+      </div>
+    </div>
+
+    <!-- Splits -->
+    <div :if="activity.splits && activity.splits.length > 0" class="card mb-6">
+      <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Splits</h2>
+      <div class="grid grid-cols-3 gap-2 border-b border-slate-100 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
+        <span>Mile</span>
+        <span class="text-center">Pace</span>
+        <span class="text-right">Elev</span>
+      </div>
+      <div class="divide-y divide-slate-100 dark:divide-slate-700">
+        <template :for="split in activity.splits">
+          <div class="grid grid-cols-3 items-center gap-2 px-3 py-2.5">
+            <span class="text-sm font-medium text-slate-900 tabular-nums dark:text-white">{{ split.mile }}</span>
+            <span class="text-center text-sm font-semibold text-slate-900 tabular-nums dark:text-white">{{ split.pace }}</span>
+            <span class="text-right text-sm text-slate-600 tabular-nums dark:text-slate-400">{{ split.elev + ' ft' }}</span>
+          </div>
+        </template>
+      </div>
     </div>
 
     <!-- Share image -->
@@ -388,76 +521,19 @@
       </div>
     </section>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-6">
-      <div class="card text-center">
-        <p class="text-xl font-bold text-emerald-600">{{ activity.distance.toFixed(1) }}</p>
-        <p class="metric-label">Miles</p>
-      </div>
-      <div class="card text-center">
-        <p class="text-xl font-bold dark:text-white">{{ activity.moving_time || activity.duration }}</p>
-        <p class="metric-label">Moving Time</p>
-        <p :if="activity.moving_time && activity.moving_time !== activity.duration" class="text-xs text-gray-400 mt-1">{{ 'Elapsed ' + activity.duration }}</p>
-      </div>
-      <div class="card text-center">
-        <p class="text-xl font-bold dark:text-white">{{ activity.pace }}</p>
-        <p class="metric-label">Pace</p>
-      </div>
-      <div class="card text-center">
-        <p class="text-xl font-bold text-blue-600">{{ activity.elevation_gain.toLocaleString() }}</p>
-        <p class="metric-label">Elev (ft)</p>
-      </div>
-      <div class="card text-center">
-        <p class="text-xl font-bold text-orange-600">{{ activity.calories || 0 }}</p>
-        <p class="metric-label">Calories</p>
-      </div>
-      <div class="card text-center">
-        <p class="text-xl font-bold text-red-500">{{ activity.heartRateAvg || '--' }}</p>
-        <p class="metric-label">Avg HR</p>
-      </div>
-    </div>
-
-    <!-- Splits -->
-    <div :if="activity.splits && activity.splits.length > 0" class="card mb-6">
-      <h2 class="font-bold text-lg dark:text-white mb-4">Splits</h2>
-      <div class="space-y-2">
-        <template :for="split in activity.splits">
-          <div class="grid grid-cols-3 gap-2 items-center p-3 rounded-lg">
-            <span class="text-sm font-medium dark:text-white">{{ 'Mile ' + split.mile }}</span>
-            <span class="text-center text-sm font-semibold dark:text-white">{{ split.pace }}</span>
-            <span class="text-right text-sm text-gray-600 dark:text-slate-400">{{ split.elev + ' ft' }}</span>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- Kudos & Comments -->
-    <div class="card mb-6">
-      <div class="flex items-center gap-6">
-        <button @click="handlers.toggleKudos()" class="flex items-center gap-2 transition" x-class="hasKudos ? 'text-red-500' : 'text-gray-500 hover:text-red-500'">
-          <Icon name="heart" size="18" />
-          <span class="font-medium">{{ activity.kudos_count + ' Kudos' }}</span>
-        </button>
-        <span class="flex items-center gap-2 text-gray-500">
-          <Icon name="message-circle" size="18" />
-          <span class="font-medium">{{ comments.length === 1 ? '1 Comment' : comments.length + ' Comments' }}</span>
-        </span>
-      </div>
-    </div>
-
     <!-- Comments -->
-    <div class="card">
-      <h2 class="font-bold text-lg dark:text-white mb-4">Comments</h2>
+    <div id="comments" class="card scroll-mt-24">
+      <h2 class="mb-4 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Comments</h2>
       <div class="space-y-4 mb-4">
         <template :for="comment in comments">
           <div class="flex gap-3">
-            <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-slate-300 shrink-0">{{ comment.userName.charAt(0) }}</div>
-            <div class="flex-1">
+            <div x-class="'grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ' + athleteTint(comment.userName)" aria-hidden="true">{{ athleteInitial(comment.userName) }}</div>
+            <div class="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-slate-50 px-3.5 py-2.5 dark:bg-slate-900/40">
               <div class="flex items-center gap-2 mb-1">
-                <span class="text-sm font-semibold dark:text-white">{{ comment.userName }}</span>
-                <span class="text-xs text-gray-400">{{ wl.timeAgo(comment.createdAt) }}</span>
+                <span class="text-sm font-semibold text-slate-900 dark:text-white">{{ comment.userName }}</span>
+                <span class="text-xs text-slate-400">{{ wl.timeAgo(comment.createdAt) }}</span>
               </div>
-              <p class="text-sm text-gray-600 dark:text-slate-400">
+              <p class="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                 <template :for="seg in mentionSegments(comment.body)">
                   <StxLink :if="seg.userId" x-to="'/athlete/' + seg.userId" class="text-emerald-600 font-medium hover:underline">{{ seg.text }}</StxLink>
                   <span :if="!seg.userId">{{ seg.text }}</span>
@@ -466,12 +542,13 @@
             </div>
           </div>
         </template>
-        <div :if="comments.length === 0" class="text-center py-4 text-gray-400 text-sm">
-          <p>No comments yet. Be the first!</p>
+        <div :if="comments.length === 0" class="py-4 text-center text-sm text-slate-400 dark:text-slate-500">
+          <i class="i-lucide-messages-square mx-auto mb-2 block h-6 w-6 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+          <p>No comments yet. Say something nice.</p>
         </div>
       </div>
 
-      <div class="pt-4 border-t border-gray-100 dark:border-slate-700">
+      <div class="pt-4 border-t border-slate-100 dark:border-slate-700">
         <!-- @mention autocomplete (#971) - appears while typing "@…" -->
         <div :if="mentionMatches.length > 0" class="mb-2 flex flex-wrap gap-2">
           <template :for="candidate in mentionMatches">
@@ -483,41 +560,74 @@
         </div>
         <!-- One pill with the send button inside it: the whole width goes to
              the text. 16px text, or iOS zooms the page when the box is focused. -->
-        <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-white py-1 pl-4 pr-1 transition focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-700">
+        <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-4 pr-1 transition focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-800">
           <input
             type="text"
             x-value="newComment"
             @input="onCommentInput($event.target.value)"
-            @keydown.enter="handlers.submitComment()"
+            @keydown="onCommentKeydown($event)"
             placeholder="Add a comment…"
             aria-label="Add a comment. Type @ to mention someone."
             enterkeyhint="send"
-            class="min-w-0 flex-1 bg-transparent py-2 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-white dark:placeholder:text-slate-400"
+            class="min-w-0 flex-1 bg-transparent py-2 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-400"
           />
           <button @click="handlers.submitComment()" aria-label="Post comment" x-class="commentEmpty() ? 'opacity-40' : ''" class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700 active:scale-95">
             <i class="i-lucide-arrow-up h-5 w-5" aria-hidden="true"></i>
           </button>
         </div>
-        <p class="mt-2 px-4 text-xs text-gray-400 dark:text-slate-500">Type @ to mention someone.</p>
+        <p class="mt-2 px-4 text-xs text-slate-400 dark:text-slate-500">Type @ to mention someone.</p>
       </div>
     </div>
   </div>
 
-  <div :if="deleted" class="text-center py-32">
-    <p class="text-gray-900 dark:text-white font-semibold mb-1">Activity deleted</p>
-    <p class="text-gray-500 dark:text-slate-400 text-sm">Its kudos and comments are gone too. Territory you captured stays yours.</p>
-    <StxLink to="/feed" class="inline-block mt-4 px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Back to Feed</StxLink>
+  <div :if="deleted" class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
+    <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <i class="i-lucide-trash-2 h-9 w-9" aria-hidden="true"></i>
+    </div>
+    <p class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Activity deleted</p>
+    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Its kudos and comments are gone too. Territory you captured stays yours.</p>
+    <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
   </div>
 
-  <div :if="!activity && !deleted" class="text-center py-32">
-    <p class="text-gray-500 font-medium">Activity not found</p>
-    <StxLink to="/feed" class="inline-block mt-4 px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Back to Feed</StxLink>
+  <div :if="!activity && !deleted" class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
+    <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <i class="i-lucide-search-x h-9 w-9" aria-hidden="true"></i>
+    </div>
+    <p class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Activity not found</p>
+    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">It may be private, or it has been deleted.</p>
+    <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
   </div>
 <style>
   @keyframes action-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
   @keyframes action-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
   .action-sheet { animation: action-sheet-up 0.24s cubic-bezier(0.2, 0.9, 0.3, 1); }
   .action-sheet-backdrop { animation: action-sheet-fade 0.2s ease-out; }
+
+  /* Contour-tinted ground for a card with no photo. Four layouts, picked by
+     id, so a grid of them reads as different places rather than one tile. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .action-sheet, .action-sheet-backdrop { animation: none; }
   }

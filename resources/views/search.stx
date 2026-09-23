@@ -14,6 +14,7 @@
 <script client>
   import { apiFetch } from '../assets/scripts/auth'
   import { groupSearchResults } from '../functions/search-results'
+  import { avatarTint } from '../functions/avatars'
 
   useHead({ title: 'Search — WildLoop' })
 
@@ -50,11 +51,18 @@
   const nothingLabel = derived(() => `Nothing matches “${query().trim()}” yet.`)
 
   const QUICK_LINKS = [
-    { label: 'Trails near me', href: '/trails?near=me', icon: 'i-lucide-locate-fixed' },
-    { label: 'Find athletes', href: '/athletes', icon: 'i-lucide-user-search' },
-    { label: 'Clubs', href: '/clubs', icon: 'i-lucide-users' },
-    { label: 'Events', href: '/events', icon: 'i-lucide-calendar-days' },
+    { label: 'Trails near me', detail: 'Popular within a drive', href: '/trails?near=me', icon: 'i-lucide-locate-fixed' },
+    { label: 'Find athletes', detail: 'Follow people you run with', href: '/athletes', icon: 'i-lucide-user-search' },
+    { label: 'Clubs', detail: 'Groups and their runs', href: '/clubs', icon: 'i-lucide-users' },
+    { label: 'Events', detail: 'Races and backyard ultras', href: '/events', icon: 'i-lucide-calendar-days' },
+    { label: 'Territory map', detail: 'Who holds the ground', href: '/territories', icon: 'i-lucide-flag' },
+    { label: 'Records', detail: 'Fastest known times', href: '/records', icon: 'i-lucide-crown' },
   ]
+
+  /** An athlete's face colour, the same one they have on every other card. */
+  function rowTint(row: any) {
+    return avatarTint(row?.label)
+  }
 
   let timer: ReturnType<typeof setTimeout> | undefined
   let latest = 0
@@ -117,7 +125,7 @@
 
 <div class="mx-auto max-w-2xl px-4 pb-10 pt-4">
   <div class="flex items-center gap-2">
-    <StxLink to="/feed" aria-label="Back" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300">
+    <StxLink to="/feed" aria-label="Back" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-800">
       <i class="i-lucide-chevron-left h-6 w-6" aria-hidden="true"></i>
     </StxLink>
     <label class="relative flex-1">
@@ -134,9 +142,9 @@
         placeholder="Trails, people, clubs, events"
         x-value="query"
         @input="onInput($event)"
-        class="h-12 w-full rounded-full border border-slate-200 bg-white pl-12 pr-11 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        class="h-12 w-full rounded-full border border-slate-200 bg-white pl-12 pr-12 text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:shadow-none"
       />
-      <button :if="query" type="button" @click="clearQuery()" aria-label="Clear search" class="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition active:scale-95">
+      <button :if="query" type="button" @click="clearQuery()" aria-label="Clear search" class="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95 dark:hover:bg-slate-700 dark:hover:text-white">
         <i class="i-lucide-x h-4 w-4" aria-hidden="true"></i>
       </button>
     </label>
@@ -147,39 +155,70 @@
     <h2 class="mb-3 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Start here</h2>
     <div class="grid grid-cols-2 gap-3">
       <template :for="link in QUICK_LINKS">
-        <StxLink x-to="link.href" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800">
-          <i x-class="link.icon" class="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-          <span class="font-semibold text-slate-900 dark:text-white">{{ link.label }}</span>
+        <StxLink x-to="link.href" class="group flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-emerald-300 hover:shadow-md active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-700">
+          <span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
+            <i x-class="link.icon" class="h-5 w-5"></i>
+          </span>
+          <span class="min-w-0">
+            <span class="block font-semibold leading-tight text-slate-900 dark:text-white">{{ link.label }}</span>
+            <span class="mt-0.5 block text-xs leading-snug text-slate-500 dark:text-slate-400">{{ link.detail }}</span>
+          </span>
         </StxLink>
       </template>
     </div>
   </section>
 
-  <p :if="hasQuery && loading" class="mt-8 px-1 text-sm text-slate-500 dark:text-slate-400">Searching…</p>
-  <p :if="hasQuery && failed" role="alert" class="mt-8 px-1 text-sm text-red-600 dark:text-red-400">Search is not reachable right now. Check your connection and try again.</p>
-  <p :if="nothingFound" class="mt-8 px-1 text-sm text-slate-500 dark:text-slate-400">{{ nothingLabel }}</p>
+  <!-- Rows the shape of the answer while it is on its way. Only before the
+       first answer for this text: once results are showing, they stay put
+       while the next keystroke is looked up. -->
+  <div :if="hasQuery && loading && sections().length === 0" class="mt-6 animate-pulse" role="status" aria-label="Searching">
+    <div class="mb-2 ml-1 h-3 w-16 rounded bg-slate-200 dark:bg-slate-700"></div>
+    <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800">
+      <div class="flex items-center gap-3 px-4 py-3"><div class="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+      <div class="flex items-center gap-3 px-4 py-3"><div class="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/4 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+      <div class="flex items-center gap-3 px-4 py-3"><div class="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+    </div>
+  </div>
+  <p :if="hasQuery && failed" role="alert" class="mt-6 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
+    <i class="i-lucide-wifi-off mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>
+    Search is not reachable right now. Check your connection and try again.
+  </p>
+  <div :if="nothingFound" class="mt-10 px-4 text-center">
+    <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <i class="i-lucide-search-x h-7 w-7" aria-hidden="true"></i>
+    </div>
+    <p class="font-semibold text-slate-900 dark:text-white">{{ nothingLabel }}</p>
+    <p class="mx-auto mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">Try a place name, a park, or part of a trail's name.</p>
+  </div>
 
   <template :for="section in sections">
     <section class="mt-6">
       <h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ section.title }}</h2>
-      <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
         <template :for="row in section.rows">
-          <StxLink x-to="row.href" class="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 transition active:bg-slate-50 dark:border-slate-700 dark:active:bg-slate-700/50">
-            <span :if="row.initial" class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ row.initial }}</span>
-            <i :if="!row.initial" x-class="section.icon" class="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+          <StxLink x-to="row.href" class="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 transition hover:bg-slate-50 active:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/60">
+            <span :if="row.initial" x-class="'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ' + rowTint(row)" aria-hidden="true">{{ row.initial }}</span>
+            <span :if="!row.initial" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
+              <i x-class="section.icon" class="h-[18px] w-[18px]"></i>
+            </span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-medium text-slate-900 dark:text-white">{{ row.label }}</span>
               <span class="block truncate text-sm text-slate-500 dark:text-slate-400">{{ row.detail }}</span>
             </span>
+            <i class="i-lucide-chevron-right h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
           </StxLink>
         </template>
       </div>
     </section>
   </template>
 
-  <StxLink :if="hasQuery && !loading" x-to="allTrailsHref()" class="mt-6 flex min-h-12 items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-emerald-700 transition active:scale-[0.98] dark:border-slate-700 dark:text-emerald-300">
+  <StxLink :if="hasQuery && !loading" x-to="allTrailsHref()" class="mt-6 flex min-h-12 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:text-emerald-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-500/10">
     <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
     {{ allTrailsLabel }}
   </StxLink>
 </div>
+<style>
+  /* The field draws its own clear button; the native one doubled it. */
+  input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
+</style>
 @endsection

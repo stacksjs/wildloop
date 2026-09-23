@@ -14,6 +14,8 @@
   import { useRecordSubmission, useTrailRecords, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { routePreviewDataUri } from '../../composables/useRoutePreview'
+  import { routeShapeFor } from '../../composables/useRouteShape'
+  import { avatarInitial, avatarTint } from '../../functions/avatars'
   import { copyLink, shareLink, shareNote } from '../../composables/useShareLink'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
   import { parsePhotoList, trailGallery } from '../../functions/trail-photos'
@@ -90,6 +92,32 @@
    * before the map has loaded, and doubles as the link down to it.
    */
   const routeThumb = derived(() => (hasRoute() ? routePreviewDataUri(routeCoords()) ?? '' : ''))
+
+  /**
+   * The route drawn large across a hero that has no photo. Most of the catalog
+   * publishes none, and a flat green gradient under the name said nothing
+   * about the trail; its own line says the most.
+   */
+  const NO_HERO_ROUTE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const heroRoute = derived(() => (hasRoute() ? routeShapeFor(routeCoords(), 320, 200, 16) ?? NO_HERO_ROUTE : NO_HERO_ROUTE))
+
+  // Faces on reviews, mirrored locally: an imported helper called from the
+  // markup is undefined there.
+  function reviewerInitial(name: string) {
+    return avatarInitial(name)
+  }
+
+  function reviewerTint(review: any) {
+    return avatarTint(review?.user_id ?? review?.userName)
+  }
+
+  function starsOn(rating: number) {
+    return '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
+  }
+
+  function starsOff(rating: number) {
+    return '★'.repeat(5 - Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
+  }
 
   const routeLabel = derived(() => routeTypeLabel(trail()?.routeType))
   const routeIcon = derived(() => routeTypeIcon(trail()?.routeType))
@@ -235,7 +263,7 @@
 
   /** First on a board is the record; everything under it is a placing. */
   function rankTone(rank: number) {
-    return rank === 1 ? 'text-yellow-500' : 'text-gray-400 dark:text-slate-500'
+    return rank === 1 ? 'text-yellow-500' : 'text-slate-400 dark:text-slate-500'
   }
 
   function styleLabel(style: string) {
@@ -406,11 +434,25 @@
 
   <div :if="trail">
     <!-- Hero -->
-    <section class="group relative h-72 sm:h-96 bg-gradient-to-br from-emerald-700 to-teal-800 overflow-hidden">
+    <section class="group relative h-80 overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 sm:h-96 lg:h-[26rem]">
       <div :if="heroImage() !== ''" class="absolute inset-0">
         <Image x-src="heroImage()" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
       </div>
-      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
+
+      <!-- No photo: contour lines and the route itself, drawn across the
+           space a photo would have filled. -->
+      <div :if="heroImage() === ''" class="trail-hero-topo absolute inset-0" aria-hidden="true"></div>
+      <div :if="heroImage() === '' && heroRoute().points !== ''" class="absolute bottom-40 left-1/3 right-4 top-16 opacity-70 sm:bottom-20 sm:left-1/2 sm:right-8 sm:opacity-90 lg:right-16" aria-hidden="true">
+        <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" class="h-full w-full">
+          <polyline x-points="heroRoute().points" class="trail-hero-casing" />
+          <polyline x-points="heroRoute().points" class="trail-hero-line" />
+          <circle x-cx="heroRoute().endX" x-cy="heroRoute().endY" r="4.5" x-class="heroRoute().loop ? 'hidden' : 'trail-hero-end'" />
+          <circle x-cx="heroRoute().startX" x-cy="heroRoute().startY" r="4.5" class="trail-hero-start" />
+        </svg>
+      </div>
+
+      <div :if="heroImage() !== ''" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
+      <div :if="heroImage() === ''" class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/20"></div>
 
       <!-- Gallery controls. Only drawn once a second photo exists: a lone
            arrow over a single picture is a control that does nothing. -->
@@ -476,24 +518,31 @@
       <div :if="menuOpen()" @click="closeMenu()" class="fixed inset-0 z-10" aria-hidden="true"></div>
 
       <!-- The route's shape, and the way down to the map that draws it. -->
-      <a :if="routeThumb() !== ''" href="#trail-map" aria-label="See the route on the map" class="absolute bottom-24 right-4 z-10 h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg transition hover:scale-105">
+      <a :if="routeThumb() !== '' && heroImage() !== ''" href="#trail-map" aria-label="See the route on the map" class="absolute bottom-24 right-4 z-10 h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg transition hover:scale-105">
         <Image x-src="routeThumb()" x-alt="'Route shape for ' + trail.name" width="80" height="80" sizes="80px" class="h-full w-full object-cover" />
       </a>
 
       <div class="relative h-full flex items-end px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 pb-8">
         <div class="flex-1">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="px-2.5 py-1 rounded-full text-xs font-semibold capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
-            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 text-white">{{ trail.distance + ' mi' }}</span>
+          <div class="mb-3 flex flex-wrap items-center gap-2">
+            <span class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize shadow-sm" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
+            <span class="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm tabular-nums">{{ trail.distance + ' mi' }}</span>
+            <span :if="routeLabel() !== ''" class="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">{{ routeLabel() }}</span>
           </div>
-          <h1 class="font-display text-3xl md:text-4xl font-bold text-white mb-2">{{ trail.name }}</h1>
-          <p class="text-white/70">{{ trail.location }}</p>
+          <h1 class="mb-2 max-w-3xl font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-white md:text-5xl">{{ trail.name }}</h1>
+          <p class="flex items-center gap-1.5 text-white/75">
+            <i class="i-lucide-map-pin h-4 w-4 shrink-0" aria-hidden="true"></i>
+            <span class="truncate">{{ trail.location }}</span>
+          </p>
         </div>
-        <div class="hidden gap-2 lg:flex">
-          <button @click="toggleOfflineDownload()" class="p-3 rounded-xl backdrop-blur-sm transition" x-class="downloaded ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'" x-aria-label="downloaded ? 'Remove offline trail' : 'Download trail offline'">
-            <Icon name="download" size="20" />
+        <div class="hidden items-center gap-2 lg:flex">
+          <button @click="toggleOfflineDownload()" class="grid h-12 w-12 place-items-center rounded-full backdrop-blur-sm transition active:scale-95" x-class="downloaded ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'" x-aria-label="downloaded ? 'Remove offline trail' : 'Download trail offline'">
+            <i x-class="downloaded ? 'i-lucide-circle-check-big h-5 w-5' : 'i-lucide-download h-5 w-5'" aria-hidden="true"></i>
           </button>
-          <StxLink to="/record" class="px-5 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition">Start</StxLink>
+          <StxLink to="/record" class="inline-flex h-12 items-center gap-2 rounded-full bg-emerald-500 px-6 font-semibold text-emerald-950 shadow-lg transition hover:bg-emerald-400 active:scale-[0.98]">
+            <i class="i-lucide-play h-4 w-4" aria-hidden="true"></i>
+            Start
+          </StxLink>
         </div>
       </div>
     </section>
@@ -522,49 +571,50 @@
 
           <!-- Anything that would change the plan, counted up front and
                linked to the detail rather than buried below the reviews. -->
-          <a :if="noticeCount() > 0" href="#trail-info" class="-mt-4 flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
-            <i class="i-lucide-info h-5 w-5" aria-hidden="true"></i>
-            <span class="text-slate-700 dark:text-slate-200">Information</span>
-            <span class="underline underline-offset-2">{{ noticeLabel() }}</span>
+          <a :if="noticeCount() > 0" href="#trail-info" class="-mt-4 inline-flex min-h-9 items-center gap-2 rounded-full bg-amber-50 px-3.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15">
+            <i class="i-lucide-triangle-alert h-4 w-4" aria-hidden="true"></i>
+            <span>Before you go</span>
+            <span class="font-semibold underline underline-offset-2">{{ noticeLabel() }}</span>
           </a>
 
           <!-- Stats. Route shape sits beside the numbers because it answers
                the same question they do: what am I committing to. -->
-          <div class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-4 dark:border-slate-700 dark:bg-slate-700">
+          <div class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 shadow-sm sm:grid-cols-4 dark:border-slate-700 dark:bg-slate-700 dark:shadow-none">
             <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</p>
+              <i class="i-lucide-ruler mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+              <p class="font-display text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</p>
               <p class="metric-label mt-0.5">Length</p>
             </div>
             <!-- The catalog stores 0 when a source recorded no climb (NPS and USFS
                  never do), so 0 means unknown, not flat. -->
             <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <p class="text-xl font-bold text-slate-900 tabular-nums dark:text-white">
+              <i class="i-lucide-mountain mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+              <p class="font-display text-xl font-bold text-slate-900 tabular-nums dark:text-white">
                 <span :if="trail.elevation > 0">{{ trail.elevation.toLocaleString() + ' ft' }}</span>
                 <span :if="!(trail.elevation > 0)"><span aria-hidden="true">—</span><span class="sr-only">Not recorded</span></span>
               </p>
               <p class="metric-label mt-0.5">Elev. gain</p>
             </div>
             <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <p class="text-xl font-bold text-slate-900 dark:text-white">{{ trail.estimatedTime || '—' }}</p>
+              <i class="i-lucide-clock mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+              <p class="font-display text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.estimatedTime || '—' }}</p>
               <p class="metric-label mt-0.5">Est. time</p>
             </div>
             <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <p class="flex items-center justify-center gap-1.5 text-base font-bold text-slate-900 dark:text-white">
-                <i x-class="routeIcon() + ' h-4 w-4 text-emerald-600'" aria-hidden="true"></i>
-                {{ routeLabel() || 'Trail' }}
-              </p>
+              <i x-class="routeIcon() + ' mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400'" aria-hidden="true"></i>
+              <p class="font-display text-xl font-bold text-slate-900 dark:text-white">{{ routeLabel() || 'Trail' }}</p>
               <p class="metric-label mt-0.5">Route</p>
             </div>
           </div>
 
           <!-- Description -->
           <div class="card">
-            <h2 class="font-bold text-lg dark:text-white mb-3">About This Trail</h2>
+            <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">About this trail</h2>
             <!-- Clamped to three lines until asked for: a catalog description
                  can run to a page, and it pushed the map and the records off
                  the screen on a phone. -->
-            <p x-class="descriptionOpen() || !descriptionLong() ? 'text-gray-600 dark:text-slate-400 leading-relaxed' : 'text-gray-600 dark:text-slate-400 leading-relaxed line-clamp-3'">{{ trail.description }}</p>
-            <button :if="descriptionLong()" @click="toggleDescription()" class="mt-2 text-sm font-semibold text-emerald-600 hover:underline">
+            <p x-class="descriptionOpen() || !descriptionLong() ? 'max-w-[68ch] text-slate-600 dark:text-slate-300 leading-relaxed' : 'max-w-[68ch] text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3'">{{ trail.description }}</p>
+            <button :if="descriptionLong()" @click="toggleDescription()" class="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
               {{ descriptionOpen() ? 'Show less' : 'Show more' }}
             </button>
 
@@ -583,7 +633,7 @@
           <!-- Information. Every row is something the catalog actually says,
                which is why a trail with nothing to flag shows no card. -->
           <div :if="noticeCount() > 0" id="trail-info" class="card">
-            <h2 class="mb-3 font-bold text-lg dark:text-white">Information</h2>
+            <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Before you go</h2>
             <ul class="space-y-3">
               <template :for="notice in notices()">
                 <li class="flex gap-3">
@@ -592,7 +642,7 @@
                   </span>
                   <span class="min-w-0">
                     <span class="block text-sm font-semibold dark:text-white">{{ notice.title }}</span>
-                    <span class="block text-sm text-gray-600 dark:text-slate-400">{{ notice.detail }}</span>
+                    <span class="block text-sm text-slate-600 dark:text-slate-400">{{ notice.detail }}</span>
                   </span>
                 </li>
               </template>
@@ -600,7 +650,18 @@
           </div>
 
           <!-- Map -->
-          <div class="card p-0 overflow-hidden">
+          <!-- Not `card`: its padding framed the map in a white border. -->
+          <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
+              <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                <i class="i-lucide-map h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+                Route map
+              </h2>
+              <a x-href="directionsUrl()" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+                <i class="i-lucide-navigation h-3.5 w-3.5" aria-hidden="true"></i>
+                Directions
+              </a>
+            </div>
             <div id="trail-map" data-stx-ignore class="trail-map-panel ts-map-container"></div>
           </div>
 
@@ -612,10 +673,10 @@
           <div :if="!recordsLoading &amp;&amp; recordsRankable">
             <div class="mb-4 flex items-end justify-between gap-4">
               <div>
-                <h2 class="font-bold text-lg dark:text-white">Records</h2>
-                <p class="mt-0.5 text-xs text-gray-500 dark:text-slate-400">Elapsed time from the trailhead. Stops count.</p>
+                <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Records</h2>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Elapsed time from the trailhead. Stops count.</p>
               </div>
-              <button @click="openClaim()" class="shrink-0 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Claim a time</button>
+              <button @click="openClaim()" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-timer h-3.5 w-3.5" aria-hidden="true"></i>Claim a time</button>
             </div>
 
             <!-- The outright fastest, ignoring style and category. This is
@@ -628,7 +689,7 @@
               </div>
               <div class="shrink-0 text-right">
                 <p class="text-sm font-bold text-yellow-700 dark:text-yellow-400">{{ recordBoard.outright.elapsedLabel }}</p>
-                <p class="text-xs text-gray-500 dark:text-slate-400">{{ styleLabel(recordBoard.outright.style) }}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">{{ styleLabel(recordBoard.outright.style) }}</p>
               </div>
             </StxLink>
 
@@ -651,16 +712,16 @@
             <div :if="recordBoard &amp;&amp; recordBoard.boards.length > 0" class="space-y-5">
               <template :for="group in recordBoard.boards">
                 <div class="card p-0 overflow-hidden">
-                  <div class="border-b border-gray-100 px-4 py-2.5 dark:border-slate-700">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">{{ group.label }}</p>
+                  <div class="border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ group.label }}</p>
                   </div>
-                  <div class="divide-y divide-gray-100 dark:divide-slate-700">
+                  <div class="divide-y divide-slate-100 dark:divide-slate-700">
                     <template :for="entry in group.entries">
-                      <StxLink x-to="'/effort/' + entry.id" class="flex items-center gap-4 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                      <StxLink x-to="'/effort/' + entry.id" class="flex items-center gap-4 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
                         <span class="w-6 shrink-0 text-center text-sm font-bold" x-class="rankTone(entry.rank)">{{ entry.rank }}</span>
                         <div class="min-w-0 flex-1">
                           <p class="truncate text-sm font-semibold dark:text-white">{{ entry.userName }}</p>
-                          <p class="text-xs text-gray-500 dark:text-slate-400">{{ recordDate(entry.finishedAt || entry.startedAt) + ' · ' + entry.paceLabel }}</p>
+                          <p class="text-xs text-slate-500 dark:text-slate-400">{{ recordDate(entry.finishedAt || entry.startedAt) + ' · ' + entry.paceLabel }}</p>
                         </div>
                         <!-- Said out loud rather than implied: a time nobody
                              has checked yet is on the board, but it is not
@@ -674,17 +735,18 @@
               </template>
             </div>
 
-            <div :if="recordBoard &amp;&amp; recordBoard.boards.length === 0 &amp;&amp; recordBoard.inProgress.length === 0" class="card text-center py-8">
-              <p class="text-sm text-gray-500 dark:text-slate-400">No times filed on this route yet.</p>
-              <button @click="openClaim()" class="mt-3 text-sm font-semibold text-emerald-600 hover:underline">Be the first</button>
+            <div :if="recordBoard &amp;&amp; recordBoard.boards.length === 0 &amp;&amp; recordBoard.inProgress.length === 0" class="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-6 py-8 text-center dark:border-slate-700">
+              <span class="mb-3 grid h-11 w-11 place-items-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" aria-hidden="true"><i class="i-lucide-crown h-5 w-5"></i></span>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-200">No times filed on this route yet.</p>
+              <button @click="openClaim()" class="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400">Be the first</button>
             </div>
           </div>
 
           <!-- A route too short or too flat to race says so, rather than
                offering a board that would be decided by GPS rounding. -->
           <div :if="!recordsLoading &amp;&amp; !recordsRankable &amp;&amp; recordBoard" class="card">
-            <h2 class="mb-1 font-bold text-lg dark:text-white">Records</h2>
-            <p class="text-sm text-gray-500 dark:text-slate-400">{{ recordBoard.rankableReason }}</p>
+            <h2 class="mb-1 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Records</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ recordBoard.rankableReason }}</p>
           </div>
 
           <!-- Claim form. One shape for two things, because they are the same
@@ -694,7 +756,7 @@
                entered — there is no mode switch to find. -->
           <div :show="claimOpen()" x-cloak class="card">
             <h3 class="mb-1 font-bold text-lg dark:text-white">{{ isAnnouncement ? 'Announce an attempt' : 'File a time' }}</h3>
-            <p class="mb-4 text-xs text-gray-500 dark:text-slate-400">
+            <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
               {{ isAnnouncement
                 ? 'Leave the finish empty to announce a run you have not made yet. It appears on the tracking board with your tracker link until you close it out.'
                 : 'Elapsed time from the trailhead, not moving time. A finished claim needs a GPS trace before a reviewer can accept it.' }}
@@ -702,51 +764,51 @@
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-style">Style</label>
-                <select id="claim-style" @change="fStyle.set($event.target.value)" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-style">Style</label>
+                <select id="claim-style" @change="fStyle.set($event.target.value)" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                   <option value="unsupported" x-selected="fStyle === 'unsupported'">Unsupported — carried everything</option>
                   <option value="self_supported" x-selected="fStyle === 'self_supported'">Self-supported — public resources only</option>
                   <option value="supported" x-selected="fStyle === 'supported'">Supported — crew, pacers, drops</option>
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-category">Category</label>
-                <select id="claim-category" @change="fCategory.set($event.target.value)" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-category">Category</label>
+                <select id="claim-category" @change="fCategory.set($event.target.value)" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                   <option value="womens" x-selected="fCategory === 'womens'">Women's</option>
                   <option value="mens" x-selected="fCategory === 'mens'">Men's</option>
                   <option value="nonbinary" x-selected="fCategory === 'nonbinary'">Non-binary</option>
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-direction">Direction</label>
-                <select id="claim-direction" @change="fDirection.set($event.target.value)" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-direction">Direction</label>
+                <select id="claim-direction" @change="fDirection.set($event.target.value)" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                   <option value="standard" x-selected="fDirection === 'standard'">Standard</option>
                   <option value="reverse" x-selected="fDirection === 'reverse'">Reverse</option>
                   <option value="yo_yo" x-selected="fDirection === 'yo_yo'">Yo-yo (out and back)</option>
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-started">Start</label>
-                <input id="claim-started" type="datetime-local" x-model="fStartedAt" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-started">Start</label>
+                <input id="claim-started" type="datetime-local" x-model="fStartedAt" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-finished">Finish <span class="text-gray-400">(leave empty if still to run)</span></label>
-                <input id="claim-finished" type="datetime-local" x-model="fFinishedAt" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-finished">Finish <span class="text-slate-400">(leave empty if still to run)</span></label>
+                <input id="claim-finished" type="datetime-local" x-model="fFinishedAt" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
               <div :if="isAnnouncement">
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-tracker">Live tracker link</label>
-                <input id="claim-tracker" type="url" placeholder="https://…" x-model="fTrackerUrl" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-tracker">Live tracker link</label>
+                <input id="claim-tracker" type="url" placeholder="https://…" x-model="fTrackerUrl" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
               <div :if="!isAnnouncement">
-                <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-evidence">Recording link</label>
-                <input id="claim-evidence" type="url" placeholder="https://strava.com/activities/…" x-model="fEvidenceUrl" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-evidence">Recording link</label>
+                <input id="claim-evidence" type="url" placeholder="https://strava.com/activities/…" x-model="fEvidenceUrl" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
                 <p :if="claimFieldErrors.evidence_url" class="mt-1 text-xs text-red-500">{{ claimFieldErrors.evidence_url }}</p>
               </div>
             </div>
 
             <div class="mt-3">
-              <label class="block text-xs font-medium text-gray-600 dark:text-slate-400" for="claim-report">Trip report</label>
-              <textarea id="claim-report" rows="4" placeholder="What the day was actually like. Not evidence on its own, but it is what makes this page worth reading in a year." x-model="fTripReport" class="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"></textarea>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-400" for="claim-report">Trip report</label>
+              <textarea id="claim-report" rows="4" placeholder="What the day was actually like. Not evidence on its own, but it is what makes this page worth reading in a year." x-model="fTripReport" class="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"></textarea>
             </div>
 
             <p :if="claimError" class="mt-3 text-sm text-red-500">{{ claimError }}</p>
@@ -755,27 +817,28 @@
               <button @click="fileClaim()" x-disabled="claimSubmitting" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">
                 {{ claimSubmitting ? 'Filing…' : (isAnnouncement ? 'Announce it' : 'Submit for review') }}
               </button>
-              <button @click="closeClaim()" class="text-sm font-medium text-gray-500 transition hover:text-gray-900 dark:hover:text-white">Cancel</button>
+              <button @click="closeClaim()" class="text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:hover:text-white">Cancel</button>
             </div>
           </div>
 
           <!-- Segments -->
           <div :if="segments.length > 0">
-            <h2 class="font-bold text-lg dark:text-white mb-4">Segments</h2>
-            <div class="space-y-3">
+            <h2 class="mb-4 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Segments</h2>
+            <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800">
               <template :for="seg in segments">
-                <div class="card flex items-center gap-4">
-                  <div class="flex-1 min-w-0">
-                    <p class="font-semibold text-sm dark:text-white">{{ seg.name }}</p>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ seg.distance + ' mi · ' + Math.abs(seg.elevation) + ' ft' }}</p>
+                <div class="flex items-center gap-4 px-4 py-3.5">
+                  <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true"><i class="i-lucide-trending-up h-4 w-4"></i></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ seg.name }}</p>
+                    <p class="text-xs text-slate-500 tabular-nums dark:text-slate-400">{{ seg.distance + ' mi · ' + Math.abs(seg.elevation) + ' ft' }}</p>
                   </div>
                   <div class="text-right">
-                    <p class="text-sm font-bold dark:text-white">{{ seg.yourTime || '-' }}</p>
-                    <p class="text-xs text-gray-500">{{ seg.yourRank ? '#' + seg.yourRank : 'Not attempted' }}</p>
+                    <p class="text-sm font-bold text-slate-900 tabular-nums dark:text-white">{{ seg.yourTime || '—' }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ seg.yourRank ? '#' + seg.yourRank : 'Not attempted' }}</p>
                   </div>
-                  <div class="text-right">
-                    <p class="text-xs text-yellow-600 font-medium">CR</p>
-                    <p class="text-xs text-gray-500">{{ seg.leaderTime + ' · ' + seg.leaderName }}</p>
+                  <div class="hidden text-right sm:block">
+                    <p class="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400"><i class="i-lucide-crown h-3 w-3" aria-hidden="true"></i>CR</p>
+                    <p class="text-xs text-slate-500 tabular-nums dark:text-slate-400">{{ seg.leaderTime + ' · ' + seg.leaderName }}</p>
                   </div>
                 </div>
               </template>
@@ -784,17 +847,20 @@
 
           <!-- Reviews -->
           <div>
-            <div class="flex gap-1 mb-4 border-b border-gray-200 dark:border-slate-700">
-              <button type="button" @click="reviewTab.set('reviews')" x-class="reviewTab() === 'reviews' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'" class="px-4 py-3 text-sm font-medium border-b-2 transition">{{ 'Reviews (' + reviews().length + ')' }}</button>
-              <button type="button" @click="reviewTab.set('conditions')" x-class="reviewTab() === 'conditions' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'" class="px-4 py-3 text-sm font-medium border-b-2 transition">Conditions</button>
+            <div class="mb-4 flex gap-1 border-b border-slate-200 dark:border-slate-700">
+              <button type="button" @click="reviewTab.set('reviews')" x-class="reviewTab() === 'reviews' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-4 text-sm font-semibold transition">{{ 'Reviews (' + reviews().length + ')' }}</button>
+              <button type="button" @click="reviewTab.set('conditions')" x-class="reviewTab() === 'conditions' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-4 text-sm font-semibold transition">Conditions</button>
             </div>
 
             <div :if="reviewTab() === 'reviews'" class="space-y-4">
               <!-- One review per person per trail (#981): opening the sheet again edits it. -->
-              <div class="card flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <h3 class="font-semibold text-sm dark:text-white">Been on this trail?</h3>
-                  <p class="mt-0.5 text-xs text-gray-500">{{ difficultyTallyLine() || 'Tell others what to expect.' }}</p>
+              <div class="flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span class="hidden h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-emerald-600 shadow-sm sm:grid dark:bg-slate-900 dark:text-emerald-400" aria-hidden="true"><i class="i-lucide-message-square-heart h-5 w-5"></i></span>
+                  <div class="min-w-0">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Been on this trail?</h3>
+                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ difficultyTallyLine() || 'Tell others what to expect.' }}</p>
+                  </div>
                 </div>
                 <button type="button" @click="openReview()" class="min-h-11 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700">Leave a review</button>
               </div>
@@ -802,51 +868,73 @@
 
               <template :for="review in reviews()">
                 <div class="card">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-3">
-                      <div class="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 text-sm font-bold">{{ review.userName.charAt(0) }}</div>
-                      <div>
-                        <p class="font-semibold text-sm dark:text-white">{{ review.userName }}</p>
-                        <p class="text-xs text-gray-500">{{ wl.timeAgo(review.created_at) }}</p>
+                  <div class="mb-2.5 flex items-center justify-between gap-3">
+                    <div class="flex min-w-0 items-center gap-3">
+                      <div x-class="'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ' + reviewerTint(review)" aria-hidden="true">{{ reviewerInitial(review.userName) }}</div>
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ review.userName }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ wl.timeAgo(review.created_at) }}</p>
                       </div>
                     </div>
-                    <span class="text-yellow-400">{{ '★'.repeat(review.rating) }}</span>
+                    <span class="shrink-0 text-sm tracking-[0.08em]" x-aria-label="review.rating + ' out of 5 stars'" role="img"><span class="text-amber-400">{{ starsOn(review.rating) }}</span><span class="text-slate-200 dark:text-slate-600">{{ starsOff(review.rating) }}</span></span>
                   </div>
-                  <p class="text-sm text-gray-600 dark:text-slate-400">{{ review.text }}</p>
+                  <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ review.text }}</p>
                   <div :if="reviewPhotoUrls(review).length" class="mt-3 flex gap-2 overflow-x-auto">
                     <template :for="url in reviewPhotoUrls(review)">
                       <Image x-src="url" x-alt="'Photo from ' + review.userName" width="80" height="80" sizes="80px" class="h-20 w-20 shrink-0 rounded-xl object-cover" />
                     </template>
                   </div>
-                  <p :if="review.conditions || review.difficulty" class="mt-2 text-xs text-gray-400">
+                  <p :if="review.conditions || review.difficulty" class="mt-2.5 text-xs text-slate-400 dark:text-slate-500">
                     {{ [review.difficulty ? 'Found it ' + reviewDifficultyText(review.difficulty).toLowerCase() : '', review.conditions ? 'Conditions: ' + review.conditions : ''].filter(Boolean).join(' · ') }}
                   </p>
                 </div>
               </template>
-              <div :if="reviews().length === 0" class="text-center py-6 text-gray-400 text-sm">
-                <p>No reviews yet. Be the first!</p>
+              <div :if="reviews().length === 0" class="rounded-2xl border border-dashed border-slate-200 px-6 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <i class="i-lucide-message-circle mx-auto mb-2 block h-6 w-6 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+                <p>No reviews yet. Yours would be the first.</p>
               </div>
             </div>
 
             <div :if="reviewTab() === 'conditions'" class="card">
-              <h3 class="font-semibold text-sm dark:text-white mb-2">Current Conditions</h3>
-              <p class="text-sm text-gray-600 dark:text-slate-400">{{ trail.conditions }}</p>
+              <h3 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Current conditions</h3>
+              <p class="text-sm text-slate-600 dark:text-slate-300">{{ trail.conditions || 'Nobody has reported conditions here yet. A review can include them.' }}</p>
             </div>
           </div>
         </div>
 
         <!-- Sidebar -->
-        <div class="space-y-6">
+        <!-- Sticky on a desktop, so the facts and the ways to act on them stay
+             beside the reviews and the map instead of leaving a tall empty
+             column once the page scrolls past them. -->
+        <div class="space-y-6 lg:sticky lg:top-20 lg:self-start">
           <div class="card">
-            <h3 class="font-bold text-lg dark:text-white mb-4">Trail Info</h3>
-            <div class="space-y-3">
-              <div class="flex justify-between"><span class="text-sm text-gray-500">Difficulty</span><span class="text-sm font-medium capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span></div>
-              <div class="flex justify-between"><span class="text-sm text-gray-500">Distance</span><span class="text-sm font-medium dark:text-white">{{ trail.distance + ' mi' }}</span></div>
-              <div class="flex justify-between"><span class="text-sm text-gray-500">Elevation</span><span class="text-sm font-medium dark:text-white">{{ trail.elevation > 0 ? trail.elevation.toLocaleString() + ' ft' : 'Not recorded' }}</span></div>
-              <div class="flex justify-between"><span class="text-sm text-gray-500">Time</span><span class="text-sm font-medium dark:text-white">{{ trail.estimatedTime }}</span></div>
-              <div :if="routeLabel() !== ''" class="flex justify-between"><span class="text-sm text-gray-500">Route</span><span class="text-sm font-medium dark:text-white">{{ routeLabel() }}</span></div>
-              <div :if="trail.surface" class="flex justify-between"><span class="text-sm text-gray-500">Surface</span><span class="text-sm font-medium capitalize dark:text-white">{{ trail.surface }}</span></div>
-            </div>
+            <h3 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Trail info</h3>
+            <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-700">
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Difficulty</dt><dd class="rounded-md px-2 py-0.5 text-xs font-semibold capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Distance</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Elevation gain</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.elevation > 0 ? trail.elevation.toLocaleString() + ' ft' : 'Not recorded' }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Est. time</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.estimatedTime || '—' }}</dd></div>
+              <div :if="routeLabel() !== ''" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Route</dt><dd class="font-medium text-slate-900 dark:text-white">{{ routeLabel() }}</dd></div>
+              <div :if="trail.surface" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Surface</dt><dd class="font-medium capitalize text-slate-900 dark:text-white">{{ trail.surface }}</dd></div>
+              <div :if="trail.managedBy" class="flex items-start justify-between gap-4 py-2.5"><dt class="shrink-0 text-slate-500 dark:text-slate-400">Managed by</dt><dd class="text-right font-medium text-slate-900 dark:text-white">{{ trail.managedBy }}</dd></div>
+            </dl>
+          </div>
+
+          <!-- The things to do with a trail once it is chosen. Desktop only:
+               on a phone the same three sit in the bar along the bottom. -->
+          <div class="card hidden space-y-2 lg:block">
+            <StxLink to="/record" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+              <i class="i-lucide-play h-4 w-4" aria-hidden="true"></i>
+              Start recording
+            </StxLink>
+            <a x-href="directionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+              <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>
+              Directions to trailhead
+            </a>
+            <button @click="toggleOfflineDownload()" x-class="downloaded ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
+              <i x-class="downloaded ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4'" aria-hidden="true"></i>
+              {{ downloaded ? 'Saved for offline' : 'Save for offline' }}
+            </button>
           </div>
 
           <!-- A weather card used to sit here reading 72°F and "Clear skies"
@@ -892,10 +980,34 @@
     </div>
   </div>
 
-  <div :if="loadingTrail" class="text-center py-32 text-gray-500">Loading trail…</div>
-  <div :if="!loadingTrail && !trail" class="text-center py-32">
-    <p class="text-gray-500 font-medium">{{ trailLoadError ? 'Trail could not be loaded' : 'Trail not found' }}</p>
-    <StxLink to="/trails" class="inline-block mt-4 px-6 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Browse Trails</StxLink>
+  <!-- The page's own shape while the trail loads, so nothing jumps when it
+       arrives: hero, the facts line, the four stats and the sidebar. -->
+  <div :if="loadingTrail && !trail" class="animate-pulse" role="status" aria-label="Loading trail">
+    <div class="h-80 bg-slate-200 sm:h-96 lg:h-[26rem] dark:bg-slate-800"></div>
+    <div class="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-3 lg:px-8">
+      <div class="space-y-6 lg:col-span-2">
+        <div class="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-800"></div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800"></div>
+          <div class="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800"></div>
+          <div class="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800"></div>
+          <div class="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800"></div>
+        </div>
+        <div class="h-40 rounded-2xl bg-slate-200 dark:bg-slate-800"></div>
+      </div>
+      <div class="hidden h-72 rounded-2xl bg-slate-200 lg:block dark:bg-slate-800"></div>
+    </div>
+  </div>
+  <div :if="!loadingTrail && !trail" class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
+    <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <i x-class="trailLoadError ? 'i-lucide-cloud-off h-9 w-9' : 'i-lucide-map-pin-off h-9 w-9'" aria-hidden="true"></i>
+    </div>
+    <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ trailLoadError ? 'Trail could not be loaded' : 'Trail not found' }}</h1>
+    <p class="mt-2 text-slate-500 dark:text-slate-400">{{ trailLoadError ? 'Check your connection and try again.' : 'It may have been merged into another trail or removed from the catalog.' }}</p>
+    <StxLink to="/trails" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
+      Browse trails
+    </StxLink>
   </div>
 <!--
   Leave a review. A bottom sheet on a phone, a centred dialog on a wider
@@ -1019,4 +1131,24 @@
     </div>
   </div>
 </div>
+<style>
+  /* Contour lines over the hero gradient when there is no photo to show. */
+  .trail-hero-topo {
+    background-image:
+      repeating-radial-gradient(ellipse 140% 100% at 85% 20%, transparent 0 22px, rgb(255 255 255 / 0.07) 22px 23px),
+      repeating-radial-gradient(ellipse 90% 70% at 10% 90%, transparent 0 30px, rgb(255 255 255 / 0.045) 30px 31px);
+  }
+
+  .trail-hero-casing,
+  .trail-hero-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .trail-hero-casing { stroke: rgb(4 30 22 / 0.55); stroke-width: 9; }
+  .trail-hero-line { stroke: #6ee7b7; stroke-width: 4; }
+  .trail-hero-start { fill: #10b981; stroke: #fff; stroke-width: 2.5; }
+  .trail-hero-end { fill: #0f172a; stroke: #fff; stroke-width: 2.5; }
+</style>
 @endsection

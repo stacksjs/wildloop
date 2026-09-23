@@ -33,6 +33,7 @@
 
 <script client>
   import { apiFetch, readyToken } from '../assets/scripts/auth'
+  import { routeShapeFor } from '../composables/useRouteShape'
 
   useHead({ title: 'Route Planner — WildLoop' })
   const wl = useStore('wl')
@@ -46,6 +47,26 @@
   const selectedTrailId = state(0)
   const routes = state<any[]>([])
   const message = state('')
+  /** Whether the list has answered once, so "no routes" is not said while loading. */
+  const loaded = state(false)
+  const saving = state(false)
+  /** Every message but the two success lines is a problem to fix. */
+  const messageIsSuccess = derived(() => message().startsWith('Saved'))
+
+  const NO_SHAPE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const shapes = new Map<number, typeof NO_SHAPE>()
+
+  /** A saved route's line, fitted to its square thumbnail. */
+  function routeShape(route: any) {
+    const cached = shapes.get(route?.id)
+    if (cached)
+      return cached
+    const shape = routeShapeFor(route?.route, 100, 100, 12)
+    if (!shape)
+      return NO_SHAPE
+    shapes.set(route.id, shape)
+    return shape
+  }
 
   async function loadRoutes() {
     const bearer = await readyToken()
@@ -56,9 +77,22 @@
     const res = await apiFetch('/api/custom-routes', {}).catch(() => null)
     const payload = await res?.json().catch(() => null)
     routes.set(res?.ok && Array.isArray(payload?.routes) ? payload.routes : [])
+    loaded.set(true)
   }
 
   async function saveRoute() {
+    if (saving())
+      return
+    saving.set(true)
+    try {
+      await saveRouteNow()
+    }
+    finally {
+      saving.set(false)
+    }
+  }
+
+  async function saveRouteNow() {
     const bearer = await readyToken()
     if (!bearer) {
       navigate('/login')
@@ -99,35 +133,129 @@
   onMount(() => void loadRoutes())
 </script>
 
-<div class="mx-auto px-4 py-8 max-w-4xl">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
   <header class="mb-6">
-    <h1 class="font-bold text-2xl dark:text-white">Route Planner</h1>
-    <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Turn verified catalog geometry into a saved route for offline preparation and navigation.</p>
+    <p class="mb-2 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+      <i class="i-lucide-route h-3.5 w-3.5" aria-hidden="true"></i>
+      Route planner
+    </p>
+    <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">Your routes</h1>
+    <p class="mt-2 max-w-[60ch] text-slate-600 dark:text-slate-400">Turn verified catalog geometry into a saved route for offline preparation and navigation.</p>
   </header>
 
-  <section class="card mb-6">
-    <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-      <input x-value="name" @input="name.set($event.target.value)" placeholder="Route name" class="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg" />
-      <select @change="selectedTrailId.set(Number($event.target.value))" class="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg">
-        <option value="0">Choose a trail…</option>
-        <template :for="trail in wl?.trails() || []"><option x-value="trail.id" :text="trail.name"></option></template>
-      </select>
-      <button @click="saveRoute()" class="px-5 py-2 font-semibold text-sm text-white bg-emerald-600 rounded-lg">Save route</button>
+  <section class="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none" aria-labelledby="new-route-title">
+    <h2 id="new-route-title" class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Save a new route</h2>
+    <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <div>
+        <label for="route-trail" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Trail</label>
+        <select id="route-trail" @change="selectedTrailId.set(Number($event.target.value))" class="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+          <option value="0">Choose a trail…</option>
+          <template :for="trail in wl?.trails() || []"><option x-value="trail.id" :text="trail.name"></option></template>
+        </select>
+      </div>
+      <div>
+        <label for="route-name" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Name <span class="font-normal text-slate-400">(optional)</span></label>
+        <input id="route-name" x-value="name" @input="name.set($event.target.value)" placeholder="Saturday long run" class="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+      </div>
+      <button @click="saveRoute()" x-disabled="saving()" class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+        <i x-class="saving() ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : 'i-lucide-bookmark-plus h-4 w-4'" aria-hidden="true"></i>
+        {{ saving() ? 'Saving…' : 'Save route' }}
+      </button>
     </div>
-    <p :if="message" class="mt-3 text-sm text-emerald-600">{{ message }}</p>
+    <p :if="message" role="status" x-class="messageIsSuccess() ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'" class="mt-3 flex items-center gap-1.5 text-sm">
+      <i x-class="messageIsSuccess() ? 'i-lucide-circle-check h-4 w-4 shrink-0' : 'i-lucide-circle-alert h-4 w-4 shrink-0'" aria-hidden="true"></i>
+      {{ message }}
+    </p>
   </section>
 
-  <div class="space-y-3">
+  <div class="mb-3 flex items-baseline justify-between">
+    <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Saved</h2>
+    <span :if="routes.length > 0" class="text-sm text-slate-500 tabular-nums dark:text-slate-400">{{ routes.length === 1 ? '1 route' : routes.length + ' routes' }}</span>
+  </div>
+
+  <!-- Row-shaped placeholders until the list answers. -->
+  <div :if="!loaded()" class="space-y-3" role="status" aria-label="Loading saved routes">
+    <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-16 w-16 rounded-xl bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3.5 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+    <div class="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-16 w-16 rounded-xl bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3.5 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/4 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+  </div>
+
+  <div :if="loaded()" class="space-y-3">
     <template :for="route in routes">
-      <div class="flex gap-4 items-center card">
-        <div class="flex-1">
-          <p class="font-semibold dark:text-white">{{ route.name }}</p>
-          <p class="text-xs text-gray-500">{{ route.distance.toFixed(1) + ' mi · ' + (route.closedLoop ? 'closed loop' : 'point-to-point') }}</p>
+      <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
+        <div class="wl-topo relative h-16 w-16 shrink-0 overflow-hidden rounded-xl" aria-hidden="true">
+          <svg :if="routeShape(route).points !== ''" viewBox="0 0 100 100" class="absolute inset-0 h-full w-full">
+            <polyline x-points="routeShape(route).points" class="wl-route-casing" />
+            <polyline x-points="routeShape(route).points" class="wl-route-line" />
+          </svg>
+          <i :if="routeShape(route).points === ''" class="i-lucide-route absolute inset-0 m-auto h-6 w-6 text-emerald-700/40 dark:text-emerald-300/30"></i>
         </div>
-        <button @click="deleteRoute(route.id)" class="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg">Delete</button>
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-semibold text-slate-900 dark:text-white">{{ route.name }}</p>
+          <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+            <span class="font-medium text-slate-700 tabular-nums dark:text-slate-200">{{ route.distance.toFixed(1) + ' mi' }}</span>
+            <span :if="route.elevation > 0" class="tabular-nums">{{ route.elevation.toLocaleString() + ' ft' }}</span>
+            <span x-class="route.closedLoop ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold">
+              <i x-class="route.closedLoop ? 'i-lucide-rotate-cw h-3 w-3' : 'i-lucide-move-right h-3 w-3'" aria-hidden="true"></i>
+              {{ route.closedLoop ? 'Closed loop' : 'Point to point' }}
+            </span>
+          </p>
+        </div>
+        <button @click="deleteRoute(route.id)" x-aria-label="'Delete ' + route.name" class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 active:scale-95 dark:hover:bg-rose-500/10 dark:hover:text-rose-400">
+          <i class="i-lucide-trash-2 h-4 w-4" aria-hidden="true"></i>
+        </button>
       </div>
     </template>
-    <p :if="routes.length === 0" class="py-12 text-center text-gray-400">No saved routes yet.</p>
+
+    <div :if="routes.length === 0" class="rounded-2xl border border-dashed border-slate-200 px-6 py-12 text-center dark:border-slate-700">
+      <div class="wl-topo mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl">
+        <i class="i-lucide-route h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+      </div>
+      <p class="font-semibold text-slate-900 dark:text-white">No saved routes yet</p>
+      <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Pick a trail above and save it — it stays ready for offline navigation.</p>
+    </div>
   </div>
 </div>
+<style>
+  /* Contour-tinted ground for a card with no photo. Four layouts, picked by
+     id, so a grid of them reads as different places rather than one tile. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
+  .wl-route-casing,
+  .wl-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-route-casing { stroke: #fff; stroke-width: 6; }
+  .wl-route-line { stroke: #059669; stroke-width: 3; }
+  .wl-route-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
+  .wl-route-end { fill: #0f172a; stroke: #fff; stroke-width: 2; }
+
+  .dark .wl-route-casing { stroke: #0b1411; }
+  .dark .wl-route-line { stroke: #34d399; }
+  .dark .wl-route-start { stroke: #0b1411; }
+  .dark .wl-route-end { fill: #e2e8f0; stroke: #0b1411; }
+</style>
 @endsection
