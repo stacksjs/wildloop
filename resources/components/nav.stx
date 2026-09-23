@@ -48,18 +48,60 @@
           <span class="text-sm font-bold tracking-wide">WILDLOOP</span>
         </StxLink>
 
-        <div class="hidden items-center gap-1 xl:flex">
-          <StxLink to="/trails" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Trails</StxLink>
-          <StxLink to="/feed" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Feed</StxLink>
-          <StxLink to="/events" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Events</StxLink>
-          <StxLink to="/territories" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Territory</StxLink>
-          <StxLink to="/records" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Records</StxLink>
-          <StxLink to="/leaderboard" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Leaderboard</StxLink>
-          <StxLink to="/clubs" activeClass="nav-active" class="rounded px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Clubs</StxLink>
+        <div class="hidden items-center gap-0.5 lg:flex">
+          <StxLink to="/trails" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Trails</StxLink>
+          <StxLink to="/feed" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Feed</StxLink>
+          <StxLink to="/events" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Events</StxLink>
+          <StxLink to="/clubs" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Clubs</StxLink>
+
+          <!-- The competitive surfaces, grouped. Seven top-level links made
+               the bar read as a sitemap; these four share one idea — who is
+               fastest, and who holds the ground — so they share one menu.
+               Opened by hover or focus in CSS rather than a signal, so it
+               works before hydration and from the keyboard, and the trigger
+               lights up whenever one of its pages is the current one. -->
+          <div class="wl-more relative">
+            <button type="button" aria-haspopup="menu" class="wl-more-trigger flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+              Compete
+              <i class="wl-more-chevron i-lucide-chevron-down h-3.5 w-3.5 transition-transform" aria-hidden="true"></i>
+            </button>
+            <div role="menu" class="wl-more-panel absolute left-0 top-full z-50 w-72 pt-2">
+              <div class="rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+              <StxLink to="/records" activeClass="nav-active" role="menuitem" class="wl-more-item flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"><i class="i-lucide-timer h-4 w-4" aria-hidden="true"></i></span>
+                <span class="min-w-0">
+                  <span class="block text-sm font-semibold text-slate-900 dark:text-white">Records</span>
+                  <span class="block text-xs leading-snug text-slate-500 dark:text-slate-400">Fastest known times, and who is out on course now</span>
+                </span>
+              </StxLink>
+              <StxLink to="/territories" activeClass="nav-active" role="menuitem" class="wl-more-item flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"><i class="i-lucide-flag h-4 w-4" aria-hidden="true"></i></span>
+                <span class="min-w-0">
+                  <span class="block text-sm font-semibold text-slate-900 dark:text-white">Territory</span>
+                  <span class="block text-xs leading-snug text-slate-500 dark:text-slate-400">Close a loop to claim the ground inside it</span>
+                </span>
+              </StxLink>
+              <StxLink to="/leaderboard" activeClass="nav-active" role="menuitem" class="wl-more-item flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"><i class="i-lucide-trophy h-4 w-4" aria-hidden="true"></i></span>
+                <span class="min-w-0">
+                  <span class="block text-sm font-semibold text-slate-900 dark:text-white">Leaderboard</span>
+                  <span class="block text-xs leading-snug text-slate-500 dark:text-slate-400">Distance, climbing and land held, ranked</span>
+                </span>
+              </StxLink>
+              <StxLink to="/challenges" activeClass="nav-active" role="menuitem" class="wl-more-item flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"><i class="i-lucide-swords h-4 w-4" aria-hidden="true"></i></span>
+                <span class="min-w-0">
+                  <span class="block text-sm font-semibold text-slate-900 dark:text-white">Challenges</span>
+                  <span class="block text-xs leading-snug text-slate-500 dark:text-slate-400">Head-to-head fights over a parcel</span>
+                </span>
+              </StxLink>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="hidden items-center gap-2 xl:flex">
+      <div class="hidden items-center gap-2 lg:flex">
         <button @click="useDark().toggle()" aria-label="Toggle dark mode" class="rounded-lg p-2 text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
           <Icon name="moon" size="18" class="dark:hidden" />
           <Icon name="sun" size="18" class="hidden dark:inline" />
@@ -106,19 +148,20 @@
         </div>
       </div>
 
-      <button class="p-2 text-slate-500 xl:hidden dark:text-slate-400" @click="mobileOpen.set(!mobileOpen())" aria-label="Menu">
+      <button class="p-2 text-slate-500 lg:hidden dark:text-slate-400" @click="mobileOpen.set(!mobileOpen())" aria-label="Menu">
         <Icon :show="!mobileOpen()" name="menu" size="24" />
         <Icon :show="mobileOpen()" name="x" size="24" />
       </button>
     </div>
 
-    <div :show="mobileOpen()" x-cloak class="space-y-1 pb-4 xl:hidden">
+    <div :show="mobileOpen()" x-cloak class="space-y-1 pb-4 lg:hidden">
       <StxLink to="/trails" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Trails</StxLink>
       <StxLink to="/feed" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Feed</StxLink>
       <StxLink to="/events" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Events</StxLink>
       <StxLink to="/territories" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Territory</StxLink>
       <StxLink to="/records" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Records</StxLink>
       <StxLink to="/leaderboard" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Leaderboard</StxLink>
+      <StxLink to="/challenges" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Challenges</StxLink>
       <StxLink to="/clubs" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Clubs</StxLink>
 
       <div :if="!signedIn" class="space-y-1 pt-2">
@@ -139,4 +182,49 @@
 </nav>
 
 <style>
+  /* Closed until hovered or focused. visibility rather than display so the
+     panel can fade, and so the gap between trigger and panel (the pt-2 above)
+     is still part of the hover target instead of closing the menu mid-reach. */
+  .wl-more-panel {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 150ms ease, transform 150ms ease, visibility 0s linear 150ms;
+  }
+
+  .wl-more:hover .wl-more-panel,
+  .wl-more:focus-within .wl-more-panel {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition: opacity 150ms ease, transform 150ms ease, visibility 0s;
+  }
+
+  .wl-more:hover .wl-more-chevron,
+  .wl-more:focus-within .wl-more-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* The trigger is not a link, so the router's activeClass never reaches it.
+     Light it up from the link inside that did get marked. */
+  .wl-more:has(.nav-active) .wl-more-trigger {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Inside the menu the item's title carries the state, not the whole row. */
+  .wl-more-item.nav-active {
+    background: rgb(236 253 245);
+  }
+
+  .dark .wl-more-item.nav-active {
+    background: rgb(6 78 59 / 0.35);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wl-more-panel,
+    .wl-more-chevron {
+      transition: none;
+    }
+  }
 </style>
