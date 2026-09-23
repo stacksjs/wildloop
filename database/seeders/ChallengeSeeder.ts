@@ -34,7 +34,7 @@ interface SeedChallenge {
 }
 
 const CHALLENGES: SeedChallenge[] = [
-  // Kim wants the parcel Chris took off her back.
+  // Kim wants the parcel Chris took off his back.
   {
     challenger: 'Kim Gottwald',
     challenged: 'Chris Breuer',

@@ -127,7 +127,7 @@ const EFFORTS: SeedEffort[] = [
     routeName: 'Sky Pond via Glacier Gorge',
     athlete: 'Kim Gottwald',
     style: 'supported',
-    category: 'womens',
+    category: 'mens',
     status: 'verified',
     startedDaysAgo: 24,
     durationSeconds: 2 * HOUR + 48 * MINUTE + 51,
@@ -155,7 +155,7 @@ const EFFORTS: SeedEffort[] = [
     routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'Kim Gottwald',
     style: 'unsupported',
-    category: 'womens',
+    category: 'mens',
     status: 'verified',
     startedDaysAgo: 18,
     durationSeconds: 1 * HOUR + 12 * MINUTE + 41,
@@ -246,7 +246,7 @@ const EFFORTS: SeedEffort[] = [
     routeName: 'Matt Davis – Steep Ravine Loop',
     athlete: 'Kim Gottwald',
     style: 'self_supported',
-    category: 'womens',
+    category: 'mens',
     status: 'in_progress',
     startedDaysAgo: 0.8 / 24,
     trackerUrl: 'https://track.rtwr.live/kim-steep-ravine',
@@ -416,11 +416,16 @@ export default class RouteEffortSeeder extends Seeder {
       // bucket is what identifies the claim anyway: the same athlete's second
       // unsupported standard run on the same route is a new time for the same
       // record, not a separate one.
+      //
+      // Category is deliberately NOT part of the key either. It describes the
+      // athlete rather than the run, so the same athlete never files one
+      // route in two categories — and keying on it meant a corrected fixture
+      // (Kim was filed under Women's) left the wrong row on the board beside
+      // a new right one. Matching without it updates the row in place.
       const existing = await RouteEffort
         .where('trail_id', '=', trail.id)
         .where('user_id', '=', athlete.id)
         .where('style', '=', payload.style)
-        .where('category', '=', payload.category)
         .where('direction', '=', payload.direction)
         .where('status', '=', payload.status)
         .first()

@@ -82,7 +82,7 @@ const SESSIONS: Record<string, Session[]> = {
     // Claims Matt Davis.
     { type: 'Trail Run', distance: 7.8, minutes: 63, elevation: 720, notes: 'Morning loop before work.', trail: 'osm-way-24417702', capture: true },
     // A wider lap of Maroon Lake than the one Kim claimed it with — takes the
-    // whole parcel off her.
+    // whole parcel off him.
     { type: 'Trail Run', distance: 6.5, minutes: 58, elevation: 420, notes: 'Out in Aspen for the week. Took the long way round the lake.', trail: 'whiteriver-maroon-lake', capture: true },
     // Claims Breakneck Ridge.
     { type: 'Trail Run', distance: 3.7, minutes: 41, elevation: 1400, notes: 'Scramble up and round before the train back.', trail: 'osm-way-42104432', capture: true },
