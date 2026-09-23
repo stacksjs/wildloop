@@ -81,3 +81,8 @@ pantry
 
 # Trail photos written to local disk in development (app/Support/photoStorage.ts)
 /storage/app
+
+# Migrations are source. A global `*.sql` ignore (common for dumps) would
+# otherwise hide every new one from `git add`, and the deploy would run
+# without it — the schema check then reports the model's table as missing.
+!database/migrations/*.sql
