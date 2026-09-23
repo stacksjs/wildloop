@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Record Attempt - WildLoop')
+@section('title', 'Record Attempt - Wildloop')
 
 @section('content')
 <script client>
@@ -10,7 +10,7 @@
   import { createTrailMap, drawTrailMarker, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { fetchCourse } from '../../assets/scripts/records-api'
 
-  useHead({ title: 'Record Attempt - WildLoop' })
+  useHead({ title: 'Record Attempt - Wildloop' })
 
   // -1 is a no-match sentinel so an unresolved param renders "not found"
   // rather than silently loading attempt 1.
@@ -127,7 +127,7 @@
 
     setPageSeo({
       title: recordTitle(`${seoBy} on ${seoRoute}`),
-      description: `${seoBy}'s record attempt on ${seoRoute}, with its evidence and verification status on WildLoop.`,
+      description: `${seoBy}'s record attempt on ${seoRoute}, with its evidence and verification status on Wildloop.`,
       canonical: `/effort/${seoEffort.id}`,
     })
   })
@@ -232,7 +232,7 @@
         <div class="mt-6 border-t border-slate-100 pt-5 dark:border-slate-700">
           <h2 class="mb-3 text-sm font-bold text-slate-900 dark:text-white">Evidence</h2>
           <div class="flex flex-wrap gap-2">
-            <StxLink :if="effort.activityId" x-to="'/activity/' + effort.activityId" class="rounded-full border border-slate-300 px-3.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">WildLoop activity</StxLink>
+            <StxLink :if="effort.activityId" x-to="'/activity/' + effort.activityId" class="rounded-full border border-slate-300 px-3.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">Wildloop activity</StxLink>
             <a :if="effort.evidenceUrl" x-href="effort.evidenceUrl" target="_blank" rel="noopener noreferrer nofollow" class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-3.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
               Recorded activity
               <Icon name="external-link" size="12" />

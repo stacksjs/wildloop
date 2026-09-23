@@ -121,7 +121,7 @@ function forgetStaleShellReload(): void {
 
 let identityStarted = false
 
-/** Initialize the shared WildLoop store and its browser-side data sources. */
+/** Initialize the shared Wildloop store and its browser-side data sources. */
 /**
  * Keep the store's idea of the page in step with the router, for the tab
  * bar's highlight. A tab tap on iOS is an in-app navigation, which does not

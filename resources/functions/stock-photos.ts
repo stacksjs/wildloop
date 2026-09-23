@@ -1,7 +1,7 @@
 /**
  * The licensed landscape photographs the catalog uses as a trail's cover when
  * its source publishes no photo. That is nearly every trail: neither the Forest
- * Service nor the Park Service publishes photos in the layers WildLoop ingests,
+ * Service nor the Park Service publishes photos in the layers Wildloop ingests,
  * and OSM almost never does.
  *
  * They are illustrations, not pictures of the trail they appear on, so anything

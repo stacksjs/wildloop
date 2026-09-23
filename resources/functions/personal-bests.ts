@@ -114,5 +114,5 @@ export function monthlyProgress(activities: BestsActivity[], year: number): Mont
 
 /** The text a record is shared with. */
 export function shareText(record: PersonalBest): string {
-  return `${record.label}: ${record.value} on WildLoop`
+  return `${record.label}: ${record.value} on Wildloop`
 }

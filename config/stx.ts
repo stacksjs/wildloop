@@ -12,7 +12,7 @@ import { env } from '@stacksjs/env'
  */
 const SITE_URL = 'https://wildloop.org'
 
-const TITLE = 'WildLoop — Trail discovery and GPS tracking for runners and hikers'
+const TITLE = 'Wildloop — Trail discovery and GPS tracking for runners and hikers'
 const DESCRIPTION = 'Find and track trails for running and hiking, with live GPS, pace, splits, elevation, segments and a social feed. Every closed loop also claims territory.'
 const OG_IMAGE = `${SITE_URL}/images/social/og-default.jpg`
 
@@ -42,7 +42,7 @@ export default {
         { name: 'robots', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
 
         // Open Graph
-        { property: 'og:site_name', content: 'WildLoop' },
+        { property: 'og:site_name', content: 'Wildloop' },
         { property: 'og:title', content: TITLE },
         { property: 'og:description', content: DESCRIPTION },
         { property: 'og:type', content: 'website' },
@@ -52,17 +52,17 @@ export default {
         { property: 'og:image:type', content: 'image/jpeg' },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: 'A runner on a ridge line at dawn, above WildLoop\u2019s name and tagline.' },
+        { property: 'og:image:alt', content: 'A runner on a ridge line at dawn, above Wildloop\u2019s name and tagline.' },
 
         // Twitter / X
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: TITLE },
         { name: 'twitter:description', content: DESCRIPTION },
         { name: 'twitter:image', content: OG_IMAGE },
-        { name: 'twitter:image:alt', content: 'A runner on a ridge line at dawn, above WildLoop\u2019s name and tagline.' },
+        { name: 'twitter:image:alt', content: 'A runner on a ridge line at dawn, above Wildloop\u2019s name and tagline.' },
 
         // iOS home-screen install
-        { name: 'apple-mobile-web-app-title', content: 'WildLoop' },
+        { name: 'apple-mobile-web-app-title', content: 'Wildloop' },
       ],
       link: [
         // Favicons, generated from the app icon by scripts/build-brand-assets.ts.

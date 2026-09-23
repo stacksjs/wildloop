@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Find Athletes - WildLoop')
+@section('title', 'Find Athletes - Wildloop')
 
 @section('content')
 <script server>
@@ -19,20 +19,20 @@
    * relative path is dropped and the link previews as a bare URL.
    */
   useSeoMeta({
-    title: 'Athletes — WildLoop',
-    description: 'Search WildLoop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
+    title: 'Athletes — Wildloop',
+    description: 'Search Wildloop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
     canonical: 'https://wildloop.org/athletes',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Athletes — WildLoop',
-    ogDescription: 'Search WildLoop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
+    ogTitle: 'Athletes — Wildloop',
+    ogDescription: 'Search Wildloop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/athletes',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Athletes — WildLoop',
-    twitterDescription: 'Search WildLoop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
+    twitterTitle: 'Athletes — Wildloop',
+    twitterDescription: 'Search Wildloop athletes by name, or browse the people covering the most ground and holding the most territory right now.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
@@ -96,7 +96,7 @@
     <div class="mb-6">
       <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Athletes</h1>
       <p class="mt-1 text-slate-600 dark:text-slate-400">
-        <span :if="!query">The most active people on WildLoop right now.</span>
+        <span :if="!query">The most active people on Wildloop right now.</span>
         <span :else>{{ athletes.length === 1 ? 'One match' : athletes.length + ' matches' }}{{ ' for “' + query + '”' }}</span>
       </p>
     </div>

@@ -1,5 +1,5 @@
 /**
- * Route records — WildLoop's fastest-known-time layer.
+ * Route records — Wildloop's fastest-known-time layer.
  *
  * The rest of the app ranks people by *volume*: miles run this week, feet
  * climbed, territory held. A record is the opposite question — who covered

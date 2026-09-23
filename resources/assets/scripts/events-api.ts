@@ -2,7 +2,7 @@
  * Fetch client for the events endpoints.
  *
  * Reads are deliberately unauthenticated where the server allows it: a live
- * backyard board is opened by crew and family who have no WildLoop account,
+ * backyard board is opened by crew and family who have no Wildloop account,
  * and forcing a session on them would break the one thing live reporting is
  * for. Writes carry the bearer token and the CSRF echo, same as game-api.
  */

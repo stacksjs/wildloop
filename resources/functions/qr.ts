@@ -130,7 +130,7 @@ export interface QrBrandOptions extends QrOptions {
   /** The field the code is printed on. Never transparent — see below. */
   background?: string
   /**
-   * Place the WildLoop mark in the middle. This is what error correction H
+   * Place the Wildloop mark in the middle. This is what error correction H
    * buys us: the covered modules are reconstructed from the redundancy.
    */
   logo?: boolean
@@ -146,7 +146,7 @@ export interface QrBrandOptions extends QrOptions {
 const LOGO_SPAN = 0.28
 
 /**
- * A branded QR: rounded modules, WildLoop-green finder patterns, and the ring
+ * A branded QR: rounded modules, Wildloop-green finder patterns, and the ring
  * mark in the middle.
  *
  * Three constraints hold this together, and all three are about whether a
@@ -269,7 +269,7 @@ function finderPattern(x: number, y: number, radius: number): string {
 }
 
 /**
- * The WildLoop mark: a closed ring with the runner's position on it, the same
+ * The Wildloop mark: a closed ring with the runner's position on it, the same
  * mark the navbar draws. It sits on its own background plate, so the modules
  * it covers read as deliberately absent rather than as damage.
  */

@@ -1,7 +1,7 @@
 /**
  * Faces for people whose photo we do not have.
  *
- * WildLoop accounts carry a name and, for most of them, nothing else — so an
+ * Wildloop accounts carry a name and, for most of them, nothing else — so an
  * avatar is an initial in a coloured circle. The colour is derived from the
  * account rather than picked at random, which is what makes the same person
  * the same colour on every card they appear on, and across reloads.

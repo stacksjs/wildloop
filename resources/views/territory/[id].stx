@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Territory Details - WildLoop')
+@section('title', 'Territory Details - Wildloop')
 
 @section('content')
 <script client>
@@ -9,7 +9,7 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { formatTerritoryArea } from '../../functions/territory-style'
 
-  useHead({ title: 'Territory Details - WildLoop' })
+  useHead({ title: 'Territory Details - Wildloop' })
 
   const wl = useStore('wl')
   // -1 is a no-match sentinel so an unresolved param renders "not found"
@@ -82,7 +82,7 @@
 
     setPageSeo({
       title: recordTitle(seoName),
-      description: `${seoName} on WildLoop. ${seoHolder}${seoArea ? ` ${seoArea} km² of ground.` : ''} Its holder, and how it changed hands.`,
+      description: `${seoName} on Wildloop. ${seoHolder}${seoArea ? ` ${seoArea} km² of ground.` : ''} Its holder, and how it changed hands.`,
       canonical: `/territory/${seoTerritory.id}`,
     })
   })

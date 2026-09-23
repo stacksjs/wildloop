@@ -27,7 +27,7 @@ export function activityShareOptions(activity: ShareableActivity, route: Activit
   return {
     activityType: activity.activityType,
     athlete: activity.userName,
-    brand: 'WildLoop',
+    brand: 'Wildloop',
     completedAt: completedAtLabel(activity.created_at),
     distance: `${activity.distance.toFixed(2)} mi`,
     duration: activity.moving_time || activity.duration,
@@ -99,7 +99,7 @@ export async function shareActivityImage(activity: ShareableActivity, route: Act
   const file = new File([png], activityShareCardFileName(activity.title, preset), { type: 'image/png' })
   const shareData = {
     files: [file],
-    text: `${activity.title} on WildLoop`,
+    text: `${activity.title} on Wildloop`,
     title: activity.title,
   }
 

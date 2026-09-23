@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Clubs - WildLoop')
+@section('title', 'Clubs - Wildloop')
 
 @section('content')
 <script server>
@@ -19,19 +19,19 @@
    * relative path is dropped and the link previews as a bare URL.
    */
   useSeoMeta({
-    title: 'Clubs — WildLoop',
+    title: 'Clubs — Wildloop',
     description: 'Find a running or hiking crew near you, see what they covered this week, and join — or start the club you were looking for.',
     canonical: 'https://wildloop.org/clubs',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Clubs — WildLoop',
+    ogTitle: 'Clubs — Wildloop',
     ogDescription: 'Find a running or hiking crew near you, see what they covered this week, and join — or start the club you were looking for.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/clubs',
     ogImage: 'https://wildloop.org/images/social/og-clubs.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Clubs — WildLoop',
+    twitterTitle: 'Clubs — Wildloop',
     twitterDescription: 'Find a running or hiking crew near you, see what they covered this week, and join — or start the club you were looking for.',
     twitterImage: 'https://wildloop.org/images/social/og-clubs.jpg',
   })

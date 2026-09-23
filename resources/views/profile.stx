@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Profile - WildLoop')
+@section('title', 'Profile - Wildloop')
 
 @section('content')
 <script server>
@@ -13,8 +13,8 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Your Profile — WildLoop',
-    description: 'Your WildLoop profile, stats and recent activity.',
+    title: 'Your Profile — Wildloop',
+    description: 'Your Wildloop profile, stats and recent activity.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -25,7 +25,7 @@
   import { initializeAuthSession } from '../assets/scripts/auth'
   import { useSavedTrails } from '../composables/useSavedTrails'
 
-  useHead({ title: 'Your Profile — WildLoop' })
+  useHead({ title: 'Your Profile — Wildloop' })
 
   const wl = useStore('wl')
   const { onToggleSave } = useSavedTrails(wl)

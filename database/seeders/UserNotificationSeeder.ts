@@ -131,7 +131,7 @@ export default class UserNotificationSeeder extends Seeder {
         emitted.push({
           recipient_id: event.user_id,
           actor_id: event.user_id,
-          actor_name: 'WildLoop',
+          actor_name: 'Wildloop',
           type: 'conquest_win',
           body: `You took ${territoryName}.`,
           link,
@@ -164,7 +164,7 @@ export default class UserNotificationSeeder extends Seeder {
         emitted.push({
           recipient_id: event.user_id,
           actor_id: event.user_id,
-          actor_name: 'WildLoop',
+          actor_name: 'Wildloop',
           type: 'conquest_defend',
           body: `You held ${territoryName}.`,
           link,

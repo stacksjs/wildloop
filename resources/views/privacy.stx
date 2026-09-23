@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Privacy Policy - WildLoop')
+@section('title', 'Privacy Policy - Wildloop')
 
 @section('content')
 <script server>
@@ -13,26 +13,26 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Privacy Policy — WildLoop',
-    description: 'What WildLoop collects, why, how long it is kept, and the choices you have over your location and activity data.',
+    title: 'Privacy Policy — Wildloop',
+    description: 'What Wildloop collects, why, how long it is kept, and the choices you have over your location and activity data.',
     canonical: 'https://wildloop.org/privacy',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Privacy Policy — WildLoop',
-    ogDescription: 'What WildLoop collects, why, how long it is kept, and the choices you have over your location and activity data.',
+    ogTitle: 'Privacy Policy — Wildloop',
+    ogDescription: 'What Wildloop collects, why, how long it is kept, and the choices you have over your location and activity data.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/privacy',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Privacy Policy — WildLoop',
-    twitterDescription: 'What WildLoop collects, why, how long it is kept, and the choices you have over your location and activity data.',
+    twitterTitle: 'Privacy Policy — Wildloop',
+    twitterDescription: 'What Wildloop collects, why, how long it is kept, and the choices you have over your location and activity data.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
 
 <script client>
-  useHead({ title: 'Privacy Policy — WildLoop' })
+  useHead({ title: 'Privacy Policy — Wildloop' })
 </script>
 
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -44,7 +44,7 @@
     <div class="space-y-8 text-gray-600 dark:text-slate-300 leading-relaxed">
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">What we collect</h2>
-        <p>To run WildLoop we store the account details you give us (name, email), the activities you record (GPS tracks, distance, time, elevation), and the social content you create (reviews, comments, kudos, follows, saved trails). GPS tracks are precise location data, so we treat them carefully.</p>
+        <p>To run Wildloop we store the account details you give us (name, email), the activities you record (GPS tracks, distance, time, elevation), and the social content you create (reviews, comments, kudos, follows, saved trails). GPS tracks are precise location data, so we treat them carefully.</p>
       </section>
 
       <section>

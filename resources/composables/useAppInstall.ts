@@ -1,7 +1,7 @@
 import { onDestroy, onMount, state } from 'stx'
 
 /**
- * Installing WildLoop on a phone.
+ * Installing Wildloop on a phone.
  *
  * There is no single "install" API. What is available depends entirely on
  * where the page is running, and the honest thing is to offer each platform

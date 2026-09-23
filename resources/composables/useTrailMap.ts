@@ -186,7 +186,7 @@ export async function resolveVectorTiles(): Promise<string | null> {
 }
 
 /**
- * WildLoop's palette, applied to the map.
+ * Wildloop's palette, applied to the map.
  *
  * ts-maps ships a good general-purpose pair of basemaps, and they are the wrong
  * pair for this app: the light one is warm paper-and-beige and the dark one is

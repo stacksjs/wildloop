@@ -649,7 +649,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
         }
         const code = typeof error === 'object' && error !== null && 'code' in error ? Number(error.code) : 0
         recordingError.set(code === 1
-          ? 'Location access is off. Allow location for WildLoop in device settings, then try again.'
+          ? 'Location access is off. Allow location for Wildloop in device settings, then try again.'
           : 'Could not get your location. Try again in a moment.')
       })
   }

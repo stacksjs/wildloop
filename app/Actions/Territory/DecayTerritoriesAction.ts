@@ -135,7 +135,7 @@ async function notifyOwner(recipientId: number, type: string, body: string, link
     await UserNotification.forceCreate({
       recipient_id: recipientId,
       actor_id: recipientId,
-      actor_name: owner?.name ?? 'WildLoop',
+      actor_name: owner?.name ?? 'Wildloop',
       type,
       body,
       link,

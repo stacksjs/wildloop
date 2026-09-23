@@ -64,7 +64,7 @@ function haversineMetres(a: Coordinate, b: Coordinate): number {
   return 2 * radius * Math.asin(Math.sqrt(x))
 }
 
-/** Parse WildLoop's GeoJSON telemetry envelope while retaining provenance. */
+/** Parse Wildloop's GeoJSON telemetry envelope while retaining provenance. */
 export function parseTrackSamples(raw: string | null | undefined): TrackSample[] {
   if (!raw)
     return []

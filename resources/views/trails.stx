@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Explore Trails - WildLoop')
+@section('title', 'Explore Trails - Wildloop')
 
 @section('content')
 <script server>
@@ -19,19 +19,19 @@
    * relative path is dropped and the link previews as a bare URL.
    */
   useSeoMeta({
-    title: 'Explore trails — WildLoop',
+    title: 'Explore trails — Wildloop',
     description: 'Search half a million trails across the US, Germany, Austria and Switzerland by name, park, forest or Land — with distance, ascent and difficulty on every one.',
     canonical: 'https://wildloop.org/trails',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Explore trails — WildLoop',
+    ogTitle: 'Explore trails — Wildloop',
     ogDescription: 'Search half a million trails across the US, Germany, Austria and Switzerland by name, park, forest or Land — with distance, ascent and difficulty on every one.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/trails',
     ogImage: 'https://wildloop.org/images/social/og-trails.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Explore trails — WildLoop',
+    twitterTitle: 'Explore trails — Wildloop',
     twitterDescription: 'Search half a million trails across the US, Germany, Austria and Switzerland by name, park, forest or Land — with distance, ascent and difficulty on every one.',
     twitterImage: 'https://wildloop.org/images/social/og-trails.jpg',
   })
@@ -495,7 +495,7 @@
       }
       let res = await queryTrails(query)
 
-      // WildLoop does not yet have catalog coverage everywhere. Do not strand
+      // Wildloop does not yet have catalog coverage everywhere. Do not strand
       // a visitor whose edge or device location is outside it on an empty
       // result: a location-only empty answer becomes a global browse instead.
       if (shouldFallbackToCatalog(query, res)) {

@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Conquests - WildLoop')
+@section('title', 'Conquests - Wildloop')
 
 @section('content')
 <script server>
@@ -13,14 +13,14 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Your Conquests — WildLoop',
+    title: 'Your Conquests — Wildloop',
     description: 'Every territory you have taken, and every attempt on the ground you hold.',
     robots: 'noindex, nofollow',
   })
 </script>
 
 <script client>
-  useHead({ title: 'Your Conquests — WildLoop' })
+  useHead({ title: 'Your Conquests — Wildloop' })
 
   const wl = useStore('wl')
   const filter = state<'all' | 'attacks' | 'defenses' | 'lost'>('all')

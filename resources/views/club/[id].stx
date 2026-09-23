@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Club - WildLoop')
+@section('title', 'Club - Wildloop')
 
 @section('content')
 <script client>
@@ -9,7 +9,7 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
 
-  useHead({ title: 'Club - WildLoop' })
+  useHead({ title: 'Club - Wildloop' })
 
   const wl = useStore('wl')
   const clubId = readRouteParam('id') ?? -1
@@ -171,7 +171,7 @@
 
     setPageSeo({
       title: recordTitle(seoName, seoPlace),
-      description: `${seoBlurb ? `${seoBlurb} ` : ''}${seoName} is a ${String(seoClub.type ?? 'running').toLowerCase()} club on WildLoop with ${seoMembers}.`.slice(0, 200),
+      description: `${seoBlurb ? `${seoBlurb} ` : ''}${seoName} is a ${String(seoClub.type ?? 'running').toLowerCase()} club on Wildloop with ${seoMembers}.`.slice(0, 200),
       canonical: `/club/${seoClub.id}`,
     })
   })
@@ -381,7 +381,7 @@
         <label class="block">
           <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</span>
           <input type="email" placeholder="runner@example.com" x-value="inviteEmail" @input="inviteEmail.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
-          <span class="mt-1.5 block text-xs text-slate-500 dark:text-slate-400">If they already have a WildLoop account, the invite is addressed to it.</span>
+          <span class="mt-1.5 block text-xs text-slate-500 dark:text-slate-400">If they already have a Wildloop account, the invite is addressed to it.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Note <span class="font-normal text-slate-400">(optional)</span></span>

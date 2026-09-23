@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Notifications - WildLoop')
+@section('title', 'Notifications - Wildloop')
 
 @section('content')
 <script server>
@@ -13,8 +13,8 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Notifications — WildLoop',
-    description: 'Your WildLoop notifications.',
+    title: 'Notifications — Wildloop',
+    description: 'Your Wildloop notifications.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -23,7 +23,7 @@
   import { markNotificationsRead } from '../assets/scripts/game-api'
   import { openAuthGate } from '../composables/useAuthGate'
 
-  useHead({ title: 'Notifications — WildLoop' })
+  useHead({ title: 'Notifications — Wildloop' })
 
   const wl = useStore('wl')
   const filter = state<'all' | 'unread' | 'conquest' | 'kudos' | 'challenge'>('all')

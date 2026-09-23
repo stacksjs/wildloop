@@ -28,7 +28,7 @@ async function requestLocation(): Promise<void> {
   }
   catch {
     status.set('denied')
-    message.set('WildLoop could not get a current location. Check your device settings and try again.')
+    message.set('Wildloop could not get a current location. Check your device settings and try again.')
     emit('change', 'denied')
     try {
       await haptics.notification('warning')

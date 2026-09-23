@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Events - WildLoop')
+@section('title', 'Events - Wildloop')
 
 @section('content')
 <script server>
@@ -13,20 +13,20 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Events — WildLoop',
-    description: 'Backyard ultras, races and group runs on WildLoop, with live yard counts while an event is running.',
+    title: 'Events — Wildloop',
+    description: 'Backyard ultras, races and group runs on Wildloop, with live yard counts while an event is running.',
     canonical: 'https://wildloop.org/events',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Events — WildLoop',
-    ogDescription: 'Backyard ultras, races and group runs on WildLoop, with live yard counts while an event is running.',
+    ogTitle: 'Events — Wildloop',
+    ogDescription: 'Backyard ultras, races and group runs on Wildloop, with live yard counts while an event is running.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/events',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Events — WildLoop',
-    twitterDescription: 'Backyard ultras, races and group runs on WildLoop, with live yard counts while an event is running.',
+    twitterTitle: 'Events — Wildloop',
+    twitterDescription: 'Backyard ultras, races and group runs on Wildloop, with live yard counts while an event is running.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
@@ -34,7 +34,7 @@
 <script client>
   import { useEvents } from '../composables/useEvents'
 
-  useHead({ title: 'Events — WildLoop' })
+  useHead({ title: 'Events — Wildloop' })
 
   const {
     events, loading, loadError, typeFilter, statusFilter, applyFilter,
@@ -264,7 +264,7 @@
       </div>
       <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Nothing on the calendar yet</h3>
       <p class="mx-auto mb-6 max-w-sm text-gray-500 dark:text-slate-400">
-        Host a backyard ultra and WildLoop runs the corral clock, records every lap, and publishes the standings live.
+        Host a backyard ultra and Wildloop runs the corral clock, records every lap, and publishes the standings live.
       </p>
       <button @click="openCreate()" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Host an event</button>
     </div>

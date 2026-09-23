@@ -75,7 +75,7 @@ export async function evaluateAchievementsForUser(userId: number): Promise<{
         await UserNotification.forceCreate({
           recipient_id: userId,
           actor_id: userId,
-          actor_name: 'WildLoop',
+          actor_name: 'Wildloop',
           type: 'achievement',
           body: `Achievement unlocked: ${def?.icon ?? '🏅'} ${def?.name ?? ''}`.trim(),
           link: '/profile',

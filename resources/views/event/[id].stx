@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Live Event - WildLoop')
+@section('title', 'Live Event - Wildloop')
 
 @section('content')
 <script client>
@@ -10,7 +10,7 @@
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { formatClock } from '../../functions/backyard'
 
-  useHead({ title: 'Live Event - WildLoop' })
+  useHead({ title: 'Live Event - Wildloop' })
 
   // -1 is a no-match sentinel so an unresolved param renders "not found"
   // rather than silently loading event 1.
@@ -82,7 +82,7 @@
     if (typeof navigator === 'undefined') return
     const url = window.location.href
     if (navigator.share) {
-      await navigator.share({ title: event()?.name ?? 'WildLoop event', url }).catch(() => {})
+      await navigator.share({ title: event()?.name ?? 'Wildloop event', url }).catch(() => {})
       return
     }
     await navigator.clipboard?.writeText(url).catch(() => {})
@@ -124,7 +124,7 @@
 
     setPageSeo({
       title: recordTitle(seoName, seoPlace),
-      description: `${seoBlurb ? `${seoBlurb} ` : ''}${String(seoEvent.type ?? 'event')} event${seoPlace ? ` in ${seoPlace}` : ''} on WildLoop.${seoHost}`.slice(0, 200),
+      description: `${seoBlurb ? `${seoBlurb} ` : ''}${String(seoEvent.type ?? 'event')} event${seoPlace ? ` in ${seoPlace}` : ''} on Wildloop.${seoHost}`.slice(0, 200),
       canonical: `/event/${seoEvent.id}`,
     })
   })

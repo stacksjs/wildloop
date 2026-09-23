@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Get the WildLoop app')
+@section('title', 'Get the Wildloop app')
 
 @section('content')
 <script server>
@@ -12,20 +12,20 @@
    * from a page.
    */
   useSeoMeta({
-    title: 'Get the WildLoop App — WildLoop',
-    description: 'Install WildLoop from the web in two taps — no store account, no download queue. Live GPS, offline maps, background tracking and lap reporting on your home screen.',
+    title: 'Get the Wildloop App — Wildloop',
+    description: 'Install Wildloop from the web in two taps — no store account, no download queue. Live GPS, offline maps, background tracking and lap reporting on your home screen.',
     canonical: 'https://wildloop.org/app',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Get the WildLoop App',
-    ogDescription: 'Install WildLoop from the web in two taps — no store account, no download queue. Live GPS, offline maps and background tracking.',
+    ogTitle: 'Get the Wildloop App',
+    ogDescription: 'Install Wildloop from the web in two taps — no store account, no download queue. Live GPS, offline maps and background tracking.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/app',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Get the WildLoop App',
-    twitterDescription: 'Install WildLoop from the web in two taps. Live GPS, offline maps and background tracking.',
+    twitterTitle: 'Get the Wildloop App',
+    twitterDescription: 'Install Wildloop from the web in two taps. Live GPS, offline maps and background tracking.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 
@@ -37,7 +37,7 @@
 <script client>
   import { useAppInstall } from '../composables/useAppInstall'
 
-  useHead({ title: 'Get the WildLoop App — WildLoop' })
+  useHead({ title: 'Get the Wildloop App — Wildloop' })
 
   const { canPrompt, installed, platform, outcome, promptInstall } = useAppInstall()
 
@@ -53,12 +53,12 @@
 
   <div class="app-page">
     <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-      <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">WildLoop on your phone</p>
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">Wildloop on your phone</p>
       <h1 class="mt-4 font-display text-4xl font-bold leading-[1] tracking-[-0.04em] sm:text-5xl dark:text-white">
         Install it in two taps.
       </h1>
       <p class="mt-5 max-w-[46ch] text-lg leading-relaxed text-slate-600 dark:text-slate-400">
-        WildLoop installs straight from the web — no store account, no download queue, and it updates itself.
+        Wildloop installs straight from the web — no store account, no download queue, and it updates itself.
         You get live GPS, offline maps, background tracking, and lap reporting on the home screen.
       </p>
 
@@ -67,7 +67,7 @@
         <div :if="installed" class="inline-flex items-center gap-3 rounded-2xl bg-emerald-50 px-5 py-4 dark:bg-emerald-950/40">
           <i class="i-lucide-circle-check h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
           <div>
-            <p class="font-bold text-emerald-800 dark:text-emerald-200">WildLoop is installed</p>
+            <p class="font-bold text-emerald-800 dark:text-emerald-200">Wildloop is installed</p>
             <p class="text-sm text-emerald-700/80 dark:text-emerald-300/80">Open it from your home screen to record with the screen off.</p>
           </div>
         </div>
@@ -78,7 +78,7 @@
           class="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-8 py-4 text-base font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
         >
           <i class="i-lucide-download h-5 w-5" aria-hidden="true"></i>
-          Install WildLoop
+          Install Wildloop
         </button>
 
         <p :if="outcome === 'dismissed'" class="mt-3 text-sm text-slate-500 dark:text-slate-400">
@@ -123,7 +123,7 @@
         <div class="min-w-0">
           <h2 class="font-bold dark:text-white">Point your camera at this</h2>
           <p class="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-            WildLoop earns its keep on the phone you take outside. Scan the code to open it there, then install it in two taps.
+            Wildloop earns its keep on the phone you take outside. Scan the code to open it there, then install it in two taps.
           </p>
           <div class="mt-4 flex flex-wrap items-center gap-3">
             <code class="rounded-lg bg-slate-100 px-4 py-2.5 font-mono text-sm dark:bg-slate-800 dark:text-slate-200">wildloop.org</code>

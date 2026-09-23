@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Settings - WildLoop')
+@section('title', 'Settings - Wildloop')
 
 @section('content')
 <script server>
@@ -13,8 +13,8 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Settings — WildLoop',
-    description: 'Your WildLoop account settings.',
+    title: 'Settings — Wildloop',
+    description: 'Your Wildloop account settings.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -27,7 +27,7 @@
   import { formatHealthSummary } from '../functions/health-summary'
   import { passwordChangeError } from '../functions/password-change'
 
-  useHead({ title: 'Settings — WildLoop' })
+  useHead({ title: 'Settings — Wildloop' })
 
   const loading = state(true)
   const error = state('')
@@ -83,7 +83,7 @@
     connected: ['success', 'Garmin connected. New activities will appear here automatically.'],
     denied: ['error', 'Garmin access was declined, so nothing was connected.'],
     expired: ['error', 'That connection attempt timed out. Please try again.'],
-    unavailable: ['error', 'Garmin syncing is not switched on for WildLoop yet.'],
+    unavailable: ['error', 'Garmin syncing is not switched on for Wildloop yet.'],
     failed: ['error', 'Garmin could not complete the connection. Please try again.'],
   }
 
@@ -524,7 +524,7 @@
 
         <div :if="!loading && !configured" class="mt-5">
           <p class="text-slate-500 text-sm dark:text-slate-400">
-            Not available yet. Garmin reviews every app before granting Activity API access, and this turns on the day they approve WildLoop.
+            Not available yet. Garmin reviews every app before granting Activity API access, and this turns on the day they approve Wildloop.
           </p>
         </div>
 
@@ -538,7 +538,7 @@
             Connect Garmin
           </button>
           <p class="mt-3 text-slate-400 text-xs dark:text-slate-500">
-            You approve this on Garmin's own site. WildLoop never sees your Garmin password, and you can revoke access at any time.
+            You approve this on Garmin's own site. Wildloop never sees your Garmin password, and you can revoke access at any time.
           </p>
         </div>
 
@@ -572,7 +572,7 @@
       </span>
       <div class="min-w-0 flex-1">
         <h2 class="font-semibold text-slate-900 dark:text-white">{{ nativeHealthProvider }}</h2>
-        <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Read your daily fitness summary and save completed WildLoop recordings as workouts with explicit device permission.</p>
+        <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Read your daily fitness summary and save completed Wildloop recordings as workouts with explicit device permission.</p>
         <p :if="nativeHealthSummary" class="mt-3 font-medium text-slate-700 text-sm dark:text-slate-200">{{ nativeHealthSummary }}</p>
         <button type="button" @click="connectNativeHealth()" x-disabled="nativeHealthWorking" class="mt-4 min-h-11 px-5 font-semibold text-sm text-white bg-rose-600 hover:bg-rose-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]">
           {{ nativeHealthButtonLabel }}
@@ -615,7 +615,7 @@
             </span>
           </button>
         </div>
-        <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Choose whether WildLoop can send activity, club and territory updates to this phone.</p>
+        <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Choose whether Wildloop can send activity, club and territory updates to this phone.</p>
         <p :if="nativePushError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ nativePushError }}</p>
       </div>
     </div>

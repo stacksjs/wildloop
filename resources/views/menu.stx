@@ -1,12 +1,12 @@
 @extends('layouts/default')
 
-@section('title', 'Menu - WildLoop')
+@section('title', 'Menu - Wildloop')
 
 @section('content')
 <script server>
   useSeoMeta({
-    title: 'Menu — WildLoop',
-    description: 'Everything in WildLoop in one place.',
+    title: 'Menu — Wildloop',
+    description: 'Everything in Wildloop in one place.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -14,7 +14,7 @@
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
 
-  useHead({ title: 'Menu — WildLoop' })
+  useHead({ title: 'Menu — Wildloop' })
 
   // The tab bar holds the two things people do every day, the feed and
   // recording; everything else

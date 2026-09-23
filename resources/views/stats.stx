@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Training Stats - WildLoop')
+@section('title', 'Training Stats - Wildloop')
 
 @section('content')
 <script server>
@@ -13,8 +13,8 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Training Stats — WildLoop',
-    description: 'Your training volume, elevation and streaks on WildLoop.',
+    title: 'Training Stats — Wildloop',
+    description: 'Your training volume, elevation and streaks on Wildloop.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -22,7 +22,7 @@
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
 
-  useHead({ title: 'Training Stats — WildLoop' })
+  useHead({ title: 'Training Stats — Wildloop' })
 
   const wl = useStore('wl')
   const period = state<'weekly' | 'monthly' | 'alltime'>('weekly')

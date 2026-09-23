@@ -40,7 +40,7 @@
 
   <template #tab-bar>
     <div class="native-tab-visibility">
-      <NativeTabBar label="WildLoop navigation">
+      <NativeTabBar label="Wildloop navigation">
         <NativeTabItem label="Feed" href="/feed" icon="i-lucide-house" />
         <NativeTabItem label="Record" href="/record" icon="i-lucide-circle-dot" />
         <NativeTabItem label="Menu" href="/menu" icon="i-lucide-menu" />

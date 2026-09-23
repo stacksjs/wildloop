@@ -17,7 +17,7 @@
 
 export type ActivityKind = 'run' | 'bike' | 'walk' | 'hike' | 'other'
 
-/** Map WildLoop's free-text activity type onto the curves below. */
+/** Map Wildloop's free-text activity type onto the curves below. */
 export function activityKind(activityType: string): ActivityKind {
   const value = activityType.trim().toLowerCase()
   // `bik` rather than `bike`: athletes write "Mountain Biking" as often as "Bike".

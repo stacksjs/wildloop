@@ -160,9 +160,9 @@ export function queuedRunMessage(error: unknown): string {
     return 'Saved on this device. Sign in again and it will upload.'
   if (status && status >= 400 && status < 500) {
     const reason = error instanceof Error && error.message ? ` (${error.message})` : ''
-    return `Saved on this device, but WildLoop did not accept it yet${reason}. It will keep trying.`
+    return `Saved on this device, but Wildloop did not accept it yet${reason}. It will keep trying.`
   }
-  return 'Saved on this device and will sync when WildLoop is online'
+  return 'Saved on this device and will sync when Wildloop is online'
 }
 
 export interface ActivityUpdatePayload {

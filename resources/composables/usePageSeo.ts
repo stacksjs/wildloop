@@ -93,7 +93,7 @@ export function setPageSeo(seo: PageSeo): void {
   }
 }
 
-/** `Gabrielino NRT — Angeles National Forest, CA | WildLoop` */
+/** `Gabrielino NRT — Angeles National Forest, CA | Wildloop` */
 export function recordTitle(name: string, context?: string | null): string {
-  return context ? `${name} — ${context} | WildLoop` : `${name} | WildLoop`
+  return context ? `${name} — ${context} | Wildloop` : `${name} | Wildloop`
 }

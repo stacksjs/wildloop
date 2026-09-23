@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'WildLoop - Find your next adventure')
+@section('title', 'Wildloop - Find your next adventure')
 
 @section('content')
 <script server>
@@ -19,19 +19,19 @@
    * relative path is dropped and the link previews as a bare URL.
    */
   useSeoMeta({
-    title: 'Find your next adventure — WildLoop',
+    title: 'Find your next adventure — Wildloop',
     description: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
     canonical: 'https://wildloop.org/',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Find your next adventure — WildLoop',
+    ogTitle: 'Find your next adventure — Wildloop',
     ogDescription: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Find your next adventure — WildLoop',
+    twitterTitle: 'Find your next adventure — Wildloop',
     twitterDescription: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
@@ -42,7 +42,7 @@
 
   // Built once at render time. The address never changes, so there is nothing
   // for the browser to compute and no encoder to ship to it.
-  const appQr = qrBrandedMarkup('https://wildloop.org/app', { title: 'Scan to get WildLoop on your phone' })
+  const appQr = qrBrandedMarkup('https://wildloop.org/app', { title: 'Scan to get Wildloop on your phone' })
 </script>
 
 <script client>
@@ -110,7 +110,7 @@
   const topRegions = derived(() => coverage().states.slice(0, 16))
 
   /*
-   * Autocomplete. Suggestions come from WildLoop's own records only (regions,
+   * Autocomplete. Suggestions come from Wildloop's own records only (regions,
    * the places trails are recorded at, and trail names) via
    * GET /api/search/suggest, so every one opens onto trails that exist.
    *
@@ -395,7 +395,7 @@
 
   onMount(() => {
     // The landing page is an acquisition surface: it exists to be found by
-    // someone who has never heard of WildLoop. Nobody opens an app to read
+    // someone who has never heard of Wildloop. Nobody opens an app to read
     // one, so the shell goes straight to the Feed and leaves this page to the
     // web, where it earns its keep.
     if (isNativeMobile()) {
@@ -729,7 +729,7 @@
         <p class="section-kicker text-emerald-300">Live from the yard</p>
         <h2 class="mt-4 max-w-[14ch] font-display text-4xl font-bold leading-[0.98] tracking-[-0.045em] text-[#eff6f2] sm:text-5xl">Backyard ultras, lap by lap.</h2>
         <p class="mt-6 max-w-[34rem] text-lg leading-relaxed text-[#a9bab2]">
-          A yard every hour until one runner is left. WildLoop runs the corral clock, records each lap as it lands, and publishes
+          A yard every hour until one runner is left. Wildloop runs the corral clock, records each lap as it lands, and publishes
           the standings live — so anyone with the link can watch the field shrink from wherever they are.
         </p>
         <ul class="mt-8 space-y-4 text-sm font-semibold text-[#dce7e1]">
@@ -793,9 +793,9 @@
 
   <section class="share-stage">
     <div class="mx-auto grid max-w-7xl gap-14 px-4 py-20 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:gap-20 lg:px-8 lg:py-28">
-      <div class="share-cards section-rise" aria-label="WildLoop activity image examples">
-        <Image x-src="sampleSquare" alt="Square WildLoop activity image with a route trace and activity metrics" width="1080" height="1080" sizes="(max-width: 1024px) 80vw, 42vw" placeholder="blur" class="share-square" />
-        <Image x-src="sampleStory" alt="Vertical WildLoop story image with a route trace and activity metrics" width="1080" height="1920" sizes="(max-width: 1024px) 45vw, 24vw" placeholder="blur" class="share-story" />
+      <div class="share-cards section-rise" aria-label="Wildloop activity image examples">
+        <Image x-src="sampleSquare" alt="Square Wildloop activity image with a route trace and activity metrics" width="1080" height="1080" sizes="(max-width: 1024px) 80vw, 42vw" placeholder="blur" class="share-square" />
+        <Image x-src="sampleStory" alt="Vertical Wildloop story image with a route trace and activity metrics" width="1080" height="1920" sizes="(max-width: 1024px) 45vw, 24vw" placeholder="blur" class="share-story" />
       </div>
       <div class="section-rise">
         <p class="section-kicker text-emerald-300">Built to leave the feed</p>
@@ -815,7 +815,7 @@
     <div class="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1fr_0.85fr] lg:items-center lg:gap-20 lg:px-8 lg:py-24">
       <div>
         <p class="section-kicker">Take it with you</p>
-        <h2 class="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.99] tracking-[-0.04em] sm:text-5xl">Put WildLoop on your phone.</h2>
+        <h2 class="mt-4 max-w-[16ch] font-display text-4xl font-bold leading-[0.99] tracking-[-0.04em] sm:text-5xl">Put Wildloop on your phone.</h2>
         <p class="mt-6 max-w-[36rem] text-lg leading-relaxed text-current/65">
           Live GPS, offline maps, and lap reporting in your pocket. It installs straight from this page — no store account,
           no download queue, and it updates itself.
@@ -833,7 +833,7 @@
             class="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
           >
             <i class="i-lucide-download h-4 w-4" aria-hidden="true"></i>
-            Install WildLoop
+            Install Wildloop
           </button>
 
           <StxLink :if="!installed" to="/app" class="inline-flex items-center justify-center gap-2 rounded-full border border-current/20 px-7 py-3.5 text-sm font-bold transition hover:border-emerald-500 hover:text-emerald-700 active:scale-[0.98] dark:hover:text-emerald-300">
@@ -847,10 +847,10 @@
         <p :if="!installed && !canPrompt && platform === 'ios'" class="mt-5 max-w-[36rem] rounded-2xl border border-current/12 px-5 py-4 text-sm leading-relaxed text-current/70">
           <span class="font-semibold">On iPhone and iPad:</span> open this page in Safari, tap
           <span class="font-semibold">Share</span> <i class="i-lucide-share h-3.5 w-3.5 align-[-2px]" aria-hidden="true"></i>, then
-          <span class="font-semibold">Add to Home Screen</span>. WildLoop then opens full screen, with its own icon.
+          <span class="font-semibold">Add to Home Screen</span>. Wildloop then opens full screen, with its own icon.
         </p>
         <p :if="!installed && !canPrompt && platform === 'desktop'" class="mt-5 max-w-[36rem] text-sm leading-relaxed text-current/60">
-          On a computer your browser may offer the install button in the address bar. The phone is where WildLoop earns its keep, though —
+          On a computer your browser may offer the install button in the address bar. The phone is where Wildloop earns its keep, though —
           open <span class="font-semibold">wildloop.org</span> there and install it in two taps.
         </p>
       </div>

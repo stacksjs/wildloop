@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Activity Details - WildLoop')
+@section('title', 'Activity Details - Wildloop')
 
 @section('content')
 <script client>
@@ -14,7 +14,7 @@
   import { downloadGpxFile } from '../../functions/activity-files'
   import { avatarInitial, avatarTint } from '../../functions/avatars'
 
-  useHead({ title: 'Activity Details - WildLoop' })
+  useHead({ title: 'Activity Details - Wildloop' })
 
   const wl = useStore('wl')
   const hasKudos = state(false)
@@ -487,7 +487,7 @@
         <div class="flex items-center justify-center bg-[#091310] p-5 sm:p-7">
           <Image
             x-src="sharePreview"
-            alt="Shareable WildLoop activity image with route and performance metrics"
+            alt="Shareable Wildloop activity image with route and performance metrics"
             x-width="sharePreset === 'landscape' ? 1200 : 1080"
             x-height="sharePreset === 'story' ? 1920 : sharePreset === 'landscape' ? 630 : 1080"
             sizes="(max-width: 1024px) 100vw, 50vw"

@@ -40,6 +40,6 @@ describe('personal bests', () => {
   it('formats durations and share text for a person, not a parser', () => {
     expect(formatDuration(59 * 60)).toBe('59m')
     expect(formatDuration(3600 + 60)).toBe('1h 1m')
-    expect(shareText(personalBests(runs)[0])).toBe('Longest activity: 4.9 mi on WildLoop')
+    expect(shareText(personalBests(runs)[0])).toBe('Longest activity: 4.9 mi on Wildloop')
   })
 })

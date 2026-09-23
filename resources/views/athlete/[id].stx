@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Athlete - WildLoop')
+@section('title', 'Athlete - Wildloop')
 
 @section('content')
 <script client>
@@ -10,7 +10,7 @@
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../../functions/route-records'
 
-  useHead({ title: 'Athlete - WildLoop' })
+  useHead({ title: 'Athlete - Wildloop' })
 
   const wl = useStore('wl')
   const profile = state<any>(null)
@@ -133,8 +133,8 @@
     setPageSeo({
       title: recordTitle(seoName),
       description: seoParts.length
-        ? `${seoName} on WildLoop — ${seoParts.join(', ')}. Recent runs, territory and records.`
-        : `${seoName} on WildLoop. Recent runs, territory and records.`,
+        ? `${seoName} on Wildloop — ${seoParts.join(', ')}. Recent runs, territory and records.`
+        : `${seoName} on Wildloop. Recent runs, territory and records.`,
       canonical: `/athlete/${seoId}`,
     })
   })
@@ -201,7 +201,7 @@
 
         <div :if="safetyOpen && !isSelf" class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/60">
           <p class="text-sm font-semibold text-slate-900 dark:text-white">Safety</p>
-          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Report this athlete to the WildLoop team, or block them.</p>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Report this athlete to the Wildloop team, or block them.</p>
           <div class="mt-3 flex flex-col gap-2 sm:flex-row">
             <select x-value="reportReason" @change="reportReason.set($event.target.value)" aria-label="Report reason" class="min-h-11 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
               <option value="harassment">Harassment</option>

@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Records - WildLoop')
+@section('title', 'Records - Wildloop')
 
 @section('content')
 <script server>
@@ -13,19 +13,19 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Trail Records — WildLoop',
+    title: 'Trail Records — Wildloop',
     description: 'Fastest known times on trails across the catalog: current records, recent claims, and how each one was verified.',
     canonical: 'https://wildloop.org/records',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Trail Records — WildLoop',
+    ogTitle: 'Trail Records — Wildloop',
     ogDescription: 'Fastest known times on trails across the catalog: current records, recent claims, and how each one was verified.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/records',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Trail Records — WildLoop',
+    twitterTitle: 'Trail Records — Wildloop',
     twitterDescription: 'Fastest known times on trails across the catalog: current records, recent claims, and how each one was verified.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
@@ -35,7 +35,7 @@
   import { useRecordsFeed, CATEGORY_LABELS, STATUS_LABELS, STYLE_LABELS } from '../composables/useRouteRecords'
   import { MIN_RECORD_DISTANCE_MI, MIN_RECORD_ELEVATION_FT } from '../functions/route-records'
 
-  useHead({ title: 'Trail Records — WildLoop' })
+  useHead({ title: 'Trail Records — Wildloop' })
 
   const {
     tab, records, tracking, loading, loadError,
@@ -114,7 +114,7 @@
         </p>
         <h1 class="font-display text-3xl font-bold tracking-[-0.03em] sm:text-4xl dark:text-white">Records</h1>
         <p class="mt-1.5 max-w-[56ch] text-sm leading-relaxed text-gray-500 dark:text-slate-400">
-          The fastest known times on WildLoop's routes. Every time is filed under the style it was run in, verified against its GPS trace, and ranked on elapsed time from the trailhead.
+          The fastest known times on Wildloop's routes. Every time is filed under the style it was run in, verified against its GPS trace, and ranked on elapsed time from the trailhead.
         </p>
       </div>
       <StxLink to="/trails" class="shrink-0 self-start rounded-full bg-emerald-600 px-5 py-2.5 sm:self-auto text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">

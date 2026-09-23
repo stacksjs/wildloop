@@ -2,7 +2,7 @@
   // The copyright year is a render-time constant, so it is computed here
   // rather than shipped to the browser. It also has to survive the client
   // scope below failing to hydrate: the footer is on every page, and a
-  // copyright line reading "© WildLoop" with the year missing is the most
+  // copyright line reading "© Wildloop" with the year missing is the most
   // visible thing on the site when it does.
   const year = new Date().getFullYear()
 </script>
@@ -20,7 +20,7 @@
       <div>
         <div class="flex items-center gap-2">
           <BrandMark />
-          <span class="font-display text-base font-bold tracking-wide">WildLoop</span>
+          <span class="font-display text-base font-bold tracking-wide">Wildloop</span>
         </div>
         <p class="mt-3 max-w-[28ch] text-sm leading-relaxed text-slate-500 dark:text-slate-400">
           Find trails. Track miles. Hold ground.
@@ -103,7 +103,7 @@
         and the <a href="https://public-nps.opendata.arcgis.com/" rel="noopener" class="underline decoration-slate-300 underline-offset-2 transition hover:text-emerald-600 dark:decoration-slate-600 dark:hover:text-emerald-400">National Park Service</a>.
         Conditions change. Check with the land manager before you go.
       </p>
-      <p class="shrink-0 text-xs text-slate-400 dark:text-slate-500">© {{ year }} WildLoop</p>
+      <p class="shrink-0 text-xs text-slate-400 dark:text-slate-500">© {{ year }} Wildloop</p>
     </div>
   </div>
 </footer>

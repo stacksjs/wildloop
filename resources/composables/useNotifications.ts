@@ -33,7 +33,7 @@ export async function hydrateNotifications(wl: NotificationStoreLike | null): Pr
     const mapped = data.notifications.map((n: any) => ({
       id: n.id,
       type: n.type,
-      title: n.actorName || 'WildLoop',
+      title: n.actorName || 'Wildloop',
       message: n.body,
       link: n.link || '#',
       read: !!n.read,

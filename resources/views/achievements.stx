@@ -1,11 +1,11 @@
 @extends('layouts/default')
 
-@section('title', 'Achievements - WildLoop')
+@section('title', 'Achievements - Wildloop')
 
 @section('content')
 <script server>
   useSeoMeta({
-    title: 'Achievements — WildLoop',
+    title: 'Achievements — Wildloop',
     description: 'Your personal bests and your year on the trail.',
     robots: 'noindex, nofollow',
   })
@@ -18,7 +18,7 @@
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
   import { formatMiles, monthlyProgress, personalBests, shareText } from '../functions/personal-bests'
 
-  useHead({ title: 'Achievements — WildLoop' })
+  useHead({ title: 'Achievements — Wildloop' })
 
   const wl = useStore('wl')
   useAchievementCatalog(wl)

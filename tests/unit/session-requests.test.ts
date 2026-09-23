@@ -98,7 +98,7 @@ describe('recorded runs', () => {
   })
 
   it('tell the athlete why their run is waiting', () => {
-    expect(queuedRunMessage(new TypeError('Failed to fetch'))).toBe('Saved on this device and will sync when WildLoop is online')
+    expect(queuedRunMessage(new TypeError('Failed to fetch'))).toBe('Saved on this device and will sync when Wildloop is online')
     expect(queuedRunMessage(Object.assign(new Error('Unauthenticated'), { status: 401 }))).toContain('Sign in again')
   })
 })

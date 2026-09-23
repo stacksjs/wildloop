@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Admin overview - WildLoop')
+@section('title', 'Admin overview - Wildloop')
 
 @section('content')
 <script server>
@@ -16,8 +16,8 @@
    * missing here while every other signed-in surface had it.
    */
   useSeoMeta({
-    title: 'Admin — WildLoop',
-    description: 'WildLoop administration.',
+    title: 'Admin — Wildloop',
+    description: 'Wildloop administration.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -28,7 +28,7 @@
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../functions/route-records'
 
-  useHead({ title: 'Admin — WildLoop' })
+  useHead({ title: 'Admin — Wildloop' })
 
   const loading = state(true)
   const error = state('')

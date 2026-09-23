@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Log In - WildLoop')
+@section('title', 'Log In - Wildloop')
 
 @section('content')
 <script server>
@@ -13,20 +13,20 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Log In — WildLoop',
-    description: 'Log in to WildLoop to record runs, claim territory and follow the athletes and clubs you care about.',
+    title: 'Log In — Wildloop',
+    description: 'Log in to Wildloop to record runs, claim territory and follow the athletes and clubs you care about.',
     canonical: 'https://wildloop.org/login',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Log In — WildLoop',
-    ogDescription: 'Log in to WildLoop to record runs, claim territory and follow the athletes and clubs you care about.',
+    ogTitle: 'Log In — Wildloop',
+    ogDescription: 'Log in to Wildloop to record runs, claim territory and follow the athletes and clubs you care about.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/login',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Log In — WildLoop',
-    twitterDescription: 'Log in to WildLoop to record runs, claim territory and follow the athletes and clubs you care about.',
+    twitterTitle: 'Log In — Wildloop',
+    twitterDescription: 'Log in to Wildloop to record runs, claim territory and follow the athletes and clubs you care about.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
@@ -34,7 +34,7 @@
 <script client>
   import { postAuthDestination, readyToken, redirectAfterAuth, signIn } from '../assets/scripts/auth'
 
-  useHead({ title: 'Log In — WildLoop' })
+  useHead({ title: 'Log In — Wildloop' })
 
   const email = state('')
   const password = state('')
@@ -91,7 +91,7 @@
       <div class="p-8 bg-white dark:bg-slate-800 border border-gray-100 rounded-2xl dark:border-slate-700 shadow-xl">
         <div class="mb-8 text-center">
           <StxLink to="/" class="inline-flex items-center mb-6 font-bold text-emerald-600 text-xl">
-            <BrandMark size="lg" /> WildLoop
+            <BrandMark size="lg" /> Wildloop
           </StxLink>
           <h1 class="mb-2 font-bold text-3xl text-gray-900 dark:text-white">Welcome Back</h1>
           <p class="text-gray-500 dark:text-slate-400">Sign in to continue your trail adventures</p>

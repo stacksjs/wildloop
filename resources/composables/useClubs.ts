@@ -76,7 +76,7 @@ export function useClubs(wl: ClubStoreLike | null) {
   }
 
   function openCreate() {
-    if (!requireAuth('Create a club to bring your crew onto WildLoop.', () => openCreate()))
+    if (!requireAuth('Create a club to bring your crew onto Wildloop.', () => openCreate()))
       return
 
     fName.set('')

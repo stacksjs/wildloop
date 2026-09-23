@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Route Planner - WildLoop')
+@section('title', 'Route Planner - Wildloop')
 
 @section('content')
 <script server>
@@ -13,19 +13,19 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Route Planner — WildLoop',
+    title: 'Route Planner — Wildloop',
     description: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
     canonical: 'https://wildloop.org/routes',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Route Planner — WildLoop',
+    ogTitle: 'Route Planner — Wildloop',
     ogDescription: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/routes',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Route Planner — WildLoop',
+    twitterTitle: 'Route Planner — Wildloop',
     twitterDescription: 'Build a route from verified trail geometry and save it for offline navigation, with distance and elevation as you go.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
@@ -35,7 +35,7 @@
   import { apiFetch, readyToken } from '../assets/scripts/auth'
   import { routeShapeFor } from '../composables/useRouteShape'
 
-  useHead({ title: 'Route Planner — WildLoop' })
+  useHead({ title: 'Route Planner — Wildloop' })
   const wl = useStore('wl')
 
   // The catalog itself is hydrated by the layout, which decides per path what

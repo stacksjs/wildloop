@@ -1,12 +1,12 @@
 @extends('layouts/default')
 
-@section('title', 'Search - WildLoop')
+@section('title', 'Search - Wildloop')
 
 @section('content')
 <script server>
   useSeoMeta({
-    title: 'Search — WildLoop',
-    description: 'Search trails, places, athletes, clubs and events on WildLoop.',
+    title: 'Search — Wildloop',
+    description: 'Search trails, places, athletes, clubs and events on Wildloop.',
     robots: 'noindex, nofollow',
   })
 </script>
@@ -16,7 +16,7 @@
   import { groupSearchResults } from '../functions/search-results'
   import { avatarTint } from '../functions/avatars'
 
-  useHead({ title: 'Search — WildLoop' })
+  useHead({ title: 'Search — Wildloop' })
 
   // One box for everything the app can find: places and regions, trails,
   // athletes, clubs and events. Every group is a plain API answer; there is no
@@ -129,7 +129,7 @@
       <i class="i-lucide-chevron-left h-6 w-6" aria-hidden="true"></i>
     </StxLink>
     <label class="relative flex-1">
-      <span class="sr-only">Search WildLoop</span>
+      <span class="sr-only">Search Wildloop</span>
       <i class="i-lucide-search pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true"></i>
       <input
         type="search"

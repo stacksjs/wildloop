@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Trail Details - WildLoop')
+@section('title', 'Trail Details - Wildloop')
 
 @section('content')
 <script client>
@@ -24,7 +24,7 @@
 
   // The served shell's title. Replaced with the trail's own once it loads —
   // see the effect below, and usePageSeo for why that happens on the client.
-  useHead({ title: 'Trail Details - WildLoop' })
+  useHead({ title: 'Trail Details - Wildloop' })
 
   const wl = useStore('wl')
   const { onToggleSave } = useSavedTrails(wl)
@@ -239,7 +239,7 @@
 
     await shareLink({
       title: current.name,
-      text: `${current.name}${current.location ? ` — ${current.location}` : ''} on WildLoop`,
+      text: `${current.name}${current.location ? ` — ${current.location}` : ''} on Wildloop`,
       url: `/trail/${current.id}`,
     })
   }
@@ -402,8 +402,8 @@
     const where = current.location ? ` in ${current.location}` : ''
 
     return facts
-      ? `${current.name}${where}. ${facts}. Route map, records and recent conditions on WildLoop.`
-      : `${current.name}${where}. Route map, records and recent conditions on WildLoop.`
+      ? `${current.name}${where}. ${facts}. Route map, records and recent conditions on Wildloop.`
+      : `${current.name}${where}. Route map, records and recent conditions on Wildloop.`
   }
 
   async function toggleOfflineDownload() {

@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Activity Feed - WildLoop')
+@section('title', 'Activity Feed - Wildloop')
 
 @section('content')
 <script server>
@@ -19,20 +19,20 @@
    * relative path is dropped and the link previews as a bare URL.
    */
   useSeoMeta({
-    title: 'Activity feed — WildLoop',
-    description: 'Runs, hikes, kudos and turf changing hands — the WildLoop community as it happens.',
+    title: 'Activity feed — Wildloop',
+    description: 'Runs, hikes, kudos and turf changing hands — the Wildloop community as it happens.',
     canonical: 'https://wildloop.org/feed',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Activity feed — WildLoop',
-    ogDescription: 'Runs, hikes, kudos and turf changing hands — the WildLoop community as it happens.',
+    ogTitle: 'Activity feed — Wildloop',
+    ogDescription: 'Runs, hikes, kudos and turf changing hands — the Wildloop community as it happens.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/feed',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Activity feed — WildLoop',
-    twitterDescription: 'Runs, hikes, kudos and turf changing hands — the WildLoop community as it happens.',
+    twitterTitle: 'Activity feed — Wildloop',
+    twitterDescription: 'Runs, hikes, kudos and turf changing hands — the Wildloop community as it happens.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>

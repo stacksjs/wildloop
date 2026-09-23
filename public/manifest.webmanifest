@@ -1,6 +1,6 @@
 {
-  "name": "WildLoop",
-  "short_name": "WildLoop",
+  "name": "Wildloop",
+  "short_name": "Wildloop",
   "description": "Discover trails, record outdoor activities, and capture territory.",
   "start_url": "/",
   "display": "standalone",

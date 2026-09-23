@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Territory Map - WildLoop')
+@section('title', 'Territory Map - Wildloop')
 
 @section('content')
 <script server>
@@ -19,19 +19,19 @@
    * relative path is dropped and the link previews as a bare URL.
    */
   useSeoMeta({
-    title: 'Territory — WildLoop',
+    title: 'Territory — Wildloop',
     description: 'Every closed loop you run claims the ground inside it. See who holds what, and what is being contested right now.',
     canonical: 'https://wildloop.org/territories',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Territory — WildLoop',
+    ogTitle: 'Territory — Wildloop',
     ogDescription: 'Every closed loop you run claims the ground inside it. See who holds what, and what is being contested right now.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/territories',
     ogImage: 'https://wildloop.org/images/social/og-territory.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Territory — WildLoop',
+    twitterTitle: 'Territory — Wildloop',
     twitterDescription: 'Every closed loop you run claims the ground inside it. See who holds what, and what is being contested right now.',
     twitterImage: 'https://wildloop.org/images/social/og-territory.jpg',
   })

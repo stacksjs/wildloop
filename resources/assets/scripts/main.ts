@@ -1,4 +1,4 @@
-// WildLoop - app entry
+// Wildloop - app entry
 import { registerWildLoopServiceWorker } from './pwa'
 
 registerWildLoopServiceWorker()

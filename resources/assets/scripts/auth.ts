@@ -145,7 +145,7 @@ function plainHeaders(input: HeadersInit | undefined): Record<string, string> {
 }
 
 /**
- * `fetch` for the WildLoop API.
+ * `fetch` for the Wildloop API.
  *
  * It waits for the session to be restored before sending anything, so the
  * first requests after a cold start no longer go out anonymous, and it sends
@@ -461,7 +461,7 @@ export async function refreshCurrentUser(): Promise<AuthUser | null> {
       return currentUser()
 
     const payload = await response.json().catch(() => null)
-    // WildLoop wraps this as `{ user }`; the framework default returns the
+    // Wildloop wraps this as `{ user }`; the framework default returns the
     // user directly. Supporting both keeps a generated action from turning a
     // valid restored session into an anonymous-looking account menu.
     const user = (payload?.user ?? payload) as AuthUser | undefined

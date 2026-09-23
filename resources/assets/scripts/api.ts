@@ -1,5 +1,5 @@
 /**
- * WildLoop API Client
+ * Wildloop API Client
  *
  * Client-side API initialization and data fetching utilities.
  * Import this in STX files for typed API access.

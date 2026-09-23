@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Challenges - WildLoop')
+@section('title', 'Challenges - Wildloop')
 
 @section('content')
 <script server>
@@ -13,19 +13,19 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Challenges — WildLoop',
+    title: 'Challenges — Wildloop',
     description: 'Challenge other athletes for the ground they hold, and see which territories are contested right now.',
     canonical: 'https://wildloop.org/challenges',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Challenges — WildLoop',
+    ogTitle: 'Challenges — Wildloop',
     ogDescription: 'Challenge other athletes for the ground they hold, and see which territories are contested right now.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/challenges',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Challenges — WildLoop',
+    twitterTitle: 'Challenges — Wildloop',
     twitterDescription: 'Challenge other athletes for the ground they hold, and see which territories are contested right now.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
@@ -35,7 +35,7 @@
   import { useChallenges } from '../composables/useChallenges'
   import { formatTerritoryArea } from '../functions/territory-style'
 
-  useHead({ title: 'Challenges — WildLoop' })
+  useHead({ title: 'Challenges — Wildloop' })
 
   const wl = useStore('wl')
   const tab = state<'active' | 'sent' | 'received' | 'completed'>('active')

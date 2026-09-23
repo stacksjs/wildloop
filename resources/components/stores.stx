@@ -327,7 +327,7 @@
   }
 
   const appServices: Partial<AppServices> = {}
-  const SERVICES_NOT_READY = 'WildLoop is still starting. Try again in a moment.'
+  const SERVICES_NOT_READY = 'Wildloop is still starting. Try again in a moment.'
 
   const seedSegments: Segment[] = [
     { id: 1, name: 'Cascade Switchbacks', trail_id: 3, distance: 1.2, elevation: 480, leaderTime: '8:15', leaderName: 'Marcus Johnson', yourTime: '8:52', yourRank: 3, totalAttempts: 45 },
@@ -882,7 +882,7 @@
     // the new shape/seed actually takes effect instead of being masked.
     // History: v3 - territory status 'secure' -> 'active' (#942);
     //          v4 - added savedTrailIds for saved trails (#969).
-    // The WildLoop rebrand rotated the namespace off `trailbuddy-tb-`, which
+    // The Wildloop rebrand rotated the namespace off `trailbuddy-tb-`, which
     // already orphans every snapshot written under the old name. The shape is
     // unchanged, so the suffix stays at v4 and the key drops the now-redundant
     // store-id segment rather than reading `wildloop-wl-`.

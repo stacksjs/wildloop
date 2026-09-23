@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Terms of Service - WildLoop')
+@section('title', 'Terms of Service - Wildloop')
 
 @section('content')
 <script server>
@@ -13,26 +13,26 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Terms of Service — WildLoop',
-    description: 'The terms you agree to when using WildLoop, covering accounts, content, territory rules and acceptable use.',
+    title: 'Terms of Service — Wildloop',
+    description: 'The terms you agree to when using Wildloop, covering accounts, content, territory rules and acceptable use.',
     canonical: 'https://wildloop.org/terms',
     robots: 'index, follow, max-image-preview:large',
-    ogTitle: 'Terms of Service — WildLoop',
-    ogDescription: 'The terms you agree to when using WildLoop, covering accounts, content, territory rules and acceptable use.',
+    ogTitle: 'Terms of Service — Wildloop',
+    ogDescription: 'The terms you agree to when using Wildloop, covering accounts, content, territory rules and acceptable use.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/terms',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
-    ogSiteName: 'WildLoop',
+    ogSiteName: 'Wildloop',
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
-    twitterTitle: 'Terms of Service — WildLoop',
-    twitterDescription: 'The terms you agree to when using WildLoop, covering accounts, content, territory rules and acceptable use.',
+    twitterTitle: 'Terms of Service — Wildloop',
+    twitterDescription: 'The terms you agree to when using Wildloop, covering accounts, content, territory rules and acceptable use.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
 
 <script client>
-  useHead({ title: 'Terms of Service — WildLoop' })
+  useHead({ title: 'Terms of Service — Wildloop' })
 </script>
 
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -44,32 +44,32 @@
     <div class="space-y-8 text-gray-600 dark:text-slate-300 leading-relaxed">
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">1. Acceptance of terms</h2>
-        <p>By creating a WildLoop account or using the app, you agree to these Terms of Service. If you don't agree, please don't use WildLoop.</p>
+        <p>By creating a Wildloop account or using the app, you agree to these Terms of Service. If you don't agree, please don't use Wildloop.</p>
       </section>
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">2. Your account</h2>
-        <p>You're responsible for keeping your login credentials secure and for all activity that happens under your account. Tell us right away if you suspect unauthorized use. You must be at least 13 years old to use WildLoop.</p>
+        <p>You're responsible for keeping your login credentials secure and for all activity that happens under your account. Tell us right away if you suspect unauthorized use. You must be at least 13 years old to use Wildloop.</p>
       </section>
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">3. Activities and territory game</h2>
-        <p>WildLoop records GPS activities and runs a territory-conquest game on top of them. Submit only your own genuine activity data. Fabricated, manipulated, or impossible GPS tracks may be rejected by our anti-cheat checks and can lead to removal of claimed territory or your account.</p>
+        <p>Wildloop records GPS activities and runs a territory-conquest game on top of them. Submit only your own genuine activity data. Fabricated, manipulated, or impossible GPS tracks may be rejected by our anti-cheat checks and can lead to removal of claimed territory or your account.</p>
       </section>
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">4. Your content</h2>
-        <p>You keep ownership of the activities, reviews, photos, and comments you post. You grant WildLoop a license to store and display that content so the app can function. Don't post content that's unlawful, harassing, or infringes someone else's rights.</p>
+        <p>You keep ownership of the activities, reviews, photos, and comments you post. You grant Wildloop a license to store and display that content so the app can function. Don't post content that's unlawful, harassing, or infringes someone else's rights.</p>
       </section>
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">5. Safety</h2>
-        <p>Outdoor activity carries real risk. WildLoop is a tracking and social tool, not a safety device or navigation authority. Always assess conditions yourself, follow local rules, and don't trespass to claim territory. You participate at your own risk.</p>
+        <p>Outdoor activity carries real risk. Wildloop is a tracking and social tool, not a safety device or navigation authority. Always assess conditions yourself, follow local rules, and don't trespass to claim territory. You participate at your own risk.</p>
       </section>
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">6. Changes</h2>
-        <p>We may update these terms as WildLoop evolves. We'll revise the "last updated" date above; continued use after a change means you accept the new terms.</p>
+        <p>We may update these terms as Wildloop evolves. We'll revise the "last updated" date above; continued use after a change means you accept the new terms.</p>
       </section>
 
       <section>

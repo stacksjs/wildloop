@@ -12,7 +12,7 @@ const envVars = typeof Bun !== 'undefined' ? Bun.env : process.env
  */
 export default {
   from: {
-    name: envVars.MAIL_FROM_NAME || 'WildLoop',
+    name: envVars.MAIL_FROM_NAME || 'Wildloop',
     address: envVars.MAIL_FROM_ADDRESS || 'no-reply@wildloop.org',
   },
 

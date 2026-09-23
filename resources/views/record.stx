@@ -1,6 +1,6 @@
 @extends('layouts/default')
 
-@section('title', 'Record - WildLoop')
+@section('title', 'Record - Wildloop')
 
 @section('content')
 <script server>
@@ -13,7 +13,7 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Record a Run — WildLoop',
+    title: 'Record a Run — Wildloop',
     description: 'Record a run with live GPS, pace, splits and territory capture.',
     robots: 'noindex, nofollow',
   })
@@ -24,7 +24,7 @@
   import { useActivityImport } from '../composables/useActivityImport'
   import { useMyLiveEvent } from '../composables/useMyLiveEvent'
 
-  useHead({ title: 'Record a Run — WildLoop' })
+  useHead({ title: 'Record a Run — Wildloop' })
 
   const wl = useStore('wl')
   const { importing, importMessage, importError, importFile } = useActivityImport(wl)

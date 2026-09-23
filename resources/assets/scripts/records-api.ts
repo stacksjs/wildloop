@@ -3,7 +3,7 @@
  *
  * Reads go out unauthenticated by design. A records board is a reference work
  * — a route page is the thing somebody links to from a forum post — and the
- * tracking board is opened by crew and family who have no WildLoop account.
+ * tracking board is opened by crew and family who have no Wildloop account.
  * A session, when there is one, only adds the viewer's own unpublished
  * claims. Writes carry the bearer token and the CSRF echo, same as events-api.
  */

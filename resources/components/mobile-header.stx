@@ -23,7 +23,7 @@ function tap(): void {
 
 <header x-class="inAppHeader() ? 'native-app-header' : ''" class="native-app-sticky-top sticky z-40 flex h-13 items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 backdrop-blur-xl lg:hidden dark:border-slate-700/70 dark:bg-slate-950/90">
   <!-- Native header links follow the same reliable document navigation as the tab bar. -->
-  <a href="/feed" class="flex items-center gap-2" aria-label="WildLoop feed" @click="tap()">
+  <a href="/feed" class="flex items-center gap-2" aria-label="Wildloop feed" @click="tap()">
     <BrandMark />
     <span class="font-display text-sm font-bold tracking-[0.12em] text-slate-950 dark:text-white">WILDLOOP</span>
   </a>
