@@ -68,10 +68,12 @@
   padding-bottom: calc(var(--native-tab-height) + var(--native-tab-inset));
 }
 
-@media (max-width: 767.98px) {
-  .native-app-shell:has(.native-app-tab-slot) .native-app-content {
-    padding-bottom: calc(var(--native-tab-height) + var(--native-tab-inset));
-  }
+/* Clearance wherever the bar is on screen. It used to stop at 768px, but the
+ * bar stays up to the desktop breakpoint below, so a tablet had the last
+ * row of every page sitting underneath it. The desktop rule further down
+ * takes the clearance away again exactly where it hides the bar. */
+.native-app-shell:has(.native-app-tab-slot) .native-app-content {
+  padding-bottom: calc(var(--native-tab-height) + var(--native-tab-inset));
 }
 
 .native-app-sticky-top { top: var(--native-safe-area-top); }
@@ -187,6 +189,10 @@
  * hide the tab bar, while touch-first native shells keep it at every width. */
 @media (min-width: 1024px) and (pointer: fine) {
   .native-tab-visibility { display: none; }
+  /* The slot, not only its contents. Hiding the bar inside left the fixed
+   * slot itself on screen: 52px of translucent white pinned over the bottom
+   * of every desktop page, covering the footer's last line. */
+  .native-app-shell:not(.native-mobile) .native-app-tab-slot { display: none; }
   .native-app-shell:has(.native-app-tab-slot) .native-app-content { padding-bottom: 0; }
 
   .native-app-shell.native-mobile .native-tab-visibility { display: block; }
