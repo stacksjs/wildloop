@@ -14,6 +14,11 @@
 
   useWildLoopApp()
   useNativeServices()
+
+  // Guests are browsing the marketing site. The application tab bar only
+  // appears after a session has been established.
+  const wl = useStore('wl')
+  const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
 </script>
 
 <NativeAppShell tabBar>
@@ -39,7 +44,7 @@
   <AuthGate />
 
   <template #tab-bar>
-    <div class="native-tab-visibility">
+    <div class="native-tab-visibility" x-class="signedIn() ? '' : 'guest-tabs-hidden'" x-cloak>
       <NativeTabBar label="Wildloop navigation">
         <NativeTabItem label="Feed" href="/feed" icon="i-lucide-house" />
         <NativeTabItem label="Record" href="/record" icon="i-lucide-circle-dot" />
@@ -69,6 +74,16 @@
      open, so no page transition is lost. */
   main:has([data-page-overlay][data-open="true"]) {
     view-transition-name: none;
+  }
+
+  /* Guests get a landing site, not a partially unlocked app shell. Hiding the
+     slot itself also removes the reserved bottom clearance. */
+  .native-app-tab-slot:has(.guest-tabs-hidden) {
+    display: none;
+  }
+
+  .native-app-shell:has(.guest-tabs-hidden) .native-app-content {
+    padding-bottom: var(--native-safe-area-bottom);
   }
 
 </style>
