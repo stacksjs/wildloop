@@ -14,7 +14,10 @@ const config: CrosswindOptions = {
   },
 
   shortcuts: {
-    'card': 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5',
+    // No padding here: a shortcut is emitted after the utilities, so its
+    // `p-5` beat any `p-0` on the same element and framed every map in a card.
+    // The default padding lives in styles.stx at zero specificity instead.
+    'card': 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl',
     'metric-label': 'text-xs uppercase tracking-wide font-medium text-gray-500 dark:text-slate-400',
     'nav-active': 'text-emerald-600 font-semibold',
     'gradient-bg': 'bg-gradient-to-r from-emerald-600 to-teal-600',
