@@ -14,7 +14,9 @@ import type {
   RecordStatus,
   RecordStyle,
 } from '../../functions/route-records'
+import type { LatLng } from './trail-data'
 import { apiFetch, csrfToken, readyToken, token } from './auth'
+import { parseTrailGeometry } from './trail-data'
 
 export type { RecordCategory, RecordDirection, RecordStatus, RecordStyle }
 
@@ -196,6 +198,40 @@ export async function fetchEffort(id: number): Promise<EffortDetailView | null> 
     const res = await apiFetch(`/api/route-efforts/${id}`, { headers: readHeaders() })
     const payload = await res.json().catch(() => null)
     return res.ok && payload?.effort ? payload.effort : null
+  }
+  catch {
+    return null
+  }
+}
+
+/** Where an attempt is run: the route's line, and its trailhead. */
+export interface CourseView {
+  /** Empty when the route has no stored geometry. */
+  line: LatLng[]
+  trailhead: LatLng | null
+}
+
+/**
+ * The course an attempt is run on, to draw on a map.
+ *
+ * Read from the trail rather than carried on the effort: every attempt on a
+ * route shares one course, and a live attempt is watched by people who want
+ * to see where it goes, not just a clock. Many catalog routes have a
+ * trailhead but no stored line, so both come back and the page draws what
+ * there is. Null only when there is neither.
+ */
+export async function fetchCourse(trailId: number): Promise<CourseView | null> {
+  try {
+    const res = await apiFetch(`/api/trails/${trailId}`, { headers: readHeaders() })
+    const payload = await res.json().catch(() => null)
+    if (!res.ok || !payload?.trail)
+      return null
+    const line = parseTrailGeometry(payload.trail.geometry)
+    const lat = Number(payload.trail.lat ?? payload.trail.latitude)
+    const lng = Number(payload.trail.lng ?? payload.trail.longitude)
+    const trailhead: LatLng | null = line[0]
+      ?? (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0) ? [lat, lng] : null)
+    return trailhead ? { line, trailhead } : null
   }
   catch {
     return null

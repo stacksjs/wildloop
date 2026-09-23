@@ -18,6 +18,7 @@ import {
   updateEffort,
   withdrawEffort,
 } from '../assets/scripts/records-api'
+import { formatClock } from '../functions/backyard'
 import { CATEGORY_LABELS, DIRECTION_LABELS, STATUS_LABELS, STYLE_LABELS } from '../functions/route-records'
 
 /**
@@ -320,6 +321,23 @@ export function useEffortDetail(effortId: number) {
   const fFinishedAt = state('')
   const fReviewNote = state('')
 
+  // A live attempt's clock. The API has no elapsed time for an attempt that
+  // has not finished — `elapsedLabel` is a dash until then — so the page
+  // showed "—" in the one place a spectator looks first. Counted here from
+  // the start, the same way the tracking board counts it.
+  const now = state(Date.now())
+  const isLive = derived(() => effort()?.status === 'in_progress')
+  const liveClock = derived(() => {
+    const current = effort()
+    if (!current || current.status !== 'in_progress')
+      return ''
+    const started = Date.parse(current.startedAt)
+    return Number.isFinite(started) ? formatClock(now() - started) : ''
+  })
+
+  let clockTimer: ReturnType<typeof setInterval> | null = null
+  let pollTimer: ReturnType<typeof setInterval> | null = null
+
   async function load() {
     const result = await fetchEffort(effortId)
     if (result === null) {
@@ -360,6 +378,25 @@ export function useEffortDetail(effortId: number) {
 
   onMount(() => {
     void load()
+    clockTimer = setInterval(() => {
+      if (isLive())
+        now.set(Date.now())
+    }, 1000)
+    // A finish, a DNF or a withdrawal should reach somebody watching without a
+    // reload. Same cadence as the tracking board, and only while it is live.
+    pollTimer = setInterval(() => {
+      if (isLive() && !working())
+        void load()
+    }, TRACKING_REFRESH_MS)
+  })
+
+  onDestroy(() => {
+    if (clockTimer)
+      clearInterval(clockTimer)
+    if (pollTimer)
+      clearInterval(pollTimer)
+    clockTimer = null
+    pollTimer = null
   })
 
   return {
@@ -368,6 +405,8 @@ export function useEffortDetail(effortId: number) {
     loadError,
     working,
     actionError,
+    isLive,
+    liveClock,
     fFinishedAt,
     fReviewNote,
     finish,

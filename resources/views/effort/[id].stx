@@ -7,6 +7,8 @@
   import { useEffortDetail, toLocalInputValue, CATEGORY_LABELS, DIRECTION_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { createTrailMap, drawTrailMarker, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
+  import { fetchCourse } from '../../assets/scripts/records-api'
 
   useHead({ title: 'Record Attempt - WildLoop' })
 
@@ -15,10 +17,58 @@
   const effortId = readRouteParam('id') ?? -1
 
   const {
-    effort, loading, loadError, working, actionError,
+    effort, loading, loadError, working, actionError, isLive, liveClock,
     fFinishedAt, fReviewNote,
     finish, markDnf, withdraw, verify, reject, reopen,
   } = useEffortDetail(effortId)
+
+  // The course, drawn. A live attempt is mostly watched by crew and family,
+  // and "Matt Davis – Steep Ravine Loop, 1:12:43" means little without the
+  // line it is being run on. Only the course is drawn: where the athlete is
+  // right now lives on their tracker, and a dot guessed from the clock would
+  // be a position this page does not actually know.
+  const courseReady = state(false)
+  const courseHasLine = state(false)
+  let courseMap: TrailMapHandle | null = null
+  let courseTrailId = 0
+  let cancelCourseMap: (() => void) | null = null
+
+  async function mountCourseMap(course) {
+    courseMap?.destroy()
+    courseMap = await createTrailMap('effort-map', {
+      center: course.trailhead,
+      zoom: 14,
+      scrollWheelZoom: false,
+      chrome: 'compact',
+    })
+    if (!courseMap) return
+    if (course.line.length > 1)
+      await drawTrailRoute(courseMap.map, course.line, { color: '#059669', weight: 5 })
+    await drawTrailMarker(courseMap.map, course.trailhead[0], course.trailhead[1], { difficulty: 'easy', radius: 8, popupHtml: 'Trailhead' })
+    if (course.line.length > 1)
+      courseMap.fitPoints(course.line, [32, 32])
+    else
+      courseMap.map.setView(course.trailhead, 14)
+  }
+
+  effect(() => {
+    const current = effort()
+    if (!current?.trailId || current.trailId === courseTrailId) return
+    courseTrailId = current.trailId
+    void fetchCourse(current.trailId).then((course) => {
+      if (!course) return
+      courseHasLine.set(course.line.length > 1)
+      courseReady.set(true)
+      cancelCourseMap?.()
+      cancelCourseMap = runWhenMapReady('effort-map', () => mountCourseMap(course))
+    })
+  })
+
+  onDestroy(() => {
+    cancelCourseMap?.()
+    courseMap?.destroy()
+    courseMap = null
+  })
 
   const reviewOpen = state(false)
   const finishOpen = state(false)
@@ -98,7 +148,29 @@
         Records
       </StxLink>
 
-      <div class="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800/60">
+      <!-- The course. Shown for every attempt, and the first thing on the page
+           while one is live, with the clock over it. -->
+      <div :show="courseReady()" class="relative mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div id="effort-map" data-stx-ignore class="ts-map-container h-64 sm:h-80"></div>
+
+        <div :if="isLive()" class="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-md backdrop-blur dark:bg-slate-900/90">
+          <span class="relative flex h-2.5 w-2.5" aria-hidden="true">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+            <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500"></span>
+          </span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Live</span>
+          <span class="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ liveClock() }}</span>
+        </div>
+
+        <a :if="isLive() &amp;&amp; effort.trackerUrl" x-href="effort.trackerUrl" target="_blank" rel="noopener noreferrer nofollow" class="absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-red-700 active:scale-[0.98]">
+          <Icon name="radio" size="14" />
+          Follow on the live tracker
+        </a>
+
+        <p :if="!courseHasLine()" class="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-slate-600 shadow-sm dark:bg-slate-900/85 dark:text-slate-300">Trailhead · route line not mapped yet</p>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
         <div class="flex flex-wrap items-center gap-2">
           <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold" x-class="statusTone(effort.status)">{{ statusLabel(effort.status) }}</span>
           <!-- "Headline" means this time also beats every more restrictive
@@ -113,12 +185,12 @@
 
         <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p class="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">Elapsed</p>
-            <p class="mt-1 text-2xl font-bold text-emerald-600">{{ effort.elapsedLabel }}</p>
+            <p class="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ isLive() ? 'On course' : 'Elapsed' }}</p>
+            <p class="mt-1 text-2xl font-bold tabular-nums" x-class="isLive() ? 'text-red-600 dark:text-red-400' : 'text-emerald-600'">{{ isLive() ? liveClock() : effort.elapsedLabel }}</p>
           </div>
           <div>
-            <p class="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">Pace</p>
-            <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ effort.paceLabel }}</p>
+            <p class="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ isLive() ? 'Course' : 'Pace' }}</p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{{ isLive() ? (effort.trailDistance ? effort.trailDistance + ' mi' : '—') : effort.paceLabel }}</p>
           </div>
           <div>
             <p class="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">Style</p>
