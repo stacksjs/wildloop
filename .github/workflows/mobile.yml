@@ -7,6 +7,8 @@ on:
     paths:
       - 'app/**'
       - 'config/mobile.ts'
+      # The app icon config/mobile.ts points at; a bad one fails the iOS build.
+      - 'public/images/app/**'
       - 'package.json'
       - 'bun.lock'
       - 'resources/**'
@@ -17,6 +19,8 @@ on:
     paths:
       - 'app/**'
       - 'config/mobile.ts'
+      # The app icon config/mobile.ts points at; a bad one fails the iOS build.
+      - 'public/images/app/**'
       - 'package.json'
       - 'bun.lock'
       - 'resources/**'

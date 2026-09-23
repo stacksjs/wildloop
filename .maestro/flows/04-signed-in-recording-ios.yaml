@@ -18,12 +18,13 @@ tags:
 - extendedWaitUntil:
     visible: Runs, kudos and turf changing hands.
     timeout: 90000
-- tapOn: "^Menu$"
-# Signed in from an earlier run: Log out lives in Settings, in the Menu.
+# Signed in from an earlier run: only members have the tab bar, and Log out
+# lives in Settings, in the Menu.
 - runFlow:
     when:
-      notVisible: Log in or create an account
+      visible: "^Menu$"
     commands:
+      - tapOn: "^Menu$"
       - tapOn: "^Settings$"
       - scrollUntilVisible:
           element:
@@ -34,11 +35,8 @@ tags:
       - extendedWaitUntil:
           visible: Runs, kudos and turf changing hands.
           timeout: 90000
-      - tapOn: "^Menu$"
-- tapOn: Log in or create an account
-# The sheet's own form shares its "Log in" label with the tab above it; the
-# full page keeps the journey's selectors unambiguous.
-- tapOn: Trouble signing in? Open the full page
+# A guest signs in from the header, which opens the full sign-in page.
+- tapOn: "^Log in$"
 - extendedWaitUntil:
     visible: Welcome Back
     timeout: 30000

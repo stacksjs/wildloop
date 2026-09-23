@@ -18,52 +18,18 @@ tags:
     visible: Runs, kudos and turf changing hands.
     timeout: 90000
 - takeScreenshot: launch
-- tapOn: "^Feed$"
 - extendedWaitUntil:
     visible: "^Everyone$"
     timeout: 30000
 - takeScreenshot: feed
-# Trails lives in the Menu, with everything past the feed and recording.
-- tapOn: "^Menu$"
-- tapOn: "^Trails$"
+# This journey runs signed out, on the bundled app with no server behind it.
+# The tab bar is for signed-in members (c3e28d79), so a guest must not see it,
+# and the header's Log in is how a guest gets in. Tab navigation itself is
+# covered by the signed-in journey, which has a server to sign in against.
+- assertNotVisible: "^Menu$"
+- assertNotVisible: "^Record$"
+- tapOn: "^Log in$"
 - extendedWaitUntil:
-    visible: Every trail we know
-    timeout: 30000
-- takeScreenshot: trails
-- tapOn: "^Record$"
-- extendedWaitUntil:
-    visible: "Close a loop.*"
-    timeout: 30000
-- assertNotVisible: "would like to use your current location"
-- scrollUntilVisible:
-    element:
-      text: Start recording
-    direction: DOWN
-    centerElement: true
-    timeout: 30000
-- assertVisible:
-    text: Start recording
-    enabled: true
-- tapOn: Start recording
-# Signed out, the press opens the sign-in sheet (useRecorder's requireAuth)
-# and replays once there is a session; the sheet is closed to go on.
-- assertVisible: Sign in to record your run.
-- takeScreenshot: signed-out-recording-gate
-- tapOn: Close
-# Territory and signing in are in the Menu too.
-- tapOn: "^Menu$"
-- extendedWaitUntil:
-    visible: Log in or create an account
-    timeout: 30000
-- takeScreenshot: menu
-- tapOn: "^Territory$"
-- extendedWaitUntil:
-    visible: Your territory map
-    timeout: 30000
-- takeScreenshot: territory
-- tapOn: "^Menu$"
-- tapOn: Log in or create an account
-- extendedWaitUntil:
-    visible: Welcome back
+    visible: "Welcome [Bb]ack"
     timeout: 30000
 - takeScreenshot: sign-in

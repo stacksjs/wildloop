@@ -17,7 +17,16 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: Runs, kudos and turf changing hands.
     timeout: 90000
-- tapOn: "^Record$"
-- assertVisible: "Close a loop.*"
+# Record through its deep link: a guest has no tab bar (c3e28d79). What this
+# proves is unchanged, that a second bundled page loads with the network off.
+- openLink: wildloop://record
+- runFlow:
+    when:
+      visible: "^Open$"
+    commands:
+      - tapOn: "^Open$"
+- extendedWaitUntil:
+    visible: "Close a loop.*"
+    timeout: 30000
 - assertNotVisible: "would like to use your current location"
 - takeScreenshot: offline-bundle

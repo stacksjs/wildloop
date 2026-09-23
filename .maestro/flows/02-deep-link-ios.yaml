@@ -26,14 +26,8 @@ tags:
 - assertVisible:
     text: Start recording
     enabled: true
-- tapOn: "^Feed$"
-- extendedWaitUntil:
-    visible: Runs, kudos and turf changing hands.
-    timeout: 90000
-- tapOn: "^Record$"
-- extendedWaitUntil:
-    visible: "Close a loop.*"
-    timeout: 30000
+# No round trip through the tabs: this runs signed out, and a guest has no
+# tab bar (c3e28d79). The deep-linked page itself carries the proof.
 # The zone chips moved behind the Options panel when the record screen was
 # rebuilt; the assertion is still that store-backed territory data reached the
 # WebView, which is what a deep link into a cold app has to prove.

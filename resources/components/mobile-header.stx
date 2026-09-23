@@ -32,9 +32,11 @@ function tap(): void {
     <a href="/search" aria-label="Search" class="grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()">
       <i class="i-lucide-search h-5 w-5" aria-hidden="true"></i>
     </a>
-    <!-- A single login action keeps the compact web header focused. Registration
-         remains available from the login screen. -->
-    <div :if="!signedIn" class="web-only flex items-center gap-1" x-cloak>
+    <!-- A single login action keeps the compact header focused. Registration
+         remains available from the login screen. Not web-only: the app hides
+         its tab bar from guests, and the Menu tab was the app's only other
+         way to sign in, so without this a signed-out user had none. -->
+    <div :if="!signedIn" class="flex items-center gap-1" x-cloak>
       <a href="/login" class="rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition active:scale-95 dark:text-slate-200" @click="tap()">Log in</a>
     </div>
     <a :if="signedIn" href="/notifications" aria-label="Notifications" class="relative grid h-11 w-11 place-items-center rounded-full text-slate-600 transition active:scale-95 dark:text-slate-300" @click="tap()" x-cloak>
