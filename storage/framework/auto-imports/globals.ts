@@ -48,6 +48,8 @@ declare global {
   const appShortcutDeepLink: typeof autoImports.appShortcutDeepLink
   const craftShortcutItems: typeof autoImports.craftShortcutItems
   const APP_SHORTCUTS: typeof autoImports.APP_SHORTCUTS
+  const AUTH_REQUIRED_EVENT: typeof autoImports.AUTH_REQUIRED_EVENT
+  const AUTH_READY_EVENT: typeof autoImports.AUTH_READY_EVENT
   const avatarInitial: typeof autoImports.avatarInitial
   const avatarTint: typeof autoImports.avatarTint
   const newReviewsLabel: typeof autoImports.newReviewsLabel
@@ -103,12 +105,38 @@ declare global {
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention
   const parseMentions: typeof autoImports.parseMentions
+  const returnToServerFromBundledCopy: typeof autoImports.returnToServerFromBundledCopy
+  const serverPath: typeof autoImports.serverPath
+  const serverURLFor: typeof autoImports.serverURLFor
+  const holdOnBundledPage: typeof autoImports.holdOnBundledPage
+  const NATIVE_REMOTE_FILE: typeof autoImports.NATIVE_REMOTE_FILE
+  const NATIVE_REMOTE_RETRY_MS: typeof autoImports.NATIVE_REMOTE_RETRY_MS
+  const NATIVE_REMOTE_PROBE_TIMEOUT_MS: typeof autoImports.NATIVE_REMOTE_PROBE_TIMEOUT_MS
+  const nativeShellReady: typeof autoImports.nativeShellReady
+  const whenNativeShell: typeof autoImports.whenNativeShell
+  const activeTabFor: typeof autoImports.activeTabFor
   const readPageParams: typeof autoImports.readPageParams
   const paginate: typeof autoImports.paginate
+  const passwordChangeError: typeof autoImports.passwordChangeError
+  const PASSWORD_MIN_LENGTH: typeof autoImports.PASSWORD_MIN_LENGTH
+  const PASSWORD_MAX_LENGTH: typeof autoImports.PASSWORD_MAX_LENGTH
+  const formatMiles: typeof autoImports.formatMiles
+  const formatDuration: typeof autoImports.formatDuration
+  const formatFeet: typeof autoImports.formatFeet
+  const personalBests: typeof autoImports.personalBests
+  const monthlyProgress: typeof autoImports.monthlyProgress
+  const shareText: typeof autoImports.shareText
   const qrSvg: typeof autoImports.qrSvg
   const qrSvgMarkup: typeof autoImports.qrSvgMarkup
   const qrBrandedMarkup: typeof autoImports.qrBrandedMarkup
   const computeTerritoryRankAssignments: typeof autoImports.computeTerritoryRankAssignments
+  const reviewFormError: typeof autoImports.reviewFormError
+  const difficultyLabel: typeof autoImports.difficultyLabel
+  const difficultyTallyText: typeof autoImports.difficultyTallyText
+  const REVIEW_CONTENT_MIN: typeof autoImports.REVIEW_CONTENT_MIN
+  const REVIEW_CONTENT_MAX: typeof autoImports.REVIEW_CONTENT_MAX
+  const REVIEW_PHOTO_LIMIT: typeof autoImports.REVIEW_PHOTO_LIMIT
+  const REVIEW_DIFFICULTY_OPTIONS: typeof autoImports.REVIEW_DIFFICULTY_OPTIONS
   const routeIsRankable: typeof autoImports.routeIsRankable
   const elapsedSeconds: typeof autoImports.elapsedSeconds
   const formatElapsed: typeof autoImports.formatElapsed
@@ -133,6 +161,7 @@ declare global {
   const STATUS_LABELS: typeof autoImports.STATUS_LABELS
   const MIN_RECORD_DISTANCE_MI: typeof autoImports.MIN_RECORD_DISTANCE_MI
   const MIN_RECORD_ELEVATION_FT: typeof autoImports.MIN_RECORD_ELEVATION_FT
+  const groupSearchResults: typeof autoImports.groupSearchResults
   const totalElevationGainFt: typeof autoImports.totalElevationGainFt
   const computeSplitsFromSamples: typeof autoImports.computeSplitsFromSamples
   const ELEVATION_NOISE_FLOOR_FT: typeof autoImports.ELEVATION_NOISE_FLOOR_FT
@@ -158,6 +187,7 @@ declare global {
   const formatTrailTime: typeof autoImports.formatTrailTime
   const parseTrailTime: typeof autoImports.parseTrailTime
   const displayTrailTime: typeof autoImports.displayTrailTime
+  const durationSeconds: typeof autoImports.durationSeconds
   const computeTrainingStats: typeof autoImports.computeTrainingStats
   const positiveInt: typeof autoImports.positiveInt
   const boundedNumber: typeof autoImports.boundedNumber

@@ -159,6 +159,7 @@ declare global {
   const Bid: typeof import('@stacksjs/orm')['Bid']
   const Cart: typeof import('@stacksjs/orm')['Cart']
   const CartItem: typeof import('@stacksjs/orm')['CartItem']
+  const Categorizable: typeof import('@stacksjs/orm')['Categorizable']
   const Category: typeof import('@stacksjs/orm')['Category']
   const Coupon: typeof import('@stacksjs/orm')['Coupon']
   const Customer: typeof import('@stacksjs/orm')['Customer']

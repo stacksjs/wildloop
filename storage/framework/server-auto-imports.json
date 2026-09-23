@@ -21,6 +21,7 @@
     "CardComment": true,
     "Cart": true,
     "CartItem": true,
+    "Categorizable": true,
     "Category": true,
     "Challenge": true,
     "Club": true,
