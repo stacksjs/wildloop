@@ -1,4 +1,6 @@
 <script client>
+  import { useScrolled } from '../composables/useScrolled'
+
   const mobileOpen = state(false)
   const accountOpen = state(false)
 
@@ -32,9 +34,23 @@
     await wl?.signOut()
     navigate('/')
   }
+
+  // Over a page that opens on a full-bleed photograph, the bar is part of the
+  // photograph until the first scroll, then turns into the usual solid bar —
+  // over ordinary content a transparent one is unreadable. Which pages have
+  // such a photograph is decided in CSS (see the style block below), so this
+  // only tracks the scroll.
+  const { scrolled } = useScrolled()
 </script>
 
+<!--
+  The solid look stays in the static `class`; the transparent one is a CSS
+  override. Putting the solid utilities in `x-class` instead does not work: the
+  CSS scanner only reads literal class attributes, so they would never be
+  generated. `wl-nav-scrolled` is the state that switches it off.
+-->
 <nav
+  x-class="scrolled() ? 'wl-nav-scrolled' : ''"
   class="wl-nav sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/90">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex h-14 items-center justify-between">
@@ -182,6 +198,63 @@
 </nav>
 
 <style>
+  /*
+   * Transparent over a hero photograph, until the first scroll.
+   *
+   * A page opts in by marking the element the bar sits over with
+   * `data-nav-overlay` (the homepage hero, which also pulls itself up under
+   * the bar). Detected with :has rather than hardcoding the homepage, so a
+   * second hero page gets this for free and a page without one — every list
+   * and detail screen — is simply always solid. Being CSS, it also follows the
+   * client router: the bar stays mounted while `main` is swapped under it.
+   *
+   * Transparent is the default and scrolling switches it off, not the other
+   * way round, so the server-rendered first paint is already right at the top
+   * of the page instead of flashing white until the script hydrates.
+   *
+   * Only colours change: height, position and the 1px border stay, so the
+   * switch is a cross-fade and nothing shifts. `!important` because these
+   * override utilities that are correct in every other context; over a
+   * photograph there is no light or dark mode, only the photograph. From `lg`,
+   * the only width this bar is shown at (the layout hides it below).
+   */
+  @media (min-width: 1024px) {
+    body:has([data-nav-overlay]) .wl-nav:not(.wl-nav-scrolled) {
+      background: transparent !important;
+      border-bottom-color: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    /* White type, carrying its own contrast: a photograph can be bright
+       anywhere. The two menus are white panels of their own and keep their
+       normal colours. */
+    body:has([data-nav-overlay]) .wl-nav:not(.wl-nav-scrolled) :is(a, button, span):not(.wl-more-panel *, .wl-account-menu *) {
+      color: #fff !important;
+      text-shadow: 0 1px 12px rgb(4 12 10 / 45%);
+    }
+
+    body:has([data-nav-overlay]) .wl-nav:not(.wl-nav-scrolled) :is(a, button):not(.wl-more-panel *, .wl-account-menu *):hover {
+      background-color: rgb(255 255 255 / 14%) !important;
+    }
+
+    /* Outlined buttons (Record, Account) keep an outline you can see. */
+    body:has([data-nav-overlay]) .wl-nav:not(.wl-nav-scrolled) :is(a, button).border:not(.wl-more-panel *, .wl-account-menu *) {
+      border-color: rgb(255 255 255 / 45%) !important;
+    }
+
+    /* Sign up keeps its fill: it is the point of the bar for a signed-out
+       visitor, and a white ghost button on a bright sky is invisible. */
+    body:has([data-nav-overlay]) .wl-nav:not(.wl-nav-scrolled) .wl-nav-cta {
+      background: #059669 !important;
+      text-shadow: none;
+    }
+
+    body:has([data-nav-overlay]) .wl-nav:not(.wl-nav-scrolled) .wl-nav-cta:hover {
+      background: #047857 !important;
+    }
+  }
+
   /* Closed until hovered or focused. visibility rather than display so the
      panel can fade, and so the gap between trigger and panel (the pt-2 above)
      is still part of the hover target instead of closing the menu mid-reach. */

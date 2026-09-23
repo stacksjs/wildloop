@@ -19,7 +19,10 @@
 <NativeAppShell tabBar>
   <NativeNetworkBanner />
   @include('../components/mobile-header')
-  <div class="hidden lg:block">
+  <!-- Sticky here, not only on the nav inside: a sticky element sticks within
+       its parent, and this wrapper is exactly the nav's height, so the nav's
+       own `sticky` had no room and the bar scrolled off with the page. -->
+  <div class="sticky top-0 z-50 hidden lg:block">
     @include('../components/nav')
   </div>
 

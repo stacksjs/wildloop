@@ -433,7 +433,7 @@
   })
 </script>
 
-<div class="marketing-page overflow-hidden">
+<div class="marketing-page">
 
   <!-- ── Above the fold ─────────────────────────────────────────────────────
        One photograph, one promise, one search box. Everything else on this
@@ -712,9 +712,7 @@
         <p class="record-group">Men's · Unsupported</p>
         <div class="record-row"><span class="record-rank">1</span><span class="record-name">Harvey Lewis</span><span class="record-note">verified</span><span class="record-time">7h 24m</span></div>
         <div class="record-row"><span class="record-rank">2</span><span class="record-name">Pawel Dregan</span><span class="record-note">verified</span><span class="record-time">8h 06m</span></div>
-
-        <p class="record-group">Women's · Unsupported</p>
-        <div class="record-row"><span class="record-rank">1</span><span class="record-name">Kim Gottwald</span><span class="record-note">verified</span><span class="record-time">8h 36m</span></div>
+        <div class="record-row"><span class="record-rank">3</span><span class="record-name">Kim Gottwald</span><span class="record-note">verified</span><span class="record-time">8h 36m</span></div>
 
         <p class="record-group">Men's · Supported</p>
         <div class="record-row"><span class="record-rank">1</span><span class="record-name">Mark Dowdle</span><span class="record-note record-pending">pending review</span><span class="record-time">6h 54m</span></div>
@@ -980,6 +978,14 @@
 
 <style>
   .marketing-page {
+    /* clip, not hidden, and on x only. `overflow: hidden` clips both axes, and
+       the hero is pulled up by the nav's height to sit behind it — so the top
+       57px of the photograph were cut off and the page background showed
+       through where the transparent nav should have been over the image.
+       `overflow-x: clip` still stops the wide decorative pieces below from
+       scrolling the page sideways, without clipping vertically or making this
+       a scroll container. */
+    overflow-x: clip;
     --page-paper: #f3f5f1;
     --page-muted: #e8eee9;
     --page-ink: #102019;
