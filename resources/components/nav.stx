@@ -1,5 +1,5 @@
 <script client>
-  import { useScrolled } from '../composables/useScrolled'
+  import { watchScrolled } from '../composables/watchScrolled'
 
   const mobileOpen = state(false)
   const accountOpen = state(false)
@@ -39,8 +39,19 @@
   // photograph until the first scroll, then turns into the usual solid bar —
   // over ordinary content a transparent one is unreadable. Which pages have
   // such a photograph is decided in CSS (see the style block below), so this
-  // only tracks the scroll.
-  const { scrolled } = useScrolled()
+  // only tracks the scroll. Started from this component's own onMount — see
+  // watchScrolled for why the listener cannot come from a composable's.
+  const scrolled = state(false)
+  let stopWatchingScroll = null
+
+  onMount(() => {
+    stopWatchingScroll = watchScrolled(value => scrolled.set(value))
+  })
+
+  onDestroy(() => {
+    stopWatchingScroll?.()
+    stopWatchingScroll = null
+  })
 </script>
 
 <!--
