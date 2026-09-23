@@ -444,8 +444,19 @@ export async function createTrailMap(
     if (chrome !== 'none')
       new LocateControl({ position: chrome === 'full' ? 'topright' : 'topleft', zoom: 14 }).addTo(map)
 
-    if (options?.search)
-      new GeocoderControl({ position: 'topleft', collapsed: true, marker: false }).addTo(map)
+    // Place search from this server's gazetteer (/api/geo). The control's
+    // default is the public Nominatim service, whose usage policy forbids
+    // exactly this — a request per keystroke — and which sees what people
+    // type.
+    if (options?.search) {
+      new GeocoderControl({
+        position: 'topleft',
+        collapsed: true,
+        marker: false,
+        minLength: 2,
+        provider: new maps.services.GazetteerGeocoder({ baseUrl: '/api/geo' }),
+      }).addTo(map)
+    }
 
     /*
      * Relief goes over the basemap, not into its style.
