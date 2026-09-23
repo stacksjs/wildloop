@@ -36,6 +36,20 @@ describe('trail gallery', () => {
     ])
   })
 
+  it('shows standalone community uploads before review attachments', () => {
+    const gallery = trailGallery(
+      { image: 'https://a.test/cover.jpg' },
+      [{ photos: 'https://a.test/review.jpg', userName: 'Ada' }],
+      [{ url: '/api/trail-photos/12/community.jpg', credit: 'Grace' }],
+    )
+
+    expect(gallery).toEqual([
+      { url: 'https://a.test/cover.jpg', credit: '', illustrative: false },
+      { url: '/api/trail-photos/12/community.jpg', credit: 'Grace', illustrative: false },
+      { url: 'https://a.test/review.jpg', credit: 'Ada', illustrative: false },
+    ])
+  })
+
   it('marks a stock cover as illustrative, at whatever size it was requested', () => {
     const cover = 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&h=900&fit=crop'
     const [first] = trailGallery({ image: cover }, [])

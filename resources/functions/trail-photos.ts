@@ -72,18 +72,28 @@ export interface GalleryReview {
   userName?: string | null
 }
 
+/** A photo uploaded directly to a trail, independently of a review. */
+export interface GalleryContribution {
+  url?: string | null
+  credit?: string | null
+}
+
 /** The most frames worth loading behind one trail. */
 const MAX_PHOTOS = 12
 
 /**
- * The gallery for a trail: its own picture first, then whatever the reviews
- * brought, deduplicated and capped.
+ * The gallery for a trail: its own picture first, then community uploads and
+ * review photos, deduplicated and capped.
  *
  * The catalog image leads because it is the one chosen to represent the trail;
  * review photos follow in the order they were given, which is newest first
  * wherever the caller passes them that way.
  */
-export function trailGallery(trail: GalleryTrail | null, reviews: GalleryReview[] = []): GalleryPhoto[] {
+export function trailGallery(
+  trail: GalleryTrail | null,
+  reviews: GalleryReview[] = [],
+  contributions: GalleryContribution[] = [],
+): GalleryPhoto[] {
   const photos: GalleryPhoto[] = []
   const seen = new Set<string>()
 
@@ -97,6 +107,9 @@ export function trailGallery(trail: GalleryTrail | null, reviews: GalleryReview[
 
   if (trail?.image)
     push(String(trail.image), '')
+
+  for (const contribution of contributions)
+    push(String(contribution?.url ?? ''), String(contribution?.credit ?? '').trim())
 
   for (const review of reviews) {
     const credit = String(review?.userName ?? '').trim()

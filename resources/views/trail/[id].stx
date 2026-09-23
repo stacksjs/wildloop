@@ -18,7 +18,7 @@
   import { avatarInitial, avatarTint } from '../../functions/avatars'
   import { copyLink, shareLink, shareNote } from '../../composables/useShareLink'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
-  import { parsePhotoList, trailGallery } from '../../functions/trail-photos'
+  import { parsePhotoList, trailGallery, type GalleryContribution } from '../../functions/trail-photos'
   import { difficultyLabel, difficultyTallyText } from '../../functions/review-form'
   import { requireAuth } from '../../composables/useAuthGate'
 
@@ -39,6 +39,8 @@
   const descriptionOpen = state(false)
   /** Which frame of the hero gallery is showing. */
   const photoIndex = state(0)
+  /** Public trail uploads are separate from review attachments. */
+  const communityPhotos = state<GalleryContribution[]>([])
   /** The overflow menu on the hero. */
   const menuOpen = state(false)
 
@@ -140,10 +142,10 @@
 
   /**
    * The hero gallery: the catalog's own picture, then the photos people
-   * attached to their reviews. One photo is not a gallery, so the dots and the
-   * arrows only appear once there is somewhere to go.
+   * attached directly to the trail or to a review. One photo is not a gallery,
+   * so the dots and the arrows only appear once there is somewhere to go.
    */
-  const gallery = derived(() => trailGallery(trail(), reviews()))
+  const gallery = derived(() => trailGallery(trail(), reviews(), communityPhotos()))
   const galleryCount = derived(() => gallery().length)
   const hasGallery = derived(() => galleryCount() > 1)
 
@@ -183,6 +185,26 @@
 
   function dotLabel(slot: number) {
     return `Show photo ${slot + 1}`
+  }
+
+  /** Load real community shots independently of the review feed. */
+  async function loadCommunityPhotos(): Promise<void> {
+    const id = trailId()
+    if (id < 1)
+      return
+
+    const response = await apiFetch(`/api/trails/${id}/photos`)
+    if (!response.ok)
+      return
+
+    const payload = await response.json().catch(() => null)
+    if (!payload?.success || !Array.isArray(payload.photos))
+      return
+
+    communityPhotos.set(payload.photos.map((photo: any) => ({
+      url: typeof photo?.url === 'string' ? photo.url : '',
+      credit: typeof photo?.credit === 'string' ? photo.credit : '',
+    })))
   }
 
   /** A description worth clamping. Shorter ones show whole, with no control. */
@@ -353,6 +375,7 @@
       loadingTrail.set(false)
     }
     void loadTrail()
+    void loadCommunityPhotos()
     void isTrailOffline(trailId()).then(value => downloaded.set(value))
     const cancelMap = runWhenMapReady('trail-map', mountDetailMap)
     const stop = effect(() => {
