@@ -27,7 +27,7 @@
       "Middleware/*": ["./app/Middleware/*"],
       "Models/*": ["./app/Models/*"],
       "Notifications/*": ["./app/Notifications/*"],
-      "stx": ["./node_modules/@stacksjs/stx/dist/index.d.ts"],
+      "stx": ["./node_modules/@stacksjs/stx"],
       "~/*": ["./*"],
       "@/*": ["./resources/*"]
     }
