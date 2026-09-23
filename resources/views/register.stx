@@ -132,7 +132,16 @@
         </div>
 
         <!-- Error Alert -->
-        <div :if="error" role="alert" aria-live="assertive" class="flex gap-3 items-start mb-6 p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl dark:border-red-900"><i class="i-hugeicons-alert-circle h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i><span>{{ error }}</span></div>
+        <div :if="error" role="alert" aria-live="assertive" class="flex gap-3 items-start mb-6 p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl dark:border-red-900">
+          <i class="i-hugeicons-alert-circle h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i>
+          <div class="min-w-0">
+            <p>{{ error }}</p>
+            <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              <StxLink to="/login" class="font-semibold underline">Log in</StxLink>
+              <StxLink to="/forgot-password" class="font-semibold underline">Reset password</StxLink>
+            </div>
+          </div>
+        </div>
 
         <!-- Success Alert -->
         <div :if="success" role="status" aria-live="polite" class="flex gap-3 items-start mb-6 p-4 text-emerald-700 text-sm dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 rounded-xl dark:border-emerald-900"><i class="i-hugeicons-checkmark-circle-02 h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i><span>{{ success }}</span></div>

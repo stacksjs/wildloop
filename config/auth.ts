@@ -13,6 +13,12 @@ const envVars = typeof Bun !== 'undefined' ? Bun.env : process.env
 export default {
   enabled: true,
 
+  // Signup should explain when an email is taken and point to account recovery.
+  // Stacks otherwise replaces the duplicate-email error with a generic 422.
+  registration: {
+    preventEnumeration: false,
+  },
+
   /**
    * The authentication guard to use for your application.
    */

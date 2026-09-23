@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { refreshCurrentUser, signIn, signOut } from '../../resources/assets/scripts/auth'
+import { refreshCurrentUser, signIn, signOut, signUp } from '../../resources/assets/scripts/auth'
 
 /**
  * The sign-in page called a bare `auth` global that nothing defined, so
@@ -134,6 +134,21 @@ describe('signIn', () => {
 
     expect(result.ok).toBe(false)
     expect(result.failure?.message.length).toBeGreaterThan(0)
+  })
+})
+
+describe('signUp', () => {
+  it('explains an existing account without replacing the current session', async () => {
+    store.set('auth_token', 'existing-session')
+    const message = 'An account with this email already exists. Log in or reset your password.'
+    stubFetch({ status: 409, body: { success: false, error: message, errors: { email: [message] } } })
+
+    const result = await signUp({ name: 'Test User', email: 'existing@example.com', password: 'valid-password' })
+
+    expect(result.ok).toBe(false)
+    expect(result.failure?.message).toBe(message)
+    expect(result.failure?.fields?.email).toBe(message)
+    expect(store.get('auth_token')).toBe('existing-session')
   })
 })
 

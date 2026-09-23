@@ -41,6 +41,10 @@ export default new Action({
       // bughq before it becomes a 500: the app only says "Something went
       // wrong on our end", so this is where the cause is kept.
       const status = (error as { status?: unknown } | null)?.status
+      if (status === 409) {
+        const message = 'An account with this email already exists. Log in or reset your password.'
+        return response.json({ success: false, error: message, errors: { email: [message] } }, 409)
+      }
       if (typeof status !== 'number' || status >= 500)
         void log.error(error instanceof Error ? error : new Error(`Registration failed: ${String(error)}`))
       throw error
