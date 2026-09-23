@@ -68,6 +68,14 @@
     return entry.stillIn ? 'In' : (statusLabels[entry.status] ?? 'Out')
   }
 
+  /** Gold, silver and bronze for the top three on the board. */
+  function rankClass(rank) {
+    if (rank === 1) return 'bg-amber-400 text-amber-950'
+    if (rank === 2) return 'bg-slate-300 text-slate-800 dark:bg-slate-400 dark:text-slate-900'
+    if (rank === 3) return 'bg-orange-300 text-orange-950'
+    return 'text-slate-400 dark:text-slate-500'
+  }
+
   // Sharing the board is the point of live reporting, so make the link one tap
   // away rather than something to select out of the address bar.
   async function copyLink() {
@@ -122,19 +130,40 @@
   })
 </script>
 
-  <div :if="loading" class="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-    <div class="card h-40 animate-pulse bg-slate-100 dark:bg-slate-800"></div>
+  <!-- Loading: the header band and the board, in outline. -->
+  <div :if="loading" aria-hidden="true">
+    <div class="event-header">
+      <div class="mx-auto max-w-5xl space-y-4 px-4 py-10 sm:px-6 lg:px-8">
+        <div class="h-6 w-40 rounded-full bg-white/15"></div>
+        <div class="h-9 w-3/4 rounded-xl bg-white/20"></div>
+        <div class="h-4 w-1/2 rounded-full bg-white/15"></div>
+        <div class="grid gap-4 pt-4 sm:grid-cols-3"><div class="h-24 rounded-2xl bg-white/10"></div><div class="h-24 rounded-2xl bg-white/10"></div><div class="h-24 rounded-2xl bg-white/10"></div></div>
+      </div>
+    </div>
+    <div class="mx-auto max-w-5xl space-y-3 px-4 py-8 sm:px-6 lg:px-8">
+      <div class="skeleton h-12 rounded-xl"></div>
+      <div class="skeleton h-12 rounded-xl"></div>
+      <div class="skeleton h-12 rounded-xl"></div>
+    </div>
   </div>
 
-  <div :if="notFound" class="py-32 text-center">
-    <p class="font-medium text-gray-500">Event not found</p>
-    <StxLink to="/events" class="mt-4 inline-block rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to events</StxLink>
+  <div :if="notFound" class="px-4 py-24 text-center">
+    <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+      <i class="i-lucide-calendar-x h-7 w-7 text-slate-400" aria-hidden="true"></i>
+    </div>
+    <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Event not found</h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been cancelled and removed, or the link is wrong.</p>
+    <StxLink to="/events" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to events</StxLink>
   </div>
 
   <div :if="event">
     <!-- ── Corral header ────────────────────────────────────────────────── -->
     <section class="event-header">
-      <div class="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <StxLink to="/events" class="-ml-2 mb-4 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm font-medium text-white/75 transition hover:text-white">
+          <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
+          Events
+        </StxLink>
         <div class="flex flex-wrap items-start justify-between gap-6">
           <div class="min-w-0">
             <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -147,26 +176,28 @@
               <span class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white/90">{{ typeLabel(event.type) }}</span>
             </div>
             <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-white md:text-4xl">{{ event.name }}</h1>
-            <p class="mt-2 text-white/75">
-              {{ whenLabel(event.startTime) }}<span :if="event.location">{{ ' · ' + event.location }}</span>
+            <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-white/80">
+              <span class="inline-flex items-center gap-1.5"><i class="i-lucide-calendar h-4 w-4 opacity-70" aria-hidden="true"></i>{{ whenLabel(event.startTime) }}</span>
+              <span :if="event.location" class="inline-flex items-center gap-1.5"><i class="i-lucide-map-pin h-4 w-4 opacity-70" aria-hidden="true"></i>{{ event.location }}</span>
             </p>
             <p :if="event.clubName" class="mt-1 text-sm text-white/60">{{ 'Hosted by ' + event.clubName }}</p>
             <p :if="!event.clubName" class="mt-1 text-sm text-white/60">{{ 'Hosted by ' + event.hostName }}</p>
           </div>
 
           <div class="flex shrink-0 flex-wrap items-center gap-2">
-            <button @click="copyLink()" class="rounded-xl bg-white/15 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/25">
+            <button @click="copyLink()" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/25 active:scale-[0.98]">
+              <i x-class="copied ? 'i-lucide-check' : 'i-lucide-share-2'" class="h-4 w-4" aria-hidden="true"></i>
               {{ copied ? 'Link copied' : 'Share the board' }}
             </button>
-            <button :if="!me.entered && event.status !== 'finished' && event.status !== 'cancelled'" @click="toggleEntry()" x-disabled="working()" class="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-emerald-800 shadow-lg transition hover:bg-emerald-50 disabled:opacity-60">Enter</button>
-            <button :if="me.entered && event.status === 'scheduled'" @click="toggleEntry()" x-disabled="working()" class="rounded-xl bg-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/25 disabled:opacity-60">Withdraw</button>
+            <button :if="!me.entered && event.status !== 'finished' && event.status !== 'cancelled'" @click="toggleEntry()" x-disabled="working()" class="min-h-11 rounded-full bg-white px-6 text-sm font-bold text-emerald-800 shadow-lg transition hover:bg-emerald-50 active:scale-[0.98] disabled:opacity-60">Enter</button>
+            <button :if="me.entered && event.status === 'scheduled'" @click="toggleEntry()" x-disabled="working()" class="min-h-11 rounded-full bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/25 disabled:opacity-60">Withdraw</button>
           </div>
         </div>
 
         <!-- The corral clock. The single most important number on the page for
              anyone at the start line, so it is the biggest thing on it. -->
-        <div :if="event.status === 'live' || event.status === 'scheduled'" class="mt-8 grid gap-5 sm:grid-cols-[1.2fr_1fr_1fr]">
-          <div class="corral">
+        <div :if="event.status === 'live' || event.status === 'scheduled'" class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-[1.2fr_1fr_1fr] sm:gap-4">
+          <div class="corral col-span-2 sm:col-span-1">
             <p class="corral-label">{{ event.status === 'live' ? 'Next start' : 'Starts in' }}</p>
             <p class="corral-clock">{{ countdown }}</p>
             <div :if="event.status === 'live'" class="corral-bar" role="progressbar" :aria-valuenow="yardProgress" aria-valuemin="0" aria-valuemax="100">
@@ -200,20 +231,20 @@
     </section>
 
     <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <p :if="actionError" role="alert" class="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ actionError }}</p>
+      <p :if="actionError" role="alert" class="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ actionError }}</p>
 
       <!-- Host console -->
-      <div :if="event.isHost" class="mb-8 card border-2 border-emerald-200 dark:border-emerald-800/60">
+      <div :if="event.isHost" class="mb-8 rounded-2xl border-2 border-emerald-200 bg-white p-5 shadow-sm dark:border-emerald-800/60 dark:bg-slate-800">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="font-bold dark:text-white">Host console</h2>
-            <p class="mt-0.5 text-sm text-gray-500 dark:text-slate-400">You are running this event.</p>
+            <h2 class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white"><i class="i-lucide-radio-tower h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>Host console</h2>
+            <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">You are running this event.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button :if="event.status === 'scheduled'" @click="changeStatus('live')" x-disabled="working()" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60">Start the race</button>
-            <button :if="event.status === 'live'" @click="changeStatus('finished')" x-disabled="working()" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-60">Call it</button>
-            <button :if="event.status === 'scheduled'" @click="changeStatus('cancelled')" x-disabled="working()" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Cancel</button>
-            <button :if="event.status === 'live'" @click="consoleOpen.set(!consoleOpen())" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+            <button :if="event.status === 'scheduled'" @click="changeStatus('live')" x-disabled="working()" class="min-h-11 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">Start the race</button>
+            <button :if="event.status === 'live'" @click="changeStatus('finished')" x-disabled="working()" class="min-h-11 rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">Call it</button>
+            <button :if="event.status === 'scheduled'" @click="changeStatus('cancelled')" x-disabled="working()" class="min-h-11 rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
+            <button :if="event.status === 'live'" @click="consoleOpen.set(!consoleOpen())" class="min-h-11 rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
               {{ consoleOpen ? 'Hide lap entry' : 'Record laps' }}
             </button>
           </div>
@@ -222,15 +253,15 @@
         <!-- By yard 20 half the field's phones are dead. The host has to be
              able to bank a lap on somebody's behalf, or the board stops being
              true exactly when it matters most. -->
-        <div :show="consoleOpen() && event.status === 'live'" x-cloak class="mt-4 border-t border-gray-100 pt-4 dark:border-slate-700">
-          <p class="mb-3 text-xs text-gray-500 dark:text-slate-400">{{ 'Tap a runner as they cross the line to bank yard ' + currentYard() + ' for them.' }}</p>
+        <div :show="consoleOpen() && event.status === 'live'" x-cloak class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <p class="mb-3 text-sm text-slate-500 dark:text-slate-400">{{ 'Tap a runner as they cross the line to bank yard ' + currentYard() + ' for them.' }}</p>
           <div class="flex flex-wrap gap-2">
             <template :for="entry in standings">
               <button
                 :if="entry.stillIn"
                 @click="recordLap({ userId: entry.userId })"
                 x-disabled="working() || entry.yardsCompleted >= currentYard()"
-                class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-slate-800 transition hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-emerald-900/20"
+                class="min-h-11 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-800 transition hover:border-emerald-400 hover:bg-emerald-50 active:scale-[0.98] disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-emerald-900/20"
               >
                 {{ entry.name }}
                 <span class="ml-1 text-xs tabular-nums opacity-60">{{ entry.yardsCompleted }}</span>
@@ -242,52 +273,52 @@
 
       <!-- The runner's own control: one button, because it is pressed with
            dead legs and cold hands. -->
-      <div :if="me.entered && event.status === 'live'" class="mb-8 card border-2 border-emerald-200 dark:border-emerald-800/60">
+      <div :if="me.entered && event.status === 'live'" class="mb-8 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-800/60 dark:from-emerald-500/10 dark:to-slate-800">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p class="text-xs font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-400">Your race</p>
-            <p class="mt-1 font-display text-2xl font-bold dark:text-white">{{ (me.yardsCompleted ?? 0) + ' yards banked' }}</p>
-            <p class="mt-0.5 text-sm text-gray-500 dark:text-slate-400">{{ 'Next start in ' + countdown() }}</p>
+            <p class="mt-1 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ (me.yardsCompleted ?? 0) + ' yards banked' }}</p>
+            <p class="mt-0.5 text-sm tabular-nums text-slate-500 dark:text-slate-400">{{ 'Next start in ' + countdown() }}</p>
           </div>
           <button
             @click="recordLap()"
             x-disabled="working() || (me.yardsCompleted ?? 0) >= currentYard()"
-            class="rounded-full bg-emerald-600 px-7 py-4 text-base font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-40"
+            class="min-h-14 w-full rounded-full bg-emerald-600 px-7 text-base font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none sm:w-auto"
           >
             {{ (me.yardsCompleted ?? 0) >= currentYard() ? 'Yard banked' : 'I finished yard ' + currentYard() }}
           </button>
         </div>
       </div>
 
-      <div class="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[1.4fr_1fr]">
         <!-- Standings -->
         <div>
-          <h2 class="mb-4 font-bold text-xl dark:text-white">Standings</h2>
+          <h2 class="mb-3 font-display text-xl font-bold text-slate-900 dark:text-white">Standings</h2>
 
-          <div class="overflow-hidden rounded-2xl border border-gray-100 dark:border-slate-700">
+          <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <table class="w-full text-sm">
-              <thead class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400 dark:bg-slate-800 dark:text-slate-500">
-                <tr>
-                  <th class="px-4 py-3 font-semibold">#</th>
-                  <th class="px-4 py-3 font-semibold">Runner</th>
-                  <th class="px-4 py-3 text-right font-semibold">{{ event.type === 'backyard' ? 'Yards' : 'Laps' }}</th>
-                  <th class="px-4 py-3 text-right font-semibold">Miles</th>
-                  <th class="px-4 py-3 text-right font-semibold">State</th>
+              <thead class="bg-slate-50 text-left dark:bg-slate-900/60">
+                <tr class="metric-label">
+                  <th class="py-3 pl-3 pr-1 font-semibold sm:pl-4">#</th>
+                  <th class="px-2 py-3 font-semibold sm:px-4">Runner</th>
+                  <th class="px-2 py-3 text-right font-semibold sm:px-4">{{ event.type === 'backyard' ? 'Yards' : 'Laps' }}</th>
+                  <th class="px-2 py-3 text-right font-semibold sm:px-4">Miles</th>
+                  <th class="py-3 pl-2 pr-3 text-right font-semibold sm:px-4">State</th>
                 </tr>
               </thead>
               <tbody>
                 <template :for="entry in standings">
-                  <tr class="border-t border-gray-100 dark:border-slate-700">
-                    <td class="px-4 py-3 font-mono text-xs text-gray-400">{{ entry.rank }}</td>
-                    <td class="px-4 py-3">
+                  <tr class="border-t border-slate-100 dark:border-slate-700/70">
+                    <td class="py-3 pl-3 pr-1 sm:pl-4"><span class="grid h-6 w-6 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="rankClass(entry.rank)">{{ entry.rank }}</span></td>
+                    <td class="px-2 py-3 sm:px-4">
                       <StxLink x-to="'/athlete/' + entry.userId" class="font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ entry.name }}</StxLink>
-                      <span :if="entry.exitNote" class="ml-2 text-xs text-gray-400">{{ entry.exitNote }}</span>
+                      <span :if="entry.exitNote" class="block text-xs text-slate-400 sm:ml-2 sm:inline">{{ entry.exitNote }}</span>
                     </td>
-                    <td class="px-4 py-3 text-right font-bold tabular-nums dark:text-white">{{ entry.yardsCompleted }}</td>
-                    <td class="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-slate-400">{{ entry.miles.toFixed(1) }}</td>
-                    <td class="px-4 py-3 text-right">
+                    <td class="px-2 py-3 text-right font-bold tabular-nums text-slate-900 sm:px-4 dark:text-white">{{ entry.yardsCompleted }}</td>
+                    <td class="px-2 py-3 text-right tabular-nums text-slate-500 sm:px-4 dark:text-slate-400">{{ entry.miles.toFixed(1) }}</td>
+                    <td class="py-3 pl-2 pr-3 text-right sm:px-4">
                       <span
-                        class="rounded-full px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wide"
+                        class="whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold"
                         x-class="entry.status === 'winner' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : entry.stillIn ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'"
                       >{{ statusLabel(entry) }}</span>
                     </td>
@@ -296,12 +327,13 @@
               </tbody>
             </table>
 
-            <p :if="standings().length === 0" class="px-4 py-10 text-center text-sm text-gray-400">Nobody has entered yet.</p>
+            <p :if="standings().length === 0" class="px-4 py-10 text-center text-sm text-slate-400">Nobody has entered yet.</p>
           </div>
 
           <div :if="event.loopRoute" class="mt-6">
-            <h3 class="mb-3 font-bold dark:text-white">The yard</h3>
-            <div class="card overflow-hidden p-0">
+            <h3 class="mb-3 font-display text-lg font-bold text-slate-900 dark:text-white">The yard</h3>
+            <!-- A framed surface rather than `.card`, whose padding outranks p-0. -->
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div id="event-loop-map" data-stx-ignore class="ts-map-container h-72"></div>
             </div>
           </div>
@@ -309,40 +341,40 @@
 
         <!-- Live lap feed -->
         <div>
-          <h2 class="mb-4 flex items-center gap-2 font-bold text-xl dark:text-white">
+          <h2 class="mb-3 flex items-center gap-2 font-display text-xl font-bold text-slate-900 dark:text-white">
             Lap feed
             <span :if="isLive" class="live-pip" aria-hidden="true"></span>
           </h2>
 
           <div class="space-y-2">
             <template :for="lap in recentLaps">
-              <div class="flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2.5 dark:border-slate-700">
+              <div class="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800">
                 <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ lap.yard }}</span>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-semibold dark:text-white">{{ lap.name }}</p>
-                  <p class="text-xs text-gray-500 dark:text-slate-400">{{ timeLabel(lap.finishedAt) + ' · ' + lapDuration(lap.durationSeconds) }}</p>
+                  <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ lap.name }}</p>
+                  <p class="text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ timeLabel(lap.finishedAt) + ' · ' + lapDuration(lap.durationSeconds) }}</p>
                 </div>
-                <StxLink :if="lap.activityId" x-to="'/activity/' + lap.activityId" class="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Run</StxLink>
+                <StxLink :if="lap.activityId" x-to="'/activity/' + lap.activityId" class="inline-flex min-h-9 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">Run</StxLink>
               </div>
             </template>
 
-            <p :if="recentLaps().length === 0" class="rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center text-sm text-gray-400 dark:border-slate-700">
+            <p :if="recentLaps().length === 0" class="rounded-2xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
               No laps yet. They appear here the moment they land.
             </p>
           </div>
 
-          <div :if="event.description" class="mt-8 card">
-            <h3 class="mb-2 font-bold dark:text-white">Details</h3>
-            <p class="whitespace-pre-line text-sm leading-relaxed text-gray-600 dark:text-slate-300">{{ event.description }}</p>
+          <div :if="event.description" class="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <h3 class="mb-2 font-semibold text-slate-900 dark:text-white">Details</h3>
+            <p class="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ event.description }}</p>
           </div>
 
-          <div :if="event.type === 'backyard'" class="mt-6 card">
-            <h3 class="mb-2 font-bold dark:text-white">How a backyard works</h3>
-            <ol class="space-y-2 text-sm text-gray-600 dark:text-slate-300">
-              <li class="flex gap-2"><span class="font-bold text-emerald-600">1.</span><span>{{ 'Everyone starts the same ' + event.loopDistance.toFixed(2) + ' mi loop together.' }}</span></li>
-              <li class="flex gap-2"><span class="font-bold text-emerald-600">2.</span><span>{{ 'Finish inside ' + event.yardMinutes + ' minutes. Whatever is left is your rest.' }}</span></li>
-              <li class="flex gap-2"><span class="font-bold text-emerald-600">3.</span><span>Miss the next start and you are out.</span></li>
-              <li class="flex gap-2"><span class="font-bold text-emerald-600">4.</span><span>It ends when one runner completes a yard nobody else does.</span></li>
+          <div :if="event.type === 'backyard'" class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <h3 class="mb-3 font-semibold text-slate-900 dark:text-white">How a backyard works</h3>
+            <ol class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+              <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">1</span><span class="pt-0.5">{{ 'Everyone starts the same ' + event.loopDistance.toFixed(2) + ' mi loop together.' }}</span></li>
+              <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">2</span><span class="pt-0.5">{{ 'Finish inside ' + event.yardMinutes + ' minutes. Whatever is left is your rest.' }}</span></li>
+              <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">3</span><span class="pt-0.5">Miss the next start and you are out.</span></li>
+              <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">4</span><span class="pt-0.5">It ends when one runner completes a yard nobody else does.</span></li>
             </ol>
           </div>
         </div>

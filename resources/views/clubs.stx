@@ -59,42 +59,45 @@
   })
 </script>
 
-  <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+  <div class="mx-auto max-w-5xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+    <header class="mb-5 flex items-start justify-between gap-4">
+      <div class="min-w-0">
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Clubs</h1>
-        <p class="mt-1 text-slate-600 dark:text-slate-400">
+        <p class="mt-1 max-w-[52ch] text-slate-600 dark:text-slate-400">
           <span :if="filtered.length > 0">{{ filtered.length === 1 ? 'One crew' : filtered.length + ' crews' }} training together — join one, or start your own.</span>
           <span :if="filtered.length === 0">Find a crew to train with, or start your own.</span>
         </p>
       </div>
-      <button @click="openCreate()" class="shrink-0 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
-        Create a club
+      <button @click="openCreate()" aria-label="Create a club" class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 pl-4 pr-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+        <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>
+        <span>New<span class="hidden sm:inline"> club</span></span>
       </button>
-    </div>
+    </header>
 
-    <div class="mb-6 flex gap-2 overflow-x-auto pb-2">
-      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition active:scale-[0.98]">All clubs</button>
-      <button @click="filter.set('mine')" x-class="filter === 'mine' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition active:scale-[0.98]">My clubs</button>
-      <button @click="filter.set('Running')" x-class="filter === 'Running' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition active:scale-[0.98]">Running</button>
-      <button @click="filter.set('Hiking')" x-class="filter === 'Hiking' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition active:scale-[0.98]">Hiking</button>
-      <button @click="filter.set('Territory Game')" x-class="filter === 'Territory Game' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'" class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition active:scale-[0.98]">Territory</button>
+    <!-- Filter chips. They bleed to the screen edge on phones and scroll
+         without a visible scrollbar, the way a native chip row does. -->
+    <div class="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
+      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">All clubs</button>
+      <button @click="filter.set('mine')" x-class="filter === 'mine' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">My clubs</button>
+      <button @click="filter.set('Running')" x-class="filter === 'Running' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Running</button>
+      <button @click="filter.set('Hiking')" x-class="filter === 'Hiking' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Hiking</button>
+      <button @click="filter.set('Territory Game')" x-class="filter === 'Territory Game' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Territory</button>
     </div>
 
     <!-- A grid, not a stack of full-width rows. A directory is scanned, and
          two columns of equal cards is what lets somebody compare four crews at
          once instead of scrolling past them one at a time. -->
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <template :for="club in filtered">
-        <article class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
+        <article class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
           <div class="flex items-start gap-4">
             <div
-              class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-lg font-bold"
+              class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl font-display text-lg font-bold"
               x-class="club.type === 'Running' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : club.type === 'Hiking' ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' : club.type === 'Territory Game' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'"
               aria-hidden="true">{{ club.name.charAt(0) }}</div>
 
             <div class="min-w-0 flex-1">
-              <StxLink x-to="'/club/' + club.id" class="block font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white line-clamp-1">{{ club.name }}</StxLink>
+              <StxLink x-to="'/club/' + club.id" class="block font-display text-lg font-semibold leading-snug text-slate-900 transition hover:text-emerald-700 dark:text-white dark:hover:text-emerald-400 line-clamp-1">{{ club.name }}</StxLink>
               <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500 dark:text-slate-400">
                 <span :if="club.location">{{ club.location }}</span>
                 <span :if="club.location" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
@@ -122,7 +125,7 @@
             </span>
           </div>
 
-          <div class="mt-auto flex items-end justify-between gap-4 pt-4">
+          <div class="mt-auto pt-4"><div class="flex items-end justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-700/70">
             <!-- Real numbers, aggregated from members' activities in the last
                  seven days. A club with a quiet week says so. -->
             <dl class="flex gap-6">
@@ -136,75 +139,82 @@
               </div>
             </dl>
 
-            <StxLink :if="club.joinPolicy === 'invite_only' && !isMember(club)" x-to="'/club/' + club.id" class="shrink-0 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">View</StxLink>
+            <StxLink :if="club.joinPolicy === 'invite_only' && !isMember(club)" x-to="'/club/' + club.id" class="inline-flex min-h-10 shrink-0 items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">View</StxLink>
             <button
               :if="club.joinPolicy !== 'invite_only' || isMember(club)"
               @click="onToggleMembership(club)"
-              x-class="isMember(club) ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'"
-              class="shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-[0.98]"
+              x-class="isMember(club) ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'"
+              class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]"
             >{{ isMember(club) ? 'Joined' : club.joinPolicy === 'request' ? 'Ask to join' : 'Join' }}</button>
-          </div>
+          </div></div>
         </article>
       </template>
     </div>
 
-    <div :if="filtered.length === 0" class="py-20 text-center">
-      <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
-        <Icon name="users" size="36" class="text-emerald-500" />
+    <div :if="filtered.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <Icon name="users" size="30" class="text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 class="mb-2 text-lg font-semibold text-slate-900 dark:text-white">No clubs here yet</h3>
-      <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">Nothing matches this filter. Try another, or start the crew you were looking for.</p>
-      <button @click="openCreate()" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Create a club</button>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ filter === 'mine' ? 'You have not joined a club yet' : 'No clubs here yet' }}</h3>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ filter === 'mine' ? 'Join a crew from the full list, or start your own.' : 'Nothing matches this filter. Try another, or start the crew you were looking for.' }}</p>
+      <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <button @click="openCreate()" class="min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Create a club</button>
+        <button :if="filter !== 'all'" @click="filter.set('all')" class="min-h-11 rounded-full px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Show all clubs</button>
+      </div>
     </div>
   </div>
 
-  <!-- Create-club modal (#964) -->
-  <div :if="createOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div @click="closeCreate()" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative w-full max-w-md card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-bold text-lg dark:text-white">Create a club</h2>
-        <button @click="closeCreate()" class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 text-xl leading-none">×</button>
+  <!-- Create-club modal (#964). A bottom sheet on phones, where the thumb
+       is, and a centred dialog from `sm` up. -->
+  <div :if="createOpen" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="create-club-title">
+    <div @click="closeCreate()" class="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]"></div>
+    <div class="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-200 bg-white px-5 pb-8 pt-3 shadow-2xl sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-800">
+      <div class="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-600" aria-hidden="true"></div>
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <h2 id="create-club-title" class="font-display text-xl font-bold text-slate-900 dark:text-white">Create a club</h2>
+        <button @click="closeCreate()" aria-label="Close" class="-mr-2 grid h-11 w-11 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200">
+          <i class="i-lucide-x h-5 w-5" aria-hidden="true"></i>
+        </button>
       </div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Name</label>
-          <input type="text" placeholder="Trail Crushers" x-value="fName" @input="fName.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
-        </div>
+      <div class="space-y-4">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Name</span>
+          <input type="text" placeholder="Trail Crushers" x-value="fName" @input="fName.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+        </label>
         <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Type</label>
-            <select x-value="fType" @change="fType.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</span>
+            <select x-value="fType" @change="fType.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
               <option value="Running">Running</option>
               <option value="Hiking">Hiking</option>
               <option value="Mixed">Mixed</option>
               <option value="Territory Game">Territory Game</option>
             </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Location</label>
-            <input type="text" placeholder="Bay Area, CA" x-value="fLocation" @input="fLocation.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm" />
-          </div>
+          </label>
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Location</span>
+            <input type="text" placeholder="Bay Area, CA" x-value="fLocation" @input="fLocation.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+          </label>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Description</label>
-          <textarea rows="2" placeholder="What's your club about?" x-value="fDescription" @input="fDescription.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm"></textarea>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Who can join</label>
-          <select x-value="fJoinPolicy" @change="fJoinPolicy.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Description</span>
+          <textarea rows="3" placeholder="What's your club about?" x-value="fDescription" @input="fDescription.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white py-2.5"></textarea>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Who can join</span>
+          <select x-value="fJoinPolicy" @change="fJoinPolicy.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
             <option value="open">Anyone can join</option>
             <option value="invite_only">Invite only</option>
           </select>
-        </div>
-        <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
-          <input type="checkbox" x-checked="fPrivate" @change="fPrivate.set($event.target.checked)" class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+        </label>
+        <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl bg-slate-50 px-3 text-sm text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
+          <input type="checkbox" x-checked="fPrivate" @change="fPrivate.set($event.target.checked)" class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
           Private (only members can see it)
         </label>
-        <p :if="createError" class="text-sm text-red-500">{{ createError }}</p>
-        <div class="flex gap-2 pt-1">
-          <button @click="submitCreate()" class="flex-1 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">{{ submitting ? 'Creating…' : 'Create club' }}</button>
-          <button @click="closeCreate()" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition">Cancel</button>
+        <p :if="createError" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ createError }}</p>
+        <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
+          <button @click="closeCreate()" class="min-h-11 rounded-full px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
+          <button @click="submitCreate()" x-disabled="submitting" class="min-h-11 flex-1 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{{ submitting ? 'Creating…' : 'Create club' }}</button>
         </div>
       </div>
     </div>

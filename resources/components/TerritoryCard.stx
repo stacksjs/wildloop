@@ -37,51 +37,49 @@ const formattedArea = formatArea(props.areaSize)
 </script>
 
 <template>
-  <div class="overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-lg duration-300 transition-all territory-card" x-class="props.isOwned ? 'ring-2 ring-emerald-500' : ''">
+  <div class="territory-card overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:shadow-none" x-class="props.isOwned ? 'ring-2 ring-emerald-500' : ''">
     <!-- Territory Preview Map -->
-    <div class="relative h-32 bg-gradient-to-br from-emerald-100 to-teal-100">
-      <div class="flex absolute inset-0 items-center justify-center">
-        <svg class="h-16 w-16 text-emerald-300" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-        </svg>
+    <div class="relative h-32 bg-gradient-to-br from-emerald-100 to-teal-50 dark:from-emerald-500/15 dark:to-slate-800">
+      <div class="absolute inset-0 grid place-items-center">
+        <i class="i-lucide-map-pin h-14 w-14 text-emerald-300 dark:text-emerald-500/50" aria-hidden="true"></i>
       </div>
       @if(props.isOwned)
-        <div class="absolute right-2 top-2 px-2 py-1 font-bold text-white text-xs bg-emerald-500 rounded-full">
-          YOUR TERRITORY
+        <div class="absolute right-2 top-2 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+          Your territory
         </div>
       @endif
       @if(props.conquestCount > 0)
-        <div class="flex absolute left-2 top-2 items-center px-2 py-1 font-bold text-white text-xs bg-orange-500 rounded-full">
-          <Icon name="flame" size="12" class="mr-1" />
-          {{ props.conquestCount }}x Conquered
+        <div class="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-semibold text-white">
+          <Icon name="flame" size="12" />
+          <span class="tabular-nums">{{ props.conquestCount }}× conquered</span>
         </div>
       @endif
     </div>
 
     <!-- Territory Info -->
     <div class="p-4">
-      <h3 class="mb-2 font-bold text-gray-900 text-lg">{{ props.name }}</h3>
+      <h3 class="mb-2 truncate font-display text-lg font-bold text-slate-900 dark:text-white">{{ props.name }}</h3>
 
-      <div class="flex items-center mb-3 space-x-2">
-        <Image x-src="props.ownerAvatar" x-alt="props.ownerName" width="24" height="24" sizes="24px" placeholder="blur" class="object-cover h-6 w-6 rounded-full" />
-        <span class="text-gray-600 text-sm">Owned by <span class="font-medium">{{ props.ownerName }}</span></span>
+      <div class="mb-3 flex items-center gap-2">
+        <Image x-src="props.ownerAvatar" x-alt="props.ownerName" width="24" height="24" sizes="24px" placeholder="blur" class="h-6 w-6 rounded-full object-cover" />
+        <span class="truncate text-sm text-slate-600 dark:text-slate-400">Owned by <span class="font-medium text-slate-900 dark:text-white">{{ props.ownerName }}</span></span>
       </div>
 
-      <div class="grid gap-3 grid-cols-2 text-sm">
-        <div class="p-2 bg-gray-50 rounded-lg">
-          <p class="text-gray-500 text-xs">Area Size</p>
-          <p class="font-semibold text-gray-900">{{ formattedArea }}</p>
+      <dl class="grid grid-cols-2 gap-2 text-sm">
+        <div class="rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900/60">
+          <dt class="metric-label">Area</dt>
+          <dd class="mt-0.5 font-semibold tabular-nums text-slate-900 dark:text-white">{{ formattedArea }}</dd>
         </div>
-        <div class="p-2 bg-gray-50 rounded-lg">
-          <p class="text-gray-500 text-xs">Claimed</p>
-          <p class="font-semibold text-gray-900">{{ props.claimedAt }}</p>
+        <div class="rounded-xl bg-slate-50 p-2.5 dark:bg-slate-900/60">
+          <dt class="metric-label">Claimed</dt>
+          <dd class="mt-0.5 font-semibold text-slate-900 dark:text-white">{{ props.claimedAt }}</dd>
         </div>
-      </div>
+      </dl>
 
-      <button class="flex items-center justify-center mt-4 py-2.5 w-full font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition">
-        <Icon name="map" size="16" class="mr-2" />
-        View on Map
-      </button>
+      <StxLink x-to="'/territory/' + props.id" class="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+        <Icon name="map" size="16" />
+        View on map
+      </StxLink>
     </div>
   </div>
 </template>

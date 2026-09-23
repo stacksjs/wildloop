@@ -32,18 +32,12 @@ function formatArea(sqMeters: number): string {
   return `${Math.round(sqMeters).toLocaleString()} m²`
 }
 
+// Gold, silver and bronze for the podium, neutral for everyone else.
 function getRankBadge(rank: number): string {
-  if (rank === 1) return 'bg-yellow-400'
-  if (rank === 2) return 'bg-gray-300'
-  if (rank === 3) return 'bg-orange-400'
-  return 'bg-gray-100'
-}
-
-function getRankIcon(rank: number): string {
-  if (rank === 1) return '🥇'
-  if (rank === 2) return '🥈'
-  if (rank === 3) return '🥉'
-  return String(rank)
+  if (rank === 1) return 'bg-amber-400 text-amber-950'
+  if (rank === 2) return 'bg-slate-300 text-slate-800'
+  if (rank === 3) return 'bg-orange-300 text-orange-950'
+  return 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
 }
 
 const typeLabels = {
@@ -54,73 +48,73 @@ const typeLabels = {
 </script>
 
 <template>
-  <div class="overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm">
+  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
     <!-- Header -->
-    <div class="px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600">
-      <h3 class="flex items-center font-bold text-lg text-white">
-        <Icon name="award" size="20" class="mr-2" />
-        Territory Leaderboard
+    <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-4">
+      <h3 class="flex items-center gap-2 font-display text-lg font-bold text-white">
+        <Icon name="award" size="20" />
+        Territory leaderboard
       </h3>
-      <p class="mt-1 text-emerald-100 text-sm">Ranked by {{ typeLabels[props.type] }}</p>
+      <p class="mt-0.5 text-sm text-emerald-100">Ranked by {{ typeLabels[props.type].toLowerCase() }}</p>
     </div>
 
     <!-- Type Tabs -->
-    <div class="flex border-b border-gray-100">
-      <button class="flex-1 py-3 font-medium text-sm transition" x-class="props.type === 'area' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-500 hover:text-gray-700'">
-        By Area
+    <div class="flex border-b border-slate-100 dark:border-slate-700">
+      <button class="min-h-11 flex-1 border-b-2 text-sm font-semibold transition" x-class="props.type === 'area' ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'">
+        By area
       </button>
-      <button class="flex-1 py-3 font-medium text-sm transition" x-class="props.type === 'count' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-500 hover:text-gray-700'">
-        By Count
+      <button class="min-h-11 flex-1 border-b-2 text-sm font-semibold transition" x-class="props.type === 'count' ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'">
+        By count
       </button>
-      <button class="flex-1 py-3 font-medium text-sm transition" x-class="props.type === 'conquests' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-500 hover:text-gray-700'">
+      <button class="min-h-11 flex-1 border-b-2 text-sm font-semibold transition" x-class="props.type === 'conquests' ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'">
         Conquests
       </button>
     </div>
 
     <!-- Leaderboard Entries -->
-    <div class="divide-gray-50 divide-y">
+    <div class="divide-y divide-slate-100 dark:divide-slate-700/70">
       @foreach(props.entries as entry)
-        <div class="flex items-center px-4 py-3 hover:bg-gray-50 transition" x-class="entry.userId === props.currentUserId ? 'bg-emerald-50' : ''">
+        <div class="flex min-h-14 items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-700/40" x-class="entry.userId === props.currentUserId ? 'bg-emerald-50 dark:bg-emerald-500/10' : ''">
           <!-- Rank -->
-          <div class="flex items-center justify-center h-10 w-10 font-bold text-sm rounded-full" x-class="getRankBadge(entry.rank)">
-            {{ getRankIcon(entry.rank) }}
+          <div class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="getRankBadge(entry.rank)">
+            {{ entry.rank }}
           </div>
 
           <!-- User Info -->
-          <div class="flex flex-1 items-center ml-3">
-            <Image x-src="entry.userAvatar" x-alt="entry.userName" width="32" height="32" sizes="32px" placeholder="blur" class="object-cover h-8 w-8 rounded-full" />
-            <div class="ml-3">
-              <p class="font-medium text-gray-900 text-sm">{{ entry.userName }}</p>
-              <p class="text-gray-500 text-xs">{{ entry.totalTerritoriesOwned }} territories</p>
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <Image x-src="entry.userAvatar" x-alt="entry.userName" width="32" height="32" sizes="32px" placeholder="blur" class="h-8 w-8 shrink-0 rounded-full object-cover" />
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ entry.userName }}</p>
+              <p class="text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ entry.totalTerritoriesOwned }} territories</p>
             </div>
           </div>
 
           <!-- Stats -->
-          <div class="text-right">
+          <div class="shrink-0 text-right">
             @if(props.type === 'area')
-              <p class="font-bold text-gray-900">{{ formatArea(entry.totalAreaOwned) }}</p>
+              <p class="font-bold tabular-nums text-slate-900 dark:text-white">{{ formatArea(entry.totalAreaOwned) }}</p>
             @elseif(props.type === 'count')
-              <p class="font-bold text-gray-900">{{ entry.totalTerritoriesOwned }}</p>
+              <p class="font-bold tabular-nums text-slate-900 dark:text-white">{{ entry.totalTerritoriesOwned }}</p>
             @else
-              <p class="font-bold text-gray-900">{{ entry.territoriesConquered }}</p>
+              <p class="font-bold tabular-nums text-slate-900 dark:text-white">{{ entry.territoriesConquered }}</p>
             @endif
           </div>
         </div>
       @endforeach
 
       @if(props.entries.length === 0)
-        <div class="px-4 py-8 text-center text-gray-500">
-          <Icon name="award" size="48" class="mb-3 mx-auto text-gray-300" />
-          <p>No entries yet. Start claiming territories!</p>
+        <div class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+          <Icon name="award" size="36" class="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+          <p>No entries yet. Claim a territory to get on the board.</p>
         </div>
       @endif
     </div>
 
     <!-- View All Link -->
-    <div class="px-4 py-3 bg-gray-50 border-gray-100 border-t">
-      <StxLink to="/leaderboard" class="flex items-center justify-center font-medium text-emerald-600 text-sm hover:text-emerald-700 transition">
-        View Full Leaderboard
-        <Icon name="chevron-right" size="16" class="ml-1" />
+    <div class="border-t border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
+      <StxLink to="/leaderboard" class="flex min-h-11 items-center justify-center gap-1 text-sm font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400">
+        View full leaderboard
+        <Icon name="chevron-right" size="16" />
       </StxLink>
     </div>
   </div>

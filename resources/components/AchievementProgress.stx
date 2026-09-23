@@ -31,19 +31,17 @@ const pct = Math.max(0, Math.min(100, Math.round((achievement.progress / (achiev
 </script>
 
 <template>
-  <div class="p-3 bg-gray-50 rounded-xl">
-    <div class="flex items-center justify-between mb-2">
-      <div class="flex items-center space-x-2">
-        <span class="text-2xl">{{ achievement.icon }}</span>
-        <div>
-          <p class="font-semibold text-gray-900 text-sm">{{ achievement.name }}</p>
-          <p class="text-gray-500 text-xs">{{ achievement.description }}</p>
-        </div>
+  <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+    <div class="mb-2 flex items-center gap-3">
+      <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">{{ achievement.icon }}</span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ achievement.name }}</p>
+        <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ achievement.description }}</p>
       </div>
+      <p class="shrink-0 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">{{ achievement.progress }}/{{ achievement.total }}</p>
     </div>
-    <div class="overflow-hidden relative h-2 bg-gray-200 rounded-full">
-      <div class="absolute left-0 top-0 h-full bg-emerald-500 rounded-full transition-all" style="width: {{ pct }}%"></div>
+    <div class="relative h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+      <div class="absolute left-0 top-0 h-full rounded-full bg-emerald-500 transition-all" style="width: {{ pct }}%"></div>
     </div>
-    <p class="mt-1 text-gray-500 text-right text-xs">{{ achievement.progress }}/{{ achievement.total }}</p>
   </div>
 </template>

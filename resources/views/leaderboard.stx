@@ -74,84 +74,160 @@
     if (!entry) return ''
     const m = metric()
     if (m === 'elevation') return entry.totalElevation.toLocaleString() + ' ft'
-    if (m === 'activities') return entry.trailsCompleted + ' activities'
+    if (m === 'activities') return entry.trailsCompleted === 1 ? '1 activity' : entry.trailsCompleted + ' activities'
     return entry.totalDistance.toFixed(1) + ' mi'
   }
+
+  /** The secondary figure on a row — whichever of distance/elevation the metric is not. */
+  function secondaryText(entry: LeaderEntry | undefined): string {
+    if (!entry) return ''
+    if (metric() === 'distance') return entry.totalElevation.toLocaleString() + ' ft'
+    return entry.totalDistance.toFixed(1) + ' mi'
+  }
+
+  function initialOf(entry: LeaderEntry | undefined): string {
+    return (entry?.userName || 'A').charAt(0).toUpperCase()
+  }
+
+  /**
+   * Medal tones for the top three, neutral for everyone else. Gold, silver and
+   * bronze are the one place a second hue earns its keep: they are read before
+   * the number is.
+   */
+  function medalClass(rank: number): string {
+    if (rank === 1) return 'bg-amber-400 text-amber-950 ring-2 ring-white dark:ring-slate-800'
+    if (rank === 2) return 'bg-slate-300 text-slate-800 ring-2 ring-white dark:bg-slate-400 dark:text-slate-900 dark:ring-slate-800'
+    if (rank === 3) return 'bg-orange-300 text-orange-950 ring-2 ring-white dark:ring-slate-800'
+    return 'text-slate-400 dark:text-slate-500'
+  }
+
+  const periodLabel = derived(() => {
+    const p = period()
+    if (p === 'monthly') return 'this month'
+    if (p === 'alltime') return 'of all time'
+    return 'this week'
+  })
+
+  const metricLabel = derived(() => {
+    const m = metric()
+    if (m === 'elevation') return 'climbed the most'
+    if (m === 'activities') return 'logged the most activities'
+    return 'covered the most ground'
+  })
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-3xl">
-    <h1 class="mb-6 font-bold text-2xl dark:text-white">Leaderboard</h1>
-
-    <!-- Period tabs -->
-    <div class="flex gap-2 mb-4">
-      <button @click="period.set('weekly')" x-class="period === 'weekly' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 rounded-lg text-sm font-medium transition">This Week</button>
-      <button @click="period.set('monthly')" x-class="period === 'monthly' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 rounded-lg text-sm font-medium transition">This Month</button>
-      <button @click="period.set('alltime')" x-class="period === 'alltime' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 dark:bg-slate-800'" class="px-4 py-2 rounded-lg text-sm font-medium transition">All Time</button>
-    </div>
-
-    <!-- Metric tabs -->
-    <div class="flex gap-2 mb-6">
-      <button @click="metric.set('distance')" x-class="metric === 'distance' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-3 py-1.5 font-medium text-sm border-b-2 transition">Distance</button>
-      <button @click="metric.set('elevation')" x-class="metric === 'elevation' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-3 py-1.5 font-medium text-sm border-b-2 transition">Elevation</button>
-      <button @click="metric.set('activities')" x-class="metric === 'activities' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-3 py-1.5 font-medium text-sm border-b-2 transition">Activities</button>
-    </div>
-
-    <div class="flex gap-2 mb-6">
-      <button @click="scope.set('global')" x-class="scope === 'global' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400'" class="px-3 py-1.5 rounded-lg text-xs font-medium">Global</button>
-      <button @click="scope.set('following')" x-class="scope === 'following' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400'" class="px-3 py-1.5 rounded-lg text-xs font-medium">Following</button>
-    </div>
-
-    <div :if="loading" class="py-10 text-center text-gray-400">Calculating rankings…</div>
-
-    <!-- Top 3 podium -->
-    <div :if="leaders.length >= 3" class="grid gap-4 grid-cols-3 mb-8">
-      <div class="pt-8 text-center card">
-        <div class="flex items-center justify-center mb-2 mx-auto h-14 w-14 font-bold text-gray-600 text-xl dark:text-slate-300 bg-gray-200 dark:bg-slate-700 rounded-full">{{ (leaders[1]?.userName || 'U').charAt(0) }}</div>
-        <p class="font-semibold text-sm truncate dark:text-white">{{ leaders[1]?.userName || 'Athlete' }}</p>
-        <p class="mt-1 font-bold text-gray-400 text-lg">2nd</p>
-        <p class="font-semibold text-emerald-600 text-sm">{{ metricText(leaders[1]) }}</p>
+  <div class="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+    <header class="mb-6 flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Leaderboard</h1>
+        <p class="mt-1 text-slate-600 dark:text-slate-400">{{ 'Who ' + metricLabel() + ' ' + periodLabel() + '.' }}</p>
       </div>
-      <div class="ring-2 ring-yellow-400 pt-4 text-center card">
-        <div class="mb-1 text-2xl">👑</div>
-        <div class="flex items-center justify-center mb-2 mx-auto h-16 w-16 font-bold text-2xl text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">{{ (leaders[0]?.userName || 'U').charAt(0) }}</div>
-        <p class="font-bold text-sm truncate dark:text-white">{{ leaders[0]?.userName || 'Athlete' }}</p>
-        <p class="mt-1 font-bold text-lg text-yellow-500">1st</p>
-        <p class="font-semibold text-emerald-600 text-sm">{{ metricText(leaders[0]) }}</p>
+      <div class="mt-1 flex shrink-0 rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Scope">
+        <button @click="scope.set('global')" x-class="scope === 'global' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Global</button>
+        <button @click="scope.set('following')" x-class="scope === 'following' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Following</button>
       </div>
-      <div class="pt-8 text-center card">
-        <div class="flex items-center justify-center mb-2 mx-auto h-14 w-14 font-bold text-orange-600 text-xl bg-orange-100 dark:bg-orange-900/30 rounded-full">{{ (leaders[2]?.userName || 'U').charAt(0) }}</div>
-        <p class="font-semibold text-sm truncate dark:text-white">{{ leaders[2]?.userName || 'Athlete' }}</p>
-        <p class="mt-1 font-bold text-lg text-orange-400">3rd</p>
-        <p class="font-semibold text-emerald-600 text-sm">{{ metricText(leaders[2]) }}</p>
-      </div>
-    </div>
+    </header>
 
-    <!-- Full list -->
-    <div class="space-y-2">
-      <template :for="(leader, index) in leaders">
-        <div class="flex gap-4 items-center py-3 card">
-          <span class="w-8 font-bold text-center text-sm" x-class="index < 3 ? 'text-emerald-600' : 'text-gray-400 dark:text-slate-500'">{{ index + 1 }}</span>
-          <div class="flex items-center justify-center shrink-0 h-10 w-10 font-bold text-gray-600 text-sm dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-full">{{ leader.userName.charAt(0) }}</div>
-          <div class="flex-1 min-w-0">
-            <StxLink x-to="'/athlete/' + leader.userId" class="font-semibold text-sm truncate dark:text-white hover:text-emerald-600 transition block">{{ leader.userName }}</StxLink>
-            <p class="text-gray-500 text-xs dark:text-slate-400">{{ leader.trailsCompleted + ' trails completed' }}</p>
-          </div>
-          <div class="shrink-0 text-right">
-            <p class="font-bold text-emerald-600 text-sm">{{ metricText(leader) }}</p>
-            <p class="text-gray-400 text-xs dark:text-slate-500">{{ leader.totalElevation.toLocaleString() + ' ft' }}</p>
-          </div>
+    <!-- Controls. Period is the primary choice, so it is a full-width
+         segmented control; metric is a quieter tab row below it, and the
+         global/following scope sits beside the title. -->
+    <div class="mb-6 space-y-4">
+      <div class="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Period">
+        <button @click="period.set('weekly')" x-class="period === 'weekly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">This week</button>
+        <button @click="period.set('monthly')" x-class="period === 'monthly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">This month</button>
+        <button @click="period.set('alltime')" x-class="period === 'alltime' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">All time</button>
+      </div>
+
+      <div class="border-b border-slate-200 dark:border-slate-700">
+        <div class="-mb-px flex">
+          <button @click="metric.set('distance')" x-class="metric === 'distance' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 text-sm font-semibold transition">Distance</button>
+          <button @click="metric.set('elevation')" x-class="metric === 'elevation' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 text-sm font-semibold transition">Elevation</button>
+          <button @click="metric.set('activities')" x-class="metric === 'activities' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 text-sm font-semibold transition">Activities</button>
         </div>
-      </template>
+      </div>
+    </div>
+
+    <!-- First load: skeletons in the shape of the podium and rows, so nothing
+         jumps when the rankings land. Later reloads keep the old board on
+         screen, dimmed, rather than blanking it on every tab switch. -->
+    <div :if="loading && leaders.length === 0" aria-hidden="true">
+      <div class="mb-6 grid grid-cols-3 items-end gap-3">
+        <div class="skeleton h-40 rounded-2xl"></div>
+        <div class="skeleton h-48 rounded-2xl"></div>
+        <div class="skeleton h-36 rounded-2xl"></div>
+      </div>
+      <div class="space-y-3">
+        <div class="skeleton h-14 rounded-xl"></div>
+        <div class="skeleton h-14 rounded-xl"></div>
+        <div class="skeleton h-14 rounded-xl"></div>
+      </div>
+    </div>
+
+    <div x-class="loading ? 'opacity-60' : ''" class="transition-opacity">
+      <!-- Top 3 podium: second, first, third, with the winner standing tallest. -->
+      <div :if="leaders.length >= 3" class="mb-6 grid grid-cols-3 items-end gap-2 sm:gap-4">
+        <StxLink x-to="'/athlete/' + leaders[1]?.userId" class="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-2 pb-4 pt-5 text-center shadow-sm transition hover:border-slate-300 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
+          <div class="relative">
+            <div class="grid h-14 w-14 place-items-center rounded-full bg-slate-100 font-display text-xl font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">{{ initialOf(leaders[1]) }}</div>
+            <span class="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full text-xs font-bold" x-class="medalClass(2)">2</span>
+          </div>
+          <p class="mt-3 w-full truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leaders[1]?.userName || 'Athlete' }}</p>
+          <p class="mt-0.5 text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">{{ metricText(leaders[1]) }}</p>
+        </StxLink>
+
+        <StxLink x-to="'/athlete/' + leaders[0]?.userId" class="group relative flex flex-col items-center rounded-2xl border border-amber-300 bg-gradient-to-b from-amber-50 to-white px-2 pb-5 pt-6 text-center shadow-md transition hover:border-amber-400 active:scale-[0.98] dark:border-amber-500/40 dark:from-amber-500/10 dark:to-slate-800">
+          <i class="i-lucide-crown absolute -top-3 h-6 w-6 text-amber-500" aria-hidden="true"></i>
+          <div class="relative">
+            <div class="grid h-16 w-16 place-items-center rounded-full bg-amber-100 font-display text-2xl font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ initialOf(leaders[0]) }}</div>
+            <span class="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full text-sm font-bold" x-class="medalClass(1)">1</span>
+          </div>
+          <p class="mt-3 w-full truncate text-sm font-bold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leaders[0]?.userName || 'Athlete' }}</p>
+          <p class="mt-0.5 font-display text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{{ metricText(leaders[0]) }}</p>
+        </StxLink>
+
+        <StxLink x-to="'/athlete/' + leaders[2]?.userId" class="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-2 pb-4 pt-5 text-center shadow-sm transition hover:border-slate-300 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
+          <div class="relative">
+            <div class="grid h-12 w-12 place-items-center rounded-full bg-orange-50 font-display text-lg font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">{{ initialOf(leaders[2]) }}</div>
+            <span class="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full text-xs font-bold" x-class="medalClass(3)">3</span>
+          </div>
+          <p class="mt-3 w-full truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leaders[2]?.userName || 'Athlete' }}</p>
+          <p class="mt-0.5 text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">{{ metricText(leaders[2]) }}</p>
+        </StxLink>
+      </div>
+
+      <!-- Full list: one grouped surface with hairline dividers, the way a
+           native table view reads, instead of a stack of separate cards. -->
+      <ol :if="leaders.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800">
+        <template :for="(leader, index) in leaders">
+          <li>
+            <StxLink x-to="'/athlete/' + leader.userId" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/60">
+              <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="medalClass(index + 1)">{{ index + 1 }}</span>
+              <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(leader) }}</div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leader.userName }}</p>
+                <p class="text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ leader.trailsCompleted === 1 ? '1 trail completed' : leader.trailsCompleted + ' trails completed' }}</p>
+              </div>
+              <div class="shrink-0 text-right">
+                <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ metricText(leader) }}</p>
+                <p class="text-xs tabular-nums text-slate-400 dark:text-slate-500">{{ secondaryText(leader) }}</p>
+              </div>
+            </StxLink>
+          </li>
+        </template>
+      </ol>
     </div>
 
     <!-- Empty state -->
-    <div :if="leaders.length === 0" class="py-20 text-center">
-      <div class="w-20 h-20 mx-auto mb-6 bg-yellow-100 dark:bg-yellow-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="award" size="40" class="text-yellow-400" />
+    <div :if="!loading && leaders.length === 0" class="px-4 py-16 text-center">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <Icon name="award" size="30" class="text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No rankings yet</h3>
-      <p class="text-gray-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Start recording activities to climb the leaderboard.</p>
-      <StxLink to="/record" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Record Activity</StxLink>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">No rankings yet</h3>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ scope === 'following' ? 'Nobody you follow has logged anything ' + periodLabel() + '. Try the global board.' : 'Nothing logged ' + periodLabel() + ' yet. Record an activity to open the board.' }}</p>
+      <StxLink to="/record" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+        <Icon name="play" size="16" />
+        Record an activity
+      </StxLink>
     </div>
   </div>
 @endsection

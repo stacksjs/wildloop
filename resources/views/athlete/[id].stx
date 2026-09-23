@@ -140,123 +140,160 @@
   })
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-4xl">
-    <div :if="loading" class="py-20 text-center text-gray-400">Loading athlete…</div>
+  <div class="mx-auto max-w-4xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
+    <StxLink to="/athletes" class="-ml-2 mb-3 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+      <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
+      Athletes
+    </StxLink>
+
+    <div :if="loading" aria-hidden="true" class="space-y-6">
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+        <div class="flex flex-col items-center gap-5 sm:flex-row">
+          <div class="skeleton h-24 w-24 shrink-0 rounded-full"></div>
+          <div class="w-full flex-1 space-y-3"><div class="skeleton mx-auto h-7 w-48 sm:mx-0"></div><div class="skeleton mx-auto h-4 w-32 sm:mx-0"></div></div>
+        </div>
+        <div class="skeleton mt-6 h-16 rounded-2xl"></div>
+      </div>
+      <div class="skeleton h-40 rounded-2xl"></div>
+    </div>
 
     <div :if="!loading && loadError" class="py-20 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="alert-triangle" size="28" class="text-red-400" />
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-red-50 dark:bg-red-500/10">
+        <Icon name="alert-triangle" size="28" class="text-red-500" />
       </div>
-      <h3 class="mb-1 font-semibold text-gray-900 text-lg dark:text-white">Couldn't load this athlete</h3>
-      <p class="mb-4 text-sm text-gray-500 dark:text-slate-400">Something went wrong reaching the server.</p>
-      <button @click="loadAthlete()" class="px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Try again</button>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Couldn't load this athlete</h3>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Something went wrong reaching the server.</p>
+      <button @click="loadAthlete()" class="mt-5 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
     </div>
 
     <div :if="!loading && !loadError && !profile" class="py-20 text-center">
-      <h3 class="mb-2 font-semibold text-gray-900 text-lg dark:text-white">Athlete not found</h3>
-      <StxLink to="/feed" class="text-emerald-600 text-sm font-semibold">← Back to feed</StxLink>
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+        <i class="i-lucide-user-x h-7 w-7 text-slate-400" aria-hidden="true"></i>
+      </div>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Athlete not found</h3>
+      <p :if="safetyMessage" class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ safetyMessage }}</p>
+      <StxLink to="/feed" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to feed</StxLink>
     </div>
 
     <template :if="!loading && !loadError && profile">
       <!-- Header -->
-      <div class="mb-6 card">
-        <div class="flex flex-col gap-6 items-center sm:flex-row">
-          <div class="flex items-center justify-center h-24 w-24 font-bold text-3xl text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">{{ (profile.user.name || 'U').charAt(0) }}</div>
-          <div class="flex-1 text-center sm:text-left">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-3 justify-center sm:justify-start">
-              <h1 class="font-bold text-2xl dark:text-white">{{ profile.user.name }}</h1>
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+        <div class="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
+          <div class="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-4xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10" aria-hidden="true">{{ (profile.user.name || 'U').charAt(0) }}</div>
+          <div class="min-w-0 flex-1">
+            <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ profile.user.name }}</h1>
+            <p :if="isSelf" class="mt-1 text-sm text-slate-500 dark:text-slate-400">This is you.</p>
+            <div :if="!isSelf" class="mt-4 flex items-center justify-center gap-2 sm:justify-start">
               <button
-                :if="!isSelf"
                 @click="onFollow()"
-                x-class="isFollowing ? 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'"
-                class="px-4 py-1.5 font-semibold text-sm rounded-lg transition"
->{{ isFollowing ? 'Following' : 'Follow' }}</button>
-              <button :if="!isSelf" @click="safetyOpen.set(!safetyOpen())" class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 dark:border-slate-600 text-gray-500 dark:text-slate-400 hover:text-red-500 transition">Safety</button>
-            </div>
-            <div :if="safetyOpen && !isSelf" class="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
-              <select x-value="reportReason" @change="event => reportReason.set(event.target.value)" class="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700">
-                <option value="harassment">Harassment</option>
-                <option value="spam">Spam</option>
-                <option value="unsafe">Unsafe behavior</option>
-                <option value="cheating">Cheating</option>
-                <option value="privacy">Privacy concern</option>
-                <option value="other">Other</option>
-              </select>
-              <button @click="onReport()" class="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500 text-white">Report</button>
-              <button @click="onBlock()" class="px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white">Block athlete</button>
-            </div>
-            <p :if="safetyMessage" class="mt-2 text-xs text-gray-500 dark:text-slate-400">{{ safetyMessage }}</p>
-            <div class="flex flex-wrap gap-4 justify-center sm:justify-start mt-3">
-              <div class="text-center">
-                <p class="text-lg font-bold text-emerald-600">{{ profile.stats.totalDistance.toFixed(1) }}</p>
-                <p class="metric-label">Miles</p>
-              </div>
-              <div class="text-center">
-                <p class="text-lg font-bold text-emerald-600">{{ profile.stats.activityCount }}</p>
-                <p class="metric-label">Activities</p>
-              </div>
-              <div class="text-center">
-                <p class="text-lg font-bold text-emerald-600">{{ profile.stats.totalElevation.toLocaleString() }}</p>
-                <p class="metric-label">Elev (ft)</p>
-              </div>
-              <div class="text-center">
-                <p class="text-lg font-bold text-emerald-600">{{ profile.stats.territoriesOwned }}</p>
-                <p class="metric-label">Territories</p>
-              </div>
-              <div class="text-center">
-                <p class="text-lg font-bold text-emerald-600">{{ profile.followerCount }}</p>
-                <p class="metric-label">Followers</p>
-              </div>
-              <div class="text-center">
-                <p class="text-lg font-bold text-emerald-600">{{ profile.followingCount }}</p>
-                <p class="metric-label">Following</p>
-              </div>
+                x-class="isFollowing ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'"
+                class="inline-flex min-h-11 items-center gap-1.5 rounded-full px-6 text-sm font-semibold transition active:scale-[0.98]"
+              >
+                <i x-class="isFollowing ? 'i-lucide-check' : 'i-lucide-user-plus'" class="h-4 w-4" aria-hidden="true"></i>
+                {{ isFollowing ? 'Following' : 'Follow' }}
+              </button>
+              <button @click="safetyOpen.set(!safetyOpen())" x-aria-expanded="safetyOpen() ? 'true' : 'false'" aria-label="Safety options" class="grid h-11 w-11 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:text-white">
+                <i class="i-lucide-shield-alert h-5 w-5" aria-hidden="true"></i>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+
+        <div :if="safetyOpen && !isSelf" class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/60">
+          <p class="text-sm font-semibold text-slate-900 dark:text-white">Safety</p>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Report this athlete to the WildLoop team, or block them.</p>
+          <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+            <select x-value="reportReason" @change="reportReason.set($event.target.value)" aria-label="Report reason" class="min-h-11 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+              <option value="harassment">Harassment</option>
+              <option value="spam">Spam</option>
+              <option value="unsafe">Unsafe behavior</option>
+              <option value="cheating">Cheating</option>
+              <option value="privacy">Privacy concern</option>
+              <option value="other">Other</option>
+            </select>
+            <div class="grid grid-cols-2 gap-2 sm:flex">
+              <button @click="onReport()" class="min-h-11 rounded-full bg-amber-500 px-4 text-sm font-semibold text-white transition hover:bg-amber-600">Report</button>
+              <button @click="onBlock()" class="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700">Block athlete</button>
+            </div>
+          </div>
+        </div>
+        <p :if="safetyMessage" role="status" class="mt-3 text-center text-sm text-slate-500 sm:text-left dark:text-slate-400">{{ safetyMessage }}</p>
+
+        <dl class="mt-5 grid grid-cols-3 gap-y-1 rounded-2xl bg-slate-50 text-center sm:grid-cols-6 dark:bg-slate-900/60">
+            <div class="px-1 py-3">
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ profile.stats.totalDistance.toFixed(1) }}</dd>
+              <dt class="metric-label mt-0.5">Miles</dt>
+            </div>
+            <div class="px-1 py-3">
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ profile.stats.activityCount }}</dd>
+              <dt class="metric-label mt-0.5">Activities</dt>
+            </div>
+            <div class="px-1 py-3">
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ profile.stats.totalElevation.toLocaleString() }}</dd>
+              <dt class="metric-label mt-0.5">Elev ft</dt>
+            </div>
+            <div class="px-1 py-3">
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ profile.stats.territoriesOwned }}</dd>
+              <dt class="metric-label mt-0.5">Territories</dt>
+            </div>
+            <div class="px-1 py-3">
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ profile.followerCount }}</dd>
+              <dt class="metric-label mt-0.5">Followers</dt>
+            </div>
+            <div class="px-1 py-3">
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ profile.followingCount }}</dd>
+              <dt class="metric-label mt-0.5">Following</dt>
+            </div>
+        </dl>
+      </section>
 
       <!-- Records -->
       <!-- Only verified times. An athlete's profile is where a record is read
            as a credential, so a claim nobody has checked does not belong on
            it - it lives on the route's board, marked as pending. -->
-      <div :if="records.length > 0" class="mb-6 card">
-        <h2 class="mb-4 font-bold text-lg dark:text-white">Records</h2>
-        <div class="space-y-2">
+      <section :if="records.length > 0" class="mb-6">
+        <h2 class="mb-3 flex items-center gap-2 font-display text-xl font-bold text-slate-900 dark:text-white">
+          <i class="i-lucide-timer h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+          Records
+        </h2>
+        <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <template :for="record in records">
-            <StxLink x-to="'/effort/' + record.id" class="flex items-center justify-between gap-4 py-3 border-b border-gray-100 dark:border-slate-700 last:border-0">
+            <StxLink x-to="'/effort/' + record.id" class="group flex min-h-16 items-center justify-between gap-4 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
               <div class="min-w-0">
-                <p class="truncate font-semibold text-sm dark:text-white">{{ record.trailName }}</p>
-                <p class="text-gray-400 text-xs">{{ styleLabel(record.style) + ' · ' + categoryLabel(record.category) + ' · ' + recordDate(record.finishedAt || record.startedAt) }}</p>
+                <p class="truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ record.trailName }}</p>
+                <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ styleLabel(record.style) + ' · ' + categoryLabel(record.category) + ' · ' + recordDate(record.finishedAt || record.startedAt) }}</p>
               </div>
-              <p class="shrink-0 font-bold text-emerald-600 text-sm">{{ record.elapsedLabel }}</p>
+              <p class="shrink-0 font-display text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{{ record.elapsedLabel }}</p>
             </StxLink>
           </template>
         </div>
-      </div>
+      </section>
 
       <!-- Recent activities -->
-      <div class="card">
-        <h2 class="mb-4 font-bold text-lg dark:text-white">Recent activities</h2>
-        <div class="space-y-2">
+      <section>
+        <h2 class="mb-3 font-display text-xl font-bold text-slate-900 dark:text-white">Recent activities</h2>
+        <div :if="profile.recentActivities.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <template :for="a in profile.recentActivities">
-            <StxLink x-to="'/activity/' + a.id" class="flex items-center justify-between py-3 border-b border-gray-100 dark:border-slate-700 last:border-0">
-              <div>
-                <p class="font-semibold text-sm dark:text-white">
-                  <span>{{ a.activityType }}</span>
-                  <span :if="a.trailName" class="text-gray-500 dark:text-slate-400"> · <span>{{ a.trailName }}</span></span>
-                </p>
-                <p class="text-gray-400 text-xs">{{ wl.timeAgo(a.completedAt) }}</p>
+            <StxLink x-to="'/activity/' + a.id" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+              <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                <i x-class="a.activityType === 'Hike' ? 'i-lucide-mountain' : a.activityType === 'Bike' ? 'i-lucide-bike' : 'i-lucide-footprints'" class="h-5 w-5" aria-hidden="true"></i>
               </div>
-              <div class="text-right">
-                <p class="font-bold text-emerald-600 text-sm">{{ a.distance.toFixed(1) + ' mi' }}</p>
-                <p class="text-gray-400 text-xs">{{ a.elevationGain.toLocaleString() + ' ft' }}</p>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">
+                  <span>{{ a.activityType }}</span>
+                  <span :if="a.trailName" class="font-normal text-slate-500 dark:text-slate-400"> · <span>{{ a.trailName }}</span></span>
+                </p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">{{ wl.timeAgo(a.completedAt) }}</p>
+              </div>
+              <div class="shrink-0 text-right">
+                <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ a.distance.toFixed(1) + ' mi' }}</p>
+                <p class="text-xs tabular-nums text-slate-400 dark:text-slate-500">{{ a.elevationGain.toLocaleString() + ' ft' }}</p>
               </div>
             </StxLink>
           </template>
-          <p :if="profile.recentActivities.length === 0" class="py-4 text-center text-gray-400 text-sm">No activities yet.</p>
         </div>
-      </div>
+        <p :if="profile.recentActivities.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">No activities yet.</p>
+      </section>
     </template>
   </div>
 @endsection

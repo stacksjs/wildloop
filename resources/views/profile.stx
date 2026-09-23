@@ -90,7 +90,7 @@
   })
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-4xl">
+  <div class="mx-auto max-w-4xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
     <!-- Signed out.
 
          This screen used to render anyway, and `userStats` falls back to a
@@ -103,7 +103,7 @@
       <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <i class="i-lucide-user h-9 w-9 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
       </div>
-      <h1 class="text-xl font-bold text-slate-900 dark:text-white">Your profile</h1>
+      <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Your profile</h1>
       <p class="mx-auto mt-2 max-w-sm text-slate-500 dark:text-slate-400">Your runs, achievements, saved trails and the ground you hold all live here.</p>
       <div class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <button type="button" @click="openLogin()" class="min-h-11 w-full rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] sm:w-auto">Log in</button>
@@ -112,118 +112,122 @@
     </div>
 
     <!-- Profile header -->
-    <div :if="currentUser" class="relative mb-6 card">
+    <section :if="currentUser" class="relative mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
       <!-- The app has no site header (native-shell.css), and the gear that
            opened Settings lived in it: password, deletion and sign-out were
            unreachable from the phone. The profile is where people look. -->
       <StxLink to="/settings" aria-label="Settings" class="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-700">
         <i class="i-lucide-settings h-5 w-5" aria-hidden="true"></i>
       </StxLink>
-      <div class="flex flex-col gap-6 items-center sm:flex-row">
-        <div class="flex items-center justify-center h-24 w-24 font-bold text-3xl text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">{{ (currentUser?.name || 'U').charAt(0) }}</div>
-        <div class="flex-1 text-center sm:text-left">
-          <h1 class="font-bold text-2xl dark:text-white">{{ currentUser?.name || 'Athlete' }}</h1>
-          <p class="mt-1 text-gray-500 text-sm dark:text-slate-400">{{ currentUser?.email || '' }}</p>
-          <div class="flex flex-wrap gap-4 justify-center sm:justify-start mt-3">
-            <div class="text-center">
-              <p class="text-lg font-bold text-emerald-600">{{ userStats?.totalDistance.toFixed(1) || '0' }}</p>
-              <p class="metric-label">Miles</p>
-            </div>
-            <div class="text-center">
-              <p class="text-lg font-bold text-emerald-600">{{ userStats?.trailsCompleted || 0 }}</p>
-              <p class="metric-label">Trails</p>
-            </div>
-            <div class="text-center">
-              <p class="text-lg font-bold text-emerald-600">{{ (userStats?.totalElevation || 0).toLocaleString() }}</p>
-              <p class="metric-label">Elev (ft)</p>
-            </div>
-            <div class="text-center">
-              <p class="text-lg font-bold text-emerald-600">{{ userStats?.currentStreak || 0 }}</p>
-              <p class="metric-label">Streak</p>
-            </div>
-            <div class="text-center">
-              <p class="text-lg font-bold text-emerald-600">{{ followerCount }}</p>
-              <p class="metric-label">Followers</p>
-            </div>
-            <div class="text-center">
-              <p class="text-lg font-bold text-emerald-600">{{ followingCount }}</p>
-              <p class="metric-label">Following</p>
-            </div>
+      <div class="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
+        <div class="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-4xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10" aria-hidden="true">{{ (currentUser?.name || 'U').charAt(0) }}</div>
+        <div class="min-w-0 flex-1 sm:pr-10">
+          <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ currentUser?.name || 'Athlete' }}</h1>
+          <p class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ currentUser?.email || '' }}</p>
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+            <StxLink to="/stats" class="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+              <i class="i-lucide-chart-column h-4 w-4" aria-hidden="true"></i>Stats
+            </StxLink>
+            <StxLink to="/achievements" class="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+              <i class="i-lucide-trophy h-4 w-4" aria-hidden="true"></i>Achievements
+            </StxLink>
           </div>
         </div>
       </div>
-    </div>
+      <dl class="mt-5 grid grid-cols-3 gap-y-1 rounded-2xl bg-slate-50 text-center sm:grid-cols-6 dark:bg-slate-900/60">
+          <div class="px-1 py-3">
+            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ userStats?.totalDistance.toFixed(1) || '0' }}</dd>
+            <dt class="metric-label mt-0.5">Miles</dt>
+          </div>
+          <div class="px-1 py-3">
+            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ userStats?.trailsCompleted || 0 }}</dd>
+            <dt class="metric-label mt-0.5">Trails</dt>
+          </div>
+          <div class="px-1 py-3">
+            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ (userStats?.totalElevation || 0).toLocaleString() }}</dd>
+            <dt class="metric-label mt-0.5">Elev ft</dt>
+          </div>
+          <div class="px-1 py-3">
+            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ userStats?.currentStreak || 0 }}</dd>
+            <dt class="metric-label mt-0.5">Streak</dt>
+          </div>
+          <div class="px-1 py-3">
+            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ followerCount }}</dd>
+            <dt class="metric-label mt-0.5">Followers</dt>
+          </div>
+          <div class="px-1 py-3">
+            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ followingCount }}</dd>
+            <dt class="metric-label mt-0.5">Following</dt>
+          </div>
+      </dl>
+    </section>
 
     <!-- Tabs -->
-    <div :if="currentUser" class="flex gap-1 mb-6 border-b border-gray-200 dark:border-slate-700">
-      <button @click="activeTab.set('activities')" x-class="activeTab === 'activities' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Activities</button>
-      <button @click="activeTab.set('saved')" x-class="activeTab === 'saved' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Saved Trails</button>
+    <div :if="currentUser" class="mb-5 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 sm:inline-grid dark:bg-slate-800" role="tablist">
+      <button @click="activeTab.set('activities')" x-class="activeTab === 'activities' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-5 text-sm font-semibold transition">Activities</button>
+      <button @click="activeTab.set('saved')" x-class="activeTab === 'saved' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-5 text-sm font-semibold transition">Saved trails</button>
     </div>
 
     <!-- Activities -->
-    <div :if="currentUser && activeTab === 'activities'" class="space-y-4">
-      <template :for="activity in myActivities">
-        <StxLink x-to="'/activity/' + activity.id" class="card flex gap-4 items-center hover:shadow-md transition block">
-          <div class="flex items-center justify-center shrink-0 h-12 w-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-            <Icon name="zap" size="24" class="text-emerald-600" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="font-semibold text-sm truncate dark:text-white">{{ activity.title }}</p>
-            <p class="text-gray-500 text-xs dark:text-slate-400">{{ activity.activityType + ' · ' + wl.timeAgo(activity.created_at) }}</p>
-          </div>
-          <div class="flex gap-4 shrink-0 text-right">
-            <div>
-              <p class="font-bold text-sm dark:text-white">{{ activity.distance.toFixed(1) + ' mi' }}</p>
-              <p class="metric-label">Distance</p>
+    <div :if="currentUser && activeTab === 'activities'">
+      <div :if="myActivities.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+        <template :for="activity in myActivities">
+          <StxLink x-to="'/activity/' + activity.id" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+            <div class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+              <i x-class="activity.activityType === 'Hike' ? 'i-lucide-mountain' : activity.activityType === 'Bike' ? 'i-lucide-bike' : 'i-lucide-footprints'" class="h-5 w-5" aria-hidden="true"></i>
             </div>
-            <div>
-              <p class="font-bold text-sm dark:text-white">{{ activity.duration }}</p>
-              <p class="metric-label">Time</p>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ activity.title }}</p>
+              <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ activity.activityType + ' · ' + wl.timeAgo(activity.created_at) }}</p>
             </div>
-          </div>
-        </StxLink>
-      </template>
+            <div class="shrink-0 text-right">
+              <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ activity.distance.toFixed(1) + ' mi' }}</p>
+              <p class="text-xs tabular-nums text-slate-400 dark:text-slate-500">{{ activity.duration }}</p>
+            </div>
+          </StxLink>
+        </template>
+      </div>
 
-      <div :if="myActivities.length === 0" class="py-16 text-center">
-        <div class="w-16 h-16 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-          <Icon name="zap" size="32" class="text-emerald-400" />
+      <div :if="myActivities.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+        <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+          <Icon name="zap" size="28" class="text-emerald-600 dark:text-emerald-400" />
         </div>
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">No activities yet</h3>
-        <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">Record your first run, hike, or walk.</p>
-        <StxLink to="/record" class="px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Record Activity</StxLink>
+        <h3 class="text-base font-semibold text-slate-900 dark:text-white">No activities yet</h3>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record your first run, hike, or walk.</p>
+        <StxLink to="/record" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
       </div>
     </div>
 
     <!-- Saved -->
-    <div :if="currentUser && activeTab === 'saved' && savedTrails.length > 0" class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+    <div :if="currentUser && activeTab === 'saved' && savedTrails.length > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <template :for="trail in savedTrails">
-        <div class="card flex items-center gap-4 hover:shadow-lg transition">
-          <StxLink x-to="'/trail/' + trail.id" class="flex-1 min-w-0 group">
-            <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600 transition truncate">{{ trail.name }}</h3>
-            <p class="text-sm text-gray-500 dark:text-slate-400 truncate">{{ trail.location }}</p>
-            <div class="flex gap-3 items-center mt-2 text-xs text-gray-500 dark:text-slate-400">
+        <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+          <StxLink x-to="'/trail/' + trail.id" class="group min-w-0 flex-1">
+            <h3 class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ trail.name }}</h3>
+            <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ trail.location }}</p>
+            <div class="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
               <span class="capitalize" x-class="'px-2 py-0.5 font-semibold rounded-full difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
-              <span>{{ trail.distance + ' mi' }}</span>
-              <span class="flex items-center gap-1">
-                <Icon name="star" size="12" class="text-yellow-400" />
+              <span class="tabular-nums">{{ trail.distance + ' mi' }}</span>
+              <span class="flex items-center gap-1 tabular-nums">
+                <Icon name="star" size="12" class="text-amber-400" />
                 <span>{{ trail.rating || '-' }}</span>
               </span>
             </div>
           </StxLink>
-          <button @click="onToggleSave(trail.id)" class="p-2.5 rounded-xl bg-red-500 text-white transition hover:bg-red-600 shrink-0" aria-label="Unsave trail">
-            <Icon name="heart" size="16" />
+          <button @click="onToggleSave(trail.id)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" aria-label="Unsave trail">
+            <Icon name="heart" size="18" />
           </button>
         </div>
       </template>
     </div>
 
-    <div :if="currentUser && activeTab === 'saved' && savedTrails.length === 0" class="py-16 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="heart" size="32" class="text-red-400" />
+    <div :if="currentUser && activeTab === 'saved' && savedTrails.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-red-50 dark:bg-red-500/10">
+        <Icon name="heart" size="28" class="text-red-400" />
       </div>
-      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">No saved trails</h3>
-      <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">Tap the heart on any trail to save it.</p>
-      <StxLink to="/trails" class="px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Explore Trails</StxLink>
+      <h3 class="text-base font-semibold text-slate-900 dark:text-white">No saved trails</h3>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Tap the heart on any trail to save it.</p>
+      <StxLink to="/trails" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Explore trails</StxLink>
     </div>
   </div>
 @endsection

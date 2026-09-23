@@ -33,6 +33,7 @@
 
 <script client>
   import { useChallenges } from '../composables/useChallenges'
+  import { formatTerritoryArea } from '../functions/territory-style'
 
   useHead({ title: 'Challenges — WildLoop' })
 
@@ -55,105 +56,142 @@
     if (t === 'received') return wl.challenges().filter((c: any) => c.challenged_id === uid)
     return wl.challenges().filter((c: any) => c.status === 'completed')
   })
+
+  /**
+   * Area at stake is square metres (it is copied from the territory). It was
+   * shown as `/ 1000` km², a thousandfold overstatement; the shared formatter
+   * picks the unit for the magnitude. Local, because markup cannot call an
+   * import.
+   */
+  function areaText(squareMetres: number): string {
+    return formatTerritoryArea(Number(squareMetres) || 0)
+  }
+
+  function initialOf(name: string | null | undefined): string {
+    return String(name || '?').charAt(0).toUpperCase()
+  }
+
+  function statusText(challenge: any): string {
+    if (challenge.status === 'active') return 'In progress'
+    if (challenge.status === 'pending') return 'Pending'
+    if (challenge.status === 'declined') return 'Declined'
+    return challenge.winner_id === currentUserId() ? 'Won' : 'Lost'
+  }
+
+  function statusClass(challenge: any): string {
+    if (challenge.status === 'active') return 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300'
+    if (challenge.status === 'pending') return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+    if (challenge.status === 'declined') return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+    return challenge.winner_id === currentUserId()
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+      : 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'
+  }
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-4xl">
-    <div class="flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center mb-6">
-      <div>
-        <h1 class="font-bold text-2xl dark:text-white">Challenges</h1>
-        <p class="mt-1 text-gray-500 text-sm dark:text-slate-400">Challenge other athletes for the ground they hold</p>
+  <div class="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+    <header class="mb-5 flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Challenges</h1>
+        <p class="mt-1 text-slate-600 dark:text-slate-400">Challenge other athletes for the ground they hold.</p>
       </div>
-      <button @click="openCreate()" class="flex items-center px-4 py-2 font-semibold text-sm text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition">+ New Challenge</button>
-    </div>
+      <button @click="openCreate()" aria-label="New challenge" class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 pl-4 pr-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+        <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>
+        <span>New<span class="hidden sm:inline"> challenge</span></span>
+      </button>
+    </header>
 
-    <div class="flex gap-1 mb-6 border-b border-gray-200 dark:border-slate-700">
-      <button @click="tab.set('active')" x-class="tab === 'active' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Active</button>
-      <button @click="tab.set('sent')" x-class="tab === 'sent' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Sent</button>
-      <button @click="tab.set('received')" x-class="tab === 'received' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Received</button>
-      <button @click="tab.set('completed')" x-class="tab === 'completed' ? 'border-orange-600 text-orange-600' : 'border-transparent text-gray-500 dark:text-slate-400'" class="px-4 py-3 font-medium text-sm border-b-2 transition">Completed</button>
+    <div class="-mx-4 mb-6 flex overflow-x-auto border-b border-slate-200 px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 dark:border-slate-700">
+        <button @click="tab.set('active')" x-class="tab === 'active' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold transition">Active</button>
+        <button @click="tab.set('sent')" x-class="tab === 'sent' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold transition">Sent</button>
+        <button @click="tab.set('received')" x-class="tab === 'received' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold transition">Received</button>
+        <button @click="tab.set('completed')" x-class="tab === 'completed' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold transition">Completed</button>
     </div>
 
     <div class="space-y-4">
       <template :for="challenge in filtered">
-        <div class="card">
-          <div class="flex items-center justify-between mb-4">
-            <span class="px-2 py-0.5 font-semibold text-xs rounded-full" x-class="challenge.status === 'active' ? 'bg-orange-100 text-orange-700' : challenge.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : challenge.status === 'declined' ? 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300' : challenge.winner_id === currentUserId ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">{{ challenge.status === 'active' ? 'IN PROGRESS' : challenge.status === 'pending' ? 'PENDING' : challenge.status === 'declined' ? 'DECLINED' : challenge.winner_id === currentUserId ? 'WON' : 'LOST' }}</span>
-            <span class="text-gray-500 text-xs dark:text-slate-400">{{ wl.timeAgo(challenge.created_at) }}</span>
+        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold" x-class="statusClass(challenge)">{{ statusText(challenge) }}</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ wl.timeAgo(challenge.created_at) }}</span>
           </div>
 
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3 flex-1">
-              <div class="flex items-center justify-center h-12 w-12 font-bold text-orange-600 bg-orange-100 dark:bg-orange-900/20 rounded-full">{{ challenge.challengerName.charAt(0) }}</div>
-              <div>
-                <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ challenge.challenger_id === currentUserId ? 'You' : challenge.challengerName }}</p>
-                <p class="text-xs text-gray-500 dark:text-slate-400">Challenger</p>
+          <!-- Challenger vs defender, mirrored around the VS mark. -->
+          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-orange-50 font-display font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" aria-hidden="true">{{ initialOf(challenge.challengerName) }}</div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ challenge.challenger_id === currentUserId ? 'You' : challenge.challengerName }}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Challenger</p>
               </div>
             </div>
-            <div class="shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-slate-400">VS</div>
-            <div class="flex items-center gap-3 flex-1 justify-end text-right">
-              <div>
-                <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ challenge.challenged_id === currentUserId ? 'You' : challenge.challengedName }}</p>
-                <p class="text-xs text-gray-500 dark:text-slate-400">Defender</p>
+            <div class="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[10px] font-bold tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">VS</div>
+            <div class="flex min-w-0 items-center justify-end gap-3 text-right">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ challenge.challenged_id === currentUserId ? 'You' : challenge.challengedName }}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Defender</p>
               </div>
-              <div class="flex items-center justify-center h-12 w-12 font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/20 rounded-full">{{ challenge.challengedName.charAt(0) }}</div>
+              <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-50 font-display font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(challenge.challengedName) }}</div>
             </div>
           </div>
 
-          <div class="mt-4 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl flex items-center justify-between">
-            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
-              Territory:
-              <StxLink x-to="'/territory/' + challenge.territory_id" class="font-medium text-emerald-600 hover:underline">{{ challenge.territoryName }}</StxLink>
-            </div>
-            <span class="text-xs text-gray-500 dark:text-slate-400">{{ (challenge.areaAtStake / 1000).toFixed(1) + ' km²' }}</span>
-          </div>
+          <StxLink x-to="'/territory/' + challenge.territory_id" class="group mt-4 flex min-h-11 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 transition hover:bg-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-900">
+            <span class="flex min-w-0 items-center gap-2 text-sm">
+              <i class="i-lucide-flag h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+              <span class="truncate font-medium text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ challenge.territoryName }}</span>
+            </span>
+            <span class="shrink-0 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">{{ areaText(challenge.areaAtStake) + ' at stake' }}</span>
+          </StxLink>
 
           <!-- Accept / decline (received + pending only) (#965) -->
-          <div :if="challenge.challenged_id === currentUserId && challenge.status === 'pending'" class="flex gap-2 mt-3">
-            <button @click="respond(challenge, 'accept')" x-disabled="busyId === challenge.id" class="flex-1 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition disabled:opacity-60">Accept</button>
-            <button @click="respond(challenge, 'decline')" x-disabled="busyId === challenge.id" class="flex-1 px-4 py-2 border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 text-sm font-semibold rounded-lg hover:border-red-400 hover:text-red-500 transition disabled:opacity-60">Decline</button>
+          <div :if="challenge.challenged_id === currentUserId && challenge.status === 'pending'" class="mt-3 grid grid-cols-2 gap-2">
+            <button @click="respond(challenge, 'decline')" x-disabled="busyId === challenge.id" class="min-h-11 rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-red-300 hover:text-red-600 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300">Decline</button>
+            <button @click="respond(challenge, 'accept')" x-disabled="busyId === challenge.id" class="min-h-11 rounded-full bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">Accept</button>
           </div>
-          <p :if="challenge.challenger_id === currentUserId && challenge.status === 'pending'" class="mt-3 text-xs text-gray-400 text-center">Waiting for <span>{{ challenge.challengedName }}</span> to respond…</p>
-        </div>
+          <p :if="challenge.challenger_id === currentUserId && challenge.status === 'pending'" class="mt-3 text-center text-xs text-slate-400">Waiting for <span>{{ challenge.challengedName }}</span> to respond…</p>
+        </article>
       </template>
 
-      <div :if="filtered.length === 0" class="py-20 text-center">
-        <div class="w-20 h-20 mx-auto mb-6 bg-purple-100 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center">
-          <Icon name="flag" size="40" class="text-purple-400" />
+      <div :if="filtered.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+        <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+          <Icon name="flag" size="30" class="text-emerald-600 dark:text-emerald-400" />
         </div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No challenges yet</h3>
-        <p class="text-gray-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Pick a territory someone else holds and challenge them for it.</p>
-        <button @click="openCreate()" class="px-6 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition">New Challenge</button>
+        <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ tab === 'active' ? 'No active challenges' : tab === 'sent' ? 'You have not sent any' : tab === 'received' ? 'Nobody has challenged you' : 'No finished challenges yet' }}</h3>
+        <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Pick a territory someone else holds and challenge them for it.</p>
+        <button @click="openCreate()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">New challenge</button>
       </div>
     </div>
   </div>
 
-  <!-- New-challenge modal (#965) -->
-  <div :if="createOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div @click="closeCreate()" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative w-full max-w-md card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="font-bold text-lg dark:text-white">Challenge a rival</h2>
-        <button @click="closeCreate()" class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 text-xl leading-none">×</button>
+  <!-- New-challenge modal (#965). Bottom sheet on phones. -->
+  <div :if="createOpen" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="new-challenge-title">
+    <div @click="closeCreate()" class="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]"></div>
+    <div class="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-200 bg-white px-5 pb-8 pt-3 shadow-2xl sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-800">
+      <div class="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-600" aria-hidden="true"></div>
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <h2 id="new-challenge-title" class="font-display text-xl font-bold text-slate-900 dark:text-white">Challenge a rival</h2>
+        <button @click="closeCreate()" aria-label="Close" class="-mr-2 grid h-11 w-11 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200">
+          <i class="i-lucide-x h-5 w-5" aria-hidden="true"></i>
+        </button>
       </div>
-      <div :if="rivalTerritories().length > 0" class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Territory to challenge for</label>
-          <select @change="targetTerritoryId.set($event.target.value)" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm">
+      <div :if="rivalTerritories().length > 0" class="space-y-4">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Territory to challenge for</span>
+          <select @change="targetTerritoryId.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
             <template :for="t in rivalTerritories()">
-              <option x-value="t.id" x-selected="String(t.id) === targetTerritoryId" :text="t.name + ' (' + (t.areaSize / 1000).toFixed(1) + ' km²)'"></option>
+              <option x-value="t.id" x-selected="String(t.id) === targetTerritoryId" :text="t.name + ' (' + areaText(t.areaSize) + ')'"></option>
             </template>
           </select>
-        </div>
-        <p class="text-xs text-gray-400">You'll challenge whoever currently holds it. The territory's area is what's at stake.</p>
-        <p :if="createError" class="text-sm text-red-500">{{ createError }}</p>
-        <div class="flex gap-2 pt-1">
-          <button @click="submitCreate()" class="flex-1 px-4 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition">{{ submitting ? 'Sending…' : 'Throw down' }}</button>
-          <button @click="closeCreate()" class="px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition">Cancel</button>
+        </label>
+        <p class="text-sm text-slate-500 dark:text-slate-400">You'll challenge whoever currently holds it. The territory's area is what's at stake.</p>
+        <p :if="createError" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ createError }}</p>
+        <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
+          <button @click="closeCreate()" class="min-h-11 rounded-full px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
+          <button @click="submitCreate()" x-disabled="submitting" class="min-h-11 flex-1 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{{ submitting ? 'Sending…' : 'Throw down' }}</button>
         </div>
       </div>
-      <div :if="rivalTerritories().length === 0" class="text-center py-6">
-        <p class="text-sm text-gray-500 dark:text-slate-400 mb-4">No rival territories to challenge right now. They're all yours, or the map is still loading.</p>
-        <StxLink to="/territories" class="inline-block px-5 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition">Open the map</StxLink>
+      <div :if="rivalTerritories().length === 0" class="py-4 text-center">
+        <p class="mb-5 text-sm text-slate-500 dark:text-slate-400">No rival territories to challenge right now. They're all yours, or the map is still loading.</p>
+        <StxLink to="/territories" class="inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Open the map</StxLink>
       </div>
     </div>
   </div>

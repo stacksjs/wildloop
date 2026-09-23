@@ -11,14 +11,16 @@ const { rank } = withDefaults(defineProps<LeaderboardCardProps>(), {
 </script>
 
 <template>
-  <div class="p-6 text-white bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-2xl">
-    <h3 class="flex items-center mb-4 font-bold text-lg">
-      <Icon name="award" size="20" class="mr-2" />
-      Weekly Leaderboard
+  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 p-6 text-white shadow-lg shadow-emerald-900/10">
+    <div class="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" aria-hidden="true"></div>
+    <h3 class="relative mb-1 flex items-center gap-2 font-display text-lg font-bold">
+      <Icon name="award" size="20" />
+      Weekly leaderboard
     </h3>
-    <p class="mb-4 text-emerald-100 text-sm">You're ranked #{{ rank }} this week</p>
-    <button class="py-2.5 w-full font-semibold text-emerald-700 bg-white hover:bg-emerald-50 rounded-xl transition">
-      View Full Leaderboard
-    </button>
+    <p class="relative mb-5 text-sm text-emerald-100">You're ranked <span class="font-semibold tabular-nums text-white">#{{ rank }}</span> this week</p>
+    <StxLink to="/leaderboard" class="relative flex min-h-11 w-full items-center justify-center gap-1 rounded-full bg-white font-semibold text-emerald-700 transition hover:bg-emerald-50 active:scale-[0.98]">
+      View full leaderboard
+      <i class="i-lucide-chevron-right h-4 w-4" aria-hidden="true"></i>
+    </StxLink>
   </div>
 </template>

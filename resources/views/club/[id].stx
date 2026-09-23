@@ -144,6 +144,18 @@
     if (ok) navigate('/clubs')
   }
 
+  function initialOf(name: string | null | undefined): string {
+    return String(name || '?').charAt(0).toUpperCase()
+  }
+
+  /** Gold, silver and bronze for the weekly podium; plain for everyone else. */
+  function medalClass(rank: number): string {
+    if (rank === 1) return 'bg-amber-400 text-amber-950'
+    if (rank === 2) return 'bg-slate-300 text-slate-800 dark:bg-slate-400 dark:text-slate-900'
+    if (rank === 3) return 'bg-orange-300 text-orange-950'
+    return 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+  }
+
   // The record's own identity, once it loads. Without it every club page
   // serves one title and no canonical. Applied on the client rather than in
   // a `<script server>` block — see usePageSeo for why that is forced.
@@ -165,176 +177,239 @@
   })
 </script>
 
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <div :if="loading" class="py-20 text-center text-gray-400">Loading club…</div>
+  <div class="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
+    <StxLink to="/clubs" class="-ml-2 mb-3 inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+      <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
+      Clubs
+    </StxLink>
+
+    <!-- Loading: the header card and two columns, in outline. -->
+    <div :if="loading" aria-hidden="true" class="space-y-6">
+      <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 dark:border-slate-700 dark:bg-slate-800">
+        <div class="flex items-center gap-4">
+          <div class="skeleton h-16 w-16 shrink-0 rounded-2xl"></div>
+          <div class="flex-1 space-y-2"><div class="skeleton h-6 w-1/2"></div><div class="skeleton h-4 w-1/3"></div></div>
+        </div>
+        <div class="skeleton mt-5 h-4 w-full"></div>
+        <div class="skeleton mt-2 h-4 w-4/5"></div>
+      </div>
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="space-y-3 lg:col-span-2"><div class="skeleton h-16 rounded-2xl"></div><div class="skeleton h-16 rounded-2xl"></div><div class="skeleton h-16 rounded-2xl"></div></div>
+        <div class="skeleton h-48 rounded-2xl"></div>
+      </div>
+    </div>
 
     <div :if="!loading && loadError" class="py-20 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="alert-triangle" size="28" class="text-red-400" />
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-red-50 dark:bg-red-500/10">
+        <Icon name="alert-triangle" size="28" class="text-red-500" />
       </div>
-      <h3 class="mb-1 font-semibold text-gray-900 text-lg dark:text-white">Couldn't load this club</h3>
-      <button @click="loadClub()" class="mt-2 px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Try again</button>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Couldn't load this club</h3>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Check your connection and try again.</p>
+      <button @click="loadClub()" class="mt-5 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
     </div>
 
     <div :if="!loading && !loadError && !club" class="py-20 text-center">
-      <h3 class="mb-2 font-semibold text-gray-900 text-lg dark:text-white">Club not found</h3>
-      <StxLink to="/clubs" class="text-emerald-600 text-sm font-semibold">← Back to clubs</StxLink>
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+        <Icon name="users" size="28" class="text-slate-400" />
+      </div>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Club not found</h3>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been deleted, or it is private.</p>
+      <StxLink to="/clubs" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Browse clubs</StxLink>
     </div>
 
     <template :if="!loading && !loadError && club">
       <!-- Header -->
-      <div class="card mb-6">
-        <div class="flex flex-col sm:flex-row gap-6">
-          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600">{{ club.name.charAt(0) }}</div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h1 class="text-2xl font-bold dark:text-white">{{ club.name }}</h1>
-                <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-slate-400 mt-1">
-                  <span>{{ club.location || 'Worldwide' }}</span>
-                  <span>{{ club.memberCount + ' members' }}</span>
-                  <span class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-700 font-medium">{{ club.type }}</span>
-                  <span :if="club.isPrivate" class="px-1.5 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 font-medium">Private</span>
-                  <span :if="club.joinPolicy === 'invite_only'" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium">
-                    <i class="i-lucide-lock h-3 w-3" aria-hidden="true"></i>Invite only
-                  </span>
-                  <a :if="club.website" x-href="club.website" rel="noopener" class="text-emerald-700 dark:text-emerald-400 font-medium underline underline-offset-2">{{ club.website.replace(/^https?:\/\//, '') }}</a>
-                </div>
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div class="flex min-w-0 items-start gap-4">
+            <div class="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-emerald-100 font-display text-2xl font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(club.name) }}</div>
+            <div class="min-w-0">
+              <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ club.name }}</h1>
+              <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500 dark:text-slate-400">
+                <span>{{ club.location || 'Worldwide' }}</span>
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span>{{ club.type }}</span>
+                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                <span class="tabular-nums">{{ club.memberCount === 1 ? '1 member' : club.memberCount + ' members' }}</span>
+              </p>
+              <div :if="club.isPrivate || club.joinPolicy === 'invite_only' || club.website" class="mt-2 flex flex-wrap items-center gap-1.5">
+                <span :if="club.joinPolicy === 'invite_only'" class="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-white dark:text-slate-900">
+                  <i class="i-lucide-lock h-3 w-3" aria-hidden="true"></i>Invite only
+                </span>
+                <span :if="club.isPrivate" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  <i class="i-lucide-eye-off h-3 w-3" aria-hidden="true"></i>Private
+                </span>
+                <a :if="club.website" x-href="club.website" rel="noopener" class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400">
+                  <i class="i-lucide-link h-3 w-3" aria-hidden="true"></i>{{ club.website.replace(/^https?:\/\//, '') }}
+                </a>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <button :if="canInvite" @click="openInvite()" class="px-4 py-2 text-sm font-semibold rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition">Invite</button>
-                <!-- A closed club shows no Join button at all. Offering one that
-                     is guaranteed to be refused is worse than not offering it. -->
-                <button :if="!isOwner && (!isInviteOnly || club.isMember)" @click="onToggle()" x-disabled="busy" class="px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-60" x-class="club.isMember ? 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'">{{ club.isMember ? 'Joined' : 'Join' }}</button>
-                <button :if="isOwner" @click="onDelete()" x-disabled="busy" class="px-4 py-2 text-sm font-semibold rounded-lg border border-gray-200 dark:border-slate-600 text-red-500 hover:border-red-400 transition disabled:opacity-60">Delete club</button>
-              </div>
-            </div>
-            <p class="text-sm text-gray-600 dark:text-slate-400 mt-3">{{ club.description }}</p>
-            <p :if="joinError" role="alert" class="mt-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">{{ joinError }}</p>
-
-            <!-- The way in to a closed club: a code from somebody already inside. -->
-            <div :if="isInviteOnly && !club.isMember" class="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-              <p class="text-sm font-semibold dark:text-white">This team is invite only</p>
-              <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">A member has to invite you. Already have a code? Redeem it here.</p>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  placeholder="ABCDE-FGHIJ-KLMNO-PQRST"
-                  x-value="redeemCode"
-                  @input="e => redeemCode.set(e.target.value)"
-                  class="min-w-0 flex-1 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 font-mono text-sm uppercase tracking-wide"
-                />
-                <button @click="submitRedeem()" x-disabled="redeemWorking()" class="rounded-lg bg-slate-900 dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-slate-900 transition disabled:opacity-60">{{ redeemWorking ? 'Checking…' : 'Redeem' }}</button>
-              </div>
-              <p :if="redeemError" role="alert" class="mt-2 text-sm text-red-500">{{ redeemError }}</p>
-            </div>
-            <div class="flex items-center gap-6 pt-3 mt-3 border-t border-gray-100 dark:border-slate-700 text-sm">
-              <div><span class="font-semibold dark:text-white">{{ club.weeklyDistance + ' mi' }}</span> <span class="text-gray-500 dark:text-slate-400">this week</span></div>
-              <div><span class="font-semibold dark:text-white">{{ club.activitiesThisWeek }}</span> <span class="text-gray-500 dark:text-slate-400">activities</span></div>
             </div>
           </div>
+          <div class="flex shrink-0 flex-wrap items-center gap-2">
+            <button :if="canInvite" @click="openInvite()" class="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-emerald-200 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 active:scale-[0.98] dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20">
+              <i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>Invite
+            </button>
+            <!-- A closed club shows no Join button at all. Offering one that
+                 is guaranteed to be refused is worse than not offering it. -->
+            <button :if="!isOwner && (!isInviteOnly || club.isMember)" @click="onToggle()" x-disabled="busy" class="min-h-11 rounded-full px-5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60" x-class="club.isMember ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'">{{ club.isMember ? 'Joined' : 'Join club' }}</button>
+            <button :if="isOwner" @click="onDelete()" x-disabled="busy" class="min-h-11 rounded-full border border-slate-200 px-4 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:opacity-60 dark:border-slate-600 dark:text-red-400 dark:hover:bg-red-500/10">Delete club</button>
+          </div>
         </div>
-      </div>
 
-      <div class="grid lg:grid-cols-3 gap-6">
+        <p :if="club.description" class="mt-4 max-w-[68ch] text-[15px] leading-relaxed text-slate-600 dark:text-slate-300">{{ club.description }}</p>
+        <p :if="joinError" role="alert" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{{ joinError }}</p>
+
+        <!-- The way in to a closed club: a code from somebody already inside. -->
+        <div :if="isInviteOnly && !club.isMember" class="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/60">
+          <p class="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+            <i class="i-lucide-key-round h-4 w-4 text-slate-500" aria-hidden="true"></i>
+            This team is invite only
+          </p>
+          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">A member has to invite you. Already have a code? Redeem it here.</p>
+          <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              placeholder="ABCDE-FGHIJ-KLMNO-PQRST"
+              aria-label="Invite code"
+              x-value="redeemCode"
+              @input="redeemCode.set($event.target.value)"
+              class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white min-w-0 flex-1 font-mono uppercase tracking-wide"
+            />
+            <button @click="submitRedeem()" x-disabled="redeemWorking()" class="min-h-11 rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">{{ redeemWorking ? 'Checking…' : 'Redeem' }}</button>
+          </div>
+          <p :if="redeemError" role="alert" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ redeemError }}</p>
+        </div>
+
+        <dl class="mt-5 grid grid-cols-3 divide-x divide-slate-100 rounded-2xl bg-slate-50 py-3 text-center dark:divide-slate-700 dark:bg-slate-900/60">
+          <div class="px-2">
+            <dd class="font-display text-xl font-bold tabular-nums text-slate-900 dark:text-white">{{ club.weeklyDistance }}<span class="ml-0.5 text-sm font-medium text-slate-400">mi</span></dd>
+            <dt class="metric-label mt-0.5">This week</dt>
+          </div>
+          <div class="px-2">
+            <dd class="font-display text-xl font-bold tabular-nums text-slate-900 dark:text-white">{{ club.activitiesThisWeek }}</dd>
+            <dt class="metric-label mt-0.5">Activities</dt>
+          </div>
+          <div class="px-2">
+            <dd class="font-display text-xl font-bold tabular-nums text-slate-900 dark:text-white">{{ club.memberCount }}</dd>
+            <dt class="metric-label mt-0.5">Members</dt>
+          </div>
+        </dl>
+      </section>
+
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <!-- Recent feed -->
-        <div class="lg:col-span-2 space-y-4">
-          <h2 class="font-bold text-lg dark:text-white">Recent activity</h2>
-          <template :for="a in club.recentFeed">
-            <StxLink x-to="'/activity/' + a.id" class="card flex items-center gap-4 hover:shadow-md transition block">
-              <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 font-bold shrink-0">{{ a.userName.charAt(0) }}</div>
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-sm dark:text-white truncate">{{ a.userName + ' · ' + a.activityType }}</p>
-                <p class="text-xs text-gray-500 dark:text-slate-400">{{ wl.timeAgo(a.completedAt) }}</p>
-              </div>
-              <div class="text-right shrink-0">
-                <p class="font-bold text-sm dark:text-white">{{ (a.distance || 0).toFixed(1) + ' mi' }}</p>
-                <p class="metric-label">{{ a.duration }}</p>
-              </div>
-            </StxLink>
-          </template>
-          <div :if="club.recentFeed.length === 0" class="card text-center py-10 text-sm text-gray-500 dark:text-slate-400">
-            No activity from members yet.
+        <section class="lg:col-span-2">
+          <h2 class="mb-3 font-display text-xl font-bold text-slate-900 dark:text-white">Recent activity</h2>
+          <div :if="club.recentFeed.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <template :for="a in club.recentFeed">
+              <StxLink x-to="'/activity/' + a.id" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40">
+                <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(a.userName) }}</div>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ a.userName }}</p>
+                  <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ a.activityType + ' · ' + wl.timeAgo(a.completedAt) }}</p>
+                </div>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ (a.distance || 0).toFixed(1) + ' mi' }}</p>
+                  <p class="text-xs tabular-nums text-slate-400 dark:text-slate-500">{{ a.duration }}</p>
+                </div>
+                <i class="i-lucide-chevron-right h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+              </StxLink>
+            </template>
           </div>
-        </div>
+          <div :if="club.recentFeed.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center dark:border-slate-700">
+            <i class="i-lucide-activity mx-auto mb-2 block h-6 w-6 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+            <p class="text-sm text-slate-500 dark:text-slate-400">No activity from members yet.</p>
+          </div>
+        </section>
 
         <!-- Leaderboard + members -->
-        <div class="space-y-6">
-          <div class="card">
-            <h3 class="flex items-center gap-2 font-bold dark:text-white mb-3">
-              <Icon name="trophy" size="16" class="text-yellow-500" />
+        <aside class="space-y-6">
+          <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <h3 class="mb-3 flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+              <Icon name="trophy" size="16" class="text-amber-500" />
               This week
             </h3>
-            <div class="space-y-2">
+            <ol class="space-y-1">
               <template :for="row in club.leaderboard">
-                <div class="flex items-center gap-3 text-sm">
-                  <span class="w-5 text-center font-bold" x-class="row.rank <= 3 ? 'text-yellow-500' : 'text-gray-400'">{{ row.rank }}</span>
-                  <StxLink x-to="'/athlete/' + row.userId" class="flex-1 truncate dark:text-white hover:text-emerald-600 transition">{{ row.name }}</StxLink>
-                  <span class="text-gray-500 dark:text-slate-400">{{ row.weeklyDistance + ' mi' }}</span>
-                </div>
+                <li>
+                  <StxLink x-to="'/athlete/' + row.userId" class="-mx-2 flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                    <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="medalClass(row.rank)">{{ row.rank }}</span>
+                    <span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">{{ row.name }}</span>
+                    <span class="shrink-0 font-semibold tabular-nums text-slate-600 dark:text-slate-300">{{ row.weeklyDistance + ' mi' }}</span>
+                  </StxLink>
+                </li>
               </template>
-              <div :if="club.leaderboard.length === 0" class="text-center py-4 text-sm text-gray-500 dark:text-slate-400">No members yet.</div>
-            </div>
-          </div>
+            </ol>
+            <p :if="club.leaderboard.length === 0" class="py-4 text-center text-sm text-slate-500 dark:text-slate-400">No members yet.</p>
+          </section>
 
-          <div class="card">
-            <h3 class="font-bold dark:text-white mb-3">{{ 'Members (' + club.memberCount + ')' }}</h3>
-            <div class="space-y-2">
+          <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+            <h3 class="mb-3 flex items-center justify-between font-semibold text-slate-900 dark:text-white">
+              Members
+              <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-500 dark:bg-slate-700 dark:text-slate-300">{{ club.memberCount }}</span>
+            </h3>
+            <ul class="space-y-1">
               <template :for="m in club.members">
-                <div class="flex items-center gap-3 text-sm">
-                  <StxLink x-to="'/athlete/' + m.userId" class="flex-1 truncate dark:text-white hover:text-emerald-600 transition">{{ m.name }}</StxLink>
-                  <span :if="m.role !== 'member'" class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium capitalize">{{ m.role }}</span>
-                </div>
+                <li>
+                  <StxLink x-to="'/athlete/' + m.userId" class="-mx-2 flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300" aria-hidden="true">{{ initialOf(m.name) }}</span>
+                    <span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">{{ m.name }}</span>
+                    <span :if="m.role !== 'member'" class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">{{ m.role }}</span>
+                  </StxLink>
+                </li>
               </template>
-            </div>
-          </div>
-        </div>
+            </ul>
+          </section>
+        </aside>
       </div>
     </template>
   </div>
 
   <!-- Invite somebody in. Owners and admins only; the endpoint re-checks. -->
-  <div :if="inviteOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div @click="inviteOpen.set(false)" class="absolute inset-0 bg-black/40"></div>
-    <div class="card relative max-h-[85vh] w-full max-w-lg overflow-y-auto">
-      <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-bold dark:text-white">Invite to the team</h2>
-        <button @click="inviteOpen.set(false)" aria-label="Close" class="text-xl leading-none text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">×</button>
+  <div :if="inviteOpen" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+    <div @click="inviteOpen.set(false)" class="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]"></div>
+    <div class="relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-slate-200 bg-white px-5 pb-8 pt-3 shadow-2xl sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-800">
+      <div class="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-600" aria-hidden="true"></div>
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <h2 id="invite-title" class="font-display text-xl font-bold text-slate-900 dark:text-white">Invite to the team</h2>
+        <button @click="inviteOpen.set(false)" aria-label="Close" class="-mr-2 grid h-11 w-11 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200">
+          <i class="i-lucide-x h-5 w-5" aria-hidden="true"></i>
+        </button>
       </div>
 
-      <div class="space-y-3">
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Email</label>
-          <input type="email" placeholder="runner@example.com" x-value="inviteEmail" @input="e => inviteEmail.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
-          <p class="mt-1 text-xs text-gray-400 dark:text-slate-500">If they already have a WildLoop account, the invite is addressed to it.</p>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-400">Note (optional)</label>
-          <input type="text" placeholder="Tuesday sessions start at 6." x-value="inviteNote" @input="e => inviteNote.set(e.target.value)" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700" />
-        </div>
-        <p :if="inviteError" class="text-sm text-red-500">{{ inviteError }}</p>
-        <button @click="sendInvite()" x-disabled="inviteWorking()" class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60">{{ inviteWorking ? 'Creating…' : 'Create invite' }}</button>
+      <div class="space-y-4">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</span>
+          <input type="email" placeholder="runner@example.com" x-value="inviteEmail" @input="inviteEmail.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+          <span class="mt-1.5 block text-xs text-slate-500 dark:text-slate-400">If they already have a WildLoop account, the invite is addressed to it.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Note <span class="font-normal text-slate-400">(optional)</span></span>
+          <input type="text" placeholder="Tuesday sessions start at 6." x-value="inviteNote" @input="inviteNote.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+        </label>
+        <p :if="inviteError" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ inviteError }}</p>
+        <button @click="sendInvite()" x-disabled="inviteWorking()" class="min-h-11 w-full rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{{ inviteWorking ? 'Creating…' : 'Create invite' }}</button>
       </div>
 
-      <div class="mt-6 border-t border-gray-100 pt-4 dark:border-slate-700">
-        <h3 class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-gray-400 dark:text-slate-500">Invites</h3>
+      <div class="mt-6 border-t border-slate-100 pt-5 dark:border-slate-700">
+        <h3 class="metric-label mb-3">Invites</h3>
         <div class="space-y-2">
           <template :for="invite in invites">
-            <div class="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2 dark:border-slate-700">
+            <div class="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 dark:border-slate-700">
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium dark:text-white">{{ invite.invitedName || invite.invitedEmail || 'Open invite' }}</p>
-                <p class="truncate font-mono text-xs text-gray-400">{{ invite.code }}</p>
+                <p class="truncate text-sm font-medium text-slate-900 dark:text-white">{{ invite.invitedName || invite.invitedEmail || 'Open invite' }}</p>
+                <p class="truncate font-mono text-xs text-slate-400">{{ invite.code }}</p>
               </div>
               <span
-                class="shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide"
-                x-class="invite.status === 'accepted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : invite.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'"
+                class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize"
+                x-class="invite.status === 'accepted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : invite.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'"
               >{{ invite.status }}</span>
-              <button :if="invite.status === 'pending'" @click="copyInvite(invite.code)" class="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <button :if="invite.status === 'pending'" @click="copyInvite(invite.code)" class="min-h-11 shrink-0 rounded-full px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
                 {{ copiedCode === invite.code ? 'Copied' : 'Copy' }}
               </button>
             </div>
           </template>
-          <p :if="invites().length === 0" class="py-6 text-center text-sm text-gray-400">No invites yet.</p>
+          <p :if="invites().length === 0" class="py-6 text-center text-sm text-slate-400">No invites yet.</p>
         </div>
       </div>
     </div>

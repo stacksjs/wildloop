@@ -388,14 +388,14 @@
   }
 </script>
 
-<div class="mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-3xl">
-  <header class="mb-10">
+<div class="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+  <header class="mb-8">
     <!-- The app has no header to go back with; the website has its nav. -->
-    <StxLink to="/menu" class="native-only mb-4 items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+    <StxLink to="/menu" class="native-only -ml-2 mb-3 min-h-11 items-center gap-1 rounded-full px-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
       <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
       Menu
     </StxLink>
-    <h1 class="font-bold text-3xl text-slate-900 dark:text-white tracking-tight">Settings</h1>
+    <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Settings</h1>
     <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Your privacy, password, connected devices and account.</p>
   </header>
 
@@ -409,7 +409,7 @@
     <span>{{ notice }}</span>
   </div>
 
-  <section class="mb-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+  <section class="mb-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" aria-hidden="true">
         <i class="i-hugeicons-shield-02 h-6 w-6 text-emerald-700 dark:text-emerald-300"></i>
@@ -421,13 +421,13 @@
         <div :if="privacyLoading" class="mt-5 h-9 w-40 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse"></div>
         <div :if="!privacyLoading" class="grid gap-5 mt-5 sm:grid-cols-2">
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Default activity visibility</span>
+            <span class="mb-1.5 block font-medium">Default activity visibility</span>
             <!-- The native select arrow is the OS control and reads as a
                  foreign object against this dark, rounded UI. Suppress it and
                  overlay the app's own chevron; `pointer-events-none` keeps the
                  whole field clickable and the native picker intact. -->
             <span class="relative block">
-              <select x-value="defaultVisibility" @change="defaultVisibility.set($event.target.value)" class="w-full appearance-none px-3 py-2 pr-10 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg">
+              <select x-value="defaultVisibility" @change="defaultVisibility.set($event.target.value)" class="min-h-11 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-3 pr-10 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
                 <option value="public">Public</option>
                 <option value="followers">Followers</option>
                 <option value="private">Only me</option>
@@ -436,27 +436,27 @@
             </span>
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Hide each route end (metres)</span>
-            <input type="number" min="0" max="5000" x-value="hideStartEndMeters" @input="hideStartEndMeters.set(Number($event.target.value))" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Hide each route end (metres)</span>
+            <input type="number" min="0" max="5000" x-value="hideStartEndMeters" @input="hideStartEndMeters.set(Number($event.target.value))" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Protected latitude</span>
-            <input type="number" step="any" placeholder="Optional" x-value="homeLat" @input="homeLat.set($event.target.value)" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Protected latitude</span>
+            <input type="number" step="any" placeholder="Optional" x-value="homeLat" @input="homeLat.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Protected longitude</span>
-            <input type="number" step="any" placeholder="Optional" x-value="homeLng" @input="homeLng.set($event.target.value)" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Protected longitude</span>
+            <input type="number" step="any" placeholder="Optional" x-value="homeLng" @input="homeLng.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Protected radius (metres)</span>
-            <input type="number" min="100" max="5000" x-value="homeRadiusMeters" @input="homeRadiusMeters.set(Number($event.target.value))" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Protected radius (metres)</span>
+            <input type="number" min="100" max="5000" x-value="homeRadiusMeters" @input="homeRadiusMeters.set(Number($event.target.value))" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
           </label>
           <div class="space-y-3 text-sm text-slate-700 dark:text-slate-300">
-            <label class="flex gap-2 items-start"><input type="checkbox" x-checked="excludeHomeFromGame" @change="excludeHomeFromGame.set($event.target.checked)" class="mt-0.5 h-4 w-4 rounded" /><span>Do not create territory inside the protected zone</span></label>
-            <label class="flex gap-2 items-start"><input type="checkbox" x-checked="showPreciseTerritories" @change="showPreciseTerritories.set($event.target.checked)" class="mt-0.5 h-4 w-4 rounded" /><span>Show my precise territory outlines to everyone</span></label>
+            <label class="flex cursor-pointer items-start gap-3"><input type="checkbox" x-checked="excludeHomeFromGame" @change="excludeHomeFromGame.set($event.target.checked)" class="mt-0.5 h-5 w-5 shrink-0 rounded accent-emerald-600" /><span>Do not create territory inside the protected zone</span></label>
+            <label class="flex cursor-pointer items-start gap-3"><input type="checkbox" x-checked="showPreciseTerritories" @change="showPreciseTerritories.set($event.target.checked)" class="mt-0.5 h-5 w-5 shrink-0 rounded accent-emerald-600" /><span>Show my precise territory outlines to everyone</span></label>
           </div>
         </div>
-        <button :if="!privacyLoading" type="button" @click="savePrivacy()" x-disabled="privacyWorking" class="mt-5 px-5 py-2.5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">Save privacy settings</button>
+        <button :if="!privacyLoading" type="button" @click="savePrivacy()" x-disabled="privacyWorking" class="mt-5 min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">Save privacy settings</button>
       </div>
     </div>
   </section>
@@ -469,7 +469,7 @@
        is about. Autocomplete hints are the documented ones, so a password
        manager offers the old entry for the first field and an update for the
        other two. -->
-  <section class="mb-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+  <section class="mb-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700" aria-hidden="true">
         <i class="i-hugeicons-square-lock-02 h-6 w-6 text-slate-700 dark:text-slate-200"></i>
@@ -480,24 +480,24 @@
 
         <div class="grid gap-4 mt-5 sm:grid-cols-2">
           <label class="text-sm text-slate-700 dark:text-slate-300 sm:col-span-2">
-            <span class="block mb-1 font-medium">Current password</span>
-            <input type="password" autocomplete="current-password" x-value="currentPassword" @input="currentPassword.set($event.target.value)" class="w-full max-w-sm px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Current password</span>
+            <input type="password" autocomplete="current-password" x-value="currentPassword" @input="currentPassword.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white max-w-sm" />
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">New password</span>
-            <input type="password" autocomplete="new-password" x-value="newPassword" @input="newPassword.set($event.target.value)" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">New password</span>
+            <input type="password" autocomplete="new-password" x-value="newPassword" @input="newPassword.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
             <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">At least 8 characters.</span>
           </label>
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Confirm new password</span>
-            <input type="password" autocomplete="new-password" x-value="confirmPassword" @input="confirmPassword.set($event.target.value)" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Confirm new password</span>
+            <input type="password" autocomplete="new-password" x-value="confirmPassword" @input="confirmPassword.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
           </label>
         </div>
 
         <p :if="passwordError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ passwordError }}</p>
         <p :if="passwordNotice" class="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{{ passwordNotice }}</p>
 
-        <button type="button" @click="savePassword()" x-disabled="passwordWorking" class="mt-5 px-5 py-2.5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">
+        <button type="button" @click="savePassword()" x-disabled="passwordWorking" class="mt-5 min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">
           {{ passwordWorking() ? 'Changing…' : 'Change password' }}
         </button>
 
@@ -508,7 +508,7 @@
     </div>
   </section>
 
-  <section class="p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+  <section class="p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700" aria-hidden="true">
         <i class="i-hugeicons-watch-01 h-6 w-6 text-slate-700 dark:text-slate-200"></i>
@@ -533,7 +533,7 @@
             type="button"
             @click="connectGarmin()"
             x-disabled="working()"
-            class="px-5 py-2.5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
+            class="min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
           >
             Connect Garmin
           </button>
@@ -556,7 +556,7 @@
             type="button"
             @click="disconnectGarmin()"
             x-disabled="working()"
-            class="px-5 py-2.5 font-medium text-sm text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
+            class="min-h-11 px-5 font-medium text-sm text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
           >
             Disconnect
           </button>
@@ -565,7 +565,7 @@
     </div>
   </section>
 
-  <section :if="nativeHealthAvailable" class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+  <section :if="nativeHealthAvailable" class="mt-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-rose-50 dark:bg-rose-900/20" aria-hidden="true">
         <i class="i-hugeicons-heart-check h-6 w-6 text-rose-600 dark:text-rose-300"></i>
@@ -574,14 +574,14 @@
         <h2 class="font-semibold text-slate-900 dark:text-white">{{ nativeHealthProvider }}</h2>
         <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Read your daily fitness summary and save completed WildLoop recordings as workouts with explicit device permission.</p>
         <p :if="nativeHealthSummary" class="mt-3 font-medium text-slate-700 text-sm dark:text-slate-200">{{ nativeHealthSummary }}</p>
-        <button type="button" @click="connectNativeHealth()" x-disabled="nativeHealthWorking" class="mt-4 px-5 py-2.5 font-semibold text-sm text-white bg-rose-600 hover:bg-rose-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]">
+        <button type="button" @click="connectNativeHealth()" x-disabled="nativeHealthWorking" class="mt-4 min-h-11 px-5 font-semibold text-sm text-white bg-rose-600 hover:bg-rose-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]">
           {{ nativeHealthButtonLabel }}
         </button>
       </div>
     </div>
   </section>
 
-  <section :if="nativePushAvailable" class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+  <section :if="nativePushAvailable" class="mt-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/20" aria-hidden="true">
         <i class="i-hugeicons-notification-02 h-6 w-6 text-emerald-600 dark:text-emerald-300"></i>
@@ -621,7 +621,7 @@
     </div>
   </section>
 
-  <section class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl dark:border-slate-700">
+  <section class="mt-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700/60" aria-hidden="true">
         <i class="i-hugeicons-user-circle h-6 w-6 text-slate-600 dark:text-slate-300"></i>
@@ -630,10 +630,10 @@
         <h2 class="font-semibold text-slate-900 dark:text-white">Account</h2>
         <p :if="accountEmail" class="mt-1 truncate text-slate-500 text-sm dark:text-slate-400">Signed in as {{ accountEmail }}</p>
         <div class="mt-4 flex flex-wrap gap-3">
-          <button type="button" @click="handleSignOut()" x-disabled="signingOut" class="px-5 py-2.5 font-semibold text-sm text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">
+          <button type="button" @click="handleSignOut()" x-disabled="signingOut" class="min-h-11 px-5 font-semibold text-sm text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">
             {{ signingOut() ? 'Logging out…' : 'Log out' }}
           </button>
-          <StxLink :if="isAdmin" to="/admin" class="px-5 py-2.5 font-semibold text-sm text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+          <StxLink :if="isAdmin" to="/admin" class="min-h-11 px-5 font-semibold text-sm text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
             Admin
           </StxLink>
         </div>
@@ -644,7 +644,7 @@
   <!-- Deleting the account (App Store 5.1.1(v)). What it removes is spelled
        out before anything can be pressed, and the password is asked for again:
        a phone left unlocked must not be enough. -->
-  <section class="mt-6 p-4 sm:p-6 bg-white dark:bg-slate-800 border border-red-200 rounded-2xl dark:border-red-500/30">
+  <section class="mt-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-red-200 rounded-2xl shadow-sm dark:border-red-500/30 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-red-50 dark:bg-red-500/10" aria-hidden="true">
         <i class="i-hugeicons-delete-02 h-6 w-6 text-red-600 dark:text-red-400"></i>
@@ -653,21 +653,21 @@
         <h2 class="font-semibold text-slate-900 dark:text-white">Delete account</h2>
         <p class="mt-1 text-slate-500 text-sm dark:text-slate-400 max-w-[60ch]">This permanently deletes your activities, photos, reviews, comments, kudos and follows. Your territories become free to claim, and clubs you created pass to their longest-standing member. It cannot be undone.</p>
 
-        <button :if="!deleteOpen()" type="button" @click="deleteOpen.set(true)" class="mt-4 px-5 py-2.5 font-semibold text-sm text-red-700 border border-red-300 rounded-full hover:bg-red-50 dark:text-red-300 dark:border-red-500/40 dark:hover:bg-red-500/10">
+        <button :if="!deleteOpen()" type="button" @click="deleteOpen.set(true)" class="mt-4 min-h-11 px-5 font-semibold text-sm text-red-700 border border-red-300 rounded-full hover:bg-red-50 dark:text-red-300 dark:border-red-500/40 dark:hover:bg-red-500/10">
           Delete my account…
         </button>
 
         <div :if="deleteOpen()" class="mt-4">
           <label class="text-sm text-slate-700 dark:text-slate-300">
-            <span class="block mb-1 font-medium">Enter your password to confirm</span>
-            <input type="password" autocomplete="current-password" x-value="deletePassword" @input="deletePassword.set($event.target.value)" class="w-full max-w-sm px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg" />
+            <span class="mb-1.5 block font-medium">Enter your password to confirm</span>
+            <input type="password" autocomplete="current-password" x-value="deletePassword" @input="deletePassword.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white max-w-sm" />
           </label>
           <p :if="deleteError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ deleteError }}</p>
           <div class="mt-4 flex flex-wrap gap-3">
-            <button type="button" @click="confirmDeleteAccount()" x-disabled="deleteWorking" class="px-5 py-2.5 font-semibold text-sm text-white bg-red-600 hover:bg-red-700 rounded-full disabled:opacity-50">
+            <button type="button" @click="confirmDeleteAccount()" x-disabled="deleteWorking" class="min-h-11 px-5 font-semibold text-sm text-white bg-red-600 hover:bg-red-700 rounded-full disabled:opacity-50">
               {{ deleteWorking() ? 'Deleting…' : 'Delete my account permanently' }}
             </button>
-            <button type="button" @click="cancelDeleteAccount()" class="px-5 py-2.5 font-semibold text-sm text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-full">
+            <button type="button" @click="cancelDeleteAccount()" class="min-h-11 px-5 font-semibold text-sm text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-full">
               Cancel
             </button>
           </div>
@@ -679,10 +679,10 @@
   <!-- The site footer is hidden on phones, and in the app it is the only
        other place these were linked from. The App Store wants the privacy
        policy reachable inside the app. -->
-  <p class="mt-8 text-center text-xs text-slate-500 dark:text-slate-400">
-    <StxLink to="/privacy" class="hover:underline">Privacy Policy</StxLink>
+  <p class="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
+    <StxLink to="/privacy" class="inline-flex min-h-11 items-center px-2 hover:underline">Privacy Policy</StxLink>
     <span aria-hidden="true">·</span>
-    <StxLink to="/terms" class="hover:underline">Terms of Service</StxLink>
+    <StxLink to="/terms" class="inline-flex min-h-11 items-center px-2 hover:underline">Terms of Service</StxLink>
   </p>
 </div>
 @endsection

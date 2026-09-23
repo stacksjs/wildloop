@@ -68,30 +68,33 @@
   }
 </script>
 
-<div class="mx-auto max-w-2xl px-4 pb-10 pt-6">
+<div class="mx-auto max-w-2xl px-4 pb-12 pt-6 sm:px-6">
   <h1 class="mb-5 font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Menu</h1>
 
   <!-- Who you are, first, as Facebook's Menu opens on your profile. -->
-  <StxLink :if="account" to="/profile" class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800">
-    <span class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ accountInitial }}</span>
+  <StxLink :if="account" to="/profile" class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+    <span class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-2xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10">{{ accountInitial }}</span>
     <span class="min-w-0 flex-1">
-      <span class="block truncate font-semibold text-slate-900 dark:text-white">{{ account()?.name || 'Your profile' }}</span>
+      <span class="block truncate font-display text-lg font-semibold text-slate-900 dark:text-white">{{ account()?.name || 'Your profile' }}</span>
       <span class="block text-sm text-slate-500 dark:text-slate-400">See your profile</span>
     </span>
     <i class="i-lucide-chevron-right h-5 w-5 shrink-0 text-slate-400" aria-hidden="true"></i>
   </StxLink>
-  <div :if="!account" class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-    <p class="font-semibold text-slate-900 dark:text-white">Your runs, trails and territory, on every device.</p>
+  <div :if="!account" class="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-500/20 dark:from-emerald-500/10 dark:to-slate-800">
+    <span class="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm"><i class="i-lucide-user h-5 w-5" aria-hidden="true"></i></span>
+    <p class="font-display text-lg font-semibold text-slate-900 dark:text-white">Your runs, trails and territory, on every device.</p>
     <button type="button" @click="openLogin()" class="mt-4 min-h-11 w-full rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in or create an account</button>
   </div>
 
   <template :for="group in GROUPS">
     <section class="mt-7">
-      <h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ group.title }}</h2>
-      <div class="grid grid-cols-2 gap-3">
+      <h2 class="metric-label mb-2.5 px-1">{{ group.title }}</h2>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <template :for="item in group.items">
-          <StxLink x-to="item.href" class="flex min-h-[5.5rem] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 transition active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800">
-            <i x-class="item.icon" class="h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+          <StxLink x-to="item.href" class="group flex min-h-[6rem] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+            <span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 transition group-hover:bg-emerald-100 dark:bg-emerald-500/10 dark:group-hover:bg-emerald-500/20">
+              <i x-class="item.icon" class="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+            </span>
             <span class="mt-3 font-semibold text-slate-900 dark:text-white">{{ item.label }}</span>
           </StxLink>
         </template>
@@ -99,19 +102,19 @@
     </section>
   </template>
 
-  <section class="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-    <StxLink to="/notifications" class="flex min-h-14 items-center gap-3 px-4 transition active:bg-slate-50 dark:active:bg-slate-700/50">
+  <section class="mt-8 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+    <StxLink to="/notifications" class="flex min-h-14 items-center gap-3 px-4 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/50">
       <i class="i-lucide-bell h-5 w-5 text-slate-500 dark:text-slate-400" aria-hidden="true"></i>
       <span class="flex-1 font-medium text-slate-900 dark:text-white">Notifications</span>
       <span :if="unreadCount() > 0" class="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">{{ unreadCount() }}</span>
       <i class="i-lucide-chevron-right h-5 w-5 text-slate-400" aria-hidden="true"></i>
     </StxLink>
-    <StxLink to="/settings" class="flex min-h-14 items-center gap-3 border-t border-slate-100 px-4 transition active:bg-slate-50 dark:border-slate-700 dark:active:bg-slate-700/50">
+    <StxLink to="/settings" class="flex min-h-14 items-center gap-3 px-4 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/50">
       <i class="i-lucide-settings h-5 w-5 text-slate-500 dark:text-slate-400" aria-hidden="true"></i>
       <span class="flex-1 font-medium text-slate-900 dark:text-white">Settings</span>
       <i class="i-lucide-chevron-right h-5 w-5 text-slate-400" aria-hidden="true"></i>
     </StxLink>
-    <StxLink :if="isAdmin" to="/admin" class="flex min-h-14 items-center gap-3 border-t border-slate-100 px-4 transition active:bg-slate-50 dark:border-slate-700 dark:active:bg-slate-700/50">
+    <StxLink :if="isAdmin" to="/admin" class="flex min-h-14 items-center gap-3 px-4 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/50">
       <i class="i-lucide-shield-check h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
       <span class="flex-1 font-medium text-slate-900 dark:text-white">Admin</span>
       <i class="i-lucide-chevron-right h-5 w-5 text-slate-400" aria-hidden="true"></i>

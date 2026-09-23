@@ -21,6 +21,7 @@
 
 <script client>
   import { markNotificationsRead } from '../assets/scripts/game-api'
+  import { openAuthGate } from '../composables/useAuthGate'
 
   useHead({ title: 'Notifications — WildLoop' })
 
@@ -28,6 +29,19 @@
   const filter = state<'all' | 'unread' | 'conquest' | 'kudos' | 'challenge'>('all')
 
   const unreadCount = derived(() => wl ? wl.unreadCount() : 0)
+  const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
+
+  const FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'unread', label: 'Unread' },
+    { key: 'conquest', label: 'Conquests' },
+    { key: 'kudos', label: 'Kudos' },
+    { key: 'challenge', label: 'Challenges' },
+  ] as const
+
+  function openLogin(): void {
+    openAuthGate('Sign in to see your notifications.', 'login')
+  }
 
   function markAll() {
     if (!wl) return
@@ -69,18 +83,18 @@
 
 
   const iconTheme = (type: string): string => {
-    if (type === 'kudos') return 'bg-red-100 dark:bg-red-900/20 text-red-500'
-    if (type === 'comment') return 'bg-blue-100 dark:bg-blue-900/20 text-blue-500'
-    if (type === 'conquest_attack') return 'bg-orange-100 dark:bg-orange-900/20 text-orange-500'
-    if (type === 'conquest_defend') return 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-500'
-    if (type === 'conquest_win' || type === 'achievement') return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-500'
-    if (type === 'challenge') return 'bg-purple-100 dark:bg-purple-900/20 text-purple-500'
-    if (type === 'club') return 'bg-indigo-100 dark:bg-indigo-900/20 text-indigo-500'
+    if (type === 'kudos') return 'bg-red-100 dark:bg-red-500/15 text-red-500'
+    if (type === 'comment') return 'bg-blue-100 dark:bg-blue-500/15 text-blue-500'
+    if (type === 'conquest_attack') return 'bg-orange-100 dark:bg-orange-500/15 text-orange-500'
+    if (type === 'conquest_defend') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-500'
+    if (type === 'conquest_win' || type === 'achievement') return 'bg-amber-100 dark:bg-amber-500/15 text-amber-500'
+    if (type === 'challenge') return 'bg-violet-100 dark:bg-violet-500/15 text-violet-500'
+    if (type === 'club') return 'bg-sky-100 dark:bg-sky-500/15 text-sky-500'
     // A reviewer's decision on a record claim - the one notification an
     // athlete is actually waiting for, so it gets the stopwatch, not a
     // generic bell.
-    if (type === 'record') return 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600'
-    return 'bg-gray-100 dark:bg-slate-700 text-gray-500'
+    if (type === 'record') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600'
+    return 'bg-slate-100 dark:bg-slate-700 text-slate-500'
   }
 
   const filterCount = (f: string): number => {
@@ -92,56 +106,40 @@
   }
 </script>
 
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mx-auto max-w-2xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold dark:text-white">Notifications</h1>
-        <span :if="unreadCount > 0" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">{{ unreadCount }}</span>
+    <header class="mb-5 flex items-center justify-between gap-4">
+      <div class="flex min-w-0 items-center gap-2.5">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Notifications</h1>
+        <span :if="unreadCount > 0" class="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">{{ unreadCount }}</span>
       </div>
-      <button :if="unreadCount > 0" @click="markAll()" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition flex items-center gap-1.5">
+      <button :if="unreadCount > 0" @click="markAll()" class="-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
         <Icon name="check-check" size="16" />
-        Mark all read
+        <span>Mark all read</span>
       </button>
+    </header>
+
+    <!-- Filter chips with counts. Bleed to the edge on phones, no scrollbar. -->
+    <div :if="signedIn" class="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
+      <template :for="chip in FILTERS">
+        <button @click="filter.set(chip.key)" x-class="filter === chip.key ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full pl-4 pr-2 text-sm font-semibold transition active:scale-[0.98]">
+          {{ chip.label }}
+          <span x-class="filter === chip.key ? 'bg-white/20 dark:bg-slate-900/15' : 'bg-white text-slate-500 dark:bg-slate-700 dark:text-slate-400'" class="min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-xs tabular-nums">{{ filterCount(chip.key) }}</span>
+        </button>
+      </template>
     </div>
 
-    <!-- Filter tabs with counts -->
-    <div class="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition flex items-center gap-1.5">
-        All
-        <span x-class="filter === 'all' ? 'bg-white/20' : 'bg-gray-200 dark:bg-slate-700'" class="px-1.5 py-0.5 text-xs rounded-full min-w-[1.5rem] text-center">{{ filterCount('all') }}</span>
-      </button>
-      <button @click="filter.set('unread')" x-class="filter === 'unread' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition flex items-center gap-1.5">
-        Unread
-        <span x-class="filter === 'unread' ? 'bg-white/20' : 'bg-gray-200 dark:bg-slate-700'" class="px-1.5 py-0.5 text-xs rounded-full min-w-[1.5rem] text-center">{{ filterCount('unread') }}</span>
-      </button>
-      <button @click="filter.set('conquest')" x-class="filter === 'conquest' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition flex items-center gap-1.5">
-        Conquests
-        <span x-class="filter === 'conquest' ? 'bg-white/20' : 'bg-gray-200 dark:bg-slate-700'" class="px-1.5 py-0.5 text-xs rounded-full min-w-[1.5rem] text-center">{{ filterCount('conquest') }}</span>
-      </button>
-      <button @click="filter.set('kudos')" x-class="filter === 'kudos' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition flex items-center gap-1.5">
-        Kudos
-        <span x-class="filter === 'kudos' ? 'bg-white/20' : 'bg-gray-200 dark:bg-slate-700'" class="px-1.5 py-0.5 text-xs rounded-full min-w-[1.5rem] text-center">{{ filterCount('kudos') }}</span>
-      </button>
-      <button @click="filter.set('challenge')" x-class="filter === 'challenge' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition flex items-center gap-1.5">
-        Challenges
-        <span x-class="filter === 'challenge' ? 'bg-white/20' : 'bg-gray-200 dark:bg-slate-700'" class="px-1.5 py-0.5 text-xs rounded-full min-w-[1.5rem] text-center">{{ filterCount('challenge') }}</span>
-      </button>
-    </div>
-
-    <!-- Notification groups -->
-    <div :if="filtered.length > 0" class="space-y-8">
+    <!-- Notification groups: one grouped surface per day, the way a native
+         inbox reads. Unread rows carry a dot and a faint tint. -->
+    <div :if="filtered.length > 0" class="space-y-6">
       <template :for="group in groupedByDay">
-        <div>
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500 mb-3 px-1">{{ group.label }}</h2>
-          <div class="space-y-2">
+        <section>
+          <h2 class="metric-label mb-2 px-1">{{ group.label }}</h2>
+          <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <template :for="notif in group.items">
-              <StxLink x-to="notif.link || '#'" @click="markOne(notif.id)" class="group relative flex items-start gap-4 p-4 rounded-xl border transition-all block" x-class="!notif.read ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40 hover:border-emerald-300 dark:hover:border-emerald-700/60' : 'bg-white dark:bg-slate-800/50 border-gray-200 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'">
-                <!-- Unread indicator (left bar) -->
-                <div :if="!notif.read" class="absolute left-0 top-4 bottom-4 w-1 rounded-r bg-emerald-500"></div>
-
+              <StxLink x-to="notif.link || '#'" @click="markOne(notif.id)" class="group relative flex items-start gap-3 px-4 py-3.5 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40" x-class="!notif.read ? 'bg-emerald-50/50 dark:bg-emerald-500/5' : ''">
                 <!-- Type icon -->
-                <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" x-class="iconTheme(notif.type)">
+                <div class="relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full" x-class="iconTheme(notif.type)">
                   <Icon :if="notif.type === 'kudos'" name="heart" size="18" />
                   <Icon :if="notif.type === 'comment'" name="message-circle" size="18" />
                   <Icon :if="notif.type === 'conquest_attack'" name="swords" size="18" />
@@ -154,32 +152,43 @@
                 </div>
 
                 <!-- Body -->
-                <div class="flex-1 min-w-0">
+                <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-3">
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{{ notif.title }}</p>
-                    <p class="text-xs text-gray-400 dark:text-slate-500 whitespace-nowrap shrink-0 mt-0.5">{{ wl.timeAgo(notif.created_at) }}</p>
+                    <p class="text-sm leading-snug text-slate-900 dark:text-white" x-class="!notif.read ? 'font-semibold' : 'font-medium'">{{ notif.title }}</p>
+                    <span class="mt-0.5 flex shrink-0 items-center gap-1.5">
+                      <span class="whitespace-nowrap text-xs text-slate-400 dark:text-slate-500">{{ wl.timeAgo(notif.created_at) }}</span>
+                      <span :if="!notif.read" class="h-2 w-2 rounded-full bg-emerald-500" aria-label="Unread"></span>
+                    </span>
                   </div>
-                  <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">{{ notif.message }}</p>
+                  <p class="mt-0.5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{{ notif.message }}</p>
                 </div>
 
-                <!-- Chevron on hover -->
-                <div class="flex items-center text-gray-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition -mr-1 shrink-0 self-center">
-                  <Icon name="chevron-right" size="18" />
-                </div>
+                <i class="i-lucide-chevron-right mt-2.5 h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-400 dark:text-slate-600" aria-hidden="true"></i>
               </StxLink>
             </template>
           </div>
-        </div>
+        </section>
       </template>
     </div>
 
-    <!-- Empty state -->
-    <div :if="filtered.length === 0" class="py-20 text-center">
-      <div class="w-20 h-20 mx-auto mb-6 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="check-circle" size="40" class="text-emerald-500" />
+    <!-- Signed out -->
+    <div :if="!signedIn" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <i class="i-lucide-bell h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
       </div>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ filter === 'unread' ? 'All caught up!' : filter === 'all' ? 'No notifications yet' : 'Nothing here' }}</h3>
-      <p class="text-gray-500 dark:text-slate-400 max-w-sm mx-auto">{{ filter === 'unread' ? 'You\'ve read everything. Nice work.' : filter === 'all' ? 'When people give kudos, challenge you, or conquer your territory, it\'ll show up here.' : 'Try a different filter above.' }}</p>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Kudos, challenges and captures</h3>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Sign in to hear when somebody gives you kudos, challenges you, or takes your ground.</p>
+      <button type="button" @click="openLogin()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in</button>
+    </div>
+
+    <!-- Empty state -->
+    <div :if="signedIn && filtered.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <Icon name="check-circle" size="30" class="text-emerald-600 dark:text-emerald-400" />
+      </div>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ filter === 'unread' ? 'All caught up' : filter === 'all' ? 'No notifications yet' : 'Nothing here' }}</h3>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ filter === 'unread' ? 'You\'ve read everything.' : filter === 'all' ? 'When people give kudos, challenge you, or conquer your territory, it\'ll show up here.' : 'Try a different filter above.' }}</p>
+      <button :if="filter !== 'all'" @click="filter.set('all')" class="mt-5 min-h-11 rounded-full px-5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">Show everything</button>
     </div>
   </div>
 @endsection

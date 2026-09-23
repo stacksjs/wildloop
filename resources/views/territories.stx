@@ -53,14 +53,24 @@
   } = useTerritoryExplorer(wl)
 
   onMount(() => mountTerritoryMap())
+
+  /** Gold, silver and bronze for the top three holders; plain for the rest. */
+  function medalClass(rank: number): string {
+    if (rank === 1) return 'bg-amber-400 text-amber-950'
+    if (rank === 2) return 'bg-slate-300 text-slate-800 dark:bg-slate-400 dark:text-slate-900'
+    if (rank === 3) return 'bg-orange-300 text-orange-950'
+    return 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+  }
 </script>
 
   <!-- Hero -->
-  <section class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pt-14 pb-12">
-    <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-      <h1 class="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">Your territory map</h1>
-      <p class="text-slate-600 dark:text-slate-400 max-w-xl mb-7 leading-relaxed">Green is yours. Orange belongs to someone else. Tap a zone, then hit Capture to run the lines that steal it.</p>
-      <StxLink to="/record" class="inline-flex items-center gap-2 px-6 py-3 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-full transition active:scale-[0.98]">
+  <section class="border-b border-slate-200 bg-white pb-8 pt-8 sm:pb-10 sm:pt-12 dark:border-slate-800 dark:bg-slate-950">
+    <div class="mx-auto flex max-w-7xl flex-col gap-5 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:px-8">
+      <div class="min-w-0">
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 md:text-4xl dark:text-white">Your territory map</h1>
+        <p class="mt-2 max-w-xl leading-relaxed text-slate-600 dark:text-slate-400">Green is yours. Orange belongs to someone else. Tap a zone, then hit Capture to run the lines that steal it.</p>
+      </div>
+      <StxLink to="/record" class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-full bg-emerald-600 px-6 font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:self-auto">
         <Icon name="play" size="18" />
         Start tracking
       </StxLink>
@@ -68,92 +78,101 @@
   </section>
 
   <!-- API failure notice - otherwise an unreachable map silently shows stale seed data -->
-  <div :if="territoryError" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4">
-    <div class="flex items-center gap-2 p-3 text-sm text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl">
-      <Icon name="alert-triangle" size="16" />
+  <div :if="territoryError" class="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-300">
+      <Icon name="alert-triangle" size="16" class="mt-0.5 shrink-0" />
       <span>Showing saved territory data. We couldn't reach the live map. It'll refresh on your next visit.</span>
     </div>
   </div>
 
-  <!-- Map -->
-  <section class="-mt-8 mx-auto px-4 py-12 sm:px-6 lg:px-8 max-w-7xl">
-    <div class="card p-0 overflow-hidden">
+  <!-- Map. Its own framed surface rather than `.card`: the card's padding
+       outranks a `p-0` utility and left a white mat around the tiles. -->
+  <section class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div id="territories-map" data-stx-ignore class="trail-map-panel ts-map-container"></div>
     </div>
   </section>
 
   <!-- Stats & Territories Grid -->
-  <section class="mx-auto px-4 py-12 sm:px-6 lg:px-8 max-w-7xl">
-    <div class="grid gap-8 lg:grid-cols-3">
+  <section class="mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div class="lg:col-span-2">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="font-display text-2xl font-bold text-gray-900 dark:text-white">Nearby Territories</h2>
-          <div class="flex gap-2">
-            <button @click="filter.set('all')" x-class="filter === 'all' ? 'text-emerald-600 bg-emerald-50' : 'text-gray-600 hover:bg-gray-100'" class="px-4 py-2 text-sm font-medium rounded-lg transition">All</button>
-            <button @click="filter.set('mine')" x-class="filter === 'mine' ? 'text-emerald-600 bg-emerald-50' : 'text-gray-600 hover:bg-gray-100'" class="px-4 py-2 text-sm font-medium rounded-lg transition">Mine</button>
-            <button @click="filter.set('contested')" x-class="filter === 'contested' ? 'text-emerald-600 bg-emerald-50' : 'text-gray-600 hover:bg-gray-100'" class="px-4 py-2 text-sm font-medium rounded-lg transition">Contested</button>
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="font-display text-2xl font-bold text-slate-900 dark:text-white">Nearby territories</h2>
+          <div class="flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Filter territories">
+            <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-4 text-sm font-semibold transition">All</button>
+            <button @click="filter.set('mine')" x-class="filter === 'mine' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-4 text-sm font-semibold transition">Mine</button>
+            <button @click="filter.set('contested')" x-class="filter === 'contested' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-4 text-sm font-semibold transition">Contested</button>
           </div>
         </div>
 
-        <div class="grid gap-6 md:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <template :for="territory in filtered">
-            <StxLink x-to="'/territory/' + territory.id" class="card block hover:shadow-md transition">
-              <div class="flex items-center justify-between mb-3">
-                <h3 class="font-bold dark:text-white">{{ territory.name }}</h3>
-                <span class="px-2 py-0.5 text-xs rounded-full font-medium" x-class="territory.user_id === currentUserId() ? 'bg-emerald-100 text-emerald-700' : territory.status === 'contested' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'">{{ territory.user_id === currentUserId() ? 'Yours' : territory.status === 'contested' ? 'Contested' : 'Enemy' }}</span>
+            <StxLink x-to="'/territory/' + territory.id" class="card group block">
+              <div class="mb-4 flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl" x-class="territory.user_id === currentUserId() ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400' : territory.status === 'contested' ? 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400' : 'bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400'">
+                    <i class="i-lucide-flag h-5 w-5" aria-hidden="true"></i>
+                  </span>
+                  <h3 class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ territory.name }}</h3>
+                </div>
+                <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" x-class="territory.user_id === currentUserId() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : territory.status === 'contested' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300'">{{ territory.user_id === currentUserId() ? 'Yours' : territory.status === 'contested' ? 'Contested' : 'Enemy' }}</span>
               </div>
-              <div class="grid grid-cols-3 gap-2 text-center pt-3 border-t border-gray-100 dark:border-slate-700">
+              <dl class="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 py-2.5 text-center dark:bg-slate-900/60">
                 <div>
-                  <p class="font-bold text-sm text-emerald-600">{{ formatArea(territory.areaSize) }}</p>
-                  <p class="metric-label">Size</p>
+                  <dd class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ formatArea(territory.areaSize) }}</dd>
+                  <dt class="metric-label mt-0.5">Size</dt>
                 </div>
                 <div>
-                  <p class="font-bold text-sm dark:text-white">{{ territory.conquestCount }}</p>
-                  <p class="metric-label">Conquests</p>
+                  <dd class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ territory.conquestCount }}</dd>
+                  <dt class="metric-label mt-0.5">Conquests</dt>
                 </div>
                 <div>
-                  <p class="font-bold text-sm dark:text-white">{{ territory.defendCount }}</p>
-                  <p class="metric-label">Defenses</p>
+                  <dd class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ territory.defendCount }}</dd>
+                  <dt class="metric-label mt-0.5">Defenses</dt>
                 </div>
-              </div>
+              </dl>
             </StxLink>
           </template>
 
-          <div :if="filtered().length === 0" class="col-span-2 py-16 text-center">
-            <div class="w-20 h-20 mx-auto mb-6 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-              <Icon name="map" size="40" class="text-emerald-400" />
+          <div :if="filtered().length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center md:col-span-2 dark:border-slate-700">
+            <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+              <Icon name="map" size="30" class="text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 class="text-lg font-semibold dark:text-white mb-2">No territories yet</h3>
-            <p class="text-gray-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Run a closed loop to claim your first territory.</p>
-            <StxLink to="/record" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Start a Run</StxLink>
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ filter === 'contested' ? 'Nothing contested right now' : 'No territories yet' }}</h3>
+            <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ filter === 'contested' ? 'Every zone in view is held without a fight.' : 'Run a closed loop to claim your first territory.' }}</p>
+            <StxLink to="/record" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Start a run</StxLink>
           </div>
         </div>
       </div>
 
       <!-- Sidebar: leaderboard -->
-      <div class="space-y-6">
-        <div class="card">
-          <h3 class="flex items-center gap-2 font-bold text-lg dark:text-white mb-4">
-            <Icon name="trophy" size="18" class="text-yellow-500" />
-            Territory Leaders
-          </h3>
-          <div class="space-y-2">
-            <template :for="entry in rankedLeaderboard">
-              <div class="flex items-center gap-3 p-2 rounded-lg" x-class="entry.user_id === currentUserId() ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''">
-                <span class="w-6 text-center font-bold" x-class="entry.rank <= 3 ? 'text-yellow-500' : 'text-gray-400'">{{ entry.rank }}</span>
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium text-sm dark:text-white truncate">{{ entry.user_id === currentUserId() ? 'You' : entry.userName }}</p>
-                  <p class="text-xs text-gray-500">{{ formatArea(entry.totalAreaOwned) }}</p>
-                </div>
-                <span class="text-xs font-semibold text-gray-600 dark:text-slate-400">{{ entry.totalTerritoriesOwned + ' owned' }}</span>
-              </div>
-            </template>
-            <div :if="rankedLeaderboard().length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-slate-400">
-              No territory leaders yet. Claim a zone to get on the board.
-            </div>
+      <aside class="space-y-6">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+              <Icon name="trophy" size="18" class="text-amber-500" />
+              Territory leaders
+            </h3>
+            <span class="text-xs text-slate-400">by area</span>
           </div>
-        </div>
-      </div>
+          <ol class="space-y-1">
+            <template :for="entry in rankedLeaderboard">
+              <li class="flex min-h-12 items-center gap-3 rounded-xl px-2" x-class="entry.user_id === currentUserId() ? 'bg-emerald-50 dark:bg-emerald-500/10' : ''">
+                <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="medalClass(entry.rank)">{{ entry.rank }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ entry.user_id === currentUserId() ? 'You' : entry.userName }}</p>
+                  <p class="text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ entry.totalTerritoriesOwned === 1 ? '1 zone held' : entry.totalTerritoriesOwned + ' zones held' }}</p>
+                </div>
+                <span class="shrink-0 text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ formatArea(entry.totalAreaOwned) }}</span>
+              </li>
+            </template>
+          </ol>
+          <div :if="rankedLeaderboard().length === 0" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            No territory leaders yet. Claim a zone to get on the board.
+          </div>
+        </section>
+      </aside>
     </div>
   </section>
 @endsection

@@ -20,10 +20,17 @@
 </script>
 
 <script client>
+  import { openAuthGate } from '../composables/useAuthGate'
+
   useHead({ title: 'Training Stats — WildLoop' })
 
   const wl = useStore('wl')
   const period = state<'weekly' | 'monthly' | 'alltime'>('weekly')
+
+  // Signed out, `userStats` is still the seeded fixture, so a visitor was
+  // shown somebody's miles and streak as if they were their own. The same
+  // gate the profile and achievements screens use.
+  const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
 
   const myActivities = derived(() => wl ? wl.activities().filter((a: any) => a.user_id === wl.currentUserId()) : [])
   const userStats = derived(() => wl?.userStats())
@@ -32,159 +39,166 @@
     const hist = wl?.userStats()?.weeklyHistory || []
     return Math.max(...hist.map((w: any) => w.distance), 1)
   })
+
+  /** Share of activities by type, for the breakdown bars. */
+  const breakdown = derived(() => {
+    const all = myActivities()
+    const total = Math.max(all.length, 1)
+    return [
+      { label: 'Trail runs', type: 'Trail Run', tone: 'bg-emerald-600' },
+      { label: 'Hikes', type: 'Hike', tone: 'bg-emerald-500' },
+      { label: 'Walks', type: 'Walk', tone: 'bg-emerald-400' },
+      { label: 'Bike rides', type: 'Bike', tone: 'bg-emerald-300' },
+    ].map((row) => {
+      const count = all.filter((a: any) => a.activityType === row.type).length
+      return { ...row, count, width: `${Math.round((count / total) * 100)}%` }
+    })
+  })
+
+  function barHeight(week: any): string {
+    return `${Math.max(week.distance > 0 ? 4 : 0, Math.round((week.distance / maxWeeklyDistance()) * 100))}%`
+  }
+
+  function openLogin(): void {
+    openAuthGate('Sign in to see your training stats.', 'login')
+  }
 </script>
 
-  <div class="mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-5xl">
-    <div class="flex items-center justify-between mb-6">
+  <div class="mx-auto max-w-5xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 class="font-bold text-2xl dark:text-white">Training Stats</h1>
-        <p class="mt-1 text-gray-500 text-sm dark:text-slate-400">Your performance at a glance</p>
+        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Training stats</h1>
+        <p class="mt-1 text-slate-600 dark:text-slate-400">Your performance at a glance.</p>
       </div>
-      <div class="flex gap-2">
-        <button @click="period.set('weekly')" x-class="period === 'weekly' ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'" class="px-4 py-2 rounded-lg text-sm font-medium transition">Weekly</button>
-        <button @click="period.set('monthly')" x-class="period === 'monthly' ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'" class="px-4 py-2 rounded-lg text-sm font-medium transition">Monthly</button>
-        <button @click="period.set('alltime')" x-class="period === 'alltime' ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'" class="px-4 py-2 rounded-lg text-sm font-medium transition">All Time</button>
+      <div :if="signedIn && userStats" class="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 sm:w-80 dark:bg-slate-800" role="tablist" aria-label="Period">
+        <button @click="period.set('weekly')" x-class="period === 'weekly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition">Week</button>
+        <button @click="period.set('monthly')" x-class="period === 'monthly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition">Month</button>
+        <button @click="period.set('alltime')" x-class="period === 'alltime' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition">All time</button>
       </div>
+    </header>
+
+    <!-- Signed out -->
+    <div :if="!signedIn" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <i class="i-lucide-chart-column h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+      </div>
+      <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Your training, week by week</h2>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Miles, climbing, streaks and personal records, folded from everything you record.</p>
+      <button type="button" @click="openLogin()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in</button>
     </div>
 
-    <div :if="userStats">
-      <!-- Summary cards -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-emerald-600">{{ period === 'weekly' ? userStats.weeklyDistance : period === 'monthly' ? userStats.monthlyDistance : userStats.totalDistance }}</p>
-          <p class="metric-label">Miles</p>
+    <div :if="signedIn && userStats">
+      <!-- Summary tiles. One neutral number style; the icon carries the tint. -->
+      <dl class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-route h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Miles</dt>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ period === 'weekly' ? userStats.weeklyDistance : period === 'monthly' ? userStats.monthlyDistance : userStats.totalDistance }}</dd>
         </div>
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-blue-600">{{ (period === 'weekly' ? userStats.weeklyElevation : period === 'monthly' ? userStats.monthlyElevation : userStats.totalElevation).toLocaleString() }}</p>
-          <p class="metric-label">Elev (ft)</p>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-mountain h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Elev ft</dt>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ (period === 'weekly' ? userStats.weeklyElevation : period === 'monthly' ? userStats.monthlyElevation : userStats.totalElevation).toLocaleString() }}</dd>
         </div>
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-orange-600">{{ period === 'weekly' ? userStats.weeklyActivities : userStats.totalActivities }}</p>
-          <p class="metric-label">Activities</p>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-activity h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Activities</dt>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ period === 'weekly' ? userStats.weeklyActivities : userStats.totalActivities }}</dd>
         </div>
-        <div class="card text-center">
-          <p class="text-3xl font-bold text-purple-600">{{ userStats.currentStreak }}</p>
-          <p class="metric-label">Day Streak</p>
-          <p class="text-xs text-purple-500 mt-1">{{ 'Best: ' + userStats.longestStreak + ' days' }}</p>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-flame h-3.5 w-3.5 text-orange-500" aria-hidden="true"></i>Day streak</dt>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ userStats.currentStreak }}</dd>
+          <p class="mt-1 text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ 'Best: ' + userStats.longestStreak + ' days' }}</p>
         </div>
-      </div>
+      </dl>
 
-      <!-- Weekly distance chart -->
-      <div class="card mb-8">
-        <h2 class="font-bold text-lg text-gray-900 dark:text-white mb-6">Weekly Distance</h2>
-        <div :if="userStats.weeklyHistory.length > 0" class="flex items-end gap-3 h-40">
+      <!-- Weekly distance chart. Each column is full height with the bar
+           anchored to its foot, so a percentage height has something to be a
+           percentage of — the bars used to collapse to nothing. -->
+      <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+        <div class="mb-5 flex items-baseline justify-between gap-3">
+          <h2 class="font-display text-lg font-bold text-slate-900 dark:text-white">Weekly distance</h2>
+          <span :if="userStats.weeklyHistory.length > 0" class="text-xs tabular-nums text-slate-400">{{ 'Peak ' + maxWeeklyDistance().toFixed(1) + ' mi' }}</span>
+        </div>
+        <div :if="userStats.weeklyHistory.length > 0" class="flex h-48 items-stretch gap-2 sm:gap-3">
           <template :for="(week, i) in userStats.weeklyHistory">
-            <div class="flex-1 flex flex-col items-center gap-2">
-              <span class="text-xs font-semibold dark:text-white">{{ week.distance.toFixed(1) }}</span>
-              <div class="w-full rounded-t-lg transition-all duration-500" x-class="i === userStats.weeklyHistory.length - 1 ? 'bg-emerald-500' : 'bg-emerald-200 dark:bg-emerald-800'" x-style="'height: ' + (week.distance / maxWeeklyDistance * 100) + '%'"></div>
-              <span class="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap">{{ week.week }}</span>
+            <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+              <span class="text-[11px] font-semibold tabular-nums" x-class="i === userStats.weeklyHistory.length - 1 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'">{{ week.distance.toFixed(1) }}</span>
+              <div class="flex w-full flex-1 items-end">
+                <div class="w-full rounded-t-lg transition-all duration-500" x-class="i === userStats.weeklyHistory.length - 1 ? 'bg-emerald-500' : 'bg-emerald-200 dark:bg-emerald-900'" x-style="'height: ' + barHeight(week)"></div>
+              </div>
+              <span class="w-full truncate text-center text-[11px] text-slate-500 dark:text-slate-400">{{ week.week }}</span>
             </div>
           </template>
         </div>
-        <div :if="userStats.weeklyHistory.length === 0" class="h-40 flex flex-col items-center justify-center text-center">
-          <Icon name="bar-chart-3" size="28" class="text-gray-300 dark:text-slate-600 mb-2" />
-          <p class="text-sm text-gray-500 dark:text-slate-400">Not enough activity this period yet. Log a few runs to see your weekly trend.</p>
+        <div :if="userStats.weeklyHistory.length === 0" class="flex h-48 flex-col items-center justify-center text-center">
+          <Icon name="bar-chart-3" size="28" class="mb-2 text-slate-300 dark:text-slate-600" />
+          <p class="max-w-xs text-sm text-slate-500 dark:text-slate-400">Not enough activity this period yet. Log a few runs to see your weekly trend.</p>
         </div>
-      </div>
+      </section>
 
-      <div class="grid lg:grid-cols-2 gap-8 mb-8">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Personal Records -->
-        <div class="card">
-          <h2 class="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-white mb-4">
-            <Icon name="trophy" size="20" class="text-yellow-500" />
-            Personal Records
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <h2 class="mb-2 flex items-center gap-2 font-display text-lg font-bold text-slate-900 dark:text-white">
+            <Icon name="trophy" size="18" class="text-amber-500" />
+            Personal records
           </h2>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl">
-              <span class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
-                <Icon name="zap" size="16" class="text-yellow-500" />
-                Fastest Mile
-              </span>
-              <span class="font-bold text-gray-900 dark:text-white">{{ userStats.personalRecords.fastestMile + ' /mi' }}</span>
+          <dl class="divide-y divide-slate-100 dark:divide-slate-700/70">
+            <div class="flex min-h-14 items-center gap-3 py-2">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><i class="i-lucide-zap h-4 w-4" aria-hidden="true"></i></span>
+              <dt class="flex-1 text-sm text-slate-600 dark:text-slate-400">Fastest mile</dt>
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ userStats.personalRecords.fastestMile + ' /mi' }}</dd>
             </div>
-            <div class="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl">
-              <span class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
-                <Icon name="footprints" size="16" class="text-emerald-500" />
-                Longest Run
-              </span>
-              <span class="font-bold text-gray-900 dark:text-white">{{ userStats.personalRecords.longestRun + ' mi' }}</span>
+            <div class="flex min-h-14 items-center gap-3 py-2">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><i class="i-lucide-footprints h-4 w-4" aria-hidden="true"></i></span>
+              <dt class="flex-1 text-sm text-slate-600 dark:text-slate-400">Longest run</dt>
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ userStats.personalRecords.longestRun + ' mi' }}</dd>
             </div>
-            <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl">
-              <span class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
-                <Icon name="mountain" size="16" class="text-blue-500" />
-                Biggest Climb
-              </span>
-              <span class="font-bold text-gray-900 dark:text-white">{{ userStats.personalRecords.biggestClimb.toLocaleString() + ' ft' }}</span>
+            <div class="flex min-h-14 items-center gap-3 py-2">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><i class="i-lucide-mountain h-4 w-4" aria-hidden="true"></i></span>
+              <dt class="flex-1 text-sm text-slate-600 dark:text-slate-400">Biggest climb</dt>
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ userStats.personalRecords.biggestClimb.toLocaleString() + ' ft' }}</dd>
             </div>
-            <div class="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/10 rounded-xl">
-              <span class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
-                <Icon name="flame" size="16" class="text-orange-500" />
-                Longest Streak
-              </span>
-              <span class="font-bold text-gray-900 dark:text-white">{{ userStats.personalRecords.longestStreak + ' days' }}</span>
+            <div class="flex min-h-14 items-center gap-3 py-2">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><i class="i-lucide-flame h-4 w-4" aria-hidden="true"></i></span>
+              <dt class="flex-1 text-sm text-slate-600 dark:text-slate-400">Longest streak</dt>
+              <dd class="font-display text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ userStats.personalRecords.longestStreak + ' days' }}</dd>
             </div>
-          </div>
-        </div>
+          </dl>
+        </section>
 
         <!-- Activity Breakdown -->
-        <div class="card">
-          <h2 class="font-bold text-lg text-gray-900 dark:text-white mb-4">Activity Breakdown</h2>
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <h2 class="mb-4 font-display text-lg font-bold text-slate-900 dark:text-white">Activity breakdown</h2>
           <div class="space-y-4">
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm text-gray-600 dark:text-slate-400">Trail Runs</span>
-                <span class="text-sm font-medium dark:text-white">{{ myActivities.filter((a) => a.activityType === 'Trail Run').length + ' activities' }}</span>
+            <template :for="row in breakdown">
+              <div>
+                <div class="mb-1.5 flex items-center justify-between text-sm">
+                  <span class="text-slate-600 dark:text-slate-400">{{ row.label }}</span>
+                  <span class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ row.count }}</span>
+                </div>
+                <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                  <div class="h-full rounded-full transition-all duration-500" x-class="row.tone" x-style="'width: ' + row.width"></div>
+                </div>
               </div>
-              <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div class="h-full bg-emerald-500 rounded-full" x-style="'width: ' + (myActivities.filter((a) => a.activityType === 'Trail Run').length / Math.max(myActivities.length, 1) * 100) + '%'"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm text-gray-600 dark:text-slate-400">Hikes</span>
-                <span class="text-sm font-medium dark:text-white">{{ myActivities.filter((a) => a.activityType === 'Hike').length + ' activities' }}</span>
-              </div>
-              <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500 rounded-full" x-style="'width: ' + (myActivities.filter((a) => a.activityType === 'Hike').length / Math.max(myActivities.length, 1) * 100) + '%'"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm text-gray-600 dark:text-slate-400">Walks</span>
-                <span class="text-sm font-medium dark:text-white">{{ myActivities.filter((a) => a.activityType === 'Walk').length + ' activities' }}</span>
-              </div>
-              <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div class="h-full bg-purple-500 rounded-full" x-style="'width: ' + (myActivities.filter((a) => a.activityType === 'Walk').length / Math.max(myActivities.length, 1) * 100) + '%'"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm text-gray-600 dark:text-slate-400">Bike Rides</span>
-                <span class="text-sm font-medium dark:text-white">{{ myActivities.filter((a) => a.activityType === 'Bike').length + ' activities' }}</span>
-              </div>
-              <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div class="h-full bg-orange-500 rounded-full" x-style="'width: ' + (myActivities.filter((a) => a.activityType === 'Bike').length / Math.max(myActivities.length, 1) * 100) + '%'"></div>
-              </div>
-            </div>
+            </template>
           </div>
 
-          <div class="mt-6 pt-4 border-t border-gray-100 dark:border-slate-700 space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-gray-500 dark:text-slate-400">Total Time</span><span class="font-bold dark:text-white">{{ userStats.totalTime }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500 dark:text-slate-400">Avg Pace</span><span class="font-bold dark:text-white">{{ userStats.avgPace }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500 dark:text-slate-400">Total Calories</span><span class="font-bold dark:text-white">{{ userStats.totalCalories.toLocaleString() }}</span></div>
-          </div>
-        </div>
+          <dl class="mt-6 grid grid-cols-3 divide-x divide-slate-100 rounded-2xl bg-slate-50 py-3 text-center dark:divide-slate-700 dark:bg-slate-900/60">
+            <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.totalTime }}</dd><dt class="metric-label mt-0.5">Total time</dt></div>
+            <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.avgPace }}</dd><dt class="metric-label mt-0.5">Avg pace</dt></div>
+            <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.totalCalories.toLocaleString() }}</dd><dt class="metric-label mt-0.5">Calories</dt></div>
+          </dl>
+        </section>
       </div>
     </div>
 
     <!-- Empty state -->
-    <div :if="!userStats" class="py-20 text-center">
-      <div class="w-20 h-20 mx-auto mb-6 bg-purple-100 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center">
-        <Icon name="bar-chart-3" size="40" class="text-purple-400" />
+    <div :if="signedIn && !userStats" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
+      <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <Icon name="bar-chart-3" size="30" class="text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No stats to show</h3>
-      <p class="text-gray-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Record some activities and your training stats will appear here.</p>
-      <StxLink to="/record" class="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition">Record Activity</StxLink>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">No stats to show</h3>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Record some activities and your training stats will appear here.</p>
+      <StxLink to="/record" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
     </div>
   </div>
 @endsection
