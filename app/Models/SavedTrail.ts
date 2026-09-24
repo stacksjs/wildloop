@@ -69,5 +69,17 @@ export default defineModel({
       },
       factory: (faker) => faker.datatype.boolean(),
     },
+
+    // The heart. A row can be done without being saved (marked from the
+    // trail page), so saving and having been are separate flags.
+    is_saved: {
+      order: 4,
+      fillable: true,
+      default: true,
+      validation: {
+        rule: schema.boolean(),
+      },
+      factory: () => true,
+    },
   },
 })

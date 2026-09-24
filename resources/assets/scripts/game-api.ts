@@ -549,6 +549,19 @@ export async function fetchSavedTrails(userId: number): Promise<{ savedTrails: a
   return json?.success ? json : null
 }
 
+/** Mark a trail as done, or take the mark back. */
+export async function setTrailDone(trailId: number, done: boolean): Promise<{ success: boolean, done?: boolean }> {
+  await ensureSession()
+  const res = await apiFetch(`/api/trails/${trailId}/done`, {
+    method: done ? 'PUT' : 'DELETE',
+    headers: authHeaders(),
+    body: JSON.stringify({}),
+  })
+  if (!res.ok)
+    return { success: false }
+  return res.json()
+}
+
 /**
  * The signed-in athlete's completed trails: ones their activities are on,
  * and saved trails they marked visited. Null when signed out or on failure.

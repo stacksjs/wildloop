@@ -115,3 +115,42 @@ test('the Account menu opens both lists', async ({ page }) => {
   await expect(page).toHaveURL(/\/trails\?list=completed/)
   await expect(page.getByText('No completed trails yet')).toBeVisible()
 })
+
+test('mark a trail as done from its page, without saving it, and take it back', async ({ page }) => {
+  await signUp(page)
+  await page.goto(`${origin}/trails`)
+  await page.getByRole('link', { name: /Torrey Pines Loop/ }).first().click()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Torrey Pines Loop')
+  const trailId = Number(new URL(page.url()).pathname.split('/').pop())
+
+  const marked = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/done`) && r.request().method() === 'PUT')
+  await page.getByRole('button', { name: 'Mark this trail as done' }).click()
+  expect((await marked).ok()).toBeTruthy()
+  await expect(page.getByText('You have done this trail')).toBeVisible()
+
+  // Done is not saved: the heart stays off and the Saved list stays empty.
+  await expect(page.getByRole('button', { name: 'Save this trail' }).first()).toBeVisible()
+  await page.goto(`${origin}/trails?list=completed`)
+  await expect(page.getByText('Marked as done', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: /Saved/ }).click()
+  await expect(page.getByText('No saved trails yet')).toBeVisible()
+
+  // Saved and done, then unsaved: still done.
+  await page.goto(`${origin}/trail/${trailId}`)
+  const saved = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/save`) && r.request().method() === 'PUT')
+  await page.getByRole('button', { name: 'Save this trail' }).first().click()
+  expect((await saved).ok()).toBeTruthy()
+  const unsaved = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/save`) && r.request().method() === 'DELETE')
+  await page.getByRole('button', { name: 'Remove from saved trails' }).first().click()
+  expect((await unsaved).ok()).toBeTruthy()
+  await page.goto(`${origin}/trails?list=completed`)
+  await expect(page.getByText('Marked as done', { exact: true })).toBeVisible()
+
+  // And taken back.
+  await page.goto(`${origin}/trail/${trailId}`)
+  const undone = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/done`) && r.request().method() === 'DELETE')
+  await page.getByRole('button', { name: 'Undo marking this trail as done' }).click()
+  expect((await undone).ok()).toBeTruthy()
+  await page.goto(`${origin}/trails?list=completed`)
+  await expect(page.getByText('No completed trails yet')).toBeVisible()
+})

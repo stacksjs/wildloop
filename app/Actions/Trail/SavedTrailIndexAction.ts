@@ -24,8 +24,9 @@ export default new Action({
       const trails = trailIds.length ? await Trail.whereIn('id', trailIds).get() : []
       const trailById = new Map(trails.map((t: any) => [t.id, t]))
 
+      // Only the hearts: a row can be a trail marked done and not saved.
       const savedTrails = rows
-        .filter((r: any) => trailById.has(r.trail_id))
+        .filter((r: any) => trailById.has(r.trail_id) && Number(r.is_saved ?? 1) !== 0)
         .map((r: any) => {
           const t = trailById.get(r.trail_id)
           return {

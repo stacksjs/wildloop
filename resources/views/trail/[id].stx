@@ -21,6 +21,9 @@
   import { parsePhotoList, trailGallery, type GalleryContribution } from '../../functions/trail-photos'
   import { difficultyLabel, difficultyTallyText } from '../../functions/review-form'
   import { requireAuth } from '../../composables/useAuthGate'
+  import { fetchCompletedTrails, setTrailDone } from '../../assets/scripts/game-api'
+  import { isSignedIn } from '../../assets/scripts/auth'
+  import { completedLabel } from '../../functions/my-trails'
   import { deviceToday, useTripPlans } from '../../composables/useTripPlans'
   import { addDays, PLAN_ACTIVITIES, planDayLabel, planDirections, planTimeLabel } from '../../functions/trip-plans'
 
@@ -53,6 +56,44 @@
 
   const trail = derived(() => wl ? wl.trails().find((t: any) => t.id === trailId()) ?? null : null)
   const saved = derived(() => !!(wl && wl.isTrailSaved(trailId())))
+
+  // ── Done ─────────────────────────────────────────────────────────────────
+  //
+  // Whether the athlete has done this trail: an activity on it, or a mark
+  // made here for one walked before Wildloop or recorded without picking the
+  // trail. Only the mark can be taken back here; activities count as done
+  // on their own.
+  const doneEntry = state<{ times: number, lastCompletedAt: string | null } | null>(null)
+  const markingDone = state(false)
+  const isDone = derived(() => doneEntry() !== null)
+  const doneByActivity = derived(() => (doneEntry()?.times ?? 0) > 0)
+  const doneText = derived(() => {
+    const entry = doneEntry()
+    return entry ? completedLabel(entry.times, entry.lastCompletedAt) : ''
+  })
+
+  async function loadDone(): Promise<void> {
+    if (!isSignedIn())
+      return
+    const payload = await fetchCompletedTrails().catch(() => null)
+    const entry = payload?.completedTrails?.find((c: any) => c.trailId === trailId())
+    doneEntry.set(entry ? { times: entry.times, lastCompletedAt: entry.lastCompletedAt } : null)
+  }
+
+  async function toggleDone(): Promise<void> {
+    if (!requireAuth('Sign in to keep track of the trails you have done.', () => { void toggleDone() }))
+      return
+    if (markingDone() || doneByActivity())
+      return
+    const was = doneEntry()
+    const next = !was
+    markingDone.set(true)
+    doneEntry.set(next ? { times: 0, lastCompletedAt: new Date().toISOString() } : null) // optimistic
+    const res = await setTrailDone(trailId(), next).catch(() => null)
+    if (!res?.success)
+      doneEntry.set(was) // rollback
+    markingDone.set(false)
+  }
   const {
     reviews, difficultyTally, reviewSheetOpen,
     formRating, formContent, formConditions, formDifficulty, formPhotos,
@@ -491,6 +532,7 @@
       loadingTrail.set(false)
     }
     void loadTrail()
+    void loadDone()
     void loadCommunityPhotos()
     void isTrailOffline(trailId()).then(value => downloaded.set(value))
     const cancelMap = runWhenMapReady('trail-map', mountDetailMap)
@@ -1076,6 +1118,29 @@
              beside the reviews and the map instead of leaving a tall empty
              column once the page scrolls past them. -->
         <div class="space-y-6 lg:sticky lg:top-20 lg:self-start">
+          <!-- Done it? Above the facts, on a phone and a desktop alike: the
+               bar along the bottom of a phone is already full. -->
+          <div class="card flex items-center gap-3">
+            <span x-class="isDone ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'" class="grid h-10 w-10 shrink-0 place-items-center rounded-full" aria-hidden="true">
+              <i class="i-lucide-circle-check h-5 w-5"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="font-semibold text-slate-900 dark:text-white">{{ isDone ? 'You have done this trail' : 'Done this trail?' }}</p>
+              <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ isDone ? doneText : 'Mark it to keep it in your completed trails.' }}</p>
+            </div>
+            <button
+              :if="!doneByActivity"
+              type="button"
+              @click="toggleDone()"
+              x-aria-pressed="isDone ? 'true' : 'false'"
+              x-aria-label="isDone ? 'Undo marking this trail as done' : 'Mark this trail as done'"
+              x-class="isDone ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'"
+              class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
+              <i x-class="isDone ? 'i-lucide-undo-2 h-4 w-4' : 'i-lucide-check h-4 w-4'" aria-hidden="true"></i>
+              {{ isDone ? 'Undo' : 'Mark as done' }}
+            </button>
+          </div>
+
           <div class="card">
             <h3 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Trail info</h3>
             <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-700">

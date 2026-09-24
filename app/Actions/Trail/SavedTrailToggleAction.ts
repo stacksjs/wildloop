@@ -38,12 +38,22 @@ export default new Action({
         .where('trail_id', '=', trailId)
         .first()
 
-      const saved = wantsIt(request.method, Boolean(existing))
+      // A row can be done without being saved (see TrailDoneToggleAction);
+      // only is_saved is the heart.
+      const isSaved = Boolean(existing) && Number((existing as any).is_saved ?? 1) !== 0
+      const saved = wantsIt(request.method, isSaved)
       if (!saved) {
-        if (existing)
+        // Unsaving a trail they have done keeps the done.
+        if (existing && (existing as any).has_visited)
+          await SavedTrail.where('id', '=', existing.id).update({ is_saved: false })
+        else if (existing)
           await SavedTrail.delete(existing.id)
       }
-      else if (!existing) {
+      else if (existing) {
+        if (!isSaved)
+          await SavedTrail.where('id', '=', existing.id).update({ is_saved: true })
+      }
+      else {
         try {
           await SavedTrail.forceCreate({
             user_id: userId,
@@ -51,6 +61,7 @@ export default new Action({
             notes: null,
             want_to_visit: true,
             has_visited: false,
+            is_saved: true,
           })
         }
         catch (err) {

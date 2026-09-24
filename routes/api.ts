@@ -547,6 +547,10 @@ route.group({ middleware: 'auth' }, () => {
     route.post('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
     route.put('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
     route.delete('/trails/{id}/save', 'Actions/Trail/SavedTrailToggleAction')
+    // Mark a trail done without an activity on it: walked before Wildloop,
+    // or recorded without picking the trail.
+    route.put('/trails/{id}/done', 'Actions/Trail/TrailDoneToggleAction')
+    route.delete('/trails/{id}/done', 'Actions/Trail/TrailDoneToggleAction')
     // Trail photos: re-encoded on upload, which strips their GPS position
     route.post('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoStoreAction')
     route.delete('/trail-photos/{uuid}', 'Actions/TrailPhoto/TrailPhotoDestroyAction')
