@@ -56,6 +56,22 @@ describe('trail gallery', () => {
     expect(first).toEqual({ url: cover, credit: '', illustrative: true })
   })
 
+  it('puts a real community photo ahead of a stock cover', () => {
+    const stock = 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=600&fit=crop'
+    const gallery = trailGallery(
+      { image: stock },
+      [{ photos: '/api/trail-photos/12/review.jpg', userName: 'Ada' }],
+      [{ url: '/api/trail-photos/12/community.jpg', credit: 'Grace' }],
+    )
+    expect(gallery.map(photo => photo.url)).toEqual([
+      '/api/trail-photos/12/community.jpg',
+      '/api/trail-photos/12/review.jpg',
+      stock,
+    ])
+    expect(gallery[0].illustrative).toBe(false)
+    expect(gallery[2].illustrative).toBe(true)
+  })
+
   it('shows one copy of a photo posted twice', () => {
     const gallery = trailGallery({ image: 'https://a.test/1.jpg' }, [
       { photos: 'https://a.test/1.jpg', userName: 'Ada' },

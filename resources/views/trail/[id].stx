@@ -156,6 +156,9 @@
   // trail's name reads as a picture of it, so the section's own gradient shows.
   const heroImage = derived(() => currentPhoto()?.url ?? '')
   const photoCredit = derived(() => currentPhoto()?.credit ?? '')
+  const photoSourceUrl = derived(() => currentPhoto()?.sourceUrl ?? '')
+  const photoLicense = derived(() => currentPhoto()?.license ?? '')
+  const photoLicenseUrl = derived(() => currentPhoto()?.licenseUrl ?? '')
   const photoIllustrative = derived(() => currentPhoto()?.illustrative === true)
 
   /** Wraps in both directions: a carousel that dead-ends is a carousel of one. */
@@ -570,7 +573,7 @@
     <!-- Hero -->
     <section class="group relative h-80 overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 sm:h-96 lg:h-[26rem]">
       <div :if="heroImage() !== ''" class="absolute inset-0">
-        <Image x-src="heroImage()" x-alt="trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
+        <Image x-src="heroImage()" x-alt="photoIllustrative() ? 'Illustrative landscape' : trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
       </div>
 
       <!-- No photo: contour lines and the route itself, drawn across the
@@ -607,7 +610,11 @@
 
       <!-- Whose photo this is. A stock cover says it is one: it is not a
            picture of this trail, and without the label it reads as one. -->
-      <p :if="photoCredit() !== ''" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">{{ 'Photo by ' + photoCredit() }}</p>
+      <div :if="photoSourceUrl() !== ''" class="absolute bottom-3 left-4 z-10 flex max-w-[75%] flex-wrap gap-x-2 text-[11px] font-medium text-white/90">
+        <a x-href="photoSourceUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ 'Photo by ' + photoCredit() }}</a>
+        <a x-href="photoLicenseUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ photoLicense() + ' (cropped)' }}</a>
+      </div>
+      <p :if="photoSourceUrl() === '' && photoCredit() !== ''" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">{{ 'Photo by ' + photoCredit() }}</p>
       <p :if="photoCredit() === '' && photoIllustrative()" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">Illustrative photo</p>
       <!-- Floating controls, over the photo rather than under it: on a phone
            the photo is the whole first screen, and a control below the fold is

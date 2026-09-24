@@ -53,6 +53,7 @@
   import { locatePrecisely, locating as nearbyLocating, resolveNearby } from '../composables/useNearby'
   import { activitySharePreview } from '../functions/activity-share'
   import { routeShapeFor } from '../composables/useRouteShape'
+  import { isStockTrailPhoto } from '../functions/stock-photos'
 
 
   const { canPrompt, installed, platform, promptInstall } = useAppInstall()
@@ -349,6 +350,10 @@
     return `trail-tile-blank wl-topo wl-topo-${Math.abs(Number(trail?.id) || 0) % 4}`
   }
 
+  function tilePhotoIllustrative(trail) {
+    return isStockTrailPhoto(trail?.image)
+  }
+
   /** Load the shelf for a place, however that place was arrived at. */
   function loadFeaturedNear(place) {
     return loadFeatured(
@@ -545,7 +550,7 @@
         <template :for="trail in featured">
           <StxLink x-to="'/trail/' + trail.id" class="trail-tile group w-[78%] min-w-0 shrink-0 snap-start sm:w-auto">
             <div class="trail-tile-photo">
-              <Image :if="trail.image" x-src="trail.image" x-alt="trail.name" width="640" height="480" sizes="(max-width: 768px) 100vw, 33vw" placeholder="blur" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+              <Image :if="trail.image" x-src="trail.image" x-alt="tilePhotoIllustrative(trail) ? 'Illustrative landscape' : trail.name" width="640" height="480" sizes="(max-width: 768px) 100vw, 33vw" placeholder="blur" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
               <div :if="!trail.image" x-class="tileTopo(trail)" aria-hidden="true">
                 <svg :if="tileRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="absolute inset-0 h-full w-full">
                   <polyline x-points="tileRoute(trail.id).points" class="wl-route-casing" />
@@ -555,6 +560,8 @@
                 </svg>
                 <i :if="tileRoute(trail.id).points === ''" class="i-lucide-mountain h-10 w-10"></i>
               </div>
+              <span :if="tilePhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Illustrative</span>
+              <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}</span>
             </div>
             <h3 class="mt-3 truncate font-semibold transition group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{{ trail.name }}</h3>
             <p class="mt-0.5 truncate text-sm text-current/55">{{ trail.location || trail.managedBy || '—' }}</p>

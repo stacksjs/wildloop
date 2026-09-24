@@ -22,6 +22,11 @@ export interface UiTrail {
   lat: number
   lng: number
   image: string | null
+  /** Uploader of a community cover, when one replaces an illustrative photo. */
+  coverCredit: string
+  coverSourceUrl: string
+  coverLicense: string
+  coverLicenseUrl: string
   tags: string[]
   conditions: string
   /** Two-letter USPS code, from the national ingest. Empty for older rows. */
@@ -121,6 +126,10 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     lat,
     lng,
     image: row.image ? String(row.image) : null,
+    coverCredit: String(row.coverCredit ?? row.cover_credit ?? '').trim(),
+    coverSourceUrl: String(row.coverSourceUrl ?? row.cover_source_url ?? '').trim(),
+    coverLicense: String(row.coverLicense ?? row.cover_license ?? '').trim(),
+    coverLicenseUrl: String(row.coverLicenseUrl ?? row.cover_license_url ?? '').trim(),
     tags,
     conditions: String(row.conditions ?? 'Conditions reported by the community.'),
     state: String(row.state ?? ''),

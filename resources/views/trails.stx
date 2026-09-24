@@ -1243,7 +1243,7 @@
         <article class="group">
           <div class="relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 dark:bg-slate-800 dark:ring-white/5">
             <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block h-48 sm:h-52">
-              <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
+              <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="cardPhotoIllustrative(trail) ? 'Illustrative landscape' : trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
               <!-- No photo published for this trail. A neutral frame says that
                    much; the stand-in forest that used to sit here said this is
                    what the trail looks like, for every trail alike. -->
@@ -1263,6 +1263,7 @@
             <!-- A licensed landscape, not this trail. Said on the card for the
                  same reason the trail page says it under the hero. -->
             <span :if="cardPhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Illustrative</span>
+            <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}</span>
 
             <!-- What this trail is, in one word, where a photo has room for
                  it. Only ever from a tag the catalog actually carries. -->
