@@ -1,4 +1,4 @@
-import { enqueueRun, queuedRuns, queuedRunDisposition, flushQueuedRuns, removeQueuedRun, retryQueuedRun, exportQueuedRun } from '../../resources/assets/scripts/run-upload-queue'
+import { discardFailedQueuedRun, enqueueRun, queuedRuns, queuedRunDisposition, flushQueuedRuns, removeQueuedRun, retryQueuedRun, exportQueuedRun } from '../../resources/assets/scripts/run-upload-queue'
 import { clearRecordingCheckpoint, loadRecordingCheckpoint, saveRecordingCheckpoint } from '../../resources/assets/scripts/recording-checkpoint'
 import { saveFinishedRecording } from '../../resources/assets/scripts/finished-recording'
 import { installRecordingNavigationGuard, requestRecordingExit } from '../../resources/assets/scripts/recording-navigation'
@@ -147,6 +147,21 @@ run.addEventListener('click', async () => {
       }
       await removeQueuedRun(refused.upload_id)
     }
+    const ineligible = { ...payload, upload_id: `${payload.upload_id}:discard` }
+    const retryable = { ...payload, upload_id: `${payload.upload_id}:retryable` }
+    await enqueueRun(ineligible, Object.assign(new Error('Ineligible recording'), { status: 422 }))
+    await enqueueRun(retryable)
+    for (const [ownerId, uploadId] of [[payload.user_id + 1, ineligible.upload_id], [payload.user_id, retryable.upload_id]] as const) {
+      let denied = false
+      try { await discardFailedQueuedRun(ownerId, uploadId) }
+      catch { denied = true }
+      if (!denied || !(await queuedRuns(payload.user_id)).some(row => row.uploadId === uploadId))
+        throw new Error('Discard must refuse a foreign account and a still-retryable recording without deleting either')
+    }
+    await discardFailedQueuedRun(payload.user_id, ineligible.upload_id)
+    if ((await queuedRuns(payload.user_id)).some(row => row.uploadId === ineligible.upload_id))
+      throw new Error('Confirmed discard must remove the rejected recording from device storage')
+    await removeQueuedRun(retryable.upload_id)
     // If the final checkpoint update fails, the last active checkpoint must
     // retain the identity assigned at Start, not invent a second activity.
     await saveRecordingCheckpoint({ ...checkpoint, uploadId: payload.upload_id })
@@ -204,7 +219,7 @@ run.addEventListener('click', async () => {
     cleanup()
     anchor.remove()
     if (!unlocked) throw new Error('Navigation stayed locked after the recording was safely saved')
-    output.textContent = 'PASS: transaction rollback, committed recovery, failed-save retention, stable retry identity, account isolation, HTTP 401/422 retention, permanent rejection parking, lossless export, manual retry, offline handoff, and click/history/unload/logout protection.'
+    output.textContent = 'PASS: transaction rollback, committed recovery, failed-save retention, stable retry identity, account isolation, HTTP 401/422 retention, permanent rejection parking, owner-checked discard, lossless export, manual retry, offline handoff, and click/history/unload/logout protection.'
   }
   catch (error) {
     output.textContent = `FAIL: ${error instanceof Error ? error.message : error}`

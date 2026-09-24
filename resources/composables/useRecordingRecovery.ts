@@ -1,6 +1,6 @@
 import { onDestroy, onMount, state } from 'stx'
 import { currentUser } from '../assets/scripts/auth'
-import { exportQueuedRun, queuedRunDisposition, queuedRuns, retryQueuedRun, type QueuedRun } from '../assets/scripts/run-upload-queue'
+import { discardFailedQueuedRun, exportQueuedRun, queuedRunDisposition, queuedRuns, retryQueuedRun, type QueuedRun } from '../assets/scripts/run-upload-queue'
 
 export function useRecordingRecovery() {
   const recordings = state<Array<QueuedRun & { needsAttention: boolean }>>([])
@@ -58,6 +58,24 @@ export function useRecordingRecovery() {
     }
   }
 
+  const discardRecording = async (uploadId: string) => {
+    if (recoveringUpload()) return
+    const ownerId = owner()
+    recoveringUpload.set(uploadId)
+    recoveryMessage.set('')
+    try {
+      await discardFailedQueuedRun(ownerId, uploadId)
+      recoveryMessage.set('Recording discarded from this device.')
+    }
+    catch (error) {
+      recoveryMessage.set(error instanceof Error ? error.message : 'Could not discard this recording. Try again.')
+    }
+    finally {
+      recoveringUpload.set('')
+      await refresh()
+    }
+  }
+
   const changed = () => void refresh()
   onMount(() => {
     void refresh()
@@ -73,5 +91,6 @@ export function useRecordingRecovery() {
     recordings, recoveryMessage, recoveringUpload,
     retryRecording: (id: string) => recover(id, false),
     exportRecording: (id: string) => recover(id, true),
+    discardRecording,
   }
 }

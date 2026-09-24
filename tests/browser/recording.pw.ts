@@ -197,6 +197,40 @@ test('fresh account can recover a rejected hike, export it and upload exactly on
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Hike')
 })
 
+test('an ineligible recording can be discarded after confirmation and stays gone after reload', async ({ page }) => {
+  await startHike(page)
+  let uploadAttempts = 0
+  await page.route('**/api/activities', async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    uploadAttempts++
+    await route.fulfill({ status: 422, json: { error: 'Validation failed', fields: { gpx_data: 'Track contains an implausible change of altitude' } } })
+  })
+  await page.getByRole('button', { name: 'Finish recording', exact: true }).click()
+  const recovery = page.getByRole('region', { name: 'Recordings on this device' })
+  await expect(recovery).toContainText('Track contains an implausible change of altitude')
+  await page.reload()
+  await expect(recovery).toBeVisible()
+
+  await recovery.getByRole('button', { name: 'Discard recording' }).click()
+  const confirmation = page.getByRole('dialog', { name: 'Discard recording' })
+  await expect(confirmation).toBeVisible()
+  await expect(confirmation).toContainText('permanently')
+  expect(await confirmation.evaluate(element => element.matches(':modal'))).toBe(true)
+  await expect(confirmation.getByRole('button', { name: 'Keep recording' })).toBeFocused()
+  await confirmation.getByRole('button', { name: 'Keep recording' }).click()
+  await expect(confirmation).toBeHidden()
+  await expect(recovery).toBeVisible()
+
+  await recovery.getByRole('button', { name: 'Discard recording' }).click()
+  await confirmation.getByRole('button', { name: 'Discard from device' }).click()
+  await expect(recovery).toBeHidden()
+  await expect(page.getByText('Recording discarded from this device.', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(recovery).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Start recording', exact: true })).toBeVisible()
+  expect(uploadAttempts).toBe(1)
+})
+
 test('failed upload and queue retain a finished hike through reload', async ({ page }) => {
   await startHike(page)
   await page.getByRole('link', { name: 'Feed', exact: true }).first().click()

@@ -127,6 +127,38 @@ export async function removeQueuedRun(uploadId: string): Promise<void> {
   notifyQueueChanged()
 }
 
+/** User-requested deletion of a permanently failed local upload only. */
+export async function discardFailedQueuedRun(ownerId: number, uploadId: string): Promise<void> {
+  const database = await openDatabase()
+  if (!database) throw new Error('Device storage is unavailable.')
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.get(uploadId)
+    let failure: Error | null = null
+    request.onsuccess = () => {
+      const row = request.result as QueuedRun | undefined
+      if (!ownerId || !row || row.ownerId !== ownerId) {
+        failure = new Error('Sign in to the account that recorded this activity.')
+        transaction.abort()
+        return
+      }
+      if (queuedRunDisposition(row) !== 'failed') {
+        failure = new Error('Only recordings that need attention can be discarded here.')
+        transaction.abort()
+        return
+      }
+      store.delete(uploadId)
+    }
+    transaction.oncomplete = () => { database.close(); resolve() }
+    transaction.onabort = transaction.onerror = () => {
+      database.close()
+      reject(failure ?? transaction.error ?? new Error('Could not discard this recording.'))
+    }
+  })
+  notifyQueueChanged()
+}
+
 /** Explicit recovery only. Keep the original payload and idempotency key. */
 export async function retryQueuedRun(ownerId: number, uploadId: string): Promise<void> {
   const database = await openDatabase()
