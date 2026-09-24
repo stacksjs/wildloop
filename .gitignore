@@ -86,3 +86,7 @@ pantry
 # otherwise hide every new one from `git add`, and the deploy would run
 # without it — the schema check then reports the model's table as missing.
 !database/migrations/*.sql
+
+# ts-cloud's local control-plane database (written by `cloud deploy`), with its
+# WAL sidecars. Machine-local state, never committed.
+storage/cloud/control-plane.sqlite*
