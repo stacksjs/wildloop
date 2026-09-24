@@ -865,6 +865,11 @@
     listMode.set(mode)
   }
 
+  /** The page's title follows the list: the catalog heading only on All trails. */
+  const listHeading = derived(() => listMode() === 'saved'
+    ? 'Saved trails'
+    : listMode() === 'completed' ? 'Completed trails' : heading())
+
   function doneLabel(entry: any): string {
     return completedLabel(entry.times, entry.lastCompletedAt)
   }
@@ -913,8 +918,10 @@
     <!-- Catalog header. The count is the product: it is what tells someone
          this is a national database rather than a demo list. -->
     <div class="mb-6">
-      <h1 class="font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-slate-900 dark:text-white md:text-4xl">{{ heading() }}</h1>
-      <p class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">
+      <h1 class="font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-slate-900 dark:text-white md:text-4xl">{{ listHeading() }}</h1>
+      <p :if="listMode() === 'saved'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">The trails you saved, on every device you sign in on.</p>
+      <p :if="listMode() === 'completed'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">The trails you have done: ones your activities are on, and saved trails you marked as done.</p>
+      <p :if="listMode() === 'all'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">
         <span :if="coverage().total > 0" class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ coverage().total.toLocaleString() }}</span>
         <span :if="coverage().total > 0"> trails across {{ coverage().states.length }} regions in {{ countries().length }} countries, from OpenStreetMap, the Forest Service and the Park Service.</span>
         <span :if="coverage().total === 0">Trail search across the US, Germany, Austria and Switzerland.</span>
