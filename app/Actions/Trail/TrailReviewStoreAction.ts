@@ -13,6 +13,7 @@ import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
 import { isReviewDifficulty, REVIEW_DIFFICULTIES } from '../../Support/reviewDifficulty'
 import { trailPhotoUrl } from '../../Support/trailPhotoPayload'
+import { invalidateTrailReviews } from '../../Support/reviewCache'
 
 import { TRAIL_CONDITION_IDS } from '../../../resources/functions/trail-conditions'
 
@@ -137,6 +138,10 @@ export default new Action({
           updated = true
         }
       }
+
+      // The review is written: the cached reviews (and condition reports) for
+      // this trail are stale, before anything below can fail.
+      invalidateTrailReviews(trailId)
 
       // After-write hook (#973): rebuild this trail's aggregates from rows.
       const trailReviews = (await Review.where('trail_id', '=', trailId).get()) ?? []

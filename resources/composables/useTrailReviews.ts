@@ -75,8 +75,8 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     }
   }
 
-  async function loadReviews(): Promise<void> {
-    const page = await fetchTrailReviewPage(trailId())
+  async function loadReviews(fresh = false): Promise<void> {
+    const page = await fetchTrailReviewPage(trailId(), fresh)
     if (!page)
       return
     reviews.set(page.reviews.map(mapApiReview))
@@ -217,7 +217,8 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     reviewSaved.set(true)
     setTimeout(() => reviewSaved.set(false), 2500)
     // The vote changed the tally; the list itself is already current.
-    void loadReviews()
+    // Past the 15-minute browser cache, so the review just posted shows.
+    void loadReviews(true)
   }
 
   return {

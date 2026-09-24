@@ -2,6 +2,7 @@ import { db } from '@stacksjs/orm'
 import { computeCounterFixes } from '../../resources/functions/counters'
 import { photoStorage } from './photoStorage'
 import { inWriteTransaction } from './writeTransaction'
+import { invalidateTrailReviews } from './reviewCache'
 
 /**
  * Deleting an account, from inside the app (App Store guideline 5.1.1(v): an
@@ -147,6 +148,8 @@ export async function deleteAccount(userId: number): Promise<AccountDeletionRepo
     await db.sql`DELETE FROM kudos WHERE giver_id = ${userId} OR user_id = ${userId}`.execute()
     await db.sql`DELETE FROM follows WHERE follower_id = ${userId} OR following_id = ${userId}`.execute()
     await db.sql`DELETE FROM trail_reviews WHERE user_id = ${userId}`.execute()
+    // Their reviews must not linger in the 15-minute review cache.
+    invalidateTrailReviews(...reviewedTrailIds)
     await db.sql`DELETE FROM trail_photos WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM saved_trails WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM route_efforts WHERE user_id = ${userId}`.execute()

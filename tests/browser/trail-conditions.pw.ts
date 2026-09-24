@@ -33,19 +33,18 @@ test('a flooding report is listed and shown at the top of the trail in red', asy
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Torrey Pines Loop')
   const trailId = Number(new URL(page.url()).pathname.split('/').pop())
 
-  // The review form offers the new weather and hazards.
-  const reported = await page.evaluate(async (id) => {
-    const token = localStorage.getItem('auth_token') ?? ''
-    const res = await fetch(`/api/trails/${id}/reviews`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ rating: 3, content: 'The creek crossing is waist deep after the storm.', conditions: 'flooded' }),
-    })
-    return res.status
-  }, trailId)
-  expect(reported).toBeLessThan(300)
+  // Reported through the form, the way anyone would. The reviews are cached
+  // for 15 minutes in the browser and on the server, and posting has to get
+  // past both: the report shows at once, and so does the alert.
+  await page.getByRole('button', { name: /Conditions/ }).first().click()
+  await page.getByRole('button', { name: 'Report conditions' }).click()
+  await page.getByRole('button', { name: 'Rate 3 stars' }).click()
+  await page.locator('#review-tips').fill('The creek crossing is waist deep after the storm.')
+  await page.getByRole('button', { name: 'Flooded', exact: true }).click()
+  const posted = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/reviews`) && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  expect((await posted).ok()).toBeTruthy()
 
-  await page.reload()
   const alert = page.getByRole('alert').filter({ hasText: 'Flooded reported on this trail' })
   await expect(alert).toBeVisible()
   await expect(alert).toContainText('waist deep')

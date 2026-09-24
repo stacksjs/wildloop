@@ -476,8 +476,10 @@ export interface TrailDifficultySummary {
 }
 
 /** A trail's reviews together with the tally of their difficulty votes. */
-export async function fetchTrailReviewPage(trailId: number): Promise<{ reviews: TrailReview[], difficulty: TrailDifficultySummary | null } | null> {
-  const res = await apiFetch(`/api/trails/${trailId}/reviews`)
+export async function fetchTrailReviewPage(trailId: number, fresh = false): Promise<{ reviews: TrailReview[], difficulty: TrailDifficultySummary | null } | null> {
+  // Browsers keep this 15 minutes (TrailReviewIndexAction). Right after
+  // posting, ask the server instead, which dropped its copy on the write.
+  const res = await apiFetch(`/api/trails/${trailId}/reviews`, fresh ? { cache: 'reload' } : {})
   if (!res.ok)
     return null
   const json = await res.json()
