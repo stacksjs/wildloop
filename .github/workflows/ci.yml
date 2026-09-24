@@ -164,11 +164,40 @@ jobs:
         working-directory: tests/browser
         run: bun install --frozen-lockfile
       # Server-side regressions that need the QA app but no browser. They run
-      # before Chromium is installed, and start and stop their own servers.
+      # before Chromium is installed.
+      #
+      # The QA servers are started here, not by the tests. Left to the test
+      # file, the canary bun test killed them as a dangling process after the
+      # first describe block ("killed 1 dangling process"), and every dashboard
+      # case then met a dead server: a 5 s timeout, ECONNRESET, ECONNREFUSED.
+      # tests/browser/qa-servers.ts uses servers that already answer. They run
+      # in their own process group, stopped whole afterwards, so Playwright
+      # below can start its own on the same ports.
       - name: API and catalog regressions
         env:
           RECORDING_QA: '1'
-        run: bun test tests/browser
+        run: |
+          setsid bun scripts/start-recording-qa.ts > "$RUNNER_TEMP/qa-servers.log" 2>&1 &
+          qa=$!
+          for _ in $(seq 1 180); do
+            if curl -sf http://127.0.0.1:4321/api/health > /dev/null && curl -sf http://127.0.0.1:4332/api/json > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          status=0
+          bun test tests/browser || status=$?
+          kill -- -"$qa" 2> /dev/null || true
+          if [ "$status" -ne 0 ]; then
+            echo "::group::QA server output"
+            tail -n 200 "$RUNNER_TEMP/qa-servers.log"
+            echo "::endgroup::"
+          fi
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4321/api/health > /dev/null || break
+            sleep 1
+          done
+          exit "$status"
       - name: Install Chromium
         working-directory: tests/browser
         run: bunx playwright install --with-deps chromium
