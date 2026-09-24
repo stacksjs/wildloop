@@ -14,8 +14,9 @@ export const READY_TIMEOUT_MS = 180_000
 
 let server: Subprocess | null = null
 
+/** Answers OK within a second: up, and not busy with its own startup work. */
 async function reachable(url: string): Promise<boolean> {
-  return await fetch(url).then(response => response.ok).catch(() => false)
+  return await fetch(url, { signal: AbortSignal.timeout(1000) }).then(response => response.ok).catch(() => false)
 }
 
 /** Starts the servers, unless something already answers on those ports. */
@@ -25,8 +26,9 @@ export async function startQaServers(): Promise<void> {
   server = Bun.spawn(['bun', 'scripts/start-recording-qa.ts'], { stdout: 'inherit', stderr: 'inherit' })
   const deadline = Date.now() + READY_TIMEOUT_MS
   while (Date.now() < deadline) {
-    // An app action, not just /json: the first one loads the whole app
-    // runtime, which on a CI runner outlasts a test's 5 s timeout.
+    // An app action answered promptly, not just /json: the first one loads
+    // the whole app runtime, and the dashboard prewarms its render cache in
+    // the background. On a CI runner either outlasted a test's 5 s timeout.
     if (await reachable(`${API}/trails`) && await reachable(`${DASHBOARD}/trails`))
       return
     await Bun.sleep(1000)

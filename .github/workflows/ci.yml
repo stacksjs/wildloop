@@ -192,11 +192,18 @@ jobs:
             fi
             sleep 1
           done
-          # Ready means answering an app action, not just /json: the first one
-          # loads the whole app runtime, longer than a test's 5 s on a runner.
-          for base in http://127.0.0.1:4321/api http://127.0.0.1:4332/api; do
-            curl -s -o /dev/null -m 120 -w "first $base/trails: %{http_code} in %{time_total}s\n" "$base/trails" || echo "first $base/trails: no answer in 120s"
+          # Ready means answering an app action promptly, not just /json. The
+          # first one loads the whole app runtime, and the dashboard prewarms
+          # its page render cache in the background, which on a two-core
+          # runner kept its event loop busy for longer than a test's 5 s.
+          start=$SECONDS
+          for _ in $(seq 1 120); do
+            if curl -sf -o /dev/null -m 1 http://127.0.0.1:4321/api/trails && curl -sf -o /dev/null -m 1 http://127.0.0.1:4332/api/trails; then
+              break
+            fi
+            sleep 1
           done
+          echo "QA servers answering app actions within 1 s after $((SECONDS - start)) s"
           status=0
           bun test tests/browser || status=$?
           kill -- -"$qa" 2> /dev/null || true
