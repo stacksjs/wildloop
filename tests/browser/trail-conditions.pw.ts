@@ -1,0 +1,67 @@
+import { expect, test, type Page } from '@playwright/test'
+
+/**
+ * Conditions people report on a trail — the weather and hazards as well as
+ * the path — listed on its page, and a danger reported this week put at the
+ * top in red.
+ *
+ * Runs against the isolated QA stack (scripts/start-recording-qa.ts), whose
+ * catalog has Torrey Pines Loop.
+ */
+
+const origin = 'http://127.0.0.1:4322'
+
+async function signUp(page: Page) {
+  const password = `Local-QA-${crypto.randomUUID()}`
+  await page.goto(`${origin}/register`)
+  const form = page.locator('form').filter({ has: page.locator('#name') })
+  await form.getByLabel('Full Name', { exact: true }).fill('Conditions QA')
+  await form.getByLabel('Email', { exact: true }).fill(`conditions-${crypto.randomUUID()}@example.test`)
+  await form.getByLabel('Password', { exact: true }).fill(password)
+  await form.getByLabel('Confirm Password', { exact: true }).fill(password)
+  await page.locator('#terms').check()
+  const registered = page.waitForResponse(r => r.url().endsWith('/api/register') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Create Account', exact: true }).click()
+  expect((await registered).ok()).toBeTruthy()
+  await expect(page).not.toHaveURL(/\/register/)
+}
+
+test('a flooding report is listed and shown at the top of the trail in red', async ({ page }) => {
+  await signUp(page)
+  await page.goto(`${origin}/trails`)
+  await page.getByRole('link', { name: /Torrey Pines Loop/ }).first().click()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Torrey Pines Loop')
+  const trailId = Number(new URL(page.url()).pathname.split('/').pop())
+
+  // The review form offers the new weather and hazards.
+  const reported = await page.evaluate(async (id) => {
+    const token = localStorage.getItem('auth_token') ?? ''
+    const res = await fetch(`/api/trails/${id}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ rating: 3, content: 'The creek crossing is waist deep after the storm.', conditions: 'flooded' }),
+    })
+    return res.status
+  }, trailId)
+  expect(reported).toBeLessThan(300)
+
+  await page.reload()
+  const alert = page.getByRole('alert').filter({ hasText: 'Flooded reported on this trail' })
+  await expect(alert).toBeVisible()
+  await expect(alert).toContainText('waist deep')
+
+  await alert.getByRole('link', { name: /See all condition reports/ }).click()
+  await expect(page.getByRole('button', { name: /Conditions \(1\)/ })).toBeVisible()
+  await expect(page.getByText('Danger', { exact: true })).toBeVisible()
+  await expect(page.getByText('The creek crossing is waist deep after the storm.').first()).toBeVisible()
+})
+
+test('the review form offers weather and hazards', async ({ page }) => {
+  await signUp(page)
+  await page.goto(`${origin}/trails`)
+  await page.getByRole('link', { name: /Torrey Pines Loop/ }).first().click()
+  await page.getByRole('button', { name: /Conditions/ }).first().click()
+  await page.getByRole('button', { name: 'Report conditions' }).click()
+  for (const label of ['Snow', 'Icy', 'Flooded', 'Washed out', 'Extreme heat', 'Wildfire or smoke', 'Closed'])
+    await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible()
+})

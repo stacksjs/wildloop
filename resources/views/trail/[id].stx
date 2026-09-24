@@ -24,6 +24,7 @@
   import { fetchCompletedTrails, setTrailDone } from '../../assets/scripts/game-api'
   import { isSignedIn } from '../../assets/scripts/auth'
   import { completedLabel } from '../../functions/my-trails'
+  import { activeDanger, conditionReports } from '../../functions/trail-conditions'
   import { deviceToday, useTripPlans } from '../../composables/useTripPlans'
   import { addDays, PLAN_ACTIVITIES, planDayLabel, planDirections, planTimeLabel } from '../../functions/trip-plans'
 
@@ -56,6 +57,32 @@
 
   const trail = derived(() => wl ? wl.trails().find((t: any) => t.id === trailId()) ?? null : null)
   const saved = derived(() => !!(wl && wl.isTrailSaved(trailId())))
+
+  // ── Conditions ───────────────────────────────────────────────────────────
+  //
+  // What people reported on their visits, from their reviews: the path, the
+  // weather and hazards. A danger reported in the last week (snow, ice,
+  // flooding, a washed out section, extreme heat, wildfire, a closure) is put
+  // at the top of the page in red, unless a newer report says it is fine.
+  const reports = derived(() => conditionReports(reviews()))
+  const danger = derived(() => activeDanger(reports()))
+  const dangerTitle = derived(() => (danger() ? `${danger()!.label} reported on this trail` : ''))
+  const dangerDetail = derived(() => {
+    const d = danger()
+    return d && wl ? `${d.by}, ${wl.timeAgo(d.at)}${d.note ? ` · “${d.note.length > 140 ? `${d.note.slice(0, 140)}…` : d.note}”` : ''}` : ''
+  })
+
+  function reportWhen(report: any): string {
+    return wl ? wl.timeAgo(report.at) : ''
+  }
+
+  function showConditions(): void {
+    reviewTab.set('conditions')
+  }
+
+  function reportConditions(): void {
+    openReviewSheet()
+  }
 
   // ── Done ─────────────────────────────────────────────────────────────────
   //
@@ -757,6 +784,23 @@
       <p :if="shareMessage()" class="mb-4 px-4 py-3 text-sm text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 rounded-xl">{{ shareMessage() }}</p>
       <div class="grid lg:grid-cols-3 gap-8">
         <div class="lg:col-span-2 space-y-8">
+          <!-- A danger someone reported this week. First thing on the page,
+               in red, because it is the one thing here that can get somebody
+               hurt: ice above the treeline, a flooded crossing, a fire. -->
+          <div :if="danger" role="alert" class="flex items-start gap-3 rounded-2xl border-2 border-red-500 bg-red-50 p-4 dark:border-red-500/70 dark:bg-red-950/40">
+            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-600 text-white" aria-hidden="true">
+              <i class="i-lucide-triangle-alert h-6 w-6"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="font-display text-lg font-bold leading-tight text-red-800 dark:text-red-200">{{ dangerTitle }}</p>
+              <p class="mt-1 text-sm text-red-800/90 dark:text-red-200/90">{{ dangerDetail }}</p>
+              <a href="#trail-conditions" @click="showConditions()" class="mt-2 inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-red-700 underline-offset-2 hover:underline dark:text-red-300">
+                See all condition reports
+                <i class="i-lucide-arrow-down h-4 w-4" aria-hidden="true"></i>
+              </a>
+            </div>
+          </div>
+
           <!-- What the trail is rated, how hard it is and where it sits, on
                one line — the three things asked before anything else. -->
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -1057,10 +1101,14 @@
           </div>
 
           <!-- Reviews -->
-          <div>
+          <div id="trail-conditions" class="scroll-mt-24">
             <div class="mb-4 flex gap-1 border-b border-slate-200 dark:border-slate-700">
               <button type="button" @click="reviewTab.set('reviews')" x-class="reviewTab() === 'reviews' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-4 text-sm font-semibold transition">{{ 'Reviews (' + reviews().length + ')' }}</button>
-              <button type="button" @click="reviewTab.set('conditions')" x-class="reviewTab() === 'conditions' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-4 text-sm font-semibold transition">Conditions</button>
+              <button type="button" @click="reviewTab.set('conditions')" x-class="reviewTab() === 'conditions' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition">
+                <span :if="danger" class="h-2.5 w-2.5 rounded-full bg-red-600" aria-hidden="true"></span>
+                {{ 'Conditions' + (reports().length ? ' (' + reports().length + ')' : '') }}
+                <span :if="danger" class="sr-only">, danger reported</span>
+              </button>
             </div>
 
             <div :if="reviewTab() === 'reviews'" class="space-y-4">
@@ -1106,9 +1154,32 @@
               </div>
             </div>
 
-            <div :if="reviewTab() === 'conditions'" class="card">
-              <h3 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Current conditions</h3>
-              <p class="text-sm text-slate-600 dark:text-slate-300">{{ trail.conditions || 'Nobody has reported conditions here yet. A review can include them.' }}</p>
+            <!-- What people found, newest first, the last two months. The
+                 weather and hazards as much as the path. -->
+            <div :if="reviewTab() === 'conditions'" class="space-y-3">
+              <template :for="report in reports()">
+                <div x-class="report.severity === 'danger' ? 'border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-950/30' : report.severity === 'caution' ? 'border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/20' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'" class="flex items-start gap-3 rounded-2xl border p-4">
+                  <span x-class="report.severity === 'danger' ? 'bg-red-600 text-white' : report.severity === 'caution' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'" class="grid h-10 w-10 shrink-0 place-items-center rounded-full" aria-hidden="true">
+                    <i x-class="report.icon + ' h-5 w-5'"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span x-class="report.severity === 'danger' ? 'text-red-800 dark:text-red-200' : report.severity === 'caution' ? 'text-amber-800 dark:text-amber-200' : 'text-slate-900 dark:text-white'" class="font-semibold">{{ report.label }}</span>
+                      <span :if="report.severity === 'danger'" class="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">Danger</span>
+                      <span class="text-xs text-slate-500 dark:text-slate-400">{{ report.by + ' · ' + reportWhen(report) }}</span>
+                    </p>
+                    <p :if="report.note" class="mt-1 line-clamp-3 text-sm text-slate-600 dark:text-slate-300">{{ report.note }}</p>
+                  </div>
+                </div>
+              </template>
+              <div :if="reports().length === 0" class="rounded-2xl border border-dashed border-slate-200 px-6 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <i class="i-lucide-cloud-sun mx-auto mb-2 block h-6 w-6 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+                <p>No conditions reported in the last two months.</p>
+              </div>
+              <button type="button" @click="reportConditions()" class="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+                <i class="i-lucide-cloud-alert h-4 w-4" aria-hidden="true"></i>
+                Report conditions
+              </button>
             </div>
           </div>
         </div>
@@ -1370,7 +1441,7 @@
         <h3 class="text-base font-semibold text-slate-900 dark:text-white">Conditions</h3>
         <div class="mt-3 flex flex-wrap gap-2">
           <template :for="opt in conditionOptions">
-            <button type="button" @click="formConditions.set(formConditions() === opt ? '' : opt)" :aria-pressed="(formConditions() === opt) ? 'true' : 'false'" x-class="formConditions() === opt ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-300'" class="min-h-10 rounded-full border px-4 text-sm font-medium capitalize">{{ opt }}</button>
+            <button type="button" @click="formConditions.set(formConditions() === opt.id ? '' : opt.id)" :aria-pressed="(formConditions() === opt.id) ? 'true' : 'false'" x-class="formConditions() === opt.id ? (opt.severity === 'danger' ? 'border-red-600 bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200' : 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200') : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-300'" class="inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium"><i x-class="opt.icon + ' h-4 w-4'" aria-hidden="true"></i>{{ opt.label }}</button>
           </template>
         </div>
       </section>

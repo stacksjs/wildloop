@@ -2,6 +2,7 @@ import { onMount, state } from 'stx'
 import { fetchTrailReviewPage, postTrailReview, uploadTrailPhoto } from '../assets/scripts/game-api'
 import type { DifficultyTally } from '../functions/review-form'
 import { REVIEW_PHOTO_LIMIT, reviewFormError } from '../functions/review-form'
+import { TRAIL_CONDITIONS } from '../functions/trail-conditions'
 
 /**
  * Trail reviews (#981): hydrate the detail page's review list from the API
@@ -20,6 +21,8 @@ interface ReviewRow {
   conditions: string
   difficulty: string
   created_at: string
+  /** The day of the visit, when given: when the conditions were seen. */
+  visitDate?: string | null
   /** As stored: a JSON array, a comma-separated list or a single URL. */
   photos?: unknown
 }
@@ -38,7 +41,8 @@ export interface ReviewPhotoDraft {
   uploadedId: string | null
 }
 
-export const REVIEW_CONDITION_OPTIONS = ['excellent', 'good', 'fair', 'poor', 'muddy', 'icy']
+/** What a review can report, from the shared list (weather and hazards too). */
+export const REVIEW_CONDITION_OPTIONS = TRAIL_CONDITIONS
 
 export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => number) {
   const reviews = state<ReviewRow[]>([])
@@ -66,6 +70,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
       conditions: r.conditions ?? '',
       difficulty: r.difficulty ?? '',
       created_at: r.createdAt ?? new Date().toISOString(),
+      visitDate: r.visitDate ?? null,
       photos: r.photos ?? null,
     }
   }

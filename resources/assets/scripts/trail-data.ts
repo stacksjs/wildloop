@@ -136,7 +136,7 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     coverScope: (row.coverScope ?? row.cover_scope) === 'area' ? 'area' : '',
     coverPlace: String(row.coverPlace ?? row.cover_place ?? '').trim(),
     tags,
-    conditions: String(row.conditions ?? 'Conditions reported by the community.'),
+    conditions: String(row.conditions ?? ''),
     state: String(row.state ?? ''),
     managedBy: String(row.managedBy ?? row.managed_by ?? ''),
     routeType: normalizeRouteType(row.routeType ?? row.route_type),

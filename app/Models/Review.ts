@@ -1,7 +1,11 @@
 import { defineModel } from '@stacksjs/orm'
 import { schema } from '@stacksjs/validation'
 
-const conditions = ['excellent', 'good', 'fair', 'poor', 'muddy', 'icy'] as const
+import { TRAIL_CONDITION_IDS } from '../../resources/functions/trail-conditions'
+
+// Weather and hazards as well as how the path felt: the list, and which are
+// dangerous, live in resources/functions/trail-conditions.ts.
+const conditions = TRAIL_CONDITION_IDS as unknown as readonly [string, ...string[]]
 const difficulties = ['easy', 'moderate', 'hard'] as const
 
 export default defineModel({
@@ -119,7 +123,7 @@ export default defineModel({
       validation: {
         rule: schema.enum(conditions),
       },
-      factory: (faker): typeof conditions[number] => faker.helpers.arrayElement([...conditions]),
+      factory: (faker): string => faker.helpers.arrayElement([...conditions]),
     },
 
     helpful_count: {

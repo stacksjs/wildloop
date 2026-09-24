@@ -14,7 +14,10 @@ import { db } from '@stacksjs/orm'
 import { isReviewDifficulty, REVIEW_DIFFICULTIES } from '../../Support/reviewDifficulty'
 import { trailPhotoUrl } from '../../Support/trailPhotoPayload'
 
-const REVIEW_CONDITIONS = ['excellent', 'good', 'fair', 'poor', 'muddy', 'icy']
+import { TRAIL_CONDITION_IDS } from '../../../resources/functions/trail-conditions'
+
+// The one list the form offers and the database's CHECK allows (#166).
+const REVIEW_CONDITIONS = TRAIL_CONDITION_IDS
 
 /** Photos attached to one review; the trail gallery caps what it shows anyway. */
 const MAX_REVIEW_PHOTOS = 10
