@@ -25,7 +25,9 @@ export async function startQaServers(): Promise<void> {
   server = Bun.spawn(['bun', 'scripts/start-recording-qa.ts'], { stdout: 'inherit', stderr: 'inherit' })
   const deadline = Date.now() + READY_TIMEOUT_MS
   while (Date.now() < deadline) {
-    if (await reachable(`${API}/health`) && await reachable(`${DASHBOARD}/json`))
+    // An app action, not just /json: the first one loads the whole app
+    // runtime, which on a CI runner outlasts a test's 5 s timeout.
+    if (await reachable(`${API}/trails`) && await reachable(`${DASHBOARD}/trails`))
       return
     await Bun.sleep(1000)
   }
