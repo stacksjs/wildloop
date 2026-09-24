@@ -27,6 +27,9 @@ export interface UiTrail {
   coverSourceUrl: string
   coverLicense: string
   coverLicenseUrl: string
+  /** An area image must not be presented as a photo of this exact trail. */
+  coverScope: 'area' | ''
+  coverPlace: string
   tags: string[]
   conditions: string
   /** Two-letter USPS code, from the national ingest. Empty for older rows. */
@@ -130,6 +133,8 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     coverSourceUrl: String(row.coverSourceUrl ?? row.cover_source_url ?? '').trim(),
     coverLicense: String(row.coverLicense ?? row.cover_license ?? '').trim(),
     coverLicenseUrl: String(row.coverLicenseUrl ?? row.cover_license_url ?? '').trim(),
+    coverScope: (row.coverScope ?? row.cover_scope) === 'area' ? 'area' : '',
+    coverPlace: String(row.coverPlace ?? row.cover_place ?? '').trim(),
     tags,
     conditions: String(row.conditions ?? 'Conditions reported by the community.'),
     state: String(row.state ?? ''),

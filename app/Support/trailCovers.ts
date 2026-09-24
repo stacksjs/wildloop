@@ -1,6 +1,7 @@
 import { db } from '@stacksjs/orm'
 import { isStockTrailPhoto } from '../../resources/functions/stock-photos'
 import { applyCuratedTrailPhoto } from './curatedTrailPhotos'
+import { applyTrailAreaPhoto } from './trailAreaPhotos'
 import { trailPhotoUrl } from './trailPhotoPayload'
 
 export interface CoverTrail {
@@ -64,5 +65,6 @@ export async function latestVisibleCommunityCovers(ids: number[]): Promise<Commu
 export async function withBestTrailCovers<T extends CoverTrail>(trails: T[], size: 'thumb' | 'display' = 'thumb'): Promise<T[]> {
   const ids = trailsNeedingCommunityCover(trails)
   const covers = await latestVisibleCommunityCovers(ids)
-  return applyCommunityCovers(trails, covers, size).map(trail => applyCuratedTrailPhoto(trail as T)) as T[]
+  return applyCommunityCovers(trails, covers, size)
+    .map(trail => applyTrailAreaPhoto(applyCuratedTrailPhoto(trail as T))) as T[]
 }

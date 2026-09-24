@@ -56,6 +56,21 @@ describe('trail gallery', () => {
     expect(first).toEqual({ url: cover, credit: '', illustrative: true })
   })
 
+  it('keeps the area label and place with an attributed catalog photo', () => {
+    const [photo] = trailGallery({
+      image: 'https://commons.wikimedia.org/wiki/Special:FilePath/Santabarbara_300.jpg',
+      coverCredit: 'Shane Anderson/NOAA',
+      coverSourceUrl: 'https://commons.wikimedia.org/wiki/File:Santabarbara_300.jpg',
+      coverLicense: 'Public domain',
+      coverLicenseUrl: 'https://commons.wikimedia.org/wiki/File:Santabarbara_300.jpg',
+      coverScope: 'area',
+      coverPlace: 'Santa Barbara Island',
+    })
+    expect(photo.scope).toBe('area')
+    expect(photo.place).toBe('Santa Barbara Island')
+    expect(photo.illustrative).toBe(false)
+  })
+
   it('puts a real community photo ahead of a stock cover', () => {
     const stock = 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=600&fit=crop'
     const gallery = trailGallery(

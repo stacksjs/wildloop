@@ -23,6 +23,9 @@ export interface GalleryPhoto {
   sourceUrl?: string
   license?: string
   licenseUrl?: string
+  /** Area photography depicts the park or island, not the named trail. */
+  scope?: 'area'
+  place?: string
 }
 
 /** Where a photo may come from: absolute http(s), or this site's own root. */
@@ -73,6 +76,8 @@ export interface GalleryTrail {
   coverSourceUrl?: string | null
   coverLicense?: string | null
   coverLicenseUrl?: string | null
+  coverScope?: string | null
+  coverPlace?: string | null
 }
 
 export interface GalleryReview {
@@ -104,7 +109,7 @@ export function trailGallery(
   const photos: GalleryPhoto[] = []
   const seen = new Set<string>()
 
-  const push = (url: string, credit: string, attribution?: Pick<GalleryPhoto, 'sourceUrl' | 'license' | 'licenseUrl'>) => {
+  const push = (url: string, credit: string, attribution?: Pick<GalleryPhoto, 'sourceUrl' | 'license' | 'licenseUrl' | 'scope' | 'place'>) => {
     const clean = url.trim()
     if (!isRenderableUrl(clean) || seen.has(clean) || photos.length >= MAX_PHOTOS)
       return
@@ -119,6 +124,9 @@ export function trailGallery(
         sourceUrl: String(trail.coverSourceUrl),
         license: String(trail.coverLicense ?? ''),
         licenseUrl: String(trail.coverLicenseUrl ?? ''),
+        ...(trail.coverScope === 'area'
+          ? { scope: 'area' as const, place: String(trail.coverPlace ?? '') }
+          : {}),
       }
     : undefined
   if (catalogImage && !isStockTrailPhoto(catalogImage))

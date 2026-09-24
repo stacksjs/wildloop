@@ -160,6 +160,8 @@
   const photoLicense = derived(() => currentPhoto()?.license ?? '')
   const photoLicenseUrl = derived(() => currentPhoto()?.licenseUrl ?? '')
   const photoIllustrative = derived(() => currentPhoto()?.illustrative === true)
+  const photoArea = derived(() => currentPhoto()?.scope === 'area')
+  const photoPlace = derived(() => currentPhoto()?.place ?? '')
 
   /** Wraps in both directions: a carousel that dead-ends is a carousel of one. */
   function showPhoto(index: number) {
@@ -573,7 +575,7 @@
     <!-- Hero -->
     <section class="group relative h-80 overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 sm:h-96 lg:h-[26rem]">
       <div :if="heroImage() !== ''" class="absolute inset-0">
-        <Image x-src="heroImage()" x-alt="photoIllustrative() ? 'Illustrative landscape' : trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
+        <Image x-src="heroImage()" x-alt="photoIllustrative() ? 'Illustrative landscape' : photoArea() ? 'Photo of ' + photoPlace() + ' area' : trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
       </div>
 
       <!-- No photo: contour lines and the route itself, drawn across the
@@ -611,6 +613,7 @@
       <!-- Whose photo this is. A stock cover says it is one: it is not a
            picture of this trail, and without the label it reads as one. -->
       <div :if="photoSourceUrl() !== ''" class="absolute bottom-3 left-4 z-10 flex max-w-[75%] flex-wrap gap-x-2 text-[11px] font-medium text-white/90">
+        <span :if="photoArea()">{{ photoPlace() + ' area photo' }}</span>
         <a x-href="photoSourceUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ 'Photo by ' + photoCredit() }}</a>
         <a x-href="photoLicenseUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ photoLicense() + ' (cropped)' }}</a>
       </div>

@@ -33,6 +33,18 @@ if (await migrate.exited !== 0) throw new Error('Isolated recording database mig
 const db = new Database(env.DB_DATABASE_PATH)
 db.run(`INSERT INTO trails (name, location, state, country, distance, elevation, difficulty, latitude, longitude)
   VALUES ('Torrey Pines Loop', 'San Diego, CA', 'CA', 'US', 2.4, 300, 'easy', 32.9209, -117.2528)`)
+// Public NPS rows shown in the Santa Monica screenshot. Keep their source IDs
+// and coordinates intact so the browser suite catches a namesake photo match.
+const islandTrail = db.query(`INSERT INTO trails
+  (name, location, state, country, distance, elevation, difficulty, latitude, longitude, source, source_id, image)
+  VALUES (?, 'Channel Islands National Park, CA', 'CA', 'US', ?, 0, 'easy', ?, ?, 'nps', ?, ?)`)
+for (const [name, distance, latitude, longitude, sourceId, image] of [
+  ['Arch Point Loop Trail', 2.1, 33.48291, -119.033499, 'nps/CHIS|ARCH POINT LOOP TRAIL', 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=600&fit=crop'],
+  ['Cave Canyon Nature Trail', 0.3, 33.479722, -119.029021, 'nps/CHIS|CAVE CANYON NATURE TRAIL', 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop'],
+  ['Elephant Seal Cove Loop Trail', 2.8, 33.480336, -119.03819, 'nps/CHIS|ELEPHANT SEAL COVE LOOP TRAIL', 'https://images.unsplash.com/photo-1476231682828-37e571bc172f?w=800&h=600&fit=crop'],
+  ['Signal Peak Loop', 2.9, 33.471806, -119.037228, 'nps/CHIS|SIGNAL PEAK LOOP', 'https://images.unsplash.com/photo-1476231682828-37e571bc172f?w=800&h=600&fit=crop'],
+] as const)
+  islandTrail.run(name, distance, latitude, longitude, sourceId, image)
 db.close()
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).
