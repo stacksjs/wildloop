@@ -1,5 +1,6 @@
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
+import { withBestTrailCovers } from '../../Support/trailCovers'
 
 const DIFFICULTIES = new Set(['easy', 'moderate', 'hard'])
 const ROUTE_TYPES = new Set(['loop', 'out-and-back', 'point-to-point', 'network'])
@@ -108,7 +109,7 @@ export default new Action({
         appliedCountry = undefined
       }
 
-      const trails = (rows ?? []).map((row: Record<string, unknown>) => ({
+      const trails = (await withBestTrailCovers(rows ?? [])).map((row: Record<string, unknown>) => ({
         ...row,
         // The map layer reads `lat`/`lng`; the column names are the long form.
         lat: row.latitude,
