@@ -268,6 +268,11 @@ export const tsCloud: TsCloudConfig = {
         APP_ENV: 'production',
         NODE_ENV: 'production',
         DB_DATABASE_PATH: SHARED_DATABASE,
+        // Our own Valhalla (routing-production, US + Germany/Austria/
+        // Switzerland), for the route builder's paths and climb. Its firewall
+        // admits only this server on 8002. Outside that coverage, or while it
+        // is down, app/Support/routing.ts falls back to the public server.
+        VALHALLA_URL: 'http://91.99.124.84:8002',
       },
     },
 
