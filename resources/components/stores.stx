@@ -467,6 +467,10 @@
       unreadCount: (state) => state.notifications.filter(n => !n.read).length,
     },
 
+    // Every action changes state by assigning a new value to it, never by
+    // mutating one in place. A write to an object inside a list (a.read =
+    // true, Object.assign(existing, …)) reaches no signal at all, so nothing
+    // re-renders; an in-place push only does on stx 0.2.303 and later.
     actions: {
       /** Merge a server-verified identity into the catalog and select it. */
       hydrateAuthenticatedUser(user: Partial<User> & { id: number }) {
@@ -479,10 +483,9 @@
           joinedAt: user.joinedAt || existing?.joinedAt || new Date().toISOString(),
           roles: user.roles ?? existing?.roles ?? [],
         }
-        if (existing)
-          Object.assign(existing, normalized)
-        else
-          this.users.push(normalized)
+        this.users = existing
+          ? this.users.map((candidate: User) => candidate.id === user.id ? { ...candidate, ...normalized } : candidate)
+          : [...this.users, normalized]
         this.currentUserId = user.id
         // Activities and battles often land before /api/me answers, so both
         // folds have to run again once we know whose page this is.
@@ -554,8 +557,9 @@
       },
       upsertTrailFromApi(trail: Trail, route?: [number, number][]) {
         const index = this.trails.findIndex((candidate: Trail) => candidate.id === trail.id)
-        if (index >= 0) this.trails[index] = trail
-        else this.trails.push(trail)
+        this.trails = index >= 0
+          ? this.trails.map((candidate: Trail, i: number) => i === index ? trail : candidate)
+          : [...this.trails, trail]
         if (!this.apiTrailIds.includes(trail.id))
           this.apiTrailIds = [...this.apiTrailIds, trail.id]
         // The API is the truth for this id, including when it has no line.
@@ -655,28 +659,26 @@
         // Use the backend id when the caller has one (manual entry), otherwise
         // synthesize a local id (recorder's optimistic insert).
         const id = activity.id ?? Math.max(0, ...this.activities.map((a: Activity) => a.id)) + 1
-        this.activities.unshift({
+        this.activities = [{
           ...activity,
           id,
           created_at: new Date().toISOString(),
-        } as Activity)
+        } as Activity, ...this.activities]
       },
       /** Apply an edit returned by PATCH /api/activities/{id}. */
       patchActivity(id: number, fields: Partial<Activity>) {
-        const a = this.activities.find((x: Activity) => x.id === id)
-        if (a) Object.assign(a, fields)
+        this.activities = this.activities.map((a: Activity) => a.id === id ? { ...a, ...fields } : a)
       },
       removeActivity(id: number) {
         this.activities = this.activities.filter((a: Activity) => a.id !== id)
       },
       toggleKudos(activityId: number, delta: number) {
-        const a = this.activities.find((x: Activity) => x.id === activityId)
-        if (a) a.kudos_count = Math.max(0, a.kudos_count + delta)
+        this.activities = this.activities.map((a: Activity) =>
+          a.id === activityId ? { ...a, kudos_count: Math.max(0, a.kudos_count + delta) } : a)
       },
       /** Set the authoritative kudos count returned by the backend. */
       setActivityKudos(activityId: number, count: number) {
-        const a = this.activities.find((x: Activity) => x.id === activityId)
-        if (a) a.kudos_count = count
+        this.activities = this.activities.map((a: Activity) => a.id === activityId ? { ...a, kudos_count: count } : a)
       },
       /** Replace the current user's following list (from the API). */
       hydrateFollowing(ids: number[]) {
@@ -697,11 +699,7 @@
       },
       /** Mirror the backend's recomputed trail rating/review_count (#981). */
       setTrailRating(trailId: number, rating: number, reviewCount: number) {
-        const t = this.trails.find((x: Trail) => x.id === trailId)
-        if (t) {
-          t.rating = rating
-          t.reviewCount = reviewCount
-        }
+        this.trails = this.trails.map((t: Trail) => t.id === trailId ? { ...t, rating, reviewCount } : t)
       },
       /** Replace challenges with live API data (#965). */
       hydrateChallenges(list: Challenge[]) {
@@ -711,8 +709,9 @@
       /** Insert or replace a challenge (create/respond outcome, #965). */
       upsertChallenge(challenge: Challenge) {
         const i = this.challenges.findIndex((c: Challenge) => c.id === challenge.id)
-        if (i >= 0) this.challenges[i] = challenge
-        else this.challenges = [challenge, ...this.challenges]
+        this.challenges = i >= 0
+          ? this.challenges.map((c: Challenge, index: number) => index === i ? challenge : c)
+          : [challenge, ...this.challenges]
       },
       /** Replace clubs with live API data (#964). */
       hydrateClubs(list: Club[]) {
@@ -724,15 +723,19 @@
       },
       /** Reflect a join/leave toggle on a club (#964). */
       applyClubMembership(clubId: number, joined: boolean, memberCount: number) {
-        const c = this.clubs.find((x: Club) => x.id === clubId)
-        if (!c) return
         const me = this.currentUserId
-        const members = new Set(c.members ?? [])
-        if (joined) members.add(me)
-        else members.delete(me)
-        c.members = [...members]
-        c.isMember = joined
-        if (typeof memberCount === 'number') c.memberCount = memberCount
+        this.clubs = this.clubs.map((c: Club) => {
+          if (c.id !== clubId) return c
+          const members = new Set(c.members ?? [])
+          if (joined) members.add(me)
+          else members.delete(me)
+          return {
+            ...c,
+            members: [...members],
+            isMember: joined,
+            ...(typeof memberCount === 'number' && { memberCount }),
+          }
+        })
       },
       isTrailSaved(trailId: number): boolean {
         return (this.savedTrailIds ?? []).includes(trailId)
@@ -747,26 +750,26 @@
       /** Reflect a follow/unfollow toggle in the local following list. */
       setFollowing(userId: number, isFollowing: boolean) {
         const has = this.following.includes(userId)
-        if (isFollowing && !has) this.following.push(userId)
+        if (isFollowing && !has) this.following = [...this.following, userId]
         else if (!isFollowing && has) this.following = this.following.filter((id: number) => id !== userId)
       },
       isFollowing(userId: number): boolean {
         return this.following.includes(userId)
       },
       addComment(activityId: number, text: string) {
-        const a = this.activities.find((x: Activity) => x.id === activityId)
         const user = this.users.find((u: User) => u.id === this.currentUserId)
-        if (!a || !user) return
-        a.comments = [...a.comments, {
+        if (!user || !this.activities.some((a: Activity) => a.id === activityId)) return
+        const comment = {
           user_id: user.id,
           userName: user.name,
           text,
           created_at: new Date().toISOString(),
-        }]
+        }
+        this.activities = this.activities.map((a: Activity) =>
+          a.id === activityId ? { ...a, comments: [...a.comments, comment] } : a)
       },
       markNotificationRead(id: number) {
-        const n = this.notifications.find((x: Notification) => x.id === id)
-        if (n) n.read = true
+        this.notifications = this.notifications.map((n: Notification) => n.id === id ? { ...n, read: true } : n)
       },
       markAllNotificationsRead() {
         this.notifications = this.notifications.map((n: Notification) => ({ ...n, read: true }))
@@ -818,13 +821,12 @@
           return false
 
         const prevOwner = defender?.name ?? 'Unknown'
-        territory.user_id = this.currentUserId
-        territory.conquestCount += 1
-        territory.status = 'active'
-        territory.claimedAt = new Date().toISOString()
+        this.territories = this.territories.map((t: Territory) => t.id === territoryId
+          ? { ...t, user_id: this.currentUserId, conquestCount: t.conquestCount + 1, status: 'active', claimedAt: new Date().toISOString() }
+          : t)
 
         const nextId = Math.max(0, ...this.conquests.map((c: Conquest) => c.id)) + 1
-        this.conquests.unshift({
+        this.conquests = [{
           id: nextId,
           territory_id: territoryId,
           territoryName: territory.name,
@@ -837,16 +839,18 @@
           runDistance,
           description: `Captured ${territory.name} after a ${runDistance.toFixed(1)} mi run through enemy turf.`,
           created_at: new Date().toISOString(),
-        })
+        }, ...this.conquests]
 
-        if (this.conquestStats.user_id === this.currentUserId) {
-          this.conquestStats.totalConquests += 1
-          this.conquestStats.totalAreaConquered += territory.areaSize
-          this.conquestStats.powerRating += 75
-          this.conquestStats.winRate = Math.min(
-            100,
-            Math.round((this.conquestStats.totalConquests / (this.conquestStats.totalConquests + this.conquestStats.territoriesLost + 1)) * 100),
-          )
+        const stats = this.conquestStats
+        if (stats.user_id === this.currentUserId) {
+          const totalConquests = stats.totalConquests + 1
+          this.conquestStats = {
+            ...stats,
+            totalConquests,
+            totalAreaConquered: stats.totalAreaConquered + territory.areaSize,
+            powerRating: stats.powerRating + 75,
+            winRate: Math.min(100, Math.round((totalConquests / (totalConquests + stats.territoriesLost + 1)) * 100)),
+          }
         }
 
         // Achievement progress is engine-owned (#982): the backend evaluates
@@ -854,7 +858,7 @@
         // /api/users/{id}/achievements - no client-side bookkeeping here.
 
         const nextN = Math.max(0, ...this.notifications.map((n: Notification) => n.id)) + 1
-        this.notifications.unshift({
+        this.notifications = [{
           id: nextN,
           type: 'conquest_win',
           title: 'Territory Captured!',
@@ -862,7 +866,7 @@
           link: `/territory/${territoryId}`,
           read: false,
           created_at: new Date().toISOString(),
-        })
+        }, ...this.notifications]
 
         const { [territoryId]: _removed, ...rest } = this.captureSamples
         this.captureSamples = rest
