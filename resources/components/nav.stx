@@ -166,6 +166,8 @@
             <div :show="accountOpen()" x-cloak role="menu" class="wl-account-menu absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
               <p class="truncate px-4 pb-2 pt-1.5 text-xs text-slate-400 dark:text-slate-500">{{ accountName || 'Signed in' }}</p>
               <StxLink to="/profile" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Profile</StxLink>
+              <StxLink to="/trails?list=saved" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Saved trails</StxLink>
+              <StxLink to="/trails?list=completed" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Completed trails</StxLink>
               <StxLink to="/stats" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Stats</StxLink>
               <StxLink to="/settings" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Settings</StxLink>
               <StxLink :if="isAdmin" to="/admin" role="menuitem" @click="accountOpen.set(false)" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60">Admin</StxLink>
@@ -199,6 +201,8 @@
 
       <div :if="signedIn" class="space-y-1 pt-2">
         <StxLink to="/record" class="block rounded px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">Record an activity</StxLink>
+        <StxLink to="/trails?list=saved" class="block rounded px-3 py-2 text-sm text-slate-600 dark:text-slate-400">Saved trails</StxLink>
+        <StxLink to="/trails?list=completed" class="block rounded px-3 py-2 text-sm text-slate-600 dark:text-slate-400">Completed trails</StxLink>
         <StxLink to="/stats" class="block rounded px-3 py-2 text-sm text-slate-600 dark:text-slate-400">Stats</StxLink>
         <StxLink to="/notifications" class="block rounded px-3 py-2 text-sm text-slate-600 dark:text-slate-400">Alerts</StxLink>
         <StxLink to="/profile" class="block rounded px-3 py-2 text-sm text-slate-600 dark:text-slate-400">Account</StxLink>

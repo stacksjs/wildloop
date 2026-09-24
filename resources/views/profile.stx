@@ -21,7 +21,7 @@
 
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
-  import { fetchFollows } from '../assets/scripts/game-api'
+  import { fetchFollows, fetchSavedTrails } from '../assets/scripts/game-api'
   import { initializeAuthSession } from '../assets/scripts/auth'
   import { useSavedTrails } from '../composables/useSavedTrails'
 
@@ -55,7 +55,14 @@
   const currentUserId = derived(() => wl?.currentUserId())
   const followingCount = derived(() => wl ? wl.following().length : 0)
   const myActivities = derived(() => wl ? wl.activities().filter((a: any) => a.user_id === wl.currentUserId()) : [])
-  const savedTrails = derived(() => wl ? wl.trails().filter((t: any) => wl.isTrailSaved(t.id)) : [])
+  // From the server's list, not the trails cached on this device: a trail
+  // saved from a search result or on another device is often not cached,
+  // and filtering the cache said "No saved trails" with three saved. The
+  // store still decides membership, so unsaving here drops the card at once.
+  const serverSaved = state<any[]>([])
+  const savedTrails = derived(() => serverSaved()
+    .map((row: any) => row.trail)
+    .filter((t: any) => t && (!wl || wl.isTrailSaved(t.id))))
 
   /**
    * Open the tab a link asked for.
@@ -77,6 +84,11 @@
       // The session names whose profile this is; on a first load it is still
       // being restored, and the id read before it is 0.
       await initializeAuthSession()
+      const saved = await fetchSavedTrails(wl.currentUserId()).catch(() => null)
+      if (saved && Array.isArray(saved.savedTrails)) {
+        serverSaved.set(saved.savedTrails)
+        wl.hydrateSavedTrails(saved.savedTrails.map((row: any) => row.trailId))
+      }
       const data = await fetchFollows(wl.currentUserId())
       if (data) {
         followerCount.set(data.followerCount)

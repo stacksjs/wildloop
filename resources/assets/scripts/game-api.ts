@@ -549,6 +549,19 @@ export async function fetchSavedTrails(userId: number): Promise<{ savedTrails: a
   return json?.success ? json : null
 }
 
+/**
+ * The signed-in athlete's completed trails: ones their activities are on,
+ * and saved trails they marked visited. Null when signed out or on failure.
+ */
+export async function fetchCompletedTrails(): Promise<{ completedTrails: any[] } | null> {
+  await ensureSession()
+  const res = await apiFetch('/api/me/completed-trails', { headers: authHeaders() })
+  if (!res.ok)
+    return null
+  const json = await res.json()
+  return json?.success ? json : null
+}
+
 export interface AthleteSearchResult {
   id: number
   name: string

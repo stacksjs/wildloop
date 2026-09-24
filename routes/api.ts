@@ -620,5 +620,7 @@ route.group({ middleware: 'auth' }, () => {
   // Deleting the account asks for the password again (App Store 5.1.1(v))
   route.delete('/me', 'Actions/Auth/AccountDestroyAction')
   route.put('/me/password', 'Actions/Auth/PasswordUpdateAction')
+  // Trails the athlete has done: activities on them, or saves marked visited
+  route.get('/me/completed-trails', 'Actions/Trail/CompletedTrailIndexAction')
   route.post('/logout', 'Actions/Auth/LogoutAction')
 })
