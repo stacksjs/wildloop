@@ -18,6 +18,7 @@ import { activeTabFor } from '../functions/native-tabs'
 // navigation below: its packaged fallback needs document loads after a cold
 // start. This is a narrow client-side resilience measure, not auth enforcement.
 const usesIosNativeRouting = state(isNativeMobile() && device.isIOS())
+const isNativeAndroid = state(isNativeMobile() && device.isAndroid())
 
 // Highlight from the shared store: this component is layout chrome, and its
 // own state stops rendering after the first in-app navigation (stx#1958).
@@ -73,6 +74,30 @@ function followTab(event: MouseEvent): void {
       globalThis.location.assign(to)
   }, ROUTER_STALL_MS)
 }
+
+/**
+ * A tap that Android's WebView has already turned into a long press.
+ *
+ * A tab bar sits over whatever the page is painting. On /trails that is the
+ * map, and while it draws, the app's UI thread stalls for most of a second, so
+ * the finger-up reaches Chromium late. The tap is then a long press: no click
+ * is ever dispatched, and Chromium started a native drag of the link instead.
+ * Record did nothing from Trails (Mobile E2E, 24 Sep 2026, logcat "perform
+ * drag ... touch(540,2265)"), while the same tap worked everywhere else.
+ * `draggable="false"` stops the drag; this makes the long press still count,
+ * because a tab has no context menu worth keeping. Android only, so a desktop
+ * right-click still offers "open in new tab".
+ */
+function followLongPress(event: MouseEvent): void {
+  if (!isNativeAndroid()) return
+
+  const to = (event.currentTarget as HTMLAnchorElement | null)?.getAttribute('href')
+  if (!to) return
+
+  event.preventDefault()
+  if (globalThis.location?.pathname !== to)
+    globalThis.location.assign(to)
+}
 </script>
 
 <!--
@@ -86,7 +111,9 @@ function followTab(event: MouseEvent): void {
   class="native-tab-item"
   x-class="isActive() ? 'is-active' : ''"
   x-aria-current="isActive() ? 'page' : 'false'"
+  draggable="false"
   @click="followTab"
+  @contextmenu="followLongPress"
 >
   <i aria-hidden="true" class="{{ icon }} native-tab-icon"></i>
   <span>{{ label }}</span>

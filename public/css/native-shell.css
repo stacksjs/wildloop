@@ -174,6 +174,11 @@
   text-decoration: none;
   transition: color 150ms ease, transform 150ms ease;
   -webkit-tap-highlight-color: transparent;
+  /* Chrome, not content: no text selection, callout or link drag on a press
+   * that the WebView received late (see followLongPress in NativeTabItem). */
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 .native-tab-item:active { transform: scale(0.96); }
