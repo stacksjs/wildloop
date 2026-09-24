@@ -22,6 +22,7 @@ const env = {
   DB_CONNECTION: 'sqlite',
   DB_DATABASE_PATH: join(directory, 'qa.sqlite'),
   MAIL_MAILER: 'log',
+  BUGHQ_ENABLED: 'false',
   GAZETTEER_PATH: gazetteer,
 }
 const migrate = Bun.spawn(['./buddy', 'migrate', '--no-generate'], { env, stdout: 'inherit', stderr: 'inherit' })
@@ -34,6 +35,19 @@ db.run(`INSERT INTO trails (name, location, state, country, distance, elevation,
   VALUES ('Torrey Pines Loop', 'San Diego, CA', 'CA', 'US', 2.4, 300, 'easy', 32.9209, -117.2528)`)
 db.close()
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
+// Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).
+// localhost avoids the dashboard's custom-domain certificate/proxy setup.
+const dashboard = Bun.spawn(['bun', '--no-env-file', 'node_modules/@stacksjs/actions/dist/dev/dashboard.js'], {
+  env: { ...env, APP_URL: 'localhost:4320', PORT_ADMIN: '4332', STACKS_DEV_SERVER: '1' },
+  stdout: 'inherit',
+  stderr: 'inherit',
+})
 for (const signal of ['SIGINT', 'SIGTERM'] as const)
-  process.on(signal, () => server.kill(signal))
-process.exit(await server.exited)
+  process.on(signal, () => {
+    server.kill(signal)
+    dashboard.kill(signal)
+  })
+const exitCode = await Promise.race([server.exited, dashboard.exited])
+server.kill()
+dashboard.kill()
+process.exit(exitCode)
