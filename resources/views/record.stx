@@ -13,19 +13,20 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Record a Run — Wildloop',
+    title: 'Record - WildLoop',
     description: 'Record a run with live GPS, pace, splits and territory capture.',
     robots: 'noindex, nofollow',
   })
 </script>
 
 <script client>
+  import { useScrollLock } from 'stx'
   import { useRecorder } from '../composables/useRecorder'
   import { useActivityImport } from '../composables/useActivityImport'
   import { useMyLiveEvent } from '../composables/useMyLiveEvent'
   import { useRecordingRecovery } from '../composables/useRecordingRecovery'
 
-  useHead({ title: 'Record a Run — Wildloop' })
+  useHead({ title: 'Record - WildLoop' })
 
   const wl = useStore('wl')
   const { recordings, recoveryMessage, recoveringUpload, retryRecording, exportRecording } = useRecordingRecovery()
@@ -68,10 +69,33 @@
 
   onMount(() => mountRecordMap())
 
-  // The pre-run setup is noise once the watch is running, and the only thing
-  // that matters mid-run is the map and the numbers. `setupOpen` keeps the
-  // options one tap away without letting them crowd the screen.
+  // Native dialog supplies the top layer, focus containment and Escape handling.
+  // Keep configuration mounted so closing the modal preserves the selections.
+  // Signal refs avoid the nested-page useRef binding bug: stacksjs/stacks#2793.
+  const optionsDialog = state<HTMLDialogElement | null>(null)
   const setupOpen = state(false)
+  const optionsScrollLock = useScrollLock()
+
+  function openOptions() {
+    optionsDialog()?.showModal()
+    setupOpen.set(true)
+    optionsScrollLock.set(true)
+  }
+
+  function closeOptions() {
+    optionsDialog()?.close()
+  }
+
+  function optionsClosed() {
+    setupOpen.set(false)
+    optionsScrollLock.set(false)
+  }
+
+  async function previewTrail() {
+    // Release the modal before Preview can open the sign-in gate.
+    closeOptions()
+    await simulate()
+  }
 
   const attackable = derived(() => wl ? wl.attackableTerritories() : [])
   const targetZone = derived(() => {
@@ -99,21 +123,15 @@
     <div class="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6 lg:px-8">
 
       <!-- ── Header ──────────────────────────────────────────────────────── -->
+      <!-- Explicit ARIA strings preserve boolean state: stacksjs/stacks#2794. -->
       <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 class="font-display text-2xl font-bold tracking-[-0.03em] dark:text-white">Record</h1>
-          <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            <span :if="!recording">Close a loop and the ground inside it is yours.</span>
-            <span :if="recording">{{ runMode === 'capture' ? 'Stay inside the highlighted zone to fill the capture meter.' : 'Free run — no territory capture.' }}</span>
-          </p>
+          <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{{ activityType }} · {{ visibility === 'private' ? 'Only me' : visibility === 'followers' ? 'Followers' : 'Everyone' }}</p>
         </div>
 
         <div :if="!recording" class="flex flex-wrap items-center gap-2">
-          <div class="mode-switch" role="group" aria-label="Run mode">
-            <button @click="runMode.set('capture')" :aria-pressed="runMode === 'capture'" x-class="runMode === 'capture' ? 'mode-on' : ''">Capture</button>
-            <button @click="runMode.set('free')" :aria-pressed="runMode === 'free'" x-class="runMode === 'free' ? 'mode-on' : ''">Free run</button>
-          </div>
-          <button @click="setupOpen.set(!setupOpen())" :aria-expanded="setupOpen" class="ghost-btn">
+          <button @click="openOptions()" :aria-expanded="setupOpen ? 'true' : 'false'" aria-haspopup="dialog" aria-controls="record-options" class="ghost-btn">
             <i class="i-lucide-sliders-horizontal h-4 w-4" aria-hidden="true"></i>
             Options
           </button>
@@ -158,81 +176,92 @@
       <p :if="bankError" role="alert" class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ bankError }}</p>
 
       <!-- ── Options ─────────────────────────────────────────────────────── -->
-      <div :show="setupOpen() && !recording" x-cloak class="mb-5 space-y-4 rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label for="record-activity-type" class="field-label">Activity</label>
-            <select id="record-activity-type" x-model="activityType" :disabled="hasPendingRecording" class="field">
-              <option value="Trail Run">Trail Run</option>
-              <option value="Hike">Hike</option>
-              <option value="Walk">Walk</option>
-              <option value="Bike">Bike</option>
-            </select>
-          </div>
-          <div>
-            <label for="record-visibility" class="field-label">Who can see it</label>
-            <select id="record-visibility" x-value="visibility" @change="visibility.set($event.target.value)" class="field">
-              <option value="public">Everyone</option>
-              <option value="followers">Followers</option>
-              <option value="private">Only me</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label">Plan ahead</label>
-            <StxLink to="/routes" class="ghost-btn w-full justify-center">
-              <i class="i-lucide-route h-4 w-4" aria-hidden="true"></i>
-              Plan a route
-            </StxLink>
-          </div>
+      <dialog id="record-options" ref="optionsDialog" aria-labelledby="record-options-title" @close="optionsClosed()" class="record-options m-auto max-h-[85dvh] w-[92vw] max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+        <div class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <h2 id="record-options-title" class="text-lg font-bold">Recording options</h2>
+          <button @click="closeOptions()" class="ghost-btn">Done</button>
         </div>
-
-        <!-- Target zone (capture mode) -->
-        <div x-class="runMode === 'capture' ? '' : 'hidden'">
-          <p class="field-label">Target a zone to attack</p>
-          <div class="flex flex-wrap items-center gap-2">
-            <button @click="targetTerritoryId.set(null)" :aria-pressed="targetTerritoryId === null" x-class="targetTerritoryId === null ? 'chip chip-on' : 'chip'">Any nearby</button>
-            <template :for="zone in attackable">
-              <button @click="targetTerritoryId.set(zone.id)" :aria-pressed="targetTerritoryId === zone.id" x-class="targetTerritoryId === zone.id ? 'chip chip-target' : 'chip'">{{ zone.name }}</button>
-            </template>
-            <span :if="attackable.length === 0" class="text-xs text-slate-500 dark:text-slate-400">No claimable zones in range yet. Head toward the orange areas on the map.</span>
+        <div class="space-y-5 p-5">
+          <p :if="recordingError" role="alert" :aria-label="recordingError" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ recordingError }}</p>
+          <div class="mode-switch" role="group" aria-label="Run mode">
+            <button @click="runMode.set('capture')" :aria-pressed="runMode === 'capture' ? 'true' : 'false'" x-class="runMode === 'capture' ? 'mode-on' : ''">Capture</button>
+            <button @click="runMode.set('free')" :aria-pressed="runMode === 'free' ? 'true' : 'false'" x-class="runMode === 'free' ? 'mode-on' : ''">Free run</button>
           </div>
-          <p :if="targetZone" class="mt-2 text-xs text-orange-600 dark:text-orange-400">Focus run: cross <span class="font-semibold">{{ targetZone.name }}</span> to fill the capture meter.</p>
-        </div>
-
-        <!-- Simulate -->
-        <div class="border-t border-slate-100 pt-4 dark:border-slate-700">
-          <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <p class="field-label mb-0">Preview a trail</p>
-            <span class="text-xs text-slate-400 dark:text-slate-500">Saved as a simulation · never scores</span>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label for="record-activity-type" class="field-label">Activity</label>
+              <select id="record-activity-type" x-model="activityType" :disabled="hasPendingRecording" class="field">
+                <option value="Trail Run">Trail Run</option>
+                <option value="Hike">Hike</option>
+                <option value="Walk">Walk</option>
+                <option value="Bike">Bike</option>
+              </select>
+            </div>
+            <div>
+              <label for="record-visibility" class="field-label">Who can see it</label>
+              <select id="record-visibility" x-value="visibility" @change="visibility.set($event.target.value)" class="field">
+                <option value="public">Everyone</option>
+                <option value="followers">Followers</option>
+                <option value="private">Only me</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">Plan ahead</label>
+              <StxLink to="/routes" @click="closeOptions()" class="ghost-btn w-full justify-center">
+                <i class="i-lucide-route h-4 w-4" aria-hidden="true"></i>
+                Plan a route
+              </StxLink>
+            </div>
           </div>
-          <div class="flex gap-2">
-            <select @change="selectedTrailId.set(Number($event.target.value))" x-disabled="trailOptions.length === 0" class="field flex-1">
-              <option :if="trailOptions.length === 0" disabled>No trails available yet</option>
-              <template :for="opt in trailOptions">
-                <option x-value="opt.id" x-selected="opt.id === selectedTrailId" :text="opt.name"></option>
+
+          <!-- Target zone (capture mode) -->
+          <div x-class="runMode === 'capture' ? '' : 'hidden'">
+            <p class="field-label">Target a zone to attack</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <button @click="targetTerritoryId.set(null)" :aria-pressed="targetTerritoryId === null ? 'true' : 'false'" x-class="targetTerritoryId === null ? 'chip chip-on' : 'chip'">Any nearby</button>
+              <template :for="zone in attackable">
+                <button @click="targetTerritoryId.set(zone.id)" :aria-pressed="targetTerritoryId === zone.id ? 'true' : 'false'" x-class="targetTerritoryId === zone.id ? 'chip chip-target' : 'chip'">{{ zone.name }}</button>
               </template>
-            </select>
-            <button @click="simulate()" x-disabled="trailOptions.length === 0" class="ghost-btn shrink-0">Preview</button>
+              <span :if="attackable.length === 0" class="text-xs text-slate-500 dark:text-slate-400">No claimable zones in range yet. Head toward the orange areas on the map.</span>
+            </div>
+            <p :if="targetZone" class="mt-2 text-xs text-orange-600 dark:text-orange-400">Focus run: cross <span class="font-semibold">{{ targetZone.name }}</span> to fill the capture meter.</p>
+          </div>
+
+          <!-- Simulate -->
+          <div class="border-t border-slate-100 pt-4 dark:border-slate-700">
+            <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+              <p class="field-label mb-0">Preview a trail</p>
+              <span class="text-xs text-slate-400 dark:text-slate-500">Saved as a simulation · never scores</span>
+            </div>
+            <div class="flex gap-2">
+              <select @change="selectedTrailId.set(Number($event.target.value))" x-disabled="trailOptions.length === 0" class="field flex-1">
+                <option :if="trailOptions.length === 0" disabled>No trails available yet</option>
+                <template :for="opt in trailOptions">
+                  <option x-value="opt.id" x-selected="opt.id === selectedTrailId" :text="opt.name"></option>
+                </template>
+              </select>
+              <button @click="previewTrail()" x-disabled="trailOptions.length === 0" class="ghost-btn shrink-0">Preview</button>
+            </div>
+          </div>
+
+          <!-- Import -->
+          <div class="border-t border-slate-100 pt-4 dark:border-slate-700">
+            <p class="field-label">Import an activity</p>
+            <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">GPX, TCX, and checksum-validated FIT files import privately. Imported tracks cannot capture territory.</p>
+            <label class="ghost-btn inline-flex cursor-pointer">
+              <i class="i-lucide-upload h-4 w-4" aria-hidden="true"></i>
+              {{ importing ? 'Importing…' : 'Choose a file' }}
+              <input type="file" accept=".gpx,.tcx,.fit,application/gpx+xml,application/vnd.garmin.tcx+xml" @change="importFile($event)" class="sr-only" />
+            </label>
+            <p :if="importMessage" class="mt-2 text-sm text-emerald-600">{{ importMessage }}</p>
+            <p :if="importError" class="mt-2 text-sm text-red-500">{{ importError }}</p>
           </div>
         </div>
-
-        <!-- Import -->
-        <div class="border-t border-slate-100 pt-4 dark:border-slate-700">
-          <p class="field-label">Import an activity</p>
-          <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">GPX, TCX, and checksum-validated FIT files import privately. Imported tracks cannot capture territory.</p>
-          <label class="ghost-btn inline-flex cursor-pointer">
-            <i class="i-lucide-upload h-4 w-4" aria-hidden="true"></i>
-            {{ importing ? 'Importing…' : 'Choose a file' }}
-            <input type="file" accept=".gpx,.tcx,.fit,application/gpx+xml,application/vnd.garmin.tcx+xml" @change="importFile($event)" class="sr-only" />
-          </label>
-          <p :if="importMessage" class="mt-2 text-sm text-emerald-600">{{ importMessage }}</p>
-          <p :if="importError" class="mt-2 text-sm text-red-500">{{ importError }}</p>
-        </div>
-      </div>
+      </dialog>
 
       <!-- ── Map ─────────────────────────────────────────────────────────── -->
-      <div class="map-frame">
-        <div id="record-map" data-stx-ignore class="ts-map-container h-[46dvh] min-h-[20rem] w-full sm:h-[30rem]"></div>
+      <div class="map-frame isolate">
+        <div id="record-map" data-stx-ignore class="ts-map-container h-[36dvh] min-h-[16rem] w-full sm:h-[24rem]"></div>
 
         <div class="map-badge" x-class="gpsStatus === 'active' ? 'text-emerald-700' : gpsStatus === 'searching' ? 'text-amber-700' : 'text-slate-600'">
           <span class="map-dot" x-class="gpsStatus === 'active' ? 'bg-emerald-500 animate-pulse' : gpsStatus === 'searching' ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'"></span>
@@ -249,6 +278,32 @@
         <div :if="conquestToast" class="capture-toast absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full bg-emerald-600 px-5 py-2.5 font-bold text-white shadow-xl">{{ conquestToast }}</div>
       </div>
 
+      <!-- Recording controls stay in the page flow, never over the map. -->
+      <div class="record-controls py-6 text-center">
+        <p class="metric-clock mb-4" aria-label="Elapsed time">{{ fmtDuration(elapsed()) }}</p>
+        <div class="control-inner">
+          <button @click="startManual()" aria-label="Start recording" :disabled="!recoveryReady || saveStatus === 'saving'" x-class="recording || hasPendingRecording ? 'hidden' : 'record-btn-start'">
+            <i class="i-lucide-play h-8 w-8" aria-hidden="true"></i>
+          </button>
+          <button @click="togglePause()" :aria-label="paused ? 'Resume recording' : 'Pause recording'" x-class="!recording ? 'hidden' : paused ? 'record-btn-resume' : 'record-btn-pause'">
+            <i x-class="paused ? 'i-lucide-play h-7 w-7' : 'i-lucide-pause h-7 w-7'" aria-hidden="true"></i>
+          </button>
+          <button @click="stop()" aria-label="Finish recording" x-class="recording ? 'record-btn-stop' : 'hidden'">
+            <i class="i-lucide-square h-7 w-7" aria-hidden="true"></i>
+          </button>
+          <button :if="hasPendingRecording" @click="retrySave()" :disabled="saveStatus === 'saving'" class="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white disabled:opacity-50">
+            {{ saveStatus === 'saving' ? 'Saving...' : 'Retry saving' }}
+          </button>
+        </div>
+        <p class="control-hint">
+          <span :if="!recording && !hasPendingRecording">Tap to start GPS capture</span>
+          <span :if="hasPendingRecording">Keep this page open until your activity is saved.</span>
+          <span :if="recording && !paused">Recording</span>
+          <span :if="recording && paused">Paused</span>
+        </p>
+        <p :if="isWebRecorder" class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">On the web, keep this page visible and your screen unlocked. Background GPS is not guaranteed.</p>
+      </div>
+
       <!-- ── Capture meters ──────────────────────────────────────────────── -->
       <div :if="recording && activeCaptures.length > 0" class="mt-4 space-y-2">
         <template :for="cap in activeCaptures">
@@ -263,7 +318,7 @@
       </div>
 
       <!-- ── Live numbers ────────────────────────────────────────────────── -->
-      <div class="metrics">
+      <div :if="recording || distance > 0" class="metrics">
         <div class="metric-grid">
           <div class="metric">
             <p class="metric-value">{{ distance.toFixed(2) }}</p>
@@ -300,42 +355,12 @@
         Wrong-turn alert: you are more than about 425 ft from the selected trail route.
       </div>
     </div>
-
-    <!-- ── Controls ──────────────────────────────────────────────────────
-         Docked, not inline. This is the one thing that gets pressed with
-         cold hands halfway up a climb, so it stays reachable no matter how
-         far the page has scrolled. -->
-    <div class="control-dock">
-      <!-- The clock rides with the button. In the panel above, the docked
-           controls sat over it whenever it was near the bottom of the screen,
-           which on a phone is where it starts. -->
-      <p class="metric-clock dock-clock" aria-label="Elapsed time">{{ fmtDuration(elapsed()) }}</p>
-      <div class="control-inner">
-        <button @click="startManual()" aria-label="Start recording" :disabled="!recoveryReady || saveStatus === 'saving'" x-class="recording || hasPendingRecording ? 'hidden' : 'record-btn-start'">
-          <i class="i-lucide-play h-8 w-8" aria-hidden="true"></i>
-        </button>
-        <button @click="togglePause()" :aria-label="paused ? 'Resume recording' : 'Pause recording'" x-class="!recording ? 'hidden' : paused ? 'record-btn-resume' : 'record-btn-pause'">
-          <i x-class="paused ? 'i-lucide-play h-7 w-7' : 'i-lucide-pause h-7 w-7'" aria-hidden="true"></i>
-        </button>
-        <button @click="stop()" aria-label="Finish recording" x-class="recording ? 'record-btn-stop' : 'hidden'">
-          <i class="i-lucide-square h-7 w-7" aria-hidden="true"></i>
-        </button>
-        <button :if="hasPendingRecording" @click="retrySave()" :disabled="saveStatus === 'saving'" class="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white disabled:opacity-50">
-          {{ saveStatus === 'saving' ? 'Saving...' : 'Retry saving' }}
-        </button>
-      </div>
-      <p class="control-hint">
-        <span :if="!recording && !hasPendingRecording">Tap to start GPS capture</span>
-        <span :if="hasPendingRecording">Keep this page open until your activity is saved.</span>
-        <span :if="recording && !paused">Recording</span>
-        <span :if="recording && paused">Paused</span>
-      </p>
-      <p :if="isWebRecorder" class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">On the web, keep this page visible and your screen unlocked. Background GPS is not guaranteed.</p>
-    </div>
   </div>
 
 <style>
   .record-page { position: relative; }
+
+  .record-options::backdrop { background: rgb(0 0 0 / 60%); }
 
   .field-label {
     display: block;
@@ -554,11 +579,6 @@
     .metric-value { font-size: 1.75rem; }
   }
 
-  .metric-clock.dock-clock {
-    margin-bottom: 0.5rem;
-    font-size: clamp(2.5rem, 10vw, 3.5rem);
-  }
-
   .metric-clock {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: clamp(3rem, 12vw, 4.5rem);
@@ -613,39 +633,7 @@
 
   .metric .metric-caption { margin-top: 0.2rem; }
 
-  /* ── Docked controls ──────────────────────────────────────────────── */
-
-  .control-dock {
-    position: sticky;
-    /* Above the tab bar, not behind it. The bar is fixed over the bottom of
-     * the viewport, so a dock at `bottom: 0` put the start button's hint —
-     * and part of the button — underneath it on a phone. The fallbacks keep
-     * this at 0 on any page rendered outside the native shell. */
-    bottom: calc(var(--native-tab-height, 0px) + var(--native-tab-inset, 0px));
-    z-index: 20;
-    padding: 1rem 1rem 1rem;
-    text-align: center;
-    /* Solid by the time the clock starts, so nothing scrolling underneath
-     * shows through the digits. */
-    background: linear-gradient(180deg, transparent 0, var(--dock-bg, #fff) 1rem);
-  }
-
-  /* A desktop pointer hides the tab bar, so the dock reclaims the bottom edge
-   * and goes back to clearing the window's own inset. */
-  @media (min-width: 1024px) and (pointer: fine) {
-    .native-app-shell:not(.native-mobile) .control-dock {
-      bottom: 0;
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-    }
-  }
-
-  /* In the app the tab bar floats above the home indicator
-   * (native-shell.css), so the dock clears the pill and the gap under it. */
-  .native-app-shell.native-mobile .control-dock {
-    bottom: calc(var(--native-tab-height, 0px) + 0.5rem + var(--native-tab-float-bottom, 0px) + 0.25rem);
-  }
-
-  .dark .control-dock { --dock-bg: #0b1512; }
+  /* Recording controls */
 
   .control-inner {
     display: flex;

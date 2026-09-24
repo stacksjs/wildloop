@@ -14,7 +14,7 @@ function durationSeconds(time: string) {
   return time.split(':').reduce((total, value) => total * 60 + Number(value), 0)
 }
 
-async function startHike(page: Page, denyLocationFirst = false) {
+async function openRecorder(page: Page) {
   const email = `browser-${crypto.randomUUID()}@example.test`
   const password = `Local-QA-${crypto.randomUUID()}`
   await page.goto(`${origin}/register`)
@@ -30,9 +30,16 @@ async function startHike(page: Page, denyLocationFirst = false) {
   await expect(page).not.toHaveURL(/\/register/)
   await page.goto(`${origin}/record`)
   await page.getByRole('button', { name: 'Options', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Recording options', exact: true })).toBeVisible()
   await page.getByLabel('Activity', { exact: true }).selectOption('Hike')
   await page.getByLabel('Who can see it').selectOption('private')
   await page.getByRole('button', { name: 'Free run', exact: true }).click()
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  return { email, password }
+}
+
+async function startHike(page: Page, denyLocationFirst = false) {
+  const { email, password } = await openRecorder(page)
   if (denyLocationFirst) {
     await page.getByLabel('Deny location', { exact: true }).check()
     await page.getByRole('button', { name: 'Start recording', exact: true }).click()
@@ -57,6 +64,100 @@ async function startHike(page: Page, denyLocationFirst = false) {
   await expect(page.locator('fieldset output')).toContainText('1 watchers')
   return { email, password }
 }
+
+test('recording options open in a modal and controls stay in the page flow', async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await openRecorder(page)
+  const options = page.getByRole('button', { name: 'Options', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Recording options', exact: true })
+  await expect(dialog).toBeHidden()
+  await expect(options).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('#record-map')).toBeVisible()
+  await options.click()
+  await expect(dialog).toBeVisible()
+  await expect(options).toHaveAttribute('aria-expanded', 'true')
+  expect(await dialog.evaluate(element => element.matches(':modal'))).toBe(true)
+  await expect(dialog.getByRole('button', { name: 'Done', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(dialog.locator(':focus')).toHaveCount(1)
+  await dialog.screenshot({ path: testInfo.outputPath('record-options-dark.png') })
+  await dialog.getByLabel('Activity', { exact: true }).selectOption('Bike')
+  await dialog.getByLabel('Who can see it').selectOption('private')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(options).toBeFocused()
+  await options.click()
+  await expect(dialog.getByLabel('Activity', { exact: true })).toHaveValue('Bike')
+  await expect(dialog.getByLabel('Who can see it')).toHaveValue('private')
+  await expect(dialog.getByRole('button', { name: 'Free run', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(dialog.getByRole('link', { name: 'Plan a route', exact: true })).toBeVisible()
+  await expect(dialog.getByText('Import an activity', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click()
+  for (const viewport of [{ width: 390, height: 700 }, { width: 440, height: 760 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport)
+    const clock = page.getByLabel('Elapsed time', { exact: true })
+    await clock.scrollIntoViewIfNeeded()
+    const map = await page.locator('.map-frame').boundingBox()
+    const clockBox = await clock.boundingBox()
+    expect(map!.y + map!.height).toBeLessThanOrEqual(clockBox!.y)
+    await page.getByRole('button', { name: 'Start recording', exact: true }).click({ trial: true })
+    await page.screenshot({ path: testInfo.outputPath(`record-layers-${viewport.width}.png`) })
+  }
+  await page.getByRole('button', { name: 'Start recording', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Pause recording', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Pause recording', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Resume recording', exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 700 })
+  await page.locator('.map-frame').scrollIntoViewIfNeeded()
+  const mapBefore = (await page.locator('.map-frame').boundingBox())!
+  const clockBefore = (await page.getByLabel('Elapsed time', { exact: true }).boundingBox())!
+  await page.mouse.move(388, 300)
+  await page.mouse.wheel(0, 60)
+  await expect.poll(async () => (await page.locator('.map-frame').boundingBox())!.y).toBeLessThan(mapBefore.y - 20)
+  const mapAfter = (await page.locator('.map-frame').boundingBox())!
+  const clockAfter = (await page.getByLabel('Elapsed time', { exact: true }).boundingBox())!
+  expect(clockAfter.y - clockBefore.y).toBeCloseTo(mapAfter.y - mapBefore.y, 0)
+  const legend = (await page.locator('.map-legend').boundingBox())!
+  expect(legend.y + legend.height).toBeLessThan(clockAfter.y)
+})
+
+test('guest preview releases options so the sign-in prompt is usable', async ({ page }) => {
+  await page.goto(`${origin}/record`)
+  await page.getByRole('button', { name: 'Options', exact: true }).click()
+  const options = page.getByRole('dialog', { name: 'Recording options', exact: true })
+  await options.getByRole('button', { name: 'Preview', exact: true }).click()
+  await expect(options).toBeHidden()
+  const signIn = page.getByRole('dialog', { name: 'Welcome back', exact: true })
+  await expect(signIn).toBeVisible()
+  await signIn.getByLabel('Email', { exact: true }).fill('guest@example.test')
+  await signIn.getByLabel('Password', { exact: true }).fill('Local-QA-not-submitted')
+})
+
+test('options keep import feedback accessible and route planning unlocks the page', async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: 'light' })
+  await openRecorder(page)
+  await page.getByRole('button', { name: 'Options', exact: true }).click()
+  const options = page.getByRole('dialog', { name: 'Recording options', exact: true })
+  const file = options.locator('input[type="file"]')
+  await file.setInputFiles({ name: 'empty.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from('<gpx/>') })
+  await expect(options.getByText('The file does not contain enough track points', { exact: true })).toBeVisible()
+  const saved = page.waitForResponse(response => response.url().endsWith('/api/activities') && response.request().method() === 'POST')
+  await file.setInputFiles({ name: 'walk.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(`<?xml version="1.0"?><gpx><trk><name>Morning loop</name><trkseg>
+    <trkpt lat="37.7700" lon="-122.4200"><ele>10</ele><time>2026-08-12T12:00:00Z</time></trkpt>
+    <trkpt lat="37.7710" lon="-122.4190"><ele>14</ele><time>2026-08-12T12:01:00Z</time></trkpt>
+    <trkpt lat="37.7720" lon="-122.4180"><ele>12</ele><time>2026-08-12T12:02:00Z</time></trkpt>
+  </trkseg></trk></gpx>`) })
+  const response = await saved
+  expect(response.ok(), await response.text()).toBeTruthy()
+  expect(response.request().postDataJSON()).toMatchObject({ visibility: 'private', recording_source: 'file_import', game_mode: 'none' })
+  await expect(options.getByText('Imported privately. File imports never score territory.', { exact: true })).toBeVisible()
+  await options.screenshot({ path: testInfo.outputPath('record-options-light.png') })
+  await options.getByRole('link', { name: 'Plan a route', exact: true }).click()
+  await expect(page).toHaveURL(`${origin}/routes`)
+  await expect(options).toBeHidden()
+  await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden')
+})
 
 test('fresh account can recover a rejected hike, export it and upload exactly once', async ({ page }, testInfo) => {
   await startHike(page)
@@ -110,6 +211,13 @@ test('failed upload and queue retain a finished hike through reload', async ({ p
   await page.getByRole('button', { name: 'Finish recording', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Retry saving', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Start recording', exact: true })).toBeHidden()
+  await page.getByRole('button', { name: 'Options', exact: true }).click()
+  await page.getByRole('link', { name: 'Plan a route', exact: true }).click()
+  const optionsDialog = page.getByRole('dialog', { name: 'Recording options', exact: true })
+  await expect(optionsDialog).toBeVisible()
+  await expect(page).toHaveURL(`${origin}/record`)
+  await expect(optionsDialog.getByRole('alert', { name: /Finish and save your recording/ })).toBeVisible()
+  await optionsDialog.getByRole('button', { name: 'Done', exact: true }).click()
   page.once('dialog', dialog => dialog.accept())
   await page.reload()
   await expect(page.getByRole('button', { name: 'Retry saving', exact: true })).toBeVisible()
