@@ -89,6 +89,8 @@
   const nationalOnly = state(false)
   /** The filter chip whose panel is open, or '' for none. Only ever one. */
   const openFilter = state('')
+  /** Typed into the Region dropdown to narrow its long list. */
+  const regionQuery = state('')
   /** An explicitly chosen ordering, which outranks the page's own default. */
   const sortChoice = state('')
   const activeState = state('')
@@ -154,6 +156,7 @@
 
   function togglePanel(id: string) {
     openFilter.set(openFilter() === id ? '' : id)
+    regionQuery.set('')
   }
 
   function closePanel() {
@@ -177,6 +180,15 @@
         break
       case 'rating':
         minRating.set(Number(id))
+        break
+      case 'country':
+        // Picking a country clears the region: `DE-BY` inside Switzerland
+        // would return nothing, a dead end with two filters lit.
+        activeCountry.set(id)
+        activeState.set('')
+        break
+      case 'region':
+        activeState.set(id)
         break
     }
     closePanel()
@@ -469,16 +481,50 @@
   /** The country the list is actually showing, empty for the whole catalog. */
   const countryInView = derived(() => (chipCountry() === 'all' ? '' : chipCountry()))
 
-  /**
-   * Regions for the country in view. With no country picked this is the
-   * biggest regions anywhere, which is how the page used to behave when the
-   * catalog was US-only.
-   */
-  const topStates = derived(() => {
-    const country = countryInView()
-    const all = coverage().states
-    return (country ? all.filter((s: any) => s.country === country) : all).slice(0, 12)
+  // Country and region are dropdowns in the filter row, like the filters
+  // beside them. As two rows of pills they took more room than the results:
+  // four countries, then a dozen regions scrolling sideways out of 103.
+  // Declared here, below the coverage they read (see chipCountry).
+  const countryChipLabel = derived(() => {
+    const code = chipCountry()
+    if (code === 'all')
+      return 'Everywhere'
+    return code ? countryName(code) : 'Country'
   })
+  const regionChipLabel = derived(() => {
+    const code = activeState()
+    if (!code)
+      return 'Region'
+    return coverage().states.find((s: any) => s.code === code)?.name ?? 'Region'
+  })
+  const countryOptions = derived(() => [
+    { id: 'all', label: 'Everywhere', count: coverage().total, active: chipCountry() === 'all' },
+    ...countries().map((c: any) => ({ id: c.code, label: countryName(c.code), count: c.count, active: chipCountry() === c.code })),
+  ])
+  /** Every region in the country in view, biggest first, narrowed by what was typed. */
+  const regionOptions = derived(() => {
+    const country = countryInView()
+    const query = regionQuery().trim().toLowerCase()
+    const regions = coverage().states
+      .filter((s: any) => !country || s.country === country)
+      .filter((s: any) => !query || String(s.name).toLowerCase().includes(query))
+      .map((s: any) => ({ id: s.code, label: s.name, count: s.count, active: activeState() === s.code }))
+    return query ? regions : [{ id: '', label: 'All regions', count: 0, active: activeState() === '' }, ...regions]
+  })
+  const regionCount = derived(() => coverage().states.filter((s: any) => !countryInView() || s.country === countryInView()).length)
+
+  /** The open panel's rows: the filters' own, or the country and region lists. */
+  const menuOptions = derived(() => {
+    if (openFilter() === 'country')
+      return countryOptions()
+    if (openFilter() === 'region')
+      return regionOptions()
+    return panelOptions()
+  })
+
+  function onRegionQuery(event: any): void {
+    regionQuery.set(String(event?.target?.value ?? ''))
+  }
 
   // Read through `derived` rather than reaching into `nearby()` from the
   // template. The template's expression scope resolves the local declarations
@@ -629,25 +675,6 @@
         return false
       return true
     })
-  }
-
-  function selectState(code: string) {
-    activeState.set(activeState() === code ? '' : code)
-    runSearch()
-  }
-
-  /**
-   * Picking a country clears the region: `DE-BY` inside "Switzerland" would
-   * return nothing, and an empty list with two filters lit is a dead end the
-   * user has to reason their way out of.
-   */
-  function selectCountry(code: string) {
-    // Tapping the lit chip steps back to the whole catalog rather than to the
-    // guess, which is what a second tap on "United States" plainly means.
-    const next = chipCountry() === code ? 'all' : code
-    activeCountry.set(next)
-    activeState.set('')
-    runSearch()
   }
 
   // `createTrailMap` is async, so two overlapping refreshes both see a live
@@ -1102,26 +1129,6 @@
       </div>
     </div>
 
-    <!-- Browse by country. Shown only once there is more than one: a single
-         pill reading "United States" is a control that cannot do anything. -->
-    <div :if="countries().length > 1" class="wl-scroll-row -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-      <button
-        @click="selectCountry('all')"
-        x-class="chipCountry === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700'"
-        class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">
-        Everywhere
-      </button>
-      <template :for="c in countries">
-        <button
-          @click="selectCountry(c.code)"
-          x-class="chipCountry === c.code ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700'"
-          class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">
-          {{ countryName(c.code) }}
-          <span class="ml-1.5 text-xs opacity-60 tabular-nums">{{ c.count.toLocaleString() }}</span>
-        </button>
-      </template>
-    </div>
-
     <!-- Search + filters.
 
          One search field and a row of chips that each say what they are set
@@ -1154,6 +1161,33 @@
       </div>
 
       <div class="wl-scroll-row -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        <!-- Where first: country, then a region inside it. Dropdowns, where
+             two rows of pills used to hold four countries and a dozen of 103
+             regions. Only once there is a choice to make. -->
+        <button
+          :if="countries().length > 1"
+          @click="togglePanel('country')"
+          x-aria-expanded="openFilter === 'country' ? 'true' : 'false'"
+          x-class="activeCountry !== '' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
+          <i class="i-lucide-globe h-4 w-4" aria-hidden="true"></i>
+          <span>{{ countryChipLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
+          :if="regionCount() > 0"
+          @click="togglePanel('region')"
+          x-aria-expanded="openFilter === 'region' ? 'true' : 'false'"
+          x-class="activeState !== '' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
+          <i class="i-lucide-map-pinned h-4 w-4" aria-hidden="true"></i>
+          <span>{{ regionChipLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <span :if="countries().length > 1 || regionCount() > 0" class="my-2 w-px shrink-0 bg-slate-200 dark:bg-slate-700" aria-hidden="true"></span>
+
         <button
           @click="togglePanel('all')"
           x-class="openFilter === 'all' || filterCount() > 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
@@ -1215,16 +1249,31 @@
            listener the page would then have to remember to remove. -->
       <div :if="openFilter() !== ''" @click="closePanel()" class="fixed inset-0 z-30" aria-hidden="true"></div>
 
-      <div :if="panelOptions().length > 0" class="absolute left-0 top-full z-40 mt-2 max-h-80 w-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-        <template :for="option in panelOptions">
+      <div :if="menuOptions().length > 0 || openFilter() === 'region'" class="absolute left-0 top-full z-40 mt-2 max-h-96 w-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+        <!-- 103 regions everywhere, 16 in Germany: type to find one. -->
+        <div :if="openFilter() === 'region' && regionCount() > 12" class="sticky top-0 z-10 bg-white p-1 pb-2 dark:bg-slate-800">
+          <input
+            type="search"
+            x-value="regionQuery"
+            @input="onRegionQuery($event)"
+            placeholder="Find a state or region"
+            aria-label="Find a state or region"
+            class="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+          />
+        </div>
+        <template :for="option in menuOptions">
           <button
             @click="choosePanelOption(option.id)"
             x-class="option.active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/60'"
-            class="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left text-sm font-medium transition">
-            <span>{{ option.label }}</span>
-            <i x-class="option.active ? 'i-lucide-check h-4 w-4' : 'hidden'" aria-hidden="true"></i>
+            class="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-medium transition">
+            <span class="truncate">{{ option.label }}</span>
+            <span class="flex shrink-0 items-center gap-2">
+              <span :if="option.count > 0" class="text-xs tabular-nums opacity-60">{{ option.count.toLocaleString() }}</span>
+              <i x-class="option.active ? 'i-lucide-check h-4 w-4' : 'hidden'" aria-hidden="true"></i>
+            </span>
           </button>
         </template>
+        <p :if="openFilter() === 'region' && menuOptions().length === 0" class="px-3 py-4 text-sm text-slate-500 dark:text-slate-400">No region by that name.</p>
       </div>
 
       <!-- Everything that is not a single choice: the suitability toggles and
@@ -1269,27 +1318,6 @@
           <button @click="closePanel()" class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Show results</button>
         </div>
       </div>
-    </div>
-
-    <!-- Browse by region. Horizontal pills rather than a long list: the
-         catalog covers every state and Land, and a dropdown hides that fact.
-         Scoped to the country in view once one is picked. -->
-    <div :if="topStates().length > 0" class="wl-scroll-row -mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-      <button
-        @click="activeState.set(''); runSearch()"
-        x-class="activeState === '' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-        class="min-h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition hover:border-emerald-400">
-        All regions
-      </button>
-      <template :for="s in topStates">
-        <button
-          @click="selectState(s.code)"
-          x-class="activeState === s.code ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-          class="min-h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition hover:border-emerald-400">
-          <span>{{ s.name }}</span>
-          <span class="ml-1.5 text-xs tabular-nums opacity-60">{{ s.count.toLocaleString() }}</span>
-        </button>
-      </template>
     </div>
 
     <div :if="catalogError()" class="mb-4 text-sm text-amber-600 dark:text-amber-400">{{ 'Using demo trails. ' + catalogError() }}</div>
