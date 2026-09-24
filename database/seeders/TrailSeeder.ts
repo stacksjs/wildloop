@@ -1,7 +1,9 @@
 import { Seeder } from '@stacksjs/database'
 import { db } from '@stacksjs/orm'
 import Trail from '../../app/Models/Trail'
+import { applyCuratedTrailPhoto } from '../../app/Support/curatedTrailPhotos'
 import { rebuildSearchPlaces } from '../../app/Support/searchPlaces'
+import { isStockTrailPhoto } from '../../resources/functions/stock-photos'
 
 /**
  * The trail catalog a staging environment browses.
@@ -910,6 +912,13 @@ export default class TrailSeeder extends Seeder {
 
     for (const seed of TRAILS) {
       const bounds = boundsFor(seed.latitude, seed.longitude, seed.distance)
+      const reviewedPhoto = applyCuratedTrailPhoto({
+        name: seed.name,
+        state: seed.state,
+        latitude: seed.latitude,
+        longitude: seed.longitude,
+        image: '',
+      })
 
       const payload = {
         name: seed.name,
@@ -918,10 +927,9 @@ export default class TrailSeeder extends Seeder {
         elevation: seed.elevation,
         difficulty: seed.difficulty,
         estimated_time: estimatedTime(seed.distance, seed.elevation),
-        // No photography ships with the seed catalog. The views already fall
-        // back to a stock image for a trail without one, so an empty string is
-        // the truthful value here rather than a URL that 404s.
-        image: '',
+        // Only trail-specific, rights-reviewed Commons links enter the demo
+        // catalog. Every other trail keeps an honest photo-less cover.
+        image: reviewedPhoto.image ?? '',
         tags: seed.tags.join(','),
         latitude: seed.latitude,
         longitude: seed.longitude,
@@ -984,7 +992,13 @@ export default class TrailSeeder extends Seeder {
       }
 
       if (existing) {
-        await Trail.forceUpdate(existing.id, payload)
+        const existingImage = String(existing.image ?? '').trim()
+        // Re-seeding may enrich an empty/stock cover, but never wipe a photo
+        // someone has since chosen for this trail.
+        await Trail.forceUpdate(existing.id, {
+          ...payload,
+          image: existingImage && !isStockTrailPhoto(existingImage) ? existingImage : payload.image,
+        })
         trailIdBySeedSourceId.set(seed.sourceId, existing.id)
         continue
       }
