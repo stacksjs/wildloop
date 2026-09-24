@@ -57,6 +57,10 @@
   import { loadReviewers, trailReviewers } from '../composables/useTrailReviewers'
   import { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../functions/avatars'
   import { useSavedTrails } from '../composables/useSavedTrails'
+  import { openAuthGate } from '../composables/useAuthGate'
+  import { fetchCompletedTrails, fetchSavedTrails } from '../assets/scripts/game-api'
+  import { initializeAuthSession } from '../assets/scripts/auth'
+  import { completedLabel } from '../functions/my-trails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
   import { usePlaceSearch, type PlaceResult } from '../composables/usePlaceSearch'
   import { isStockTrailPhoto } from '../functions/stock-photos'
@@ -820,7 +824,60 @@
     return near === 'me'
   }
 
+  // ── Your trails: saved and completed ─────────────────────────────────────
+  //
+  // Straight from the server rather than filtered out of the trails this
+  // device happens to have cached: a trail saved from a search result, or on
+  // another device, is often not in that cache, and the old Saved list on
+  // the profile silently left it out (it said "No saved trails" with three
+  // saved). `?list=saved` and `?list=completed` open here from the Account
+  // menu.
+  const listMode = state<'all' | 'saved' | 'completed'>('all')
+  const savedList = state<any[]>([])
+  const completedList = state<any[]>([])
+  const myTrailsLoaded = state(false)
+  const signedInForLists = derived(() => Boolean(wl && wl.currentUserId() > 0))
+  // Unsaving from this list takes the card away at once; the store is what
+  // the heart toggles, and it was hydrated from the same response.
+  const visibleSaved = derived(() => savedList().filter((s: any) => !wl || wl.isTrailSaved(s.trailId)))
+
+  async function loadMyTrails(): Promise<void> {
+    if (!wl)
+      return
+    await initializeAuthSession()
+    const userId = wl.currentUserId()
+    if (userId <= 0) {
+      myTrailsLoaded.set(true)
+      return
+    }
+    const [saved, completed] = await Promise.all([
+      fetchSavedTrails(userId).catch(() => null),
+      fetchCompletedTrails().catch(() => null),
+    ])
+    const savedRows = Array.isArray(saved?.savedTrails) ? saved.savedTrails : []
+    savedList.set(savedRows)
+    wl.hydrateSavedTrails(savedRows.map((row: any) => row.trailId))
+    completedList.set(Array.isArray(completed?.completedTrails) ? completed.completedTrails : [])
+    myTrailsLoaded.set(true)
+  }
+
+  function showList(mode: 'all' | 'saved' | 'completed'): void {
+    listMode.set(mode)
+  }
+
+  function doneLabel(entry: any): string {
+    return completedLabel(entry.times, entry.lastCompletedAt)
+  }
+
+  function openLoginForLists(): void {
+    openAuthGate('Sign in to see the trails you saved and the ones you have done.', 'login')
+  }
+
   onMount(() => {
+    const requestedList = String(useRoute().query?.list ?? '').trim()
+    if (requestedList === 'saved' || requestedList === 'completed')
+      listMode.set(requestedList)
+    void loadMyTrails()
     const askedForNearMe = applyUrlQuery()
     void refreshDownloads()
 
@@ -864,6 +921,92 @@
       </p>
     </div>
 
+    <!-- Your trails. Beside the catalog rather than on the profile, so
+         "which ones did I save?" is answered where trails are looked for. -->
+    <div class="mb-5 flex gap-2 overflow-x-auto wl-scroll-row" role="tablist" aria-label="Trail lists">
+      <button type="button" role="tab" @click="showList('all')" x-aria-selected="listMode() === 'all' ? 'true' : 'false'"
+        class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition"
+        x-class="listMode() === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'">
+        <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
+        All trails
+      </button>
+      <button type="button" role="tab" @click="showList('saved')" x-aria-selected="listMode() === 'saved' ? 'true' : 'false'"
+        class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition"
+        x-class="listMode() === 'saved' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'">
+        <i class="i-lucide-heart h-4 w-4" aria-hidden="true"></i>
+        Saved
+        <span :if="visibleSaved().length > 0" class="tabular-nums opacity-70">{{ visibleSaved().length }}</span>
+      </button>
+      <button type="button" role="tab" @click="showList('completed')" x-aria-selected="listMode() === 'completed' ? 'true' : 'false'"
+        class="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition"
+        x-class="listMode() === 'completed' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'">
+        <i class="i-lucide-circle-check h-4 w-4" aria-hidden="true"></i>
+        Completed
+        <span :if="completedList().length > 0" class="tabular-nums opacity-70">{{ completedList().length }}</span>
+      </button>
+    </div>
+
+    <!-- Signed out: the lists belong to an account. -->
+    <div :if="listMode() !== 'all' && myTrailsLoaded() && !signedInForLists()" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <h2 class="text-base font-semibold text-slate-900 dark:text-white">Sign in to see your trails</h2>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Your saved and completed trails follow your account to every device.</p>
+      <button type="button" @click="openLoginForLists()" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Sign in</button>
+    </div>
+
+    <p :if="listMode() !== 'all' && !myTrailsLoaded()" class="flex items-center gap-2 py-10 text-sm text-slate-500 dark:text-slate-400">
+      <i class="i-lucide-loader-circle h-4 w-4 animate-spin text-emerald-600" aria-hidden="true"></i>
+      Loading your trails…
+    </p>
+
+    <!-- Saved -->
+    <div :if="listMode() === 'saved' && signedInForLists() && visibleSaved().length > 0" class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <template :for="entry in visibleSaved()">
+        <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+          <StxLink x-to="'/trail/' + entry.trail.id" class="group min-w-0 flex-1">
+            <h3 class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ entry.trail.name }}</h3>
+            <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ entry.trail.location }}</p>
+            <div class="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <span class="capitalize" x-class="'px-2 py-0.5 font-semibold rounded-full difficulty-' + entry.trail.difficulty">{{ entry.trail.difficulty }}</span>
+              <span class="tabular-nums">{{ entry.trail.distance + ' mi' }}</span>
+              <span :if="entry.hasVisited" class="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400"><i class="i-lucide-circle-check h-3.5 w-3.5" aria-hidden="true"></i>Done</span>
+            </div>
+          </StxLink>
+          <button type="button" @click="onToggleSave(entry.trailId)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" x-aria-label="'Remove ' + entry.trail.name + ' from saved trails'">
+            <i class="i-lucide-heart h-[18px] w-[18px] fill-current" aria-hidden="true"></i>
+          </button>
+        </div>
+      </template>
+    </div>
+    <div :if="listMode() === 'saved' && signedInForLists() && myTrailsLoaded() && visibleSaved().length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <h2 class="text-base font-semibold text-slate-900 dark:text-white">No saved trails yet</h2>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Tap the heart on any trail to keep it here.</p>
+      <button type="button" @click="showList('all')" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Browse trails</button>
+    </div>
+
+    <!-- Completed -->
+    <div :if="listMode() === 'completed' && signedInForLists() && completedList().length > 0" class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <template :for="entry in completedList()">
+        <StxLink x-to="'/trail/' + entry.trail.id" class="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+          <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
+            <i class="i-lucide-circle-check h-5 w-5"></i>
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ entry.trail.name }}</span>
+            <span class="block truncate text-sm text-slate-500 dark:text-slate-400">{{ entry.trail.location }}</span>
+            <span class="mt-1 block text-xs font-medium text-emerald-700 dark:text-emerald-400">{{ doneLabel(entry) }}</span>
+          </span>
+        </StxLink>
+      </template>
+    </div>
+    <div :if="listMode() === 'completed' && signedInForLists() && myTrailsLoaded() && completedList().length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <h2 class="text-base font-semibold text-slate-900 dark:text-white">No completed trails yet</h2>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record an activity on a trail and it shows up here.</p>
+      <StxLink to="/record" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
+    </div>
+
+    <!-- The catalog. Hidden, not removed, while a list is showing: its map
+         and search keep their state for when "All trails" comes back. -->
+    <div x-class="listMode() === 'all' ? '' : 'hidden'">
     <!-- Location bar. The catalog's whole job is to answer "where should I go
          this weekend", and that question is meaningless without a where. This
          is the control that states the answer it is using and lets it be
@@ -1410,6 +1553,7 @@
         <i class="i-lucide-rotate-ccw h-4 w-4" aria-hidden="true"></i>
         Clear filters
       </button>
+    </div>
     </div>
   </div>
 <style>
