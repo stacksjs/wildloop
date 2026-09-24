@@ -78,10 +78,12 @@ test('saved and completed trails are listed from the server, and reachable from 
   const savedTab = page.getByRole('tab', { name: /Saved/ })
   await expect(savedTab).toHaveAttribute('aria-selected', 'true')
   await expect(savedTab).toContainText('1')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Saved trails')
   await expect(page.getByRole('link', { name: /Torrey Pines Loop/ }).first()).toBeVisible()
 
   // Completed, one tap away.
   await page.getByRole('tab', { name: /Completed/ }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Completed trails')
   await expect(page.getByText('Done Sep 9, 2026')).toBeVisible()
 
   // The profile's Saved tab too, from an empty cache.
