@@ -6,6 +6,7 @@ let nextWatch = 0
 let step = 0
 let uploadsFail = false
 let queueFails = false
+let locationDenied = false
 const fix = (): GeolocationPosition => ({
   timestamp: Date.now(),
   coords: {
@@ -24,7 +25,13 @@ const fix = (): GeolocationPosition => ({
 Object.defineProperty(navigator, 'geolocation', {
   configurable: true,
   value: {
-    getCurrentPosition(callback: PositionCallback) { setTimeout(() => callback(fix()), 0) },
+    getCurrentPosition(callback: PositionCallback, error?: PositionErrorCallback) {
+      setTimeout(() => {
+        if (locationDenied)
+          error?.({ code: 1, message: 'QA: permission denied', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
+        else callback(fix())
+      }, 0)
+    },
     watchPosition(callback: PositionCallback) { callbacks.set(++nextWatch, callback); return nextWatch },
     clearWatch(id: number) { callbacks.delete(id) },
   },
@@ -62,6 +69,10 @@ panel.querySelector('button')!.addEventListener('click', () => {
 panel.querySelector('[name=offline]')!.addEventListener('change', (event) => { uploadsFail = (event.target as HTMLInputElement).checked })
 panel.querySelector('[name=storage]')!.addEventListener('change', (event) => { queueFails = (event.target as HTMLInputElement).checked })
 document.body.append(panel)
+const permission = document.createElement('label')
+permission.innerHTML = '<input type="checkbox"> Deny location'
+permission.addEventListener('change', event => { locationDenied = (event.target as HTMLInputElement).checked })
+panel.append(permission)
 const expire = document.createElement('button')
 expire.type = 'button'
 expire.textContent = 'Expire session'

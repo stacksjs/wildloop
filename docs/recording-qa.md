@@ -27,6 +27,8 @@ Keep the web recorder visible with the screen unlocked. Use one recording tab.
 - New uploads cap moving time at the server's elapsed duration. For live GPS,
   the GPS sample span is authoritative, not the submitted timer. Paused/zero
   moving time is preserved. Existing historical rows are not rewritten.
+- Recovering a resumed recording keeps its pause-aware moving clock. Reloading
+  no longer turns a previous break into moving time.
 - Permanent HTTP refusals stop automatic retries immediately. The Record page
   shows the API's validation reason and owner-scoped export/retry controls.
   Export is a lossless JSON backup, including precise GPS, not a GPX import file.
@@ -99,6 +101,20 @@ These browser checks are separate from `buddy test`. The fault-injection
 harnesses bind only to loopback. Synthetic locations must never be used against
 the production territory game. Browser automation does not replace real-phone QA.
 
+The suite also covers permission denial followed by retry, too few GPS samples,
+pause/resume across reload, one recovered GPS watcher, expired-session in-place
+login, and a browser-wide network outage followed by automatic upload of the
+unchanged saved payload. Recording-page tests fail on uncaught client runtime errors.
+
+### Framework compatibility
+
+The earlier STX 0.2.300 import-transform failure is tracked in
+[stacksjs/stacks#2787](https://github.com/stacksjs/stacks/issues/2787).
+A clean frozen install of the main branch's STX 0.2.303 passes the recording
+browser tests, including activity-detail hydration. The pending local 0.2.300
+patch was not shipped: the newer release preserves import-line boundaries and
+does not need that workaround. No new dependency or lockfile change is required.
+
 ## Observed results
 
 - Fresh-account browser registration/login succeeded.
@@ -118,8 +134,11 @@ the production territory game. Browser automation does not replace real-phone QA
 - The API regression submits 40 seconds elapsed and 35 seconds moving against a
   30-second GPS span. Both stored/retrieved times are 30 seconds. Shorter, zero
   and omitted moving times are also covered.
-- Full test suite: 596 passed, zero failed. Typecheck passed. Lint had zero errors
+- Full test suite: 633 passed, zero failed. Typecheck passed. Lint had zero errors
   and six existing warnings under the vendored stacks-browse skill scripts.
+- Full mobile-width Chromium suite: 13 passed, including the recording/API/
+  storage checks and existing planning/navigation regressions. The moving-clock
+  regression was also run against the original faulty code and failed as expected.
 
 The API's elapsed-time-based pace policy is unchanged. No historical activity
 metrics were migrated by these fixes.
@@ -133,6 +152,9 @@ safe walk before relying on the app for a hike. Keep an independent recording.
 - Walk with the screen on; pause, resume and finish. Check route and timestamps.
 - Lose connectivity, finish offline, reopen, reconnect and verify exactly one
   complete activity. Do not clear site data or switch accounts during recovery.
+- Start the page while online before that test. Cold-starting the app or loading
+  maps without a connection is a separate, unverified capability. Device-only
+  recordings can be lost if browser storage is cleared or evicted.
 - Check refresh/back navigation and expired-session recovery on the phone.
 - Separately test locking the screen and switching apps. Document lost samples,
   browser suspension and battery behavior. Do not infer background support from

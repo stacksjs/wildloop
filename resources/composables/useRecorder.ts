@@ -945,8 +945,10 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       }
 
       const lastSample = refs.samples[refs.samples.length - 1]
-      if (lastSample && refs.startedAtMs && !paused())
-        elapsed.set(Math.max(elapsed(), Math.round((lastSample.t - refs.startedAtMs) / 1000)))
+      // GPS wall time includes pauses. Recover the sample's moving clock so a
+      // reload cannot silently convert a break into exercise time.
+      if (lastSample && Number.isFinite(lastSample.movingS) && !paused())
+        elapsed.set(Math.max(elapsed(), lastSample.movingS))
       refs.watchId = location.watchPosition((position) => {
         gpsStatus.set('active')
         addRoutePoint(position.latitude, position.longitude, position.altitude ?? null, position.accuracy)
