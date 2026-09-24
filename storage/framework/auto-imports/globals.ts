@@ -105,6 +105,7 @@ declare global {
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention
   const parseMentions: typeof autoImports.parseMentions
+  const completedLabel: typeof autoImports.completedLabel
   const returnToServerFromBundledCopy: typeof autoImports.returnToServerFromBundledCopy
   const serverPath: typeof autoImports.serverPath
   const serverURLFor: typeof autoImports.serverURLFor
