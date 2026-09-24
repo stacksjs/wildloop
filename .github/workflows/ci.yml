@@ -163,6 +163,12 @@ jobs:
       - name: Install browser test dependencies
         working-directory: tests/browser
         run: bun install --frozen-lockfile
+      # Server-side regressions that need the QA app but no browser. They run
+      # before Chromium is installed, and start and stop their own servers.
+      - name: API and catalog regressions
+        env:
+          RECORDING_QA: '1'
+        run: bun test tests/browser
       - name: Install Chromium
         working-directory: tests/browser
         run: bunx playwright install --with-deps chromium

@@ -111,7 +111,8 @@
   },
   "type": "module",
   "devDependencies": {
-    "@types/bun": "^1.4.2"
+    "@types/bun": "^1.4.2",
+    "very-happy-dom": "^0.1.10"
   },
   "overrides": {
     "craft-native": "0.0.92",

@@ -19,6 +19,7 @@
       },
       "devDependencies": {
         "@types/bun": "^1.4.2",
+        "very-happy-dom": "^0.1.10",
       },
     },
   },
@@ -414,6 +415,8 @@
     "ts-web-scraper": ["ts-web-scraper@0.1.10", "", { "dependencies": { "bunfig": "^0.15.14" }, "bin": { "scraper": "./dist/bin/cli.js" } }, "sha512-taP+spngbaNYc8hN+uqvJDqb7JFWP8IX6xEIiufqIpSg65RfCPEkLLnkYbLidno/IrFE/HBgy1g7or5Dwgy0cA=="],
 
     "undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
+    "very-happy-dom": ["very-happy-dom@0.1.10", "", {}, "sha512-MOo3hmxPPMVXW9yrqGtu43FOfMMQ7e6IgNSa10KkCShL0jmoIQi1ISFiyIIVJoCVE9UdVskO++hwJAKWWFoy5w=="],
 
     "@stacksjs/actions/@stacksjs/logging": ["@stacksjs/logging@0.74.58", "", { "dependencies": { "@loghq/stacks": "^0.2.3", "@stacksjs/clarity": "^0.3.33", "@stacksjs/config": "0.74.58", "@stacksjs/error-handling": "0.74.58", "@stacksjs/path": "0.74.58", "@stacksjs/types": "0.74.58" } }, "sha512-/ZnBWnKUfTIFjbF4aR+y2fELR+SzbHDumwtyxgvSPGG7Xuc0GPlJf+cVCF7+6ycCIh/JKA9XbkBdSAkXEjjRdw=="],
 
