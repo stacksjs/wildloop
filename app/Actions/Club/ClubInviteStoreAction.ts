@@ -6,7 +6,7 @@
 // POST /api/clubs/{id}/invites (auth, owner/admin) - invite somebody into a
 // closed club.
 //
-// An invite names either an athlete already on WildLoop or an email address
+// An invite names either an athlete already on Wildloop or an email address
 // that is not yet an account. The redeemable code works either way, so an
 // invite link survives the recipient signing up after they receive it.
 

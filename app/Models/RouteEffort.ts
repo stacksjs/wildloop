@@ -8,7 +8,7 @@ import { schema } from '@stacksjs/validation'
  * This is deliberately NOT an `Activity`. An activity is "I went for a run and
  * here is the trace"; an effort is "I am claiming this time on this route,
  * under these rules, and here is why you should believe me". The two are
- * linked when the effort came from a WildLoop recording (`activity_id`), but
+ * linked when the effort came from a Wildloop recording (`activity_id`), but
  * an effort can also be filed for a run recorded on somebody else's watch and
  * uploaded to Strava, which is how most records on most routes are set.
  *
@@ -63,7 +63,7 @@ export default defineModel({
     { name: 'route_efforts_status_finished_index', columns: ['status', 'finished_at'] },
     // An athlete's own records, on their profile.
     { name: 'route_efforts_user_index', columns: ['user_id', 'finished_at'] },
-    // An effort filed from a WildLoop recording must not be filed twice, and
+    // An effort filed from a Wildloop recording must not be filed twice, and
     // the activity page looks up its effort by the same key.
     { name: 'route_efforts_activity_index', columns: ['activity_id'] },
   ],
@@ -88,7 +88,7 @@ export default defineModel({
     },
 
     /**
-     * The WildLoop recording this effort was filed from, when there is one.
+     * The Wildloop recording this effort was filed from, when there is one.
      * Null for a record set on a watch that never talked to us — which is the
      * common case for anything set before the athlete had an account.
      */

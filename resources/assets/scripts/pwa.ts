@@ -20,7 +20,7 @@ function isDevelopmentHost(hostname: string): boolean {
  * Anything already registered is torn down and its caches dropped, since a
  * worker installed by an earlier visit keeps serving until it is told not to.
  */
-export function registerWildLoopServiceWorker(): void {
+export function registerWildloopServiceWorker(): void {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
 
   const hostname = typeof globalThis.location === 'undefined' ? '' : globalThis.location.hostname

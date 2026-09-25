@@ -63,9 +63,9 @@ describe('qrSvgMarkup', () => {
   })
 
   it('is labelled for assistive technology', () => {
-    const markup = qrSvgMarkup(URL, { title: 'Scan to open WildLoop' })
+    const markup = qrSvgMarkup(URL, { title: 'Scan to open Wildloop' })
     expect(markup).toContain('role="img"')
-    expect(markup).toContain('aria-label="Scan to open WildLoop"')
+    expect(markup).toContain('aria-label="Scan to open Wildloop"')
   })
 
   it('escapes a title that would otherwise break out of the attribute', () => {

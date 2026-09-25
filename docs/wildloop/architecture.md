@@ -15,7 +15,7 @@ The service worker caches only a static offline shell and cacheable same-origin 
 
 ## Trail and route data
 
-Trail detail is fetched directly by id, so a search result is deep-linkable. Missing route geometry stays missing; WildLoop never fabricates a line. Saved custom routes use verified catalog geometry, and downloaded routes remain available offline. The recorder emits a wrong-turn warning around 425 feet from the selected trail.
+Trail detail is fetched directly by id, so a search result is deep-linkable. Missing route geometry stays missing; Wildloop never fabricates a line. Saved custom routes use verified catalog geometry, and downloaded routes remain available offline. The recorder emits a wrong-turn warning around 425 feet from the selected trail.
 
 ## Portable formats
 

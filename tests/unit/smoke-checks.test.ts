@@ -47,7 +47,7 @@ describe('the reviewers payload', () => {
 
   it('catches the route not being registered, which answers the page shell', () => {
     // A missing API route falls through to the SPA: HTTP 200, but HTML.
-    const shell = html('<!doctype html><title>WildLoop</title>')
+    const shell = html('<!doctype html><title>Wildloop</title>')
     expect(verifyReviewersPayload(shell)).toContain('may not be registered')
   })
 

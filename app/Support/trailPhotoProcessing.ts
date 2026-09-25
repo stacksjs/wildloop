@@ -1,5 +1,5 @@
 /**
- * Turn an uploaded photo into what WildLoop stores: a display image and a
+ * Turn an uploaded photo into what Wildloop stores: a display image and a
  * thumbnail, both freshly encoded JPEGs.
  *
  * Re-encoding is the point. A phone photo carries EXIF, often including the

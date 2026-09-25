@@ -13,7 +13,7 @@
    * page's own scope and not into a module it imports.
    */
   useSeoMeta({
-    title: 'Record - WildLoop',
+    title: 'Record - Wildloop',
     description: 'Record a run with live GPS, pace, splits and territory capture.',
     robots: 'noindex, nofollow',
   })
@@ -26,7 +26,7 @@
   import { useMyLiveEvent } from '../composables/useMyLiveEvent'
   import { useRecordingRecovery } from '../composables/useRecordingRecovery'
 
-  useHead({ title: 'Record - WildLoop' })
+  useHead({ title: 'Record - Wildloop' })
 
   const wl = useStore('wl')
   const { recordings, recoveryMessage, recoveringUpload, retryRecording, exportRecording, discardRecording } = useRecordingRecovery()

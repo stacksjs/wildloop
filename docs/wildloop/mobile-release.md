@@ -1,6 +1,6 @@
 # Native mobile release checklist
 
-This checklist is for a signed WildLoop store candidate. It deliberately does
+This checklist is for a signed Wildloop store candidate. It deliberately does
 not treat a simulator build as evidence of production entitlement, push, or
 background-location behaviour.
 
@@ -24,7 +24,7 @@ background-location behaviour.
   authentication, location permission, start, pause, background/foreground
   continuity, cold-relaunch recovery, resume, stop, and save.
 - Exercise the declined and revoked states for location, Apple Health, and
-  notifications. Saving a WildLoop activity must remain available when an
+  notifications. Saving a Wildloop activity must remain available when an
   optional Apple Health write is declined.
 - Verify an `https` universal link and a `wildloop://` link reach the intended
   in-app route from a cold launch.

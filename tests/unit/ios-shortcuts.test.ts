@@ -13,7 +13,7 @@ import {
 } from '../../scripts/generate-ios-shortcuts'
 import { APP_SHORTCUTS } from '../../resources/functions/app-shortcuts'
 
-const options = { appName: 'WildLoop', scheme: 'wildloop' }
+const options = { appName: 'Wildloop', scheme: 'wildloop' }
 
 describe('Swift building blocks', () => {
   it('escapes what would end a string literal', () => {
@@ -29,12 +29,12 @@ describe('Swift building blocks', () => {
 
   it('carries the application-name token as a real interpolation', () => {
     // One backslash, not two: escaped, the processor rejects the utterance.
-    expect(swiftPhraseLiteral('Show my stats in WildLoop', 'WildLoop')).toBe('"Show my stats in \\(.applicationName)"')
-    expect(swiftPhraseLiteral('Show my stats', 'WildLoop')).toBe('"Show my stats with \\(.applicationName)"')
+    expect(swiftPhraseLiteral('Show my stats in Wildloop', 'Wildloop')).toBe('"Show my stats in \\(.applicationName)"')
+    expect(swiftPhraseLiteral('Show my stats', 'Wildloop')).toBe('"Show my stats with \\(.applicationName)"')
   })
 
   it('still escapes the text around the token', () => {
-    expect(swiftPhraseLiteral('Open "WildLoop" now', 'WildLoop')).toBe('"Open \\"\\(.applicationName)\\" now"')
+    expect(swiftPhraseLiteral('Open "Wildloop" now', 'Wildloop')).toBe('"Open \\"\\(.applicationName)\\" now"')
   })
 })
 
@@ -46,7 +46,7 @@ describe('the generated Swift', () => {
     expect(swift).toContain('struct OpenTrailsNearMeIntent: AppIntent')
     expect(swift).toContain('struct OpenViewStatsIntent: AppIntent')
     expect(swift.match(/AppShortcutsProvider/g)).toHaveLength(1)
-    expect(swift).toContain('struct WildLoopAppShortcuts: AppShortcutsProvider')
+    expect(swift).toContain('struct WildloopAppShortcuts: AppShortcutsProvider')
   })
 
   it('opens each shortcut’s own deep link', () => {
@@ -81,7 +81,7 @@ describe('the generated Swift', () => {
   })
 
   it('follows the scheme the build registered', () => {
-    expect(iosShortcutsSwift({ appName: 'WildLoop', scheme: 'wildloop-dev' }))
+    expect(iosShortcutsSwift({ appName: 'Wildloop', scheme: 'wildloop-dev' }))
       .toContain('URL(string: "wildloop-dev://stats")')
   })
 
@@ -109,8 +109,8 @@ describe('writing into a project', () => {
     const dir = await project()
     const path = await writeIosShortcuts(dir, options)
 
-    expect(path).toBe(shortcutsSourcePath(dir, 'WildLoop'))
-    expect(path.endsWith('Sources/WildLoopAppShortcuts.swift')).toBe(true)
+    expect(path).toBe(shortcutsSourcePath(dir, 'Wildloop'))
+    expect(path.endsWith('Sources/WildloopAppShortcuts.swift')).toBe(true)
     expect(await Bun.file(path).text()).toContain('AppShortcutsProvider')
   })
 

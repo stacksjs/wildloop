@@ -18,5 +18,5 @@ Blocks are mutual for reads and interactions. Creating a block removes existing 
 
 ## Integrity model
 
-Browser GPS is not cryptographic attestation. WildLoop therefore combines source provenance, monotonic sample timestamps, accuracy quality, speed thresholds, completion recency, server-derived distance/duration, idempotent uploads, and non-scoring defaults for imports. Suspicious tracks are rejected; incomplete tracks can be saved as unverified but never score.
+Browser GPS is not cryptographic attestation. Wildloop therefore combines source provenance, monotonic sample timestamps, accuracy quality, speed thresholds, completion recency, server-derived distance/duration, idempotent uploads, and non-scoring defaults for imports. Suspicious tracks are rejected; incomplete tracks can be saved as unverified but never score.
 

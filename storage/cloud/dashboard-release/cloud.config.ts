@@ -4,7 +4,7 @@
 // imports on the box. Credentials are deliberately absent.
 export default {
   "project": {
-    "name": "WildLoop",
+    "name": "Wildloop",
     "slug": "wildloop",
     "region": "us-east-1"
   },

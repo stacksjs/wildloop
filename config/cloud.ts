@@ -87,7 +87,7 @@ const SOURCE_RELEASE_EXCLUDES = [
 
 export const tsCloud: TsCloudConfig = {
   project: {
-    name: 'WildLoop',
+    name: 'Wildloop',
     slug: 'wildloop',
     region: 'us-east-1',
   },
@@ -97,7 +97,7 @@ export const tsCloud: TsCloudConfig = {
    *
    * `attachTo` means this project provisions nothing of its own: it deploys
    * onto the `stacks-<environment>-app` server the `stacks` project owns,
-   * shipping only WildLoop's sites plus its own additive rpx fragment and DNS.
+   * shipping only Wildloop's sites plus its own additive rpx fragment and DNS.
    * The box lifecycle, firewall and other tenants stay untouched. Reading the
    * shared server needs HCLOUD_TOKEN in the environment.
    */
@@ -116,7 +116,7 @@ export const tsCloud: TsCloudConfig = {
   },
 
   sites: {
-    // WildLoop renders stx views and proxies /api from a Bun server, so it
+    // Wildloop renders stx views and proxies /api from a Bun server, so it
     // runs under `buddy serve` behind rpx rather than shipping as a static
     // bundle. 3049 is this project's slot on the shared box (localhost only;
     // rpx fronts it by Host). 3000-3048 are already claimed by the box owner
@@ -357,7 +357,7 @@ export const tsCloud: TsCloudConfig = {
   infrastructure: {
     // This project attaches to an existing compute owner, but it still declares
     // its runtime/proxy contract so the deploy command takes the compute path
-    // and the shared gateway renders WildLoop routes with rpx.
+    // and the shared gateway renders Wildloop routes with rpx.
     //
     // Deliberately NO `proxy.version`. The gateway is the box's, not this
     // tenant's: every deploy reinstalls and recompiles it, so a version pinned

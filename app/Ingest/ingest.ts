@@ -76,7 +76,7 @@ const MERGE_COLUMNS = [
   'updated_at',
   // Deliberately NOT merged: `image`, `tags`, `rating`, `review_count`. The
   // first two are presentation the app may later curate, and the ratings are
-  // ours — they come from WildLoop users, not from upstream, and a re-sync
+  // ours — they come from Wildloop users, not from upstream, and a re-sync
   // must never wipe them.
 ]
 

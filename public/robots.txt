@@ -1,4 +1,4 @@
-# WildLoop — https://wildloop.org
+# Wildloop — https://wildloop.org
 #
 # The catalog is the point: every trail page is a page worth indexing, and the
 # sitemap below is what tells a crawler they exist without it having to walk

@@ -133,11 +133,11 @@ export async function donateSiriPhrases(): Promise<number> {
  * Kept pure and tolerant because the detail's shape is the native side's to
  * choose: Craft's own bridge passes the shortcut item through, and the
  * generated intents open a link instead. Both arrive here, and anything that
- * is neither a known shortcut nor a WildLoop link resolves to null rather than
+ * is neither a known shortcut nor a Wildloop link resolves to null rather than
  * navigating somewhere on a guess.
  */
 export function shortcutRoute(detail: unknown): string | null {
-  // `deepLinkPath` is the app's one reader of a WildLoop link — the same one
+  // `deepLinkPath` is the app's one reader of a Wildloop link — the same one
   // the deep-link handler uses — so a shortcut cannot open anywhere a deep
   // link could not, and neither can drift from the other.
   if (typeof detail === 'string')

@@ -106,10 +106,10 @@ describe('mobile E2E runner', () => {
   })
 
   it('does not require Craft’s disabled Watch artifact from an iPhone build', () => {
-    const required = requiredIosAppPaths('/tmp/WildLoop.app')
+    const required = requiredIosAppPaths('/tmp/Wildloop.app')
 
-    expect(required).toContain('/tmp/WildLoop.app/PlugIns/WildLoopLiveActivity.appex')
-    expect(required).not.toContain('/tmp/WildLoop.app/Watch/WildLoopWatch.app')
+    expect(required).toContain('/tmp/Wildloop.app/PlugIns/WildloopLiveActivity.appex')
+    expect(required).not.toContain('/tmp/Wildloop.app/Watch/WildloopWatch.app')
   })
 
   it('selects the app activity registered for an Android deep link', () => {
@@ -267,17 +267,17 @@ describe('mobile E2E runner', () => {
 
   it('locates the bundled iOS entry point before simulator installation', () => {
     const root = mkdtempSync(join(tmpdir(), 'wildloop-ios-app-'))
-    const resources = join(root, 'WildLoop.app', 'dist')
+    const resources = join(root, 'Wildloop.app', 'dist')
     mkdirSync(resources, { recursive: true })
-    writeFileSync(join(resources, 'index.html'), '<main>WildLoop</main>')
+    writeFileSync(join(resources, 'index.html'), '<main>Wildloop</main>')
 
-    expect(validateIosAppBundle(join(root, 'WildLoop.app'))).toBe(join(resources, 'index.html'))
+    expect(validateIosAppBundle(join(root, 'Wildloop.app'))).toBe(join(resources, 'index.html'))
   })
 
   it('rejects an iOS app product with no bundled entry point', () => {
     const root = mkdtempSync(join(tmpdir(), 'wildloop-empty-app-'))
-    mkdirSync(join(root, 'WildLoop.app'), { recursive: true })
+    mkdirSync(join(root, 'Wildloop.app'), { recursive: true })
 
-    expect(() => validateIosAppBundle(join(root, 'WildLoop.app'))).toThrow('missing its bundled index.html')
+    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('missing its bundled index.html')
   })
 })

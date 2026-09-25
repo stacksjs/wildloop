@@ -117,7 +117,7 @@ export default new Action({
         return response.json({
           success: false,
           error: 'Validation failed',
-          fields: { evidence_url: 'a finished attempt needs a GPS file, a WildLoop activity, or a link to the recording' },
+          fields: { evidence_url: 'a finished attempt needs a GPS file, a Wildloop activity, or a link to the recording' },
         }, 422)
       }
 

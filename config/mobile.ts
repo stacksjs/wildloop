@@ -14,7 +14,7 @@ const mobileContent = envVars.MOBILE_E2E === '1'
 
 export default {
   ios: {
-    appName: 'WildLoop',
+    appName: 'Wildloop',
     bundleId: envVars.IOS_BUNDLE_ID ?? 'org.wildloop.app',
     version: envVars.IOS_APP_VERSION ?? '1.0.0',
     buildNumber: envVars.IOS_BUILD_NUMBER ?? '1',
@@ -76,7 +76,7 @@ export default {
     },
   },
   android: {
-    appName: 'WildLoop',
+    appName: 'Wildloop',
     packageName: envVars.ANDROID_PACKAGE_NAME ?? 'org.wildloop.app',
     version: envVars.ANDROID_APP_VERSION ?? envVars.IOS_APP_VERSION ?? '1.0.0',
     versionCode: Number(envVars.ANDROID_VERSION_CODE ?? '1'),

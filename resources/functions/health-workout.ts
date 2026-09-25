@@ -39,7 +39,7 @@ function isUsableHealthLocation(sample: HealthWorkoutSample): boolean {
     && sample.t > 0
 }
 
-/** Map a completed WildLoop recording into the portable native Health workout format. */
+/** Map a completed Wildloop recording into the portable native Health workout format. */
 export function createHealthWorkout(input: HealthWorkoutInput): HealthWorkout {
   return {
     activityId: `wildloop:${input.activityId}`,

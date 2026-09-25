@@ -32,7 +32,7 @@ export function authReadyUser(detail: unknown): BootstrapUser | null {
   return candidate as BootstrapUser
 }
 
-type WildLoopAppStore =
+type WildloopAppStore =
   & NonNullable<Parameters<typeof useTrailCatalog>[0]>
   & NonNullable<Parameters<typeof useTerritoryCatalog>[0]>
   & NonNullable<Parameters<typeof useActivityCatalog>[0]>
@@ -130,7 +130,7 @@ let identityStarted = false
  * bar's highlight. A tab tap on iOS is an in-app navigation, which does not
  * run this again for the page it lands on, so the router's own event does.
  */
-function trackCurrentPath(wl: WildLoopAppStore, pathname: string): void {
+function trackCurrentPath(wl: WildloopAppStore, pathname: string): void {
   if (typeof wl.setCurrentPath !== 'function')
     return
   wl.setCurrentPath(pathname)
@@ -151,9 +151,9 @@ function trackCurrentPath(wl: WildLoopAppStore, pathname: string): void {
   })
 }
 
-export function useWildLoopApp(): void {
+export function useWildloopApp(): void {
   void initializeAuthSession()
-  const wl = useStore('wl') as WildLoopAppStore
+  const wl = useStore('wl') as WildloopAppStore
   // This bundle already carries the auth client and the native bridge; the
   // nav, the mobile header and the sign-in sheet reach them through the store
   // rather than each shipping a copy (stacksjs/stx#1957).

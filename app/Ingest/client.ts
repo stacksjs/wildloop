@@ -35,7 +35,7 @@ import { createHTTPError, RateLimiter, ScraperCache, withRetry } from 'ts-web-sc
 const CACHE_ENABLED = process.env.TRAIL_INGEST_CACHE === '1'
 
 /** Identifies us to every upstream, with a contact URL as courtesy demands. */
-export const USER_AGENT = 'WildLoop/1.0 (+https://wildloop.org; trail data ingest)'
+export const USER_AGENT = 'Wildloop/1.0 (+https://wildloop.org; trail data ingest)'
 
 export interface TrailHttpClientOptions {
   /** Human label used in log lines, e.g. `overpass`. */

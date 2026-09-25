@@ -3,7 +3,7 @@ const envVars = typeof Bun !== 'undefined' ? Bun.env : process.env
 /**
  * **Garmin Connect Developer Program**
  *
- * Watch to WildLoop, with nothing in between: a run saved on the watch syncs
+ * Watch to Wildloop, with nothing in between: a run saved on the watch syncs
  * to Garmin Connect, and Garmin pushes it to us within seconds. No polling, no
  * Garmin password, and the athlete can revoke us from their Garmin account.
  *

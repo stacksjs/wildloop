@@ -1,5 +1,5 @@
 /**
- * Turn an uploaded profile photo into what WildLoop stores: a square display
+ * Turn an uploaded profile photo into what Wildloop stores: a square display
  * image and a square thumbnail, both freshly encoded JPEGs.
  *
  * The same pipeline as trail photos (app/Support/trailPhotoProcessing.ts):

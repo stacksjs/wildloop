@@ -96,7 +96,7 @@ export default new Action({
         }
       }
 
-      // A WildLoop recording can back the claim, but only the athlete's own:
+      // A Wildloop recording can back the claim, but only the athlete's own:
       // pointing at somebody else's activity would borrow their trace.
       if (activityId) {
         const activity = await Activity.find(activityId)
@@ -114,7 +114,7 @@ export default new Action({
         return response.json({
           success: false,
           error: 'Validation failed',
-          fields: { evidence_url: 'a finished attempt needs a GPS file, a WildLoop activity, or a link to the recording on Strava, Garmin, Suunto, COROS, TrainingPeaks, komoot, or RideWithGPS' },
+          fields: { evidence_url: 'a finished attempt needs a GPS file, a Wildloop activity, or a link to the recording on Strava, Garmin, Suunto, COROS, TrainingPeaks, komoot, or RideWithGPS' },
         }, 422)
       }
 

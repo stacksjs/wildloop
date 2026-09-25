@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { authReadyUser, dataNeedsForPath } from '../../resources/composables/useWildLoopApp'
+import { authReadyUser, dataNeedsForPath } from '../../resources/composables/useWildloopApp'
 
 describe('route-aware app bootstrap', () => {
   it('keeps the marketing route free of unrelated catalog requests', () => {

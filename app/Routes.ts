@@ -10,7 +10,7 @@ if (process.env.STACKS_DASHBOARD_WORKER === '1') {
 }
 
 /**
- * WildLoop's app-owned route registry. Keeping it here makes production API
+ * Wildloop's app-owned route registry. Keeping it here makes production API
  * releases independent of the vendored Stacks source tree.
  *
  * @see https://docs.stacksjs.org/routing

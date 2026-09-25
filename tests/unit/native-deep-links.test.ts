@@ -14,7 +14,7 @@ describe('native deep-link routing', () => {
     expect(deepLinkPath({ url: 42 })).toBeNull()
   })
 
-  it('accepts only WildLoop web links and custom schemes', () => {
+  it('accepts only Wildloop web links and custom schemes', () => {
     expect(deepLinkPath('https://wildloop.org/record?source=push')).toBe('/record?source=push')
     expect(deepLinkPath('https://example.com/record')).toBeNull()
     expect(deepLinkPath('not a url')).toBeNull()

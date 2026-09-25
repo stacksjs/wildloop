@@ -19,7 +19,7 @@ import {
 } from '../../app/Actions/Garmin/garmin'
 
 describe('toActivityType', () => {
-  it('maps the Garmin types WildLoop records', () => {
+  it('maps the Garmin types Wildloop records', () => {
     expect(toActivityType('TRAIL_RUNNING')).toBe('Trail Run')
     expect(toActivityType('RUNNING')).toBe('Trail Run')
     expect(toActivityType('HIKING')).toBe('Hike')
@@ -123,7 +123,7 @@ describe('mapActivity', () => {
     expect(notes).toContain('148')
   })
 
-  it('skips an activity type WildLoop does not record', () => {
+  it('skips an activity type Wildloop does not record', () => {
     expect(mapActivity({ ...summary, activityType: 'YOGA' })).toBeNull()
   })
 

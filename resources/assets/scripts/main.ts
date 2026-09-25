@@ -1,4 +1,4 @@
 // Wildloop - app entry
-import { registerWildLoopServiceWorker } from './pwa'
+import { registerWildloopServiceWorker } from './pwa'
 
-registerWildLoopServiceWorker()
+registerWildloopServiceWorker()

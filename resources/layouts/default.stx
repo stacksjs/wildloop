@@ -9,10 +9,10 @@
 @include('../components/stores')
 
 <script client>
-  import { useWildLoopApp } from '../composables/useWildLoopApp'
+  import { useWildloopApp } from '../composables/useWildloopApp'
   import { useNativeServices } from '../composables/useNativeServices'
 
-  useWildLoopApp()
+  useWildloopApp()
   useNativeServices()
 
   // Guests are browsing the marketing site. The application tab bar only

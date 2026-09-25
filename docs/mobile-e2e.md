@@ -1,6 +1,6 @@
 # Mobile end-to-end tests
 
-WildLoop uses one Maestro flow suite against deterministic bundled builds of
+Wildloop uses one Maestro flow suite against deterministic bundled builds of
 the shared STX application. The flows exercise the real Craft iOS and Android
 hosts, WebView navigation, native deep-link delivery, permissions, and offline
 cold starts. Android airplane mode is enforced by the flow; iOS verifies the
@@ -70,7 +70,7 @@ After installation, exercise the real-device-only surfaces that simulators
 cannot faithfully reproduce:
 
 - Start a recording, accept When In Use location access, lock the screen, walk
-  a short loop, reopen WildLoop, and stop/save the activity.
+  a short loop, reopen Wildloop, and stop/save the activity.
 - Confirm the Live Activity updates while recording and the route survives a
   background/foreground transition.
 - Open `wildloop://record` from Safari and confirm it reaches Capture Run.
@@ -86,7 +86,7 @@ hardware-only checks reproducible.
 
 ## Run locally
 
-To build, install, and open WildLoop for hands-on testing without running the
+To build, install, and open Wildloop for hands-on testing without running the
 automation suite:
 
 ```bash

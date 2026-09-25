@@ -18,7 +18,7 @@ describe('offline activity retry policy', () => {
 })
 
 describe('service worker privacy', () => {
-  it('never persists navigations and only deletes WildLoop-owned caches', async () => {
+  it('never persists navigations and only deletes Wildloop-owned caches', async () => {
     const source = await readFile(new URL('../../public/sw.js', import.meta.url), 'utf8')
     expect(source).toContain("key.startsWith(CACHE_PREFIX)")
     expect(source).toContain("request.mode === 'navigate'")

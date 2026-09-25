@@ -1,6 +1,6 @@
-# WildLoop
+# Wildloop
 
-WildLoop is an outdoor activity and trail platform with a territory game. It combines trail discovery, GPS recording, activity feeds, clubs, challenges, leaderboards, route records (fastest known times), saved/offline routes, portable activity imports, and a server-authoritative capture engine.
+Wildloop is an outdoor activity and trail platform with a territory game. It combines trail discovery, GPS recording, activity feeds, clubs, challenges, leaderboards, route records (fastest known times), saved/offline routes, portable activity imports, and a server-authoritative capture engine.
 
 ## Product rules
 
@@ -61,7 +61,7 @@ bun run preview:android
 Which server the app loads is fixed when it is built. `preview:ios:local`
 points the Simulator at `http://localhost:3000`, so start `./buddy dev` in a
 terminal first. `buddy preview:iphone` creates a Release device build, signs
-it, installs it on the single connected iPhone, and launches WildLoop. It
+it, installs it on the single connected iPhone, and launches Wildloop. It
 always loads wildloop.org, whatever `MOBILE_URL` your shell has, because a
 phone cannot reach this Mac's localhost; `bun run preview:iphone
 --server=https://…` points it at another https server, such as a tunnel. Use

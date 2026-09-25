@@ -480,7 +480,7 @@ route.get('/clubs/{id}', 'Actions/Club/ClubShowAction')
 // Events - the directory, one event, and the live board.
 //
 // All three are public reads on purpose. A backyard ultra is watched by crew
-// and family who have no reason to hold a WildLoop account, and the whole
+// and family who have no reason to hold a Wildloop account, and the whole
 // point of live reporting is that a link to it just works. The actions still
 // decide per event: a club or private event resolves only for people who may
 // see it.

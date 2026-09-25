@@ -2,7 +2,7 @@
 //
 // The board people refresh. It is deliberately public and session-free so a
 // tracking link can be handed to a crew, a family, or a local paper without
-// any of them holding a WildLoop account.
+// any of them holding a Wildloop account.
 //
 // An attempt appears here from the moment it is announced and drops off when
 // it finishes, DNFs, or goes stale. Staleness matters: an athlete who forgets

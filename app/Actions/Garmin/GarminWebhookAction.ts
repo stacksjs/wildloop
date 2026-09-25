@@ -49,7 +49,7 @@ export default new Action({
     let deregistered = 0
     const importedFor: number[] = []
 
-    // Garmin sends this when an athlete revokes WildLoop from Connect. Delete
+    // Garmin sends this when an athlete revokes Wildloop from Connect. Delete
     // the local tokens immediately; otherwise a disconnected account still
     // appears connected and retains credentials we no longer need.
     for (const disconnect of disconnects) {

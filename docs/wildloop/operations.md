@@ -68,7 +68,7 @@ the exact `@stacksjs/stx` and `bun-plugin-stx` versions from `package.json`
 instead of the generated pantry copy. A local `~/Code/Tools/stx` checkout is
 preferred only for framework development.
 
-WildLoop pages are client-data shells, so the server compiles one render per
+Wildloop pages are client-data shells, so the server compiles one render per
 view source, prewarms static routes, and lets the browser cache successful HTML
 briefly. STX serves Brotli/gzip documents and external cached runtime, router,
 and Crosswind assets. Production pages must never contain `data-stx-hmr` or

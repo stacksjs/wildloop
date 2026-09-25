@@ -138,7 +138,7 @@ record.stx → useRecorder (real GPS / simulate)
 | **Activity kudos / comments** | `activity/[id].stx` toggle/submit work | `tb.toggleKudos`/`tb.addComment` mutate the local array only; no POST, no Kudos/Comment endpoint. Feed kudos buttons (`feed.stx:103-110`) have NO `@click` — decoration. |
 | **Trail reviews** | `trail/[id].stx` Reviews/Conditions tabs | Display-only from `seedReviews`; no submission form, no review API. |
 | **Auth session / logout** | `onMount` `auth.user()`; `/me`, `/logout` routes declared | `AuthUserAction`/`LogoutAction` **files don't exist** → calls throw, swallowed by empty `catch{}`; redirect silently no-ops. No logout button anywhere. |
-| **Frontend API client** | `resources/assets/scripts/api.ts` (287 lines) | Full client (`claimTerritory`/`processConquest`/`giveKudos`/`createActivity`/`fetchUserStats`…) but **zero importers** — dead code; only attaches `window.WildLoopAPI`. |
+| **Frontend API client** | `resources/assets/scripts/api.ts` (287 lines) | Full client (`claimTerritory`/`processConquest`/`giveKudos`/`createActivity`/`fetchUserStats`…) but **zero importers** — dead code; only attaches `window.WildloopAPI`. |
 | **`splitPolygonByRoute`** | conquest geometry | Self-labeled "simplified - for MVP" (geo.ts L378); boundary-walk math handles only clean 2-crossing convex case; >2 crossings / concave / self-intersecting routes produce wrong/degenerate polygons. Never run on real data. |
 | **Activity save fidelity** | `useRecorder.stop()` payload | `splits:[]`, `heartRateAvg/Max:null`, `cadence:null`; no persisted link to triggered conquests (conqueredIds only used for the title string); real-GPS elevation stays 0 (sim fabricates via `Math.random()*12`). |
 

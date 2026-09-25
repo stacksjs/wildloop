@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Generate the App Intents that put WildLoop's shortcuts in Spotlight and Siri.
+ * Generate the App Intents that put Wildloop's shortcuts in Spotlight and Siri.
  *
  * This is the surface in the reference screenshot: searching the app's name
  * shows a Top Hit row of round buttons — Favorites, Trails Near Me, View Stats
@@ -162,7 +162,7 @@ ${entries.join('\n')}
  * Craft's own app delegate implements it — v0.0.90's template did not, which
  * is what this file first assumed, and the simulator build said otherwise:
  * "invalid redeclaration of 'application(_:performActionFor:completionHandler:)'"
- * against WildLoopApp.swift. Tapped home-screen shortcuts are Craft's to
+ * against WildloopApp.swift. Tapped home-screen shortcuts are Craft's to
  * deliver; what it has no answer for, and what this file exists for, is the
  * Spotlight and Siri row.
  */

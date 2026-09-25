@@ -30,7 +30,7 @@ describe('native Health workout payload', () => {
     }])
   })
 
-  it('maps each supported WildLoop activity to its native workout type', () => {
+  it('maps each supported Wildloop activity to its native workout type', () => {
     const types = ['Trail Run', 'Hike', 'Walk', 'Bike'] as const
     expect(types.map(activityType => createHealthWorkout({
       activityId: 1,

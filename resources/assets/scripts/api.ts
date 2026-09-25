@@ -251,7 +251,7 @@ function calculatePace(distanceMiles: number, durationSeconds: number): string {
 
 // Make API available globally for non-module scripts
 if (typeof window !== 'undefined') {
-  (window as any).WildLoopAPI = {
+  (window as any).WildloopAPI = {
     auth,
     Trail,
     Activity,

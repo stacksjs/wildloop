@@ -45,7 +45,7 @@ async function runScript(script: string, label: string): Promise<boolean> {
 }
 
 /**
- * WildLoop's physical-iPhone commands.
+ * Wildloop's physical-iPhone commands.
  *
  * `build:android`, `build:ios`, and `build:mobile` are NOT registered here:
  * Buddy ships them itself and runs the framework's own build actions. The two
@@ -67,14 +67,14 @@ export default function (cli: CLI): void {
 
   if (!hasCommand(cli, 'preview:iphone')) {
     cli
-      .command('preview:iphone', 'Build, sign, install, and launch WildLoop on a connected iPhone')
+      .command('preview:iphone', 'Build, sign, install, and launch Wildloop on a connected iPhone')
       .option('--bundled', 'Bundle the local frontend instead of using the configured remote URL', { default: false })
       .action(async (options: { bundled: boolean }) => {
         const perf = await intro('buddy preview:iphone')
         const script = options.bundled ? 'preview:iphone:bundled' : 'preview:iphone'
         if (!await runScript(script, 'iPhone preview'))
           process.exit(ExitCode.FatalError)
-        await outro('WildLoop installed and launched on the connected iPhone', { startTime: perf, useSeconds: true })
+        await outro('Wildloop installed and launched on the connected iPhone', { startTime: perf, useSeconds: true })
       })
   }
 }

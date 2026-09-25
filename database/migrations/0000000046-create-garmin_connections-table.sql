@@ -1,9 +1,9 @@
--- Links a WildLoop account to a Garmin Connect user, so activity webhooks can
+-- Links a Wildloop account to a Garmin Connect user, so activity webhooks can
 -- be attributed to the right person.
 --
 -- Garmin identifies the athlete by its own opaque `userId`, which is what push
 -- notifications carry. That is the join key, so it is unique: one Garmin
--- account maps to at most one WildLoop account.
+-- account maps to at most one Wildloop account.
 --
 -- Tokens are stored because the Activity API needs them to pull details and
 -- files after a push arrives, and to refresh without sending the person back
@@ -24,12 +24,12 @@ CREATE TABLE IF NOT EXISTS "garmin_connections" (
   "updated_at" TEXT
 );
 
--- One WildLoop account connects one watch; reconnecting replaces the row.
+-- One Wildloop account connects one watch; reconnecting replaces the row.
 CREATE UNIQUE INDEX IF NOT EXISTS "garmin_connections_user_id_unique"
   ON "garmin_connections" ("user_id");
 
--- The lookup every webhook performs: Garmin user id to WildLoop account.
--- Unique so one Garmin account cannot feed two WildLoop accounts.
+-- The lookup every webhook performs: Garmin user id to Wildloop account.
+-- Unique so one Garmin account cannot feed two Wildloop accounts.
 CREATE UNIQUE INDEX IF NOT EXISTS "garmin_connections_garmin_user_id_unique"
   ON "garmin_connections" ("garmin_user_id");
 
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS "garmin_activity_imports" (
   "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
   -- Garmin's `summaryId`, stable across redeliveries of the same activity.
   "summary_id" TEXT NOT NULL,
-  -- The WildLoop activity this produced, so a later update can find it.
+  -- The Wildloop activity this produced, so a later update can find it.
   "activity_id" INTEGER REFERENCES "activities"("id"),
   "created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -224,7 +224,7 @@ describe('evidence', () => {
     expect(evidenceIsSufficient({ status: 'pending' })).toBe(false)
   })
 
-  it('accepts a WildLoop activity as the trace', () => {
+  it('accepts a Wildloop activity as the trace', () => {
     expect(evidenceIsSufficient({ status: 'pending', activityId: 7 })).toBe(true)
   })
 

@@ -95,10 +95,10 @@ jobs:
         run: find storage/framework/mobile/ios -name '*.swift' -print0 | xargs -0 swiftc -frontend -parse
       - name: Compile iOS simulator app
         if: matrix.platform == 'ios'
-        run: xcodebuild -project storage/framework/mobile/ios/WildLoop.xcodeproj -scheme WildLoop -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -project storage/framework/mobile/ios/Wildloop.xcodeproj -scheme Wildloop -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Compile unsigned iPhone release app
         if: matrix.platform == 'ios'
-        run: xcodebuild -project storage/framework/mobile/ios/WildLoop.xcodeproj -scheme WildLoop -destination 'generic/platform=iOS' -configuration Release CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -project storage/framework/mobile/ios/Wildloop.xcodeproj -scheme Wildloop -destination 'generic/platform=iOS' -configuration Release CODE_SIGNING_ALLOWED=NO build
       - name: Generate Android project
         if: matrix.platform == 'android'
         run: CRAFT_ANDROID_SRC="$PWD/.craft/packages/android/src/index.ts" bun run build:android

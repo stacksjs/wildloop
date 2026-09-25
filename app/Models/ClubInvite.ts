@@ -10,7 +10,7 @@ import { schema } from '@stacksjs/validation'
  * `Club.join_policy = 'invite_only'`, and this table is the record of who was
  * asked.
  *
- * An invite can name a user id (invite an athlete already on WildLoop) or an
+ * An invite can name a user id (invite an athlete already on Wildloop) or an
  * email (invite somebody who has not signed up yet); the code works either
  * way, so an invite link survives the recipient creating their account after
  * receiving it.

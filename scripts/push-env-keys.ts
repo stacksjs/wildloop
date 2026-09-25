@@ -40,7 +40,7 @@ function fail(message: string): never {
 /**
  * The box to copy to.
  *
- * WildLoop provisions no server of its own (`cloud.attachTo`), so the target
+ * Wildloop provisions no server of its own (`cloud.attachTo`), so the target
  * is the owning project's `<owner>-<environment>-app`. Resolved through the
  * Hetzner API rather than hardcoded, so it follows a rebuild or a move.
  */

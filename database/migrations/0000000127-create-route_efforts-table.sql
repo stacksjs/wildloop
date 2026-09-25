@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS "route_efforts_status_finished_index" ON "route_effor
 CREATE INDEX IF NOT EXISTS "route_efforts_user_index" ON "route_efforts" ("user_id", "finished_at");
 CREATE INDEX IF NOT EXISTS "route_efforts_activity_index" ON "route_efforts" ("activity_id");
 
--- An effort filed from a WildLoop recording is filed once. Without this a
+-- An effort filed from a Wildloop recording is filed once. Without this a
 -- double-tap on "claim this as a record" produces two identical rows on the
 -- board, and the second one is indistinguishable from a real second attempt.
 -- Partial, because NULL activity_id (a record set on somebody else's watch)

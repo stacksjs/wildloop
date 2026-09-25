@@ -1,7 +1,7 @@
 /**
  * Autocomplete for the home search, the parts that need no database.
  *
- * Suggestions come only from WildLoop's own records: trail names, and the
+ * Suggestions come only from Wildloop's own records: trail names, and the
  * places those trails are recorded at. Nothing is suggested that would open
  * onto an empty page.
  *

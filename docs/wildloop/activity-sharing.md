@@ -1,6 +1,6 @@
 # Activity image sharing
 
-WildLoop turns an activity into a branded social image instead of asking the athlete to crop a screenshot. The image always includes the activity title and type, athlete and completion date when available, a normalized route trace, distance, moving time, average pace, and elevation gain.
+Wildloop turns an activity into a branded social image instead of asking the athlete to crop a screenshot. The image always includes the activity title and type, athlete and completion date when available, a normalized route trace, distance, moving time, average pace, and elevation gain.
 
 ## Formats
 
@@ -14,9 +14,9 @@ The preview updates immediately when the athlete changes formats. **Share image*
 
 ## Implementation
 
-Card composition comes from the browser-safe `ts-images/activity-card` export. WildLoop's integration is split into three layers:
+Card composition comes from the browser-safe `ts-images/activity-card` export. Wildloop's integration is split into three layers:
 
-- `resources/functions/activity-share.ts` maps WildLoop activity data, creates SVG previews, renders PNG files in a browser canvas, and handles native sharing or download.
+- `resources/functions/activity-share.ts` maps Wildloop activity data, creates SVG previews, renders PNG files in a browser canvas, and handles native sharing or download.
 - `resources/composables/useActivityShare.ts` owns the selected format, progress state, feedback message, and user actions.
 - `resources/views/activity/[id].stx` presents the preview and controls.
 

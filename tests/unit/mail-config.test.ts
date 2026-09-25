@@ -33,9 +33,9 @@ describe('mail configuration', () => {
       MAIL_USERNAME: 'noreply@bughq.org',
       MAIL_PASSWORD: 'test-only-not-a-real-password',
       MAIL_FROM_ADDRESS: 'noreply@bughq.org',
-      MAIL_FROM_NAME: 'WildLoop',
+      MAIL_FROM_NAME: 'Wildloop',
     })
-    expect(config.from).toEqual({ name: 'WildLoop', address: 'noreply@bughq.org' })
+    expect(config.from).toEqual({ name: 'Wildloop', address: 'noreply@bughq.org' })
     expect(config.domain).toBe('wildloop.org')
     expect(config.smtp).toMatchObject({
       host: 'mail.stacksjs.com',

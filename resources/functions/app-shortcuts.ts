@@ -1,5 +1,5 @@
 /**
- * The app's shortcuts: the few things somebody opens WildLoop to do, named
+ * The app's shortcuts: the few things somebody opens Wildloop to do, named
  * once and reused by every surface that can offer them.
  *
  * iOS surfaces these in three places, all fed from this one list:
@@ -49,7 +49,7 @@ export const APP_SHORTCUTS: AppShortcut[] = [
     subtitle: 'Trails you saved',
     symbol: 'heart.fill',
     route: '/profile?tab=saved',
-    phrase: 'Show my favorites in WildLoop',
+    phrase: 'Show my favorites in Wildloop',
   },
   {
     id: 'trails-near-me',
@@ -57,7 +57,7 @@ export const APP_SHORTCUTS: AppShortcut[] = [
     subtitle: 'What is close by',
     symbol: 'map.fill',
     route: '/trails?near=me',
-    phrase: 'Find trails near me with WildLoop',
+    phrase: 'Find trails near me with Wildloop',
   },
   {
     id: 'view-stats',
@@ -65,7 +65,7 @@ export const APP_SHORTCUTS: AppShortcut[] = [
     subtitle: 'Your miles and ascent',
     symbol: 'chart.bar.fill',
     route: '/stats',
-    phrase: 'Show my stats in WildLoop',
+    phrase: 'Show my stats in Wildloop',
   },
 ]
 

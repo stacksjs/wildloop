@@ -1,7 +1,7 @@
 /**
  * Favicons and social cards, generated from the one source image.
  *
- * WildLoop shipped with no favicon at all — a browser tab showed the generic
+ * Wildloop shipped with no favicon at all — a browser tab showed the generic
  * page glyph — and one hand-made `og_image.jpeg` referenced by a relative
  * path, which no crawler resolves. Both are the kind of thing that is invisible
  * until the link is already in somebody's feed looking wrong.
@@ -52,7 +52,7 @@ const MUTED = { r: 226, g: 232, b: 240, a: 255 }
 const CARDS = [
   {
     file: 'og-default',
-    eyebrow: 'WildLoop',
+    eyebrow: 'Wildloop',
     title: 'Find your next adventure',
     subtitle: 'Half a million trails, live GPS tracking, and territory you can actually lose.',
   },

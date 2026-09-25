@@ -97,7 +97,7 @@ describe('registering with the host', () => {
 
     expect(await donateSiriPhrases()).toBe(2)
     expect(donated.map(([, action]) => action)).toEqual(['favorites', 'trails-near-me', 'view-stats'])
-    expect(donated[0][0]).toContain('WildLoop')
+    expect(donated[0][0]).toContain('Wildloop')
   })
 })
 

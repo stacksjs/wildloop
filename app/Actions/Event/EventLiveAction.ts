@@ -9,7 +9,7 @@
 // else: a spectator refreshing every few seconds should not re-download the
 // event description and the host's name each time. Public events answer to
 // anybody, with no session, so a race link can be shared with a crew that has
-// no WildLoop account.
+// no Wildloop account.
 
 import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'

@@ -1,10 +1,10 @@
 /**
- * Garmin, the WildLoop-specific parts.
+ * Garmin, the Wildloop-specific parts.
  *
  * The protocol itself - PKCE, the authorize URL, reading a push payload,
  * authenticating a webhook - lives in `ts-watches`, which owns the Activity API
  * and its tests. What stays here is the part no library can know: how a Garmin
- * summary becomes a WildLoop Activity, in the units and shapes this app stores.
+ * summary becomes a Wildloop Activity, in the units and shapes this app stores.
  *
  * Everything below is a plain function over plain data, so the conversions can
  * be tested without a Garmin account, a network, or a database.
@@ -44,7 +44,7 @@ export function createGarminClient(config: {
 }
 
 /**
- * Garmin's activity types mapped onto the four WildLoop records.
+ * Garmin's activity types mapped onto the four Wildloop records.
  *
  * Garmin publishes well over a hundred types, most of which are not a trail
  * activity (POOL_SWIMMING, YOGA, INDOOR_CARDIO). Mapping only what belongs
@@ -77,7 +77,7 @@ const METERS_PER_MILE = 1609.344
 const FEET_PER_METER = 3.280839895
 
 /**
- * The WildLoop activity type for a Garmin type, or null when it is not
+ * The Wildloop activity type for a Garmin type, or null when it is not
  * something this app records.
  *
  * Returning null rather than defaulting to 'Trail Run' is deliberate: a yoga
@@ -136,7 +136,7 @@ export interface MappedActivity {
 
 /**
  * Turn a Garmin summary into the row the Activity model expects, or null when
- * the activity is not one WildLoop records.
+ * the activity is not one Wildloop records.
  *
  * Units are converted here because the model stores miles and feet (matching
  * what the UI labels), while Garmin reports metres throughout. Getting that
@@ -283,7 +283,7 @@ export async function evaluateImportedAthletes(
 
 /** What has to survive the round trip to Garmin and back. */
 export interface OAuthState {
-  /** Which WildLoop account is connecting. */
+  /** Which Wildloop account is connecting. */
   userId: number
   /** Echoed by Garmin, compared on return: the CSRF guard. */
   state: string

@@ -364,7 +364,7 @@ function seedTestLocation(platform: MobilePlatform, deviceId: string): void {
 
 /**
  * Google APIs images occasionally leave Pixel Launcher in an ANR state while
- * WildLoop is foregrounded. The launcher is not part of this journey, so stop
+ * Wildloop is foregrounded. The launcher is not part of this journey, so stop
  * that background process before Maestro launches the app under test.
  */
 function stopAndroidHomeLauncher(deviceId: string): void {
@@ -395,7 +395,7 @@ function runAndroid(preview: boolean): void {
   if (preview) {
     execute(['adb', '-s', devices[0], 'shell', 'am', 'force-stop', appId('android')])
     execute(['adb', '-s', devices[0], 'shell', 'monkey', '-p', appId('android'), '-c', 'android.intent.category.LAUNCHER', '1'])
-    console.log(`WildLoop is open on Android device ${devices[0]}.`)
+    console.log(`Wildloop is open on Android device ${devices[0]}.`)
   }
   else {
     stopAndroidHomeLauncher(devices[0])
@@ -436,13 +436,13 @@ function runIos(preview: boolean, signedInURL: string | null): void {
   const derivedData = process.env.RUNNER_TEMP
     ? join(process.env.RUNNER_TEMP, 'wildloop-ios-derived-data')
     : join(resultsRoot, 'derived-data/ios')
-  const project = join(generatedRoot, 'ios/WildLoop.xcodeproj')
-  requirePath(project, 'generated WildLoop Xcode project')
+  const project = join(generatedRoot, 'ios/Wildloop.xcodeproj')
+  requirePath(project, 'generated Wildloop Xcode project')
   mkdirSync(derivedData, { recursive: true })
   execute([
     'xcodebuild',
     '-project', project,
-    '-scheme', 'WildLoop',
+    '-scheme', 'Wildloop',
     '-destination', `platform=iOS Simulator,id=${device.udid}`,
     '-derivedDataPath', derivedData,
     '-configuration', 'Debug',
@@ -456,7 +456,7 @@ function runIos(preview: boolean, signedInURL: string | null): void {
   ])
 
   const app = process.env.MOBILE_E2E_APP
-    ?? join(derivedData, 'Build/Products/Debug-iphonesimulator/WildLoop.app')
+    ?? join(derivedData, 'Build/Products/Debug-iphonesimulator/Wildloop.app')
   requirePath(app, 'iOS E2E app')
   validateIosAppBundle(app)
   execute(['xcrun', 'simctl', 'install', device.udid, app])
@@ -465,7 +465,7 @@ function runIos(preview: boolean, signedInURL: string | null): void {
     execute(['open', '-a', 'Simulator'])
     execute(['xcrun', 'simctl', 'launch', '--terminate-running-process', device.udid, appId('ios')])
     const server = JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8')).devServerURL
-    console.log(`WildLoop is open in Simulator on ${device.name}, ${server ? `loading ${server}` : 'running its bundled copy'}.`)
+    console.log(`Wildloop is open in Simulator on ${device.name}, ${server ? `loading ${server}` : 'running its bundled copy'}.`)
   }
   else {
     seedTestLocation('ios', device.udid)

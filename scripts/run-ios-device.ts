@@ -192,10 +192,10 @@ function generateProject(xcode: string, teamId: string, bundled: boolean, server
 
 export function requiredIosAppPaths(app: string, includeWatchApp = watchAppEnabled): string[] {
   return [
-    join(app, 'WildLoop'),
+    join(app, 'Wildloop'),
     join(app, 'dist/index.html'),
-    join(app, 'PlugIns/WildLoopLiveActivity.appex'),
-    ...(includeWatchApp ? [join(app, 'Watch/WildLoopWatch.app')] : []),
+    join(app, 'PlugIns/WildloopLiveActivity.appex'),
+    ...(includeWatchApp ? [join(app, 'Watch/WildloopWatch.app')] : []),
   ]
 }
 
@@ -207,7 +207,7 @@ function validateApp(app: string, xcode: string, signed: boolean): void {
 
   assertDeviceServer(JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8')))
 
-  const architecture = execute(['file', join(app, 'WildLoop')], { capture: true })
+  const architecture = execute(['file', join(app, 'Wildloop')], { capture: true })
   if (!architecture.includes('arm64')) throw new Error('Device build does not contain an arm64 executable')
   if (signed) execute(['codesign', '--verify', '--deep', '--strict', '--verbose=2', app])
   execute(['xcrun', 'plutil', '-lint', join(app, 'Info.plist')], { env: { DEVELOPER_DIR: xcode } })
@@ -218,7 +218,7 @@ function buildForDevice(xcode: string, teamId: string, phone: IosPhone | null, u
   const configuration = process.env.IOS_CONFIGURATION ?? 'Release'
   const destination = phone ? `platform=iOS,id=${phone.udid}` : 'generic/platform=iOS'
   const args = [
-    'xcodebuild', '-project', join(generatedRoot, 'WildLoop.xcodeproj'), '-scheme', 'WildLoop',
+    'xcodebuild', '-project', join(generatedRoot, 'Wildloop.xcodeproj'), '-scheme', 'Wildloop',
     '-configuration', configuration, '-destination', destination, '-derivedDataPath', runtimeRoot,
   ]
   if (unsigned) args.push('CODE_SIGNING_ALLOWED=NO')
@@ -240,7 +240,7 @@ function buildForDevice(xcode: string, teamId: string, phone: IosPhone | null, u
     throw error
   }
 
-  const app = join(runtimeRoot, `Build/Products/${configuration}-iphoneos/WildLoop.app`)
+  const app = join(runtimeRoot, `Build/Products/${configuration}-iphoneos/Wildloop.app`)
   if (!existsSync(app)) throw new Error(`Xcode did not produce ${app}`)
   validateApp(app, xcode, !unsigned)
   return app
@@ -249,7 +249,7 @@ function buildForDevice(xcode: string, teamId: string, phone: IosPhone | null, u
 function installAndLaunch(app: string, phone: IosPhone, xcode: string): void {
   execute(['xcrun', 'devicectl', 'device', 'install', 'app', '--device', phone.coreDeviceId, app], { env: { DEVELOPER_DIR: xcode } })
   execute(['xcrun', 'devicectl', 'device', 'process', 'launch', '--device', phone.coreDeviceId, '--terminate-existing', bundleId], { env: { DEVELOPER_DIR: xcode } })
-  console.log(`WildLoop is installed and open on ${phone.name} (${phone.udid}).`)
+  console.log(`Wildloop is installed and open on ${phone.name} (${phone.udid}).`)
   console.log('Open wildloop://record from Safari to verify native deep-link delivery.')
 }
 
