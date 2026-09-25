@@ -17,11 +17,22 @@ const CACHE_TTL_MS = 60_000
 interface CoverageStats {
   total: number
   countries: Array<{ code: string, count: number }>
-  states: Array<{ code: string, name: string, country: string, count: number }>
+  /**
+   * `lat`/`lng` is the middle of the region's trails, not of its borders:
+   * what the Region list sorts by when it knows where the visitor is, so the
+   * regions nearest them come first rather than the biggest.
+   */
+  states: Array<{ code: string, name: string, country: string, count: number, lat: number | null, lng: number | null }>
   sources: Array<{ source: string, count: number }>
 }
 
 let cache: { at: number, value: CoverageStats } | null = null
+
+/** Three places is about 100 m — plenty for ordering regions by distance. */
+function roundCoordinate(value: unknown): number | null {
+  const number = Number(value)
+  return value === null || value === undefined || !Number.isFinite(number) ? null : Math.round(number * 1000) / 1000
+}
 
 export default new Action({
   name: 'Trail Stats',
@@ -36,12 +47,13 @@ export default new Action({
       // Grouped by country as well as region: region codes are only unique
       // within a country, so `BE` alone is both Berlin and canton Bern.
       const stateRows = await db.sql`
-        SELECT state AS code, state_name AS name, country, COUNT(*) AS count
+        SELECT state AS code, state_name AS name, country, COUNT(*) AS count,
+          AVG(latitude) AS lat, AVG(longitude) AS lng
         FROM trails
         WHERE state IS NOT NULL AND state != ''
         GROUP BY country, state, state_name
         ORDER BY count DESC
-      `.execute() as Array<{ code: string, name: string, country: string, count: number }>
+      `.execute() as Array<{ code: string, name: string, country: string, count: number, lat: number | null, lng: number | null }>
 
       const countryRows = await db.sql`
         SELECT country AS code, COUNT(*) AS count
@@ -63,6 +75,8 @@ export default new Action({
         name: row.name || row.code,
         country: row.country || 'US',
         count: Number(row.count),
+        lat: roundCoordinate(row.lat),
+        lng: roundCoordinate(row.lng),
       }))
 
       const value: CoverageStats = {

@@ -45,6 +45,8 @@ export default new Action({
               elevation: t.elevation,
               rating: t.rating,
               reviewCount: t.review_count ?? 0,
+              // The card's thumbnail, the same cover the catalog shows.
+              image: t.image ?? null,
             },
           }
         })
