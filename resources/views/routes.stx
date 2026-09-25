@@ -221,7 +221,9 @@
 
   async function mountBuilder(): Promise<void> {
     const maps = await ensureTsMaps() as any
-    builderMap = await createTrailMap('route-builder-map', { chrome: 'compact', zoom: 4 })
+    // A drawing surface, not a map in an article: one finger pans it and
+    // drags the route, and the page scrolls from outside it.
+    builderMap = await createTrailMap('route-builder-map', { chrome: 'compact', zoom: 4, cooperativeGestures: false })
     if (!builderMap)
       return
     builder = new maps.services.RouteBuilder({ router: await currentRouter() }) as RouteBuilderType
@@ -477,7 +479,7 @@
   <!-- How to reshape it, once there is a line to reshape. -->
   <ul :if="hasRoute()" class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400" aria-label="Editing the route">
     <li class="inline-flex items-center gap-1.5"><i class="i-lucide-move h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Drag a point to move it</li>
-    <li class="inline-flex items-center gap-1.5"><i class="i-lucide-spline h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Drag the line or a <span class="font-bold text-emerald-600">+</span> to go through somewhere new</li>
+    <li class="inline-flex items-center gap-1.5"><i class="i-lucide-spline h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Hold and drag the line, or drag a <span class="font-bold text-emerald-600">+</span>, to go through somewhere new</li>
     <li class="inline-flex items-center gap-1.5"><i class="i-lucide-circle-x h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Tap a point to remove it</li>
   </ul>
 

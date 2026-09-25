@@ -266,3 +266,83 @@ test('a link with stops draws the route through them, ready to save', async ({ p
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(page.getByText(/\d+\.\d+ mi/).first()).toBeVisible()
 })
+
+test.describe('on a phone, with one finger', () => {
+  test.use({ hasTouch: true, isMobile: true })
+
+  type Pt = { x: number, y: number }
+
+  /** The editor's state, and where things are on screen. */
+  async function editorState(page: Page) {
+    return page.evaluate(() => {
+      const map = (document.getElementById('route-builder-map') as any)._tsMap
+      const editor: any = Object.values(map._layers).find((l: any) => l._builder)
+      const rect = map.getContainer().getBoundingClientRect()
+      const screen = (p: any) => {
+        const c = map.latLngToContainerPoint(p)
+        return { x: c.x + rect.left, y: c.y + rect.top }
+      }
+      const w = editor._builder.waypoints
+      // A quarter of the way along the first leg: on the line, clear of its handles.
+      const onLine = screen({ lat: w[0].lat + (w[1].lat - w[0].lat) / 4, lng: w[0].lng + (w[1].lng - w[0].lng) / 4 })
+      return { count: w.length, center: map.getCenter(), via: screen(w[1]), onLine, empty: { x: rect.left + 30, y: rect.bottom - 120 } }
+    })
+  }
+
+  /** A real touch drag, through the browser's own input pipeline (touch-action and all). */
+  async function fingerDrag(page: Page, from: Pt, to: Pt, holdMs = 0) {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
+    if (holdMs)
+      await page.waitForTimeout(holdMs)
+    for (let i = 1; i <= 10; i++)
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + (to.x - from.x) * i / 10, y: from.y + (to.y - from.y) * i / 10 }] })
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await cdp.detach()
+  }
+
+  test('pan the map, drag a point, pull the line, and tap to add and remove', async ({ page }, testInfo) => {
+    const stops = '32.7314,-117.1496|32.7093,-117.1707|32.7494,-117.2527'
+    await page.goto(`${origin}/routes?via=${encodeURIComponent(stops)}&mode=straight`)
+    await expect(page.getByText('Drawn through every stop.', { exact: false })).toBeVisible()
+    await page.locator('#route-builder-map').scrollIntoViewIfNeeded()
+    // Let the fit to the route finish: a drag during a zoom animation is ignored.
+    await page.waitForFunction(() => !document.querySelector('#route-builder-map .tsmap-zoom-anim'))
+    await page.waitForTimeout(500)
+    const scrollY = await page.evaluate(() => window.scrollY)
+    let state = await editorState(page)
+    expect(state.count).toBe(3)
+
+    // A swipe on the map pans it — it does not scroll the page past it.
+    await fingerDrag(page, state.empty, { x: state.empty.x + 80, y: state.empty.y - 60 })
+    await expect.poll(async () => (await editorState(page)).center.lng).not.toBeCloseTo(state.center.lng, 6)
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
+
+    // A swipe that starts on the line pans too: nothing is added.
+    state = await editorState(page)
+    await fingerDrag(page, state.onLine, { x: state.onLine.x - 60, y: state.onLine.y + 40 })
+    await expect.poll(async () => (await editorState(page)).center.lng).not.toBeCloseTo(state.center.lng, 6)
+    expect((await editorState(page)).count).toBe(3)
+
+    // Drag a point with one finger: it moves, still three points.
+    state = await editorState(page)
+    await fingerDrag(page, state.via, { x: state.via.x + 50, y: state.via.y + 40 })
+    await expect.poll(async () => (await editorState(page)).via.x).toBeCloseTo(state.via.x + 50, -1)
+    expect((await editorState(page)).count).toBe(3)
+
+    // Rest a finger on the line, then drag: the route goes through a new point.
+    state = await editorState(page)
+    await fingerDrag(page, state.onLine, { x: state.onLine.x + 40, y: state.onLine.y + 50 }, 500)
+    await expect.poll(async () => (await editorState(page)).count).toBe(4)
+    await page.locator('#route-builder-map').screenshot({ path: testInfo.outputPath('one-finger-route.png') })
+
+    // Tap the new point to remove it; tap the map to add one at the end.
+    state = await editorState(page)
+    await page.touchscreen.tap(state.via.x, state.via.y)
+    await expect.poll(async () => (await editorState(page)).count).toBe(3)
+    // Straight after: two quick taps far apart are two taps, not a double-tap zoom.
+    state = await editorState(page)
+    await page.touchscreen.tap(state.empty.x, state.empty.y)
+    await expect.poll(async () => (await editorState(page)).count).toBe(4)
+  })
+})

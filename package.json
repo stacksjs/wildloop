@@ -15,7 +15,7 @@
     "bun-query-builder": "0.2.70",
     "stacks": "^0.74.70",
     "ts-health": "^0.1.0",
-    "ts-maps": "^0.3.13",
+    "ts-maps": "^0.3.14",
     "ts-qr-codes": "^0.1.8",
     "ts-web-scraper": "^0.1.10"
   },
