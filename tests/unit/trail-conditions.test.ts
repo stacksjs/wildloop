@@ -24,6 +24,26 @@ describe('trail conditions', () => {
     expect(reports.map(r => [r.id, r.by])).toEqual([['good', 'Ana'], ['icy', 'Ben']])
     expect(reports[1].note).toBe('Ice at the top.')
   })
+
+  // The regression: one review per person per trail, so somebody who walked
+  // this trail in June edits that review to warn about today's flooding. The
+  // page read `created_at` and filed the warning as three months old.
+  it('dates a report by when the condition was seen, not when the review was written', () => {
+    const reports = conditionReports([
+      { conditions: 'flooded', userName: 'Ana', created_at: daysAgo(96), conditionsReportedAt: daysAgo(0), text: 'The creek crossing is waist deep.' },
+    ], NOW)
+    expect(reports).toHaveLength(1)
+    expect(reports[0].at).toBe(daysAgo(0))
+    expect(activeDanger(reports, NOW)?.id).toBe('flooded')
+  })
+
+  it('reads the report time from the API row or the store seed', () => {
+    const reports = conditionReports([
+      { conditions: 'icy', userName: 'Ana', created_at: daysAgo(90), conditions_reported_at: daysAgo(2) },
+      { conditions: 'muddy', userName: 'Ben', created_at: daysAgo(1) },
+    ], NOW)
+    expect(reports.map(r => r.id)).toEqual(['muddy', 'icy'])
+  })
 })
 
 describe('activeDanger', () => {

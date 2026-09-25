@@ -43,7 +43,7 @@ export function conditionOption(id: string | null | undefined): ConditionOption 
 export interface ConditionReport extends ConditionOption {
   /** Who reported it. */
   by: string
-  /** When: the visit date if given, else when the review was written. */
+  /** When the condition was seen. */
   at: string
   /** What they wrote alongside it. */
   note: string
@@ -52,6 +52,9 @@ export interface ConditionReport extends ConditionOption {
 interface ReviewLike {
   conditions?: string | null
   userName?: string | null
+  /** When this condition was seen, decided at write time by the API. */
+  conditionsReportedAt?: string | null
+  conditions_reported_at?: string | null
   visitDate?: string | null
   visit_date?: string | null
   createdAt?: string | null
@@ -77,7 +80,10 @@ export function conditionReports(reviews: ReviewLike[], now: number = Date.now()
     const option = conditionOption(review.conditions)
     if (!option)
       continue
-    const at = review.visitDate || review.visit_date || review.createdAt || review.created_at || ''
+    // The report time the API settled, else the review's own dates for seed
+    // rows and for reviews written before the column existed.
+    const at = review.conditionsReportedAt || review.conditions_reported_at
+      || review.visitDate || review.visit_date || review.createdAt || review.created_at || ''
     const t = timeOf(at)
     if (!t || now - t > maxAgeDays * DAY_MS)
       continue

@@ -65,6 +65,9 @@ export default new Action({
         photos: r.photos ?? null,
         visitDate: r.visit_date,
         createdAt: r.created_at,
+        // When the condition was seen, which is not when the review was
+        // written: a months-old review can report today's flooding.
+        conditionsReportedAt: r.conditions_reported_at ?? null,
       }))
 
       // Generous default - the reviews tab renders the full set, no load-more

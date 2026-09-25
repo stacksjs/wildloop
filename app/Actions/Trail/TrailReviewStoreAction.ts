@@ -14,6 +14,7 @@ import { db } from '@stacksjs/orm'
 import { isReviewDifficulty, REVIEW_DIFFICULTIES } from '../../Support/reviewDifficulty'
 import { trailPhotoUrl } from '../../Support/trailPhotoPayload'
 import { invalidateTrailReviews } from '../../Support/reviewCache'
+import { conditionReportedAt, VISIT_DATE_MESSAGE, visitDateProblem } from '../../Support/reviewConditions'
 
 import { TRAIL_CONDITION_IDS } from '../../../resources/functions/trail-conditions'
 import { avatarOf } from '../../Support/avatars'
@@ -60,6 +61,11 @@ export default new Action({
       fields.conditions = `must be one of: ${REVIEW_CONDITIONS.join(', ')}`
     if (difficulty !== null && !isReviewDifficulty(difficulty))
       fields.difficulty = `must be one of: ${REVIEW_DIFFICULTIES.join(', ')}`
+    // A visit date decides when a condition was seen, so an unchecked one is
+    // not a cosmetic field: a date in the future outranks every real report,
+    // keeping a hazard on the page or clearing one that is still there.
+    if (visitDate !== null && visitDateProblem(visitDate))
+      fields.visit_date = VISIT_DATE_MESSAGE
     if (photoIds !== undefined && photoIds !== null
       && (!Array.isArray(photoIds) || photoIds.length > MAX_REVIEW_PHOTOS || photoIds.some(id => typeof id !== 'string' || !PHOTO_ID.test(id))))
       fields.photo_ids = `must be a list of up to ${MAX_REVIEW_PHOTOS} photo ids`
@@ -90,6 +96,7 @@ export default new Action({
         photos = ids.length ? JSON.stringify(ids.map(id => trailPhotoUrl(trailId, id))) : null
       }
 
+      const now = new Date().toISOString()
       const fields: Record<string, unknown> = {
         rating,
         title,
@@ -101,6 +108,14 @@ export default new Action({
       if (photos !== undefined)
         fields.photos = photos
 
+      /** When the condition being saved was seen — see reviewConditions.ts. */
+      const reportedAt = (previous: any): string | null => conditionReportedAt(
+        previous ? { conditions: previous.conditions ?? null, conditionsReportedAt: previous.conditions_reported_at ?? null } : null,
+        conditions,
+        visitDate,
+        now,
+      )
+
       let reviewId: number
       let updated = false
       const existing = await Review
@@ -108,7 +123,7 @@ export default new Action({
         .where('trail_id', '=', trailId)
         .first()
       if (existing) {
-        await Review.forceUpdate(existing.id, fields)
+        await Review.forceUpdate(existing.id, { ...fields, conditions_reported_at: reportedAt(existing) })
         reviewId = existing.id
         updated = true
       }
@@ -119,6 +134,7 @@ export default new Action({
             trail_id: trailId,
             photos: null,
             ...fields,
+            conditions_reported_at: reportedAt(null),
             helpful_count: 0,
           })
           reviewId = created.id
@@ -134,7 +150,7 @@ export default new Action({
             .first()
           if (!winner)
             throw err
-          await Review.forceUpdate(winner.id, fields)
+          await Review.forceUpdate(winner.id, { ...fields, conditions_reported_at: reportedAt(winner) })
           reviewId = winner.id
           updated = true
         }
@@ -169,6 +185,7 @@ export default new Action({
           difficulty,
           photos: photos ?? (existing?.photos ?? null),
           visitDate,
+          conditionsReportedAt: reportedAt(existing ?? null),
         },
         trail: { id: trailId, rating: avgRating, reviewCount },
       }, updated ? 200 : 201)

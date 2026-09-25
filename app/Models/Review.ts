@@ -126,6 +126,20 @@ export default defineModel({
       factory: (faker): string => faker.helpers.arrayElement([...conditions]),
     },
 
+    // When the condition above was seen, which is not when the review was
+    // written: one review per person per trail means a months-old review is
+    // the thing edited to report today's flooding. app/Support/reviewConditions.ts
+    // decides it; the trail page reads its alert from it.
+    conditions_reported_at: {
+      order: 5,
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.string(),
+      },
+      factory: (faker) => faker.date.recent({ days: 90 }).toISOString(),
+    },
+
     helpful_count: {
       order: 6,
       fillable: true,
