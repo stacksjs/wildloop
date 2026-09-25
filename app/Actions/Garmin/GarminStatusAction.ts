@@ -9,7 +9,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import garminConfig from '../../../config/garmin'
-import { isConfigured } from './garmin'
+import { isConfigured } from '../../Support/garminConnect'
 
 export default new Action({
   name: 'Garmin Status',

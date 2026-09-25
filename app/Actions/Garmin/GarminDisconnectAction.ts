@@ -11,7 +11,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import garminConfig from '../../../config/garmin'
-import { createGarminClient } from './garmin'
+import { createGarminClient } from '../../Support/garminConnect'
 
 export default new Action({
   name: 'Garmin Disconnect',

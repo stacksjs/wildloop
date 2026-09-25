@@ -1,7 +1,7 @@
 import integrations from '../../../config/integrations'
 import garmin from '../../../config/garmin'
 import { integrationProviderStatuses } from '../../Support/integrationAdapters'
-import { isConfigured as garminIsConfigured } from '../Garmin/garmin'
+import { isConfigured as garminIsConfigured } from '../../Support/garminConnect'
 
 export default new Action({
   name: 'Integration Status',

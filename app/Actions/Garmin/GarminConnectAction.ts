@@ -10,7 +10,7 @@ import { Auth } from '@stacksjs/auth'
 import { randomBytes } from 'node:crypto'
 import process from 'node:process'
 import garminConfig from '../../../config/garmin'
-import { buildAuthorizeUrl, createPkcePair, isConfigured, sealOAuthState } from './garmin'
+import { buildAuthorizeUrl, createPkcePair, isConfigured, sealOAuthState } from '../../Support/garminConnect'
 
 /** Cookie carrying the in-flight attempt across the redirect to Garmin. */
 export const OAUTH_COOKIE = 'garmin_oauth'

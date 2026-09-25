@@ -14,7 +14,7 @@
 
 import garminConfig from '../../../config/garmin'
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
-import { evaluateImportedAthletes, extractDisconnects, extractSummaries, isAuthenticWebhook, mapActivity } from './garmin'
+import { evaluateImportedAthletes, extractDisconnects, extractSummaries, isAuthenticWebhook, mapActivity } from '../../Support/garminConnect'
 
 export default new Action({
   name: 'Garmin Webhook',

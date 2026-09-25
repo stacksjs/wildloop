@@ -10,7 +10,7 @@
 import process from 'node:process'
 import garminConfig from '../../../config/garmin'
 import { OAUTH_COOKIE } from './GarminConnectAction'
-import { backfillWindow, createGarminClient, isConfigured, openOAuthState } from './garmin'
+import { backfillWindow, createGarminClient, isConfigured, openOAuthState } from '../../Support/garminConnect'
 
 /** Read one cookie off the request. */
 function readCookie(request: any, name: string): string | undefined {

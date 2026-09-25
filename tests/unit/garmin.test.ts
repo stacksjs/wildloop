@@ -16,7 +16,7 @@ import {
   openOAuthState,
   sealOAuthState,
   toPacePerMile,
-} from '../../app/Actions/Garmin/garmin'
+} from '../../app/Support/garminConnect'
 
 describe('toActivityType', () => {
   it('maps the Garmin types Wildloop records', () => {
