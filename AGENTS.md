@@ -53,6 +53,29 @@ Bun >= 1.3.0, SQLite >= 3.47.2, TypeScript throughout.
 | `storage/framework/` | Framework internals and defaults. Read-only reference |
 | `tests/` | Bun test suites |
 
+### `app/Actions/` holds actions, and nothing else
+
+Every file under `app/Actions/` exports a single `new Action({...})` as its
+default. That tree is the routing surface: `ls app/Actions/Event` should answer
+"what can a client do with events" in one screen, and both the framework and
+our own tests walk it expecting actions.
+
+Shared logic for a group of actions — helpers, formatters, query builders,
+payload shapers, constants — goes in `app/Support/`. Never beside the actions
+that use it, and never named after the folder it serves: `eventDistance.ts`,
+not `event-support.ts`. "Support" says where a file lives rather than what it
+is, and a file named for its neighbours becomes the junk drawer everything
+later gets dropped into.
+
+Naming in `app/Support/` is camelCase after the job: `reviewCache.ts`,
+`trailAreaPhotos.ts`, `sessionTokens.ts`.
+
+Pure logic the frontend needs too goes in `resources/functions/` instead, where
+it is auto-imported into both bundles — `trail-conditions.ts` and
+`trail-geometry.ts` are there for that reason.
+
+`tests/unit/actions-are-actions.test.ts` enforces this.
+
 ### The `app/` override model
 
 Stacks resolves files from `app/` first and falls back to
