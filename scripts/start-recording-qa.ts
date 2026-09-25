@@ -49,6 +49,24 @@ for (const [name, distance, latitude, longitude, sourceId, image] of [
   ['Signal Peak Loop', 2.9, 33.471806, -119.037228, 'nps/CHIS|SIGNAL PEAK LOOP', 'https://images.unsplash.com/photo-1476231682828-37e571bc172f?w=800&h=600&fit=crop'],
 ] as const)
   islandTrail.run(name, distance, latitude, longitude, sourceId, image)
+// A trail of its own for the condition reports, so a warning raised by that
+// suite cannot turn up in another one's catalog assertions.
+db.run(`INSERT INTO trails (name, location, state, country, distance, elevation, difficulty, latitude, longitude)
+  VALUES ('Condition Report Loop', 'Ojai, CA', 'CA', 'US', 3.1, 250, 'easy', 34.4480, -119.2429)`)
+// More than one country, so the filter row offers the Country dropdown at
+// all — it appears only past one — and so the regions inside a country are a
+// real choice. A region outside the US is ISO 3166-2 (DE-BY), which the API
+// used to ignore, quietly answering with the whole catalog.
+const alpineTrail = db.query(`INSERT INTO trails
+  (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude)
+  VALUES (?, ?, ?, ?, ?, ?, 400, 'moderate', ?, ?)`)
+for (const [name, location, state, stateName, country, distance, latitude, longitude] of [
+  ['Partnachklamm Loop', 'Garmisch-Partenkirchen, Bayern', 'DE-BY', 'Bayern', 'DE', 4.2, 47.4924, 11.1103],
+  ['Isarwinkel Ridge', 'Bad Tölz, Bayern', 'DE-BY', 'Bayern', 'DE', 8.1, 47.7608, 11.5556],
+  ['Eifel Forest Way', 'Monschau, Nordrhein-Westfalen', 'DE-NW', 'Nordrhein-Westfalen', 'DE', 11.4, 50.5556, 6.2447],
+  ['Nordkette Panorama Trail', 'Innsbruck, Tirol', 'AT-7', 'Tirol', 'AT', 6.5, 47.3126, 11.3803],
+] as const)
+  alpineTrail.run(name, location, state, stateName, country, distance, latitude, longitude)
 db.close()
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).
