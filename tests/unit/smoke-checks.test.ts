@@ -31,7 +31,7 @@ describe('status and content checks', () => {
   })
 
   it('refuses a page that is not HTML, whatever its status', () => {
-    expect(expectHtmlContaining(json({ success: true }), ['WILDLOOP'])).toContain('expected HTML')
+    expect(expectHtmlContaining(json({ success: true }), ['>Wildloop<'])).toContain('expected HTML')
   })
 })
 

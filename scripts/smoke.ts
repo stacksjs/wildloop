@@ -104,7 +104,7 @@ export const SMOKE_CHECKS: SmokeCheck[] = [
   {
     name: 'home page',
     path: () => '/',
-    verify: response => expectHtmlContaining(response, ['WILDLOOP']),
+    verify: response => expectHtmlContaining(response, ['>Wildloop<']),
   },
   {
     name: 'trail catalog API',
