@@ -52,13 +52,15 @@ export default function (cli: CLI) {
       const unknown = requested.filter(value => !known.includes(value as TrailSource))
       if (unknown.length > 0) {
         log.error(`Unknown source(s) ${unknown.join(', ')}. Available: ${known.join(', ')}`)
-        process.exit(ExitCode.FatalError)
+        process.exitCode = ExitCode.FatalError
+        return
       }
 
       const before = options.before ? new Date(options.before) : new Date()
       if (Number.isNaN(before.getTime())) {
         log.error(`--before is not a date: ${options.before}`)
-        process.exit(ExitCode.FatalError)
+        process.exitCode = ExitCode.FatalError
+        return
       }
 
       const count = await requeueShards(requested as TrailSource[], before.toISOString(), Boolean(options.dryRun))
@@ -67,7 +69,9 @@ export default function (cli: CLI) {
       if (!options.dryRun && count > 0)
         log.info(`The ingest worker picks them up next, or run: buddy trails:ingest --source ${requested.join(',')} --shards 0`)
 
+      // exitCode, not exit(): exiting straight away dropped the log lines above
+      // before they were written, so the command printed nothing at all.
       outro('Done')
-      process.exit(ExitCode.Success)
+      process.exitCode = ExitCode.Success
     })
 }
