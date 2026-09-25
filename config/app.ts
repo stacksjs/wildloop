@@ -11,7 +11,7 @@ const envVars = typeof Bun !== 'undefined' ? Bun.env : process.env
  * you have any questions, feel free to reach out via Discord or GitHub Discussions.
  */
 export default {
-  name: envVars.APP_NAME ?? 'WildLoop',
+  name: envVars.APP_NAME ?? 'Wildloop',
   description: 'Find and track trails for running and hiking, with live GPS, segments and a social feed. Every closed loop also claims territory.',
   env: envVars.APP_ENV ?? 'local',
   url: envVars.APP_URL ?? 'wildloop.localhost',

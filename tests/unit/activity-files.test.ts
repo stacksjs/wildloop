@@ -61,7 +61,7 @@ describe('portable activity files', () => {
       { lat: 37.77, lng: -122.42, time: Date.UTC(2026, 7, 12), altitude: 10, accuracy: null },
       { lat: 37.78, lng: -122.41, time: null, altitude: null, accuracy: null },
     ])
-    expect(output).toContain('creator="WildLoop"')
+    expect(output).toContain('creator="Wildloop"')
     expect(output).toContain('<trkpt lat="37.77" lon="-122.42">')
     expect(output).toContain('<name>A &lt;safe&gt; route</name>')
   })

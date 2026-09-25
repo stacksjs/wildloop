@@ -46,7 +46,7 @@ const SAVED: Record<string, Array<{ trail: string, notes: string }>> = {
     { trail: 'grte-jenny-lake-loop', notes: 'Flat and fast, ideal for a rest day.' },
     { trail: 'osm-relation-2698343', notes: 'Want to run the race course properly one year.' },
   ],
-  'WildLoop Admin': [
+  'Wildloop Admin': [
     { trail: 'romo-emerald-lake', notes: 'Sample bookmark for checking the saved list renders.' },
   ],
 }

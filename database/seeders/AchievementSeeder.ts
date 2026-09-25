@@ -58,7 +58,7 @@ const ACHIEVEMENTS: SeedAchievement[] = [
   // -- activities ----------------------------------------------------------
   {
     name: 'First Steps',
-    description: 'Log your first activity on WildLoop.',
+    description: 'Log your first activity on Wildloop.',
     icon: '👟',
     category: 'exploration',
     metric: 'activities',

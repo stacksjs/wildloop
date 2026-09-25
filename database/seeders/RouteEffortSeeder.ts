@@ -178,7 +178,7 @@ const EFFORTS: SeedEffort[] = [
   {
     route: 'osm-way-24417702',
     routeName: 'Matt Davis – Steep Ravine Loop',
-    athlete: 'WildLoop User',
+    athlete: 'Wildloop User',
     style: 'self_supported',
     category: 'nonbinary',
     status: 'verified',
@@ -269,7 +269,7 @@ const EFFORTS: SeedEffort[] = [
   {
     route: 'romo-sky-pond',
     routeName: 'Sky Pond via Glacier Gorge',
-    athlete: 'WildLoop Paid User',
+    athlete: 'Wildloop Paid User',
     style: 'unsupported',
     category: 'mens',
     status: 'dnf',
@@ -280,7 +280,7 @@ const EFFORTS: SeedEffort[] = [
   {
     route: 'mora-skyline-loop',
     routeName: 'Skyline Loop Trail',
-    athlete: 'WildLoop User',
+    athlete: 'Wildloop User',
     style: 'unsupported',
     category: 'mens',
     status: 'rejected',

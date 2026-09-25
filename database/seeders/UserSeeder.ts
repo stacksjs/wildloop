@@ -43,7 +43,7 @@ export const SEED_PASSWORD = 'wildloop-staging'
 
 const USERS: SeedUser[] = [
   {
-    name: 'WildLoop User',
+    name: 'Wildloop User',
     email: 'user@wildloop.test',
     stats: {
       total_distance: 42.2,
@@ -57,7 +57,7 @@ const USERS: SeedUser[] = [
     },
   },
   {
-    name: 'WildLoop Paid User',
+    name: 'Wildloop Paid User',
     email: 'paid@wildloop.test',
     stats: {
       total_distance: 286.4,

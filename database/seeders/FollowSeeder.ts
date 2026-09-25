@@ -26,7 +26,7 @@ const GRAPH: Record<string, string[]> = {
   'Kim Gottwald': ['Harvey Lewis', 'Chris Breuer', 'Mark Dowdle'],
   'Mark Dowdle': ['Harvey Lewis', 'Kim Gottwald'],
   'Harvey Lewis': ['Chris Breuer', 'Mark Dowdle'],
-  'WildLoop Admin': ['Chris Breuer', 'Pawel Dregan', 'Kim Gottwald', 'Mark Dowdle', 'Harvey Lewis'],
+  'Wildloop Admin': ['Chris Breuer', 'Pawel Dregan', 'Kim Gottwald', 'Mark Dowdle', 'Harvey Lewis'],
 }
 
 export default class FollowSeeder extends Seeder {

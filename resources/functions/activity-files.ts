@@ -272,7 +272,7 @@ export function importedTrackGeoJson(samples: ImportedTrackSample[]): string {
 
 export function trackToGpx(name: string, samples: ImportedTrackSample[]): string {
   const points = samples.map(sample => `      <trkpt lat="${sample.lat}" lon="${sample.lng}">${sample.altitude === null ? '' : `<ele>${sample.altitude}</ele>`}${sample.time === null ? '' : `<time>${new Date(sample.time).toISOString()}</time>`}</trkpt>`).join('\n')
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="WildLoop" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${escapeXml(name)}</name><trkseg>\n${points}\n</trkseg></trk></gpx>`
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Wildloop" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${escapeXml(name)}</name><trkseg>\n${points}\n</trkseg></trk></gpx>`
 }
 
 export function downloadGpxFile(name: string, route: Array<{ lat: number, lng: number }>): void {
