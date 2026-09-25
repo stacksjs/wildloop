@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { countOf } from '../../app/Actions/Admin/admin-overview-support'
+import { countOf } from '../../app/Support/modelCounts'
 
 describe('admin overview counts', () => {
   it('uses the database count aggregate without loading rows', async () => {

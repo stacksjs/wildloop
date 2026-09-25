@@ -3,7 +3,7 @@
 
 import { db } from '@stacksjs/orm'
 import { response } from '@stacksjs/router'
-import { sessionUserPayload } from '../../Support/sessionUser'
+import { sessionUserPayload } from './sessionUser'
 
 export async function userRow(userId: number): Promise<Record<string, any> | null> {
   const rows = await db.sql`SELECT * FROM users WHERE id = ${userId}`.execute() as any[]

@@ -13,7 +13,7 @@ import { processAvatar } from '../../Support/avatarProcessing'
 import { deleteAvatarFiles, writeAvatarFiles } from '../../Support/avatars'
 import { photoStorage, PhotoStorageNotConfiguredError } from '../../Support/photoStorage'
 import { PhotoRejectedError } from '../../Support/trailPhotoProcessing'
-import { profileResponse, userRow } from './profile-support'
+import { profileResponse, userRow } from '../../Support/profileResponse'
 
 export default new Action({
   name: 'Avatar Store',

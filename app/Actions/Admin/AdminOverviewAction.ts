@@ -12,7 +12,7 @@
 
 /** Roles allowed to see the dashboard. */
 import { Auth } from '@stacksjs/auth'
-import { countOf } from './admin-overview-support'
+import { countOf } from '../../Support/modelCounts'
 import { avatarOf } from '../../Support/avatars'
 
 const ADMIN_ROLES = ['admin']

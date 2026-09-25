@@ -6,7 +6,7 @@
 import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
 import { validateProfileInput } from '../../../resources/functions/profile-form'
-import { profileResponse } from './profile-support'
+import { profileResponse } from '../../Support/profileResponse'
 
 export default new Action({
   name: 'Profile Update',

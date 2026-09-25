@@ -8,7 +8,7 @@ import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
 import { deleteAvatarFiles } from '../../Support/avatars'
 import { photoStorage } from '../../Support/photoStorage'
-import { profileResponse, userRow } from './profile-support'
+import { profileResponse, userRow } from '../../Support/profileResponse'
 
 export default new Action({
   name: 'Avatar Destroy',
