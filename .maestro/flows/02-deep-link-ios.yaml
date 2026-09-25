@@ -12,8 +12,14 @@ tags:
       visible: "^Open$"
     commands:
       - tapOn: "^Open$"
+# The record control itself, not the copy around it. This waited on the page's
+# subtitle, "Close a loop and the ground inside it is yours." — which 62d6dd93
+# replaced with the run's own settings when it moved setup into a modal, and
+# every one of these journeys has failed on the missing line since. The button
+# is what the screen is for: it carries a stable accessibility label, it is on
+# screen without scrolling, and it cannot be reworded by a copy change.
 - extendedWaitUntil:
-    visible: "Close a loop.*"
+    visible: "^Start recording$"
     timeout: 30000
 # Landing on Record must not ask for location; starting a recording does.
 - assertNotVisible: "would like to use your current location"

@@ -56,8 +56,14 @@ tags:
     commands:
       - tapOn: "Don’t Allow"
 - tapOn: "^Record$"
+# The record control itself, not the copy around it. This waited on the page's
+# subtitle, "Close a loop and the ground inside it is yours." — which 62d6dd93
+# replaced with the run's own settings when it moved setup into a modal, and
+# every one of these journeys has failed on the missing line since. The button
+# is what the screen is for: it carries a stable accessibility label, it is on
+# screen without scrolling, and it cannot be reworded by a copy change.
 - extendedWaitUntil:
-    visible: "Close a loop.*"
+    visible: "^Start recording$"
     timeout: 30000
 - scrollUntilVisible:
     element:
@@ -115,7 +121,11 @@ tags:
     visible: Pause recording
     timeout: 30000
 - tapOn: Finish recording
+# Back to idle. The hint under the button reads "Tap to start GPS capture" in
+# the source and TAP TO START GPS CAPTURE on the device, because the style
+# uppercases it and iOS reports what it drew — and Maestro matches case. The
+# button's own label is not restyled, so match that instead.
 - extendedWaitUntil:
-    visible: Tap to start GPS capture
+    visible: "^Start recording$"
     timeout: 30000
 - takeScreenshot: signed-in-recording-finished
