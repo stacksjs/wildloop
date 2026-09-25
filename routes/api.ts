@@ -397,10 +397,10 @@ route.group({ prefix: '/shipping' }, () => {
 // Sitemaps, including the trail catalog the framework's route-derived
 // /sitemap.xml cannot know about. Under /api because that is the prefix the
 // frontend proxies here; robots.txt points at it and allows the path.
-route.get('/sitemap.xml', async () => (await import('../app/Actions/Seo/SitemapAction')).sitemapIndex())
-route.get('/sitemap-pages.xml', async () => (await import('../app/Actions/Seo/SitemapAction')).sitemapPages())
+route.get('/sitemap.xml', async () => (await import('../app/Support/sitemap')).sitemapIndex())
+route.get('/sitemap-pages.xml', async () => (await import('../app/Support/sitemap')).sitemapPages())
 route.get('/sitemap-trails-{page}.xml', async (request: any) => {
-  const { sitemapTrails, trailSitemapPage } = await import('../app/Actions/Seo/SitemapAction')
+  const { sitemapTrails, trailSitemapPage } = await import('../app/Support/sitemap')
   // This pattern also catches every other unmatched single-segment /api path.
   const page = trailSitemapPage(new URL(request?.url ?? '/', 'http://localhost').pathname)
   return page === null
