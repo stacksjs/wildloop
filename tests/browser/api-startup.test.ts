@@ -8,8 +8,8 @@
  * it needs neither Chromium nor a DOM. `scripts/start-recording-qa.ts` boots
  * both servers against a throwaway SQLite database, never the developer's.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { API, DASHBOARD, csrfToken, READY_TIMEOUT_MS, startQaServers, stopQaServers } from './qa-servers'
+import { beforeAll, describe, expect, it } from 'bun:test'
+import { API, DASHBOARD, csrfToken, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
 
 // These boot the isolated QA app, so the ordinary `bun test` run skips them.
 // CI runs them in the browser job, where the servers belong: RECORDING_QA=1.
@@ -23,9 +23,6 @@ beforeAll(async () => {
   await startQaServers()
 }, READY_TIMEOUT_MS + 10_000)
 
-afterAll(() => {
-  stopQaServers()
-})
 
 for (const [name, base] of [['API', API], ['dashboard', DASHBOARD]] as const) {
   describe.skipIf(!qa)(`${name} startup`, () => {

@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test'
 
 test('a trail page labels an island-area photo instead of passing it off as the trail', async ({ page, request }) => {
   const result = await request.get('http://127.0.0.1:4321/api/trails', {
-    params: { country: 'all', limit: '10' },
+    params: { country: 'all', limit: '50' },
   })
   expect(result.status()).toBe(200)
   const body = await result.json()

@@ -8,8 +8,8 @@
  * rendered on the client, so it exists only after hydration in a real
  * browser — it is not in the HTML the server sends.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { API, READY_TIMEOUT_MS, startQaServers, stopQaServers } from './qa-servers'
+import { beforeAll, describe, expect, it } from 'bun:test'
+import { API, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
 
 // These boot the isolated QA app, so the ordinary `bun test` run skips them.
 // CI runs them in the browser job, where the servers belong: RECORDING_QA=1.
@@ -40,14 +40,11 @@ beforeAll(async () => {
   if (!qa)
     return
   await startQaServers()
-  const result = await fetch(`${API}/trails?country=all&limit=10`)
+  const result = await fetch(`${API}/trails?country=all&limit=50`)
   expect(result.status, await result.clone().text()).toBe(200)
   trails = (await result.json()).trails
 }, READY_TIMEOUT_MS + 10_000)
 
-afterAll(() => {
-  stopQaServers()
-})
 
 describe.skipIf(!qa)('area photos', () => {
   it('attributes an island photo on every Santa Barbara Island trail', () => {
