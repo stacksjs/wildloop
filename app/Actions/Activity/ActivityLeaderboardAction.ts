@@ -1,4 +1,5 @@
 import { Auth } from '@stacksjs/auth'
+import { avatarOf } from '../../Support/avatars'
 
 const PERIOD_DAYS: Record<string, number | null> = { weekly: 7, monthly: 30, alltime: null }
 const METRICS = ['distance', 'elevation', 'activities']
@@ -50,6 +51,7 @@ export default new Action({
     }
     const users = totals.size ? await User.whereIn('id', [...totals.keys()]).get() : []
     const names = new Map(users.map((user: any) => [user.id, user.name]))
+    const avatars = new Map(users.map((user: any) => [user.id, avatarOf(user)]))
     const sortValue = (entry: any) => metric === 'elevation'
       ? entry.totalElevation
       : metric === 'activities' ? entry.trailsCompleted : entry.totalDistance
@@ -57,6 +59,7 @@ export default new Action({
       .map(([userId, total]) => ({
         userId,
         userName: names.get(userId) ?? 'Athlete',
+        userAvatar: avatars.get(userId) ?? null,
         totalDistance: Number(total.totalDistance.toFixed(2)),
         totalElevation: Math.round(total.totalElevation),
         trailsCompleted: total.activities,

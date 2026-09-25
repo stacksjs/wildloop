@@ -5,6 +5,7 @@
 
 import { Auth } from '@stacksjs/auth'
 import { log } from '@stacksjs/logging'
+import { profileFields } from '../../Support/avatars'
 
 export default new Action({
   name: 'RegisterAction',
@@ -60,6 +61,8 @@ export default new Action({
           id: user?.id,
           email: user?.email,
           name: user?.name,
+          // A new account has no photo yet, but the shape matches /api/me.
+          ...profileFields(user),
         },
       })
     }

@@ -91,11 +91,11 @@ export function photoProcessingPeak(): number {
   return peak
 }
 
-async function processNow(bytes: Uint8Array): Promise<ProcessedPhoto> {
+async function tracked<T>(work: () => Promise<T>): Promise<T> {
   active++
   peak = Math.max(peak, active)
   try {
-    return await processOne(bytes)
+    return await work()
   }
   finally {
     active--
@@ -127,9 +127,18 @@ async function processOne(bytes: Uint8Array): Promise<ProcessedPhoto> {
 
 let queue: Promise<unknown> = Promise.resolve()
 
-/** Process one upload. Calls made together run one after another. */
-export function processTrailPhoto(bytes: Uint8Array): Promise<ProcessedPhoto> {
-  const run = queue.then(() => processNow(bytes))
+/**
+ * Run one piece of image work after whatever is already running. Shared by
+ * every kind of upload (trail photos, avatars), so the one-at-a-time memory
+ * ceiling holds across all of them.
+ */
+export function queuePhotoWork<T>(work: () => Promise<T>): Promise<T> {
+  const run = queue.then(() => tracked(work))
   queue = run.catch(() => undefined)
   return run
+}
+
+/** Process one upload. Calls made together run one after another. */
+export function processTrailPhoto(bytes: Uint8Array): Promise<ProcessedPhoto> {
+  return queuePhotoWork(() => processOne(bytes))
 }

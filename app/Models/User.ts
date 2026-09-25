@@ -64,6 +64,43 @@ export default defineModel({
         },
       },
     },
+
+    // The profile photo, as the URL it is served from (see
+    // app/Support/avatars.ts). Written by the avatar endpoints and the
+    // AvatarSeeder, which process the image first; nullable, since most
+    // accounts have none and show their initial instead.
+    avatar: {
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.string().max(2048),
+        message: {
+          max: 'Avatar URL is too long',
+        },
+      },
+    },
+
+    bio: {
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.string().max(280),
+        message: {
+          max: 'Bio can be up to 280 characters',
+        },
+      },
+    },
+
+    location: {
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.string().max(80),
+        message: {
+          max: 'Location can be up to 80 characters',
+        },
+      },
+    },
   },
 
   set: {

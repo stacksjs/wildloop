@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../../resources/functions/avatars'
+import { avatarInitial, avatarTint, avatarUrl, newReviewsLabel, overflowLabel } from '../../resources/functions/avatars'
 
 describe('avatar initial', () => {
   it('is the first letter, upper case', () => {
@@ -54,5 +54,27 @@ describe('review count labels', () => {
     expect(overflowLabel(3, 3)).toBe('')
     expect(overflowLabel(2, 3)).toBe('')
     expect(overflowLabel(5000, 3)).toBe('+99')
+  })
+})
+
+describe('avatar url', () => {
+  const own = '/api/avatars/5/3f2b8c1e-9a4d-4e7f-b1c2-5d6e7f8a9b0c.jpg'
+
+  it('picks the thumbnail for lists and the full size for a profile', () => {
+    expect(avatarUrl(own)).toBe('/api/avatars/5/3f2b8c1e-9a4d-4e7f-b1c2-5d6e7f8a9b0c-thumb.jpg')
+    expect(avatarUrl({ avatar: own }, 'display')).toBe(own)
+  })
+
+  it('passes https photos and in-page previews through as they are', () => {
+    expect(avatarUrl('https://cdn.example.com/me.jpg', 'thumb')).toBe('https://cdn.example.com/me.jpg')
+    expect(avatarUrl('blob:http://localhost/1234')).toBe('blob:http://localhost/1234')
+  })
+
+  it('is empty when the initial should stand in', () => {
+    expect(avatarUrl(null)).toBe('')
+    expect(avatarUrl({ avatar: null })).toBe('')
+    expect(avatarUrl({})).toBe('')
+    expect(avatarUrl('javascript:alert(1)')).toBe('')
+    expect(avatarUrl('http://example.com/me.jpg')).toBe('')
   })
 })

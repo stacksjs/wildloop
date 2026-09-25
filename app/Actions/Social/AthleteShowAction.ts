@@ -7,6 +7,7 @@
 // (from real activities + territory_stats), social counts, and recent activities.
 
 import { Auth } from '@stacksjs/auth'
+import { profileFields } from '../../Support/avatars'
 
 export default new Action({
   name: 'Athlete Show',
@@ -63,7 +64,8 @@ export default new Action({
 
       return response.json({
         success: true,
-        user: { id: user.id, name: user.name },
+        // avatar, bio, location and joinedAt: the public half of a profile.
+        user: { id: user.id, name: user.name, ...profileFields(user) },
         stats: {
           activityCount: activities.length,
           totalDistance: Number(totalDistance.toFixed(1)),

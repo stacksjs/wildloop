@@ -16,6 +16,7 @@ interface ApiActivity {
   id: number
   userId: number
   userName: string
+  userAvatar?: string | null
   trailId: number | null
   trailName: string | null
   title: string
@@ -72,6 +73,7 @@ export async function loadActivities(wl: ActivityStoreLike): Promise<void> {
       id: a.id,
       user_id: a.userId,
       userName: a.userName || 'Unknown',
+      userAvatar: a.userAvatar ?? null,
       trail_id: a.trailId ?? null,
       trail_name: a.trailName ?? `${a.activityType} Activity`,
       title: a.title,

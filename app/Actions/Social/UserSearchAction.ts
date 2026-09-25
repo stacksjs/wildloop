@@ -9,6 +9,7 @@
 // includes enough stats to render discover cards without extra calls.
 
 import { Auth } from '@stacksjs/auth'
+import { avatarOf } from '../../Support/avatars'
 
 export default new Action({
   name: 'User Search',
@@ -47,6 +48,7 @@ export default new Action({
         .map((u: any) => ({
           id: u.id,
           name: u.name,
+          avatar: avatarOf(u),
           activityCount: activityCount.get(u.id) ?? 0,
           followerCount: followerCount.get(u.id) ?? 0,
           territoriesOwned: statsByUser.get(u.id)?.total_territories_owned ?? 0,

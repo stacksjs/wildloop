@@ -1,6 +1,7 @@
 <script client>
   import { watchScrolled } from '../composables/watchScrolled'
   import { requestRecordingExit } from '../assets/scripts/recording-navigation'
+  import { avatarUrl } from '../functions/avatars'
   const mobileOpen = state(false)
   const accountOpen = state(false)
 
@@ -19,6 +20,8 @@
   const signedIn = derived(() => account() !== null)
   const accountName = derived(() => (account()?.name || account()?.email || '').trim())
   const accountInitial = derived(() => accountName().charAt(0).toUpperCase() || '·')
+  // The account's photo when it has one; the initial stands in otherwise.
+  const accountFace = derived(() => avatarUrl(account()))
 
   // Offer the Admin link only to an admin. Presentation only: the dashboard
   // and its endpoint both re-check the role server-side, so a visitor who
@@ -73,7 +76,7 @@
                Pure CSS on purpose, so the wordmark never depends on icon
                resolution the way the rest of the UI's glyphs do. -->
           <BrandMark />
-          <span class="text-sm font-bold tracking-wide">WILDLOOP</span>
+          <span class="font-display text-base font-bold tracking-tight">Wildloop</span>
         </StxLink>
 
         <div class="hidden items-center gap-0.5 lg:flex">
@@ -158,7 +161,8 @@
               aria-haspopup="menu"
               class="flex items-center gap-2 rounded-full border border-slate-300 py-1 pl-1 pr-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              <span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white" aria-hidden="true">{{ accountInitial }}</span>
+              <Image :if="accountFace()" x-src="accountFace()" x-alt="accountName()" width="24" height="24" sizes="24px" class="h-6 w-6 rounded-full object-cover" data-testid="nav-account-photo" />
+              <span :if="!accountFace()" class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white" aria-hidden="true">{{ accountInitial }}</span>
               Account
               <i class="i-lucide-chevron-down h-3.5 w-3.5" aria-hidden="true"></i>
             </button>

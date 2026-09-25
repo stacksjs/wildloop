@@ -177,6 +177,7 @@ export interface RecordEffort {
   id: number
   userId: number
   userName?: string
+  userAvatar?: string | null
   style: RecordStyle
   category: RecordCategory
   direction: RecordDirection

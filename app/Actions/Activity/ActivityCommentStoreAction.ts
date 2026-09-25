@@ -7,6 +7,7 @@
 // is taken from the body for now (auth hardening tracked in #939).
 
 import { Auth } from '@stacksjs/auth'
+import { avatarOf } from '../../Support/avatars'
 
 export default new Action({
   name: 'Activity Comment Store',
@@ -68,6 +69,7 @@ export default new Action({
           id: comment.id,
           userId,
           userName: user?.name ?? 'Unknown',
+          userAvatar: avatarOf(user),
           // The created model does not carry every column back: `body` and
           // `created_at` arrived undefined, so a new comment showed its
           // author with no text until the page was reloaded.

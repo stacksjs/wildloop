@@ -8,6 +8,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { avatarOf } from '../../Support/avatars'
 
 export default new Action({
   name: 'Get Territories For Map',
@@ -115,6 +116,7 @@ export default new Action({
             name: t.name,
             ownerId: t.user_id,
             ownerName: owner?.name || 'Unknown',
+            ownerAvatar: avatarOf(owner),
             isOwned,
             areaSize: t.area_size,
             perimeter: t.perimeter,

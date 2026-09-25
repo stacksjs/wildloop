@@ -34,6 +34,7 @@
 <script client>
   import { useChallenges } from '../composables/useChallenges'
   import { formatTerritoryArea } from '../functions/territory-style'
+  import { avatarUrl } from '../functions/avatars'
 
   useHead({ title: 'Challenges — Wildloop' })
 
@@ -65,6 +66,10 @@
    */
   function areaText(squareMetres: number): string {
     return formatTerritoryArea(Number(squareMetres) || 0)
+  }
+
+  function photoOf(avatar: string | null | undefined): string {
+    return avatarUrl(avatar ?? null)
   }
 
   function initialOf(name: string | null | undefined): string {
@@ -118,7 +123,8 @@
           <!-- Challenger vs defender, mirrored around the VS mark. -->
           <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div class="flex min-w-0 items-center gap-3">
-              <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-orange-50 font-display font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" aria-hidden="true">{{ initialOf(challenge.challengerName) }}</div>
+              <Image :if="photoOf(challenge.challengerAvatar)" x-src="photoOf(challenge.challengerAvatar)" x-alt="challenge.challengerName" width="44" height="44" sizes="44px" loading="lazy" class="h-11 w-11 shrink-0 rounded-full object-cover" />
+              <div :if="!photoOf(challenge.challengerAvatar)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-orange-50 font-display font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" aria-hidden="true">{{ initialOf(challenge.challengerName) }}</div>
               <div class="min-w-0">
                 <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ challenge.challenger_id === currentUserId ? 'You' : challenge.challengerName }}</p>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Challenger</p>
@@ -130,7 +136,8 @@
                 <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ challenge.challenged_id === currentUserId ? 'You' : challenge.challengedName }}</p>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Defender</p>
               </div>
-              <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-50 font-display font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(challenge.challengedName) }}</div>
+              <Image :if="photoOf(challenge.challengedAvatar)" x-src="photoOf(challenge.challengedAvatar)" x-alt="challenge.challengedName" width="44" height="44" sizes="44px" loading="lazy" class="h-11 w-11 shrink-0 rounded-full object-cover" />
+              <div :if="!photoOf(challenge.challengedAvatar)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-50 font-display font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(challenge.challengedName) }}</div>
             </div>
           </div>
 

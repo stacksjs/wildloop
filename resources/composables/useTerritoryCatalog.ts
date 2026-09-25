@@ -22,6 +22,7 @@ interface MapFeature {
     name: string
     ownerId: number
     ownerName: string
+    ownerAvatar?: string | null
     areaSize: number
     conquestCount: number
     defendCount: number
@@ -113,7 +114,7 @@ export async function loadTerritories(
           id: p.ownerId,
           name: p.ownerName || 'Unknown',
           email: '',
-          avatar: null,
+          avatar: p.ownerAvatar ?? null,
           joinedAt: new Date().toISOString(),
         })
       }

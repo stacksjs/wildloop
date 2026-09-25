@@ -9,7 +9,9 @@
 
 import { Auth } from '@stacksjs/auth'
 
+import { primaryRoutePart } from '../../../resources/functions/trail-geometry'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { avatarOf } from '../../Support/avatars'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
   if (!raw)
@@ -97,31 +99,17 @@ const ROUTE_PREVIEW_POINTS = 48
 interface RoutePoint { lat: number, lng: number }
 
 /**
- * A trail's stored geometry, as `[[lat, lng], …]`.
+ * A trail's main line from its stored geometry.
  *
  * Not GeoJSON, despite the neighbouring `geoJsonToCoordinates`: the ingest
- * writes a plain array of pairs, latitude first.
+ * writes plain pairs, latitude first — `[[lat, lng], …]`, or one such array per
+ * part for a trail in several pieces. A card draws the main part only; gluing
+ * the parts together would draw a straight line between them. Malformed
+ * geometry (it is ingested from third parties) costs this one card its
+ * picture, not the whole feed its response.
  */
 function parseTrailGeometry(geometry: unknown): RoutePoint[] {
-  if (typeof geometry !== 'string' || geometry.length < 2)
-    return []
-
-  try {
-    const parsed = JSON.parse(geometry)
-    if (!Array.isArray(parsed))
-      return []
-
-    return parsed
-      .filter((point: unknown): point is [number, number] =>
-        Array.isArray(point) && point.length >= 2
-        && Number.isFinite(point[0]) && Number.isFinite(point[1]))
-      .map(point => ({ lat: point[0], lng: point[1] }))
-  }
-  catch {
-    // Geometry is ingested from third parties; a malformed row costs this one
-    // card its picture, not the whole feed its response.
-    return []
-  }
+  return primaryRoutePart(geometry).map(([lat, lng]) => ({ lat, lng }))
 }
 
 /** Thin a route to at most `max` points, keeping both ends. */
@@ -167,6 +155,7 @@ export default new Action({
       const users = userIds.length ? await User.whereIn('id', userIds).get() : []
       const trails = trailIds.length ? await Trail.whereIn('id', trailIds).get() : []
       const userName = new Map(users.map((u: any) => [u.id, u.name]))
+      const userAvatar = new Map(users.map((u: any) => [u.id, avatarOf(u)]))
       const trailName = new Map(trails.map((t: any) => [t.id, t.name]))
       const trailGeometry = new Map(trails.map((t: any) => [t.id, t.geometry]))
 
@@ -234,6 +223,7 @@ export default new Action({
           id: a.id,
           userId: a.user_id,
           userName: userName.get(a.user_id),
+          userAvatar: userAvatar.get(a.user_id) ?? null,
           trailId: a.trail_id,
           trailName: tName,
           title: titleFor(a.activity_type, tName, a.completed_at, a.notes),

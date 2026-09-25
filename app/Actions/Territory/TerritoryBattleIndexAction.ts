@@ -1,5 +1,6 @@
 import { Auth } from '@stacksjs/auth'
 import { isAnsweredContest } from '../../Support/battleRows'
+import { avatarOf } from '../../Support/avatars'
 
 const BATTLE_EVENTS = ['conquered', 'split', 'contested', 'defended']
 
@@ -83,8 +84,10 @@ export default new Action({
         territoryName: territory?.name ?? `Territory #${row.territory_id}`,
         attacker_id: attackerId ?? 0,
         attackerName: nameOf(attackerId, 'An attacker'),
+        attackerAvatar: attackerId ? avatarOf(userMap.get(attackerId)) : null,
         defender_id: defenderId ?? 0,
         defenderName: nameOf(defenderId, 'the previous owner'),
+        defenderAvatar: defenderId ? avatarOf(userMap.get(defenderId)) : null,
         status,
         areaCaptured: row.area_at_event ?? 0,
         runDistance: activity?.distance ?? 0,

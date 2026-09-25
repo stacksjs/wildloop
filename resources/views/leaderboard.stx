@@ -33,11 +33,13 @@
 
 <script client>
   import { apiFetch } from '../assets/scripts/auth'
+  import { avatarUrl } from '../functions/avatars'
   useHead({ title: 'Leaderboard — Wildloop' })
 
   interface LeaderEntry {
     userId: number
     userName: string
+    userAvatar?: string | null
     totalDistance: number
     totalElevation: number
     trailsCompleted: number
@@ -83,6 +85,10 @@
     if (!entry) return ''
     if (metric() === 'distance') return entry.totalElevation.toLocaleString() + ' ft'
     return entry.totalDistance.toFixed(1) + ' mi'
+  }
+
+  function photoOf(entry: LeaderEntry | undefined): string {
+    return avatarUrl(entry?.userAvatar ?? null)
   }
 
   function initialOf(entry: LeaderEntry | undefined): string {
@@ -168,7 +174,8 @@
       <div :if="leaders.length >= 3" class="mb-6 grid grid-cols-3 items-end gap-2 sm:gap-4">
         <StxLink x-to="'/athlete/' + leaders[1]?.userId" class="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-2 pb-4 pt-5 text-center shadow-sm transition hover:border-slate-300 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
           <div class="relative">
-            <div class="grid h-14 w-14 place-items-center rounded-full bg-slate-100 font-display text-xl font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">{{ initialOf(leaders[1]) }}</div>
+            <Image :if="photoOf(leaders[1])" x-src="photoOf(leaders[1])" x-alt="leaders[1]?.userName || 'Athlete'" width="56" height="56" sizes="56px" loading="lazy" class="h-14 w-14 shrink-0 rounded-full object-cover" />
+            <div :if="!photoOf(leaders[1])" class="grid h-14 w-14 place-items-center rounded-full bg-slate-100 font-display text-xl font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">{{ initialOf(leaders[1]) }}</div>
             <span class="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full text-xs font-bold" x-class="medalClass(2)">2</span>
           </div>
           <p class="mt-3 w-full truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leaders[1]?.userName || 'Athlete' }}</p>
@@ -178,7 +185,8 @@
         <StxLink x-to="'/athlete/' + leaders[0]?.userId" class="group relative flex flex-col items-center rounded-2xl border border-amber-300 bg-gradient-to-b from-amber-50 to-white px-2 pb-5 pt-6 text-center shadow-md transition hover:border-amber-400 active:scale-[0.98] dark:border-amber-500/40 dark:from-amber-500/10 dark:to-slate-800">
           <i class="i-lucide-crown absolute -top-3 h-6 w-6 text-amber-500" aria-hidden="true"></i>
           <div class="relative">
-            <div class="grid h-16 w-16 place-items-center rounded-full bg-amber-100 font-display text-2xl font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ initialOf(leaders[0]) }}</div>
+            <Image :if="photoOf(leaders[0])" x-src="photoOf(leaders[0])" x-alt="leaders[0]?.userName || 'Athlete'" width="64" height="64" sizes="64px" loading="lazy" class="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-amber-300" />
+            <div :if="!photoOf(leaders[0])" class="grid h-16 w-16 place-items-center rounded-full bg-amber-100 font-display text-2xl font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">{{ initialOf(leaders[0]) }}</div>
             <span class="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full text-sm font-bold" x-class="medalClass(1)">1</span>
           </div>
           <p class="mt-3 w-full truncate text-sm font-bold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leaders[0]?.userName || 'Athlete' }}</p>
@@ -187,7 +195,8 @@
 
         <StxLink x-to="'/athlete/' + leaders[2]?.userId" class="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-2 pb-4 pt-5 text-center shadow-sm transition hover:border-slate-300 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
           <div class="relative">
-            <div class="grid h-12 w-12 place-items-center rounded-full bg-orange-50 font-display text-lg font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">{{ initialOf(leaders[2]) }}</div>
+            <Image :if="photoOf(leaders[2])" x-src="photoOf(leaders[2])" x-alt="leaders[2]?.userName || 'Athlete'" width="48" height="48" sizes="48px" loading="lazy" class="h-12 w-12 shrink-0 rounded-full object-cover" />
+            <div :if="!photoOf(leaders[2])" class="grid h-12 w-12 place-items-center rounded-full bg-orange-50 font-display text-lg font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">{{ initialOf(leaders[2]) }}</div>
             <span class="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full text-xs font-bold" x-class="medalClass(3)">3</span>
           </div>
           <p class="mt-3 w-full truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leaders[2]?.userName || 'Athlete' }}</p>
@@ -202,7 +211,8 @@
           <li>
             <StxLink x-to="'/athlete/' + leader.userId" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/60">
               <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="medalClass(index + 1)">{{ index + 1 }}</span>
-              <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(leader) }}</div>
+              <Image :if="photoOf(leader)" x-src="photoOf(leader)" x-alt="leader.userName" width="40" height="40" sizes="40px" loading="lazy" class="h-10 w-10 shrink-0 rounded-full object-cover" />
+              <div :if="!photoOf(leader)" class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(leader) }}</div>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ leader.userName }}</p>
                 <p class="text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ leader.trailsCompleted === 1 ? '1 trail completed' : leader.trailsCompleted + ' trails completed' }}</p>

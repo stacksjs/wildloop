@@ -199,8 +199,9 @@
       <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
         <template :for="row in section.rows">
           <StxLink x-to="row.href" class="flex min-h-14 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 transition hover:bg-slate-50 active:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700/40 dark:active:bg-slate-700/60">
-            <span :if="row.initial" x-class="'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ' + rowTint(row)" aria-hidden="true">{{ row.initial }}</span>
-            <span :if="!row.initial" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
+            <Image :if="row.photo" x-src="row.photo" x-alt="row.label" width="36" height="36" sizes="36px" loading="lazy" class="h-9 w-9 shrink-0 rounded-full object-cover" />
+            <span :if="row.initial && !row.photo" x-class="'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ' + rowTint(row)" aria-hidden="true">{{ row.initial }}</span>
+            <span :if="!row.initial && !row.photo" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
               <i x-class="section.icon" class="h-[18px] w-[18px]"></i>
             </span>
             <span class="min-w-0 flex-1">

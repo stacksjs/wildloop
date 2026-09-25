@@ -8,6 +8,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { avatarOf } from '../../Support/avatars'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
   if (!raw)
@@ -59,13 +60,17 @@ export default new Action({
         .where('activity_id', '=', id)
         .orderBy('created_at', 'asc')
         .get()
-      const commenterIds = [...new Set((commentRows ?? []).map((c: any) => c.user_id).filter(Boolean))]
+      // The athlete is loaded with the commenters, so the header has a name
+      // and a face even when the activity is not in the browser's feed.
+      const commenterIds = [...new Set([a.user_id, ...(commentRows ?? []).map((c: any) => c.user_id)].filter(Boolean))]
       const commenters = commenterIds.length ? await User.whereIn('id', commenterIds).get() : []
       const commenterName = new Map(commenters.map((u: any) => [u.id, u.name]))
+      const commenterAvatar = new Map(commenters.map((u: any) => [u.id, avatarOf(u)]))
       const comments = (commentRows ?? []).map((c: any) => ({
         id: c.id,
         userId: c.user_id,
         userName: commenterName.get(c.user_id) ?? 'Unknown',
+        userAvatar: commenterAvatar.get(c.user_id) ?? null,
         body: c.body,
         createdAt: c.created_at,
       }))
@@ -75,6 +80,8 @@ export default new Action({
         activity: {
           id: a.id,
           userId: a.user_id,
+          userName: commenterName.get(a.user_id) ?? null,
+          userAvatar: commenterAvatar.get(a.user_id) ?? null,
           trailId: a.trail_id,
           activityType: a.activity_type,
           distance: a.distance,

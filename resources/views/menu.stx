@@ -13,6 +13,7 @@
 
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
+  import { avatarUrl } from '../functions/avatars'
 
   useHead({ title: 'Menu — Wildloop' })
 
@@ -24,6 +25,9 @@
   const wl = useStore('wl')
   const account = derived(() => (wl && wl.currentUserId() > 0 ? wl.currentUser() : null))
   const accountInitial = derived(() => (account()?.name || 'W').charAt(0).toUpperCase())
+  // Same name and value as the header's (nav.stx): on navigation stx merges
+  // the two scopes, so they must agree.
+  const accountFace = derived(() => avatarUrl(account()))
   const isAdmin = derived(() => Boolean(account()?.roles?.includes('admin')))
   const unreadCount = derived(() => (account() ? wl.unreadCount() : 0))
 
@@ -76,7 +80,8 @@
 
   <!-- Who you are, first, as Facebook's Menu opens on your profile. -->
   <StxLink :if="account" to="/profile" class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
-    <span class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-2xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10">{{ accountInitial }}</span>
+    <Image :if="accountFace()" x-src="accountFace()" x-alt="account()?.name || 'Your profile photo'" width="56" height="56" sizes="56px" class="h-14 w-14 shrink-0 rounded-full object-cover ring-4 ring-emerald-50 dark:ring-emerald-500/10" />
+    <span :if="!accountFace()" class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-2xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10">{{ accountInitial }}</span>
     <span class="min-w-0 flex-1">
       <span class="block truncate font-display text-lg font-semibold text-slate-900 dark:text-white">{{ account()?.name || 'Your profile' }}</span>
       <span class="block text-sm text-slate-500 dark:text-slate-400">See your profile</span>

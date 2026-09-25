@@ -1,8 +1,9 @@
 /**
  * Faces for people whose photo we do not have.
  *
- * Wildloop accounts carry a name and, for most of them, nothing else — so an
- * avatar is an initial in a coloured circle. The colour is derived from the
+ * Most Wildloop accounts carry a name and no photo, so their avatar is an
+ * initial in a coloured circle; `avatarUrl` answers the photo when there is
+ * one. The colour is derived from the
  * account rather than picked at random, which is what makes the same person
  * the same colour on every card they appear on, and across reloads.
  */
@@ -24,6 +25,31 @@ const AVATAR_TINTS = [
   'avatar-tint-4',
   'avatar-tint-5',
 ]
+
+/** A photo this app stores: `/api/avatars/<user id>/<uuid>.jpg`. */
+const OWN_AVATAR = /^\/api\/avatars\/[1-9]\d{0,9}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/
+
+export type AvatarVariant = 'thumb' | 'display'
+
+/**
+ * The image to show for a person, or '' when there is none and the initial
+ * should stand in.
+ *
+ * Takes the user object (anything with `avatar`) or the URL itself, which is
+ * what the flat payloads carry as `userAvatar`. `thumb` (128px) is for lists,
+ * cards and the nav; `display` (512px) for a profile header. Only the app's
+ * own avatar paths, https URLs and in-page previews (`blob:`) come back, so a
+ * stray value never ends up in an `src`.
+ */
+export function avatarUrl(subject: string | { avatar?: string | null } | null | undefined, size: AvatarVariant = 'thumb'): string {
+  const raw = typeof subject === 'string' ? subject : subject?.avatar
+  const url = String(raw ?? '').trim()
+  if (!url)
+    return ''
+  if (OWN_AVATAR.test(url))
+    return size === 'thumb' ? url.replace(/\.jpg$/, '-thumb.jpg') : url
+  return /^(?:https:\/\/|blob:)[^\s"'<>]+$/i.test(url) ? url : ''
+}
 
 /**
  * The letter on the circle.

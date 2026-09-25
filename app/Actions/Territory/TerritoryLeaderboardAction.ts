@@ -3,6 +3,8 @@
 // NOTE: the ORM is snake_case (rows + sort columns use column names). Reads and
 // orderBy fields below use snake_case; JSON output keeps camelCase for the UI.
 
+import { avatarOf } from '../../Support/avatars'
+
 export default new Action({
   name: 'Territory Leaderboard',
   description: 'Get territory leaderboard rankings',
@@ -40,7 +42,7 @@ export default new Action({
           rank: index + 1,
           userId: s.user_id,
           userName: user?.name || 'Unknown',
-          userAvatar: user?.avatar || null,
+          userAvatar: avatarOf(user),
           totalTerritoriesOwned: s.total_territories_owned || 0,
           totalAreaOwned: s.total_area_owned || 0,
           territoriesClaimed: s.territories_claimed || 0,

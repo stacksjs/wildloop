@@ -12,6 +12,7 @@
  * blocking sign-in over a dashboard affordance.
  */
 import { Auth } from '@stacksjs/auth'
+import { profileFields } from '../../Support/avatars'
 
 async function roleNamesFor(userId?: number): Promise<string[]> {
   if (!userId)
@@ -60,6 +61,9 @@ export default new Action({
           id: user?.id,
           email: user?.email,
           name: user?.name,
+          // Avatar, bio, location and join date, as /api/me answers them, so
+          // the header shows a face straight after signing in.
+          ...profileFields(user),
           // Roles ride along so the UI can decide what to offer (an Admin link
           // for an admin, nothing for everyone else) without a second request
           // on every page load. This is a HINT, never the gate: every admin

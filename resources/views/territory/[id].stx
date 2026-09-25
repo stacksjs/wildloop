@@ -8,6 +8,7 @@
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
   import { formatTerritoryArea } from '../../functions/territory-style'
+  import { avatarUrl } from '../../functions/avatars'
 
   useHead({ title: 'Territory Details - Wildloop' })
 
@@ -37,6 +38,10 @@
     return formatTerritoryArea(Number(squareMetres) || 0)
   }
 
+  function photoOf(avatar: string | null | undefined): string {
+    return avatarUrl(avatar ?? null)
+  }
+
   function initialOf(name: string | null | undefined): string {
     return String(name || '?').charAt(0).toUpperCase()
   }
@@ -48,7 +53,7 @@
     const poly = wl.territoryPolygons()[territoryId]
     if (!poly) return
     detailMap?.destroy()
-    detailMap = await createTrailMap('territory-detail-map', { scrollWheelZoom: false })
+    detailMap = await createTrailMap('territory-detail-map')
     if (!detailMap) return
     const polygon = await drawTerritoryPolygon(detailMap.map, poly, {
       color: '#059669',
@@ -148,7 +153,8 @@
             <ol :if="history.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
               <template :for="event in history">
                 <li class="flex min-h-16 items-center gap-3 px-4 py-3">
-                  <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold" x-class="event.status === 'conquered' ? 'bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'" aria-hidden="true">{{ initialOf(event.attackerName) }}</div>
+                  <Image :if="photoOf(event.attackerAvatar)" x-src="photoOf(event.attackerAvatar)" x-alt="event.attackerName" width="40" height="40" sizes="40px" loading="lazy" class="h-10 w-10 shrink-0 rounded-full object-cover" />
+                  <div :if="!photoOf(event.attackerAvatar)" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold" x-class="event.status === 'conquered' ? 'bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'" aria-hidden="true">{{ initialOf(event.attackerName) }}</div>
                   <div class="min-w-0 flex-1">
                     <p class="text-sm text-slate-900 dark:text-white">
                       <span class="font-semibold">{{ event.attackerName }}</span>
@@ -170,7 +176,8 @@
           <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <h3 class="metric-label mb-3">Current holder</h3>
             <div class="flex items-center gap-4">
-              <div class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-xl font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(owner?.name) }}</div>
+              <Image :if="photoOf(owner?.avatar)" x-src="photoOf(owner?.avatar)" x-alt="owner?.name || 'Owner'" width="56" height="56" sizes="56px" loading="lazy" class="h-14 w-14 shrink-0 rounded-full object-cover" />
+              <div :if="!photoOf(owner?.avatar)" class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-xl font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(owner?.name) }}</div>
               <div class="min-w-0">
                 <StxLink :if="owner && !isMine" x-to="'/athlete/' + owner.id" class="block truncate font-semibold text-slate-900 transition hover:text-emerald-700 dark:text-white dark:hover:text-emerald-400">{{ owner?.name }}</StxLink>
                 <p :if="isMine || !owner" class="truncate font-semibold text-slate-900 dark:text-white">{{ isMine ? 'You' : 'Unclaimed' }}</p>

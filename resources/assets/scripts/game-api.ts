@@ -214,6 +214,7 @@ export interface ActivityComment {
   id: number
   userId: number
   userName: string
+  userAvatar?: string | null
   body: string
   createdAt: string
 }

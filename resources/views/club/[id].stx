@@ -7,6 +7,7 @@
   import { deleteClub, fetchClubDetail, toggleClubMembership } from '../../assets/scripts/game-api'
   import { fetchClubInvites, inviteToClub, redeemClubInvite } from '../../assets/scripts/events-api'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { avatarUrl } from '../../functions/avatars'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
 
   useHead({ title: 'Club - Wildloop' })
@@ -142,6 +143,10 @@
     const ok = await deleteClub(clubId)
     busy.set(false)
     if (ok) navigate('/clubs')
+  }
+
+  function photoOf(avatar: string | null | undefined): string {
+    return avatarUrl(avatar ?? null)
   }
 
   function initialOf(name: string | null | undefined): string {
@@ -303,7 +308,8 @@
           <div :if="club.recentFeed.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <template :for="a in club.recentFeed">
               <StxLink x-to="'/activity/' + a.id" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40">
-                <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(a.userName) }}</div>
+                <Image :if="photoOf(a.userAvatar)" x-src="photoOf(a.userAvatar)" x-alt="a.userName" width="40" height="40" sizes="40px" loading="lazy" class="h-10 w-10 shrink-0 rounded-full object-cover" />
+                <div :if="!photoOf(a.userAvatar)" class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(a.userName) }}</div>
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ a.userName }}</p>
                   <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ a.activityType + ' · ' + wl.timeAgo(a.completedAt) }}</p>
@@ -352,7 +358,8 @@
               <template :for="m in club.members">
                 <li>
                   <StxLink x-to="'/athlete/' + m.userId" class="-mx-2 flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
-                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300" aria-hidden="true">{{ initialOf(m.name) }}</span>
+                    <Image :if="photoOf(m.avatar)" x-src="photoOf(m.avatar)" x-alt="m.name" width="32" height="32" sizes="32px" loading="lazy" class="h-8 w-8 shrink-0 rounded-full object-cover" />
+                    <span :if="!photoOf(m.avatar)" class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300" aria-hidden="true">{{ initialOf(m.name) }}</span>
                     <span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">{{ m.name }}</span>
                     <span :if="m.role !== 'member'" class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">{{ m.role }}</span>
                   </StxLink>

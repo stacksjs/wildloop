@@ -21,6 +21,7 @@ import {
   formatElapsed,
   recordPace,
 } from '../../../resources/functions/route-records'
+import { avatarOf } from '../../Support/avatars'
 
 export interface ShapedEffort extends RecordEffort {
   trailId: number
@@ -74,6 +75,7 @@ export async function shapeEfforts(rows: any[]): Promise<ShapedEffort[]> {
   const users = userIds.length ? (await User.whereIn('id', userIds).get()) ?? [] : []
   const trails = trailIds.length ? (await Trail.whereIn('id', trailIds).get()) ?? [] : []
   const names = new Map(users.map((user: any) => [user.id, user.name]))
+  const avatars = new Map(users.map((user: any) => [user.id, avatarOf(user)]))
   const trailById = new Map(trails.map((trail: any) => [trail.id, trail]))
 
   return rows.map((row) => {
@@ -84,6 +86,7 @@ export async function shapeEfforts(rows: any[]): Promise<ShapedEffort[]> {
       id: row.id,
       userId: row.user_id,
       userName: names.get(row.user_id) ?? 'Athlete',
+      userAvatar: avatars.get(row.user_id) ?? null,
       trailId: row.trail_id,
       trailName: trail?.name ?? 'Unknown route',
       trailDistance: distance,

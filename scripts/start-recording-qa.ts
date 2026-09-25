@@ -24,6 +24,10 @@ const env = {
   MAIL_MAILER: 'log',
   BUGHQ_ENABLED: 'false',
   GAZETTEER_PATH: gazetteer,
+  // Uploaded photos and avatars land in this run's own folder, never in the
+  // developer's storage/app/photos.
+  PHOTOS_DISK: 'local',
+  PHOTOS_LOCAL_ROOT: join(directory, 'photos'),
 }
 const migrate = Bun.spawn(['./buddy', 'migrate', '--no-generate'], { env, stdout: 'inherit', stderr: 'inherit' })
 if (await migrate.exited !== 0) throw new Error('Isolated recording database migration failed')

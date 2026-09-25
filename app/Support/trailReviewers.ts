@@ -15,6 +15,8 @@
  */
 
 /** How recent "recent" is. A month is one season of conditions. */
+import { avatarOf } from './avatars'
+
 export const RECENT_WINDOW_DAYS = 30
 
 /** Faces per trail. Past three the stack stops being readable at card size. */
@@ -27,12 +29,14 @@ export interface ReviewerRow {
   trail_id: number
   user_id: number | null
   name: string | null
+  avatar?: string | null
   recent_count: number
 }
 
 export interface Reviewer {
   id: number
   name: string
+  avatar: string | null
 }
 
 export interface ReviewerSummary {
@@ -89,12 +93,13 @@ export function recentReviewersSql(ids: number[], since: string): string {
   // `since` is generated above, never user input, and is quoted anyway.
   const cutoff = since.replace(/'/g, '')
   return `
-    SELECT trail_id, user_id, name, recent_count
+    SELECT trail_id, user_id, name, avatar, recent_count
     FROM (
       SELECT
         r.trail_id AS trail_id,
         r.user_id AS user_id,
         u.name AS name,
+        u.avatar AS avatar,
         COUNT(*) OVER (PARTITION BY r.trail_id) AS recent_count,
         ROW_NUMBER() OVER (PARTITION BY r.trail_id ORDER BY r.created_at DESC, r.id DESC) AS rn
       FROM trail_reviews r
@@ -127,7 +132,7 @@ export function buildReviewerSummaries(rows: ReviewerRow[]): Record<number, Revi
     const userId = Number(row.user_id)
 
     if (name && Number.isFinite(userId) && summary.reviewers.length < MAX_FACES)
-      summary.reviewers.push({ id: userId, name })
+      summary.reviewers.push({ id: userId, name, avatar: avatarOf(row) })
 
     summaries[trailId] = summary
   }

@@ -24,6 +24,9 @@
   import { fetchFollows, fetchSavedTrails } from '../assets/scripts/game-api'
   import { initializeAuthSession } from '../assets/scripts/auth'
   import { useSavedTrails } from '../composables/useSavedTrails'
+  import { routeShapeFor } from '../composables/useRouteShape'
+  import { avatarInitial, avatarTint } from '../functions/avatars'
+  import { isStockTrailPhoto } from '../functions/stock-photos'
 
   useHead({ title: 'Your Profile — Wildloop' })
 
@@ -36,6 +39,29 @@
 
   const currentUser = derived(() => wl?.currentUser())
   const userStats = derived(() => wl?.userStats())
+
+  /*
+   * The face at the top of the page. A photo when the athlete has one, and
+   * otherwise the same initial in the same tint they carry on every card in
+   * the feed — derived from the account, so it matches everywhere.
+   */
+  const avatarUrl = derived(() => {
+    const url = currentUser()?.avatar
+    return typeof url === 'string' ? url.trim() : ''
+  })
+  const initial = derived(() => avatarInitial(currentUser()?.name))
+  const tint = derived(() => avatarTint(currentUser()?.id ?? currentUser()?.name))
+  const bio = derived(() => String(currentUser()?.bio ?? '').trim())
+  const place = derived(() => String(currentUser()?.location ?? '').trim())
+
+  /** "Joined September 2025". Empty rather than "Invalid Date". */
+  const joinedLabel = derived(() => {
+    const raw = currentUser()?.joinedAt
+    const date = raw ? new Date(raw) : null
+    if (!date || Number.isNaN(date.getTime()))
+      return ''
+    return `Joined ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+  })
 
   /**
    * Wrapped rather than called from the markup directly: stx resolves template
@@ -52,7 +78,6 @@
     // it invited you to create an account.
     openAuthGate('Create an account to start recording.', 'register')
   }
-  const currentUserId = derived(() => wl?.currentUserId())
   const followingCount = derived(() => wl ? wl.following().length : 0)
   const myActivities = derived(() => wl ? wl.activities().filter((a: any) => a.user_id === wl.currentUserId()) : [])
   // From the server's list, not the trails cached on this device: a trail
@@ -63,6 +88,75 @@
   const savedTrails = derived(() => serverSaved()
     .map((row: any) => row.trail)
     .filter((t: any) => t && (!wl || wl.isTrailSaved(t.id))))
+
+  /*
+   * The numbers under the name. Distance, climb and trails are what the
+   * profile is about, so they lead; the rest follow in the same row.
+   */
+  const headlineStats = derived(() => {
+    const stats = userStats()
+    return [
+      { label: 'Miles', value: (Number(stats?.totalDistance) || 0).toFixed(1) },
+      { label: 'Elevation ft', value: Math.round(Number(stats?.totalElevation) || 0).toLocaleString() },
+      { label: 'Trails', value: String(stats?.trailsCompleted || 0) },
+      { label: 'Activities', value: String(stats?.totalActivities || myActivities().length) },
+      { label: 'Day streak', value: String(stats?.currentStreak || 0) },
+    ]
+  })
+
+  function timeAgo(value: string): string {
+    return wl ? wl.timeAgo(value) : ''
+  }
+
+  function activityIcon(type: string): string {
+    if (type === 'Hike')
+      return 'i-lucide-mountain'
+    if (type === 'Bike')
+      return 'i-lucide-bike'
+    if (type === 'Walk')
+      return 'i-lucide-footprints'
+    return 'i-lucide-activity'
+  }
+
+  function miles(value: unknown): string {
+    return `${(Number(value) || 0).toFixed(1)} mi`
+  }
+
+  function climb(value: unknown): string {
+    const feet = Math.round(Number(value) || 0)
+    return feet > 0 ? `${feet.toLocaleString()} ft` : ''
+  }
+
+  /*
+   * An activity's route as a thumbnail, drawn from the points the store
+   * already holds — no map tiles, no request. Cached per activity so a
+   * re-render does not refit every line.
+   */
+  const NO_ROUTE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const routeShapes = new Map<number, typeof NO_ROUTE>()
+
+  function activityRoute(activity: { id: number, route?: Array<[number, number]> }) {
+    const cached = routeShapes.get(activity.id)
+    if (cached)
+      return cached
+    const shape = routeShapeFor(activity.route, 100, 100, 12)
+    if (!shape)
+      return NO_ROUTE
+    routeShapes.set(activity.id, shape)
+    return shape
+  }
+
+  function topoClass(id: number): string {
+    return `wl-topo wl-topo-${Math.abs(Number(id) || 0) % 4}`
+  }
+
+  function trailPhoto(trail: any): string {
+    return typeof trail?.image === 'string' ? trail.image.trim() : ''
+  }
+
+  function trailPhotoAlt(trail: any): string {
+    return isStockTrailPhoto(trailPhoto(trail)) ? 'Illustrative landscape' : String(trail?.name ?? '')
+  }
 
   /**
    * Open the tab a link asked for.
@@ -102,7 +196,7 @@
   })
 </script>
 
-  <div class="mx-auto max-w-4xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-4xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
     <!-- Signed out.
 
          This screen used to render anyway, and `userStats` falls back to a
@@ -123,111 +217,151 @@
       </div>
     </div>
 
-    <!-- Profile header -->
-    <section :if="currentUser" class="relative mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
-      <!-- The app has no site header (native-shell.css), and the gear that
-           opened Settings lived in it: password, deletion and sign-out were
-           unreachable from the phone. The profile is where people look. -->
-      <StxLink to="/settings" aria-label="Settings" class="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-700">
-        <i class="i-lucide-settings h-5 w-5" aria-hidden="true"></i>
-      </StxLink>
-      <div class="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
-        <div class="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-4xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10" aria-hidden="true">{{ (currentUser?.name || 'U').charAt(0) }}</div>
-        <div class="min-w-0 flex-1 sm:pr-10">
-          <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ currentUser?.name || 'Athlete' }}</h1>
-          <p class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ currentUser?.email || '' }}</p>
-          <div class="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <StxLink to="/stats" class="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
-              <i class="i-lucide-chart-column h-4 w-4" aria-hidden="true"></i>Stats
+    <!-- Header: a contour banner, the face overlapping it, then who this is
+         and the numbers that sum them up. -->
+    <section :if="currentUser" class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+      <div class="wl-topo relative h-28 sm:h-36">
+        <div class="absolute inset-0 bg-gradient-to-t from-white/70 to-transparent dark:from-slate-800/70" aria-hidden="true"></div>
+        <!-- The app has no site header (native-shell.css), and the gear that
+             opened Settings lived in it: password, deletion and sign-out were
+             unreachable from the phone. The profile is where people look. -->
+        <StxLink to="/settings" aria-label="Settings" class="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-white/85 text-slate-700 shadow-sm backdrop-blur-sm transition hover:bg-white active:scale-95 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-900">
+          <i class="i-lucide-settings h-5 w-5" aria-hidden="true"></i>
+        </StxLink>
+      </div>
+
+      <div class="px-5 pb-5 sm:px-7 sm:pb-6">
+        <!-- A phone reads avatar, name, then actions; wider, the actions sit
+             beside the avatar and the name runs underneath both. -->
+        <div class="-mt-12 grid grid-cols-1 gap-x-4 gap-y-4 sm:-mt-14 sm:grid-cols-[auto_1fr] sm:items-end">
+          <div class="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-4 ring-white shadow-md sm:h-28 sm:w-28 dark:bg-slate-800 dark:ring-slate-800">
+            <Image :if="avatarUrl !== ''" x-src="avatarUrl" x-alt="currentUser?.name || 'Your photo'" width="112" height="112" sizes="112px" class="h-full w-full object-cover" />
+            <span :if="avatarUrl === ''" x-class="tint" class="grid h-full w-full place-items-center font-display text-4xl font-bold" aria-hidden="true">{{ initial }}</span>
+          </div>
+
+          <div class="min-w-0 sm:col-span-2 sm:row-start-2">
+            <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ currentUser?.name || 'Athlete' }}</h1>
+            <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+              <span :if="place !== ''" class="inline-flex items-center gap-1"><i class="i-lucide-map-pin h-3.5 w-3.5" aria-hidden="true"></i>{{ place }}</span>
+              <span :if="joinedLabel !== ''" class="inline-flex items-center gap-1"><i class="i-lucide-calendar h-3.5 w-3.5" aria-hidden="true"></i>{{ joinedLabel }}</span>
+              <span class="inline-flex items-center gap-3">
+                <span><span class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ followerCount }}</span> followers</span>
+                <span><span class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ followingCount }}</span> following</span>
+              </span>
+            </p>
+            <p :if="bio !== ''" class="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">{{ bio }}</p>
+            <StxLink :if="bio === '' && avatarUrl === ''" to="/settings" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
+              <i class="i-lucide-camera h-4 w-4" aria-hidden="true"></i>Add a photo and a line about you
             </StxLink>
-            <StxLink to="/achievements" class="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
-              <i class="i-lucide-trophy h-4 w-4" aria-hidden="true"></i>Achievements
+          </div>
+
+          <div class="flex gap-2 sm:col-start-2 sm:row-start-1 sm:justify-self-end sm:pb-1">
+            <StxLink to="/settings" class="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] sm:flex-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+              <i class="i-lucide-pencil h-4 w-4" aria-hidden="true"></i>Edit profile
+            </StxLink>
+            <StxLink to="/stats" aria-label="Stats" class="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-[0.98] sm:px-4 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+              <i class="i-lucide-chart-column h-4 w-4" aria-hidden="true"></i><span class="hidden sm:inline">Stats</span>
+            </StxLink>
+            <StxLink to="/achievements" aria-label="Achievements" class="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-[0.98] sm:px-4 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+              <i class="i-lucide-trophy h-4 w-4" aria-hidden="true"></i><span class="hidden sm:inline">Achievements</span>
             </StxLink>
           </div>
         </div>
       </div>
-      <dl class="mt-5 grid grid-cols-3 gap-y-1 rounded-2xl bg-slate-50 text-center sm:grid-cols-6 dark:bg-slate-900/60">
-          <div class="px-1 py-3">
-            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ userStats?.totalDistance.toFixed(1) || '0' }}</dd>
-            <dt class="metric-label mt-0.5">Miles</dt>
+
+      <dl class="grid grid-cols-3 border-t border-slate-100 sm:grid-cols-5 dark:border-slate-700/70">
+        <template :for="(stat, index) in headlineStats">
+          <div x-class="index >= 3 ? 'hidden sm:block' : ''" class="border-slate-100 px-2 py-4 text-center sm:border-l sm:first:border-l-0 dark:border-slate-700/70">
+            <dd class="font-display text-xl font-bold tabular-nums text-slate-900 sm:text-2xl dark:text-white">{{ stat.value }}</dd>
+            <dt class="metric-label mt-0.5">{{ stat.label }}</dt>
           </div>
-          <div class="px-1 py-3">
-            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ userStats?.trailsCompleted || 0 }}</dd>
-            <dt class="metric-label mt-0.5">Trails</dt>
-          </div>
-          <div class="px-1 py-3">
-            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ (userStats?.totalElevation || 0).toLocaleString() }}</dd>
-            <dt class="metric-label mt-0.5">Elev ft</dt>
-          </div>
-          <div class="px-1 py-3">
-            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ userStats?.currentStreak || 0 }}</dd>
-            <dt class="metric-label mt-0.5">Streak</dt>
-          </div>
-          <div class="px-1 py-3">
-            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ followerCount }}</dd>
-            <dt class="metric-label mt-0.5">Followers</dt>
-          </div>
-          <div class="px-1 py-3">
-            <dd class="font-display text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white">{{ followingCount }}</dd>
-            <dt class="metric-label mt-0.5">Following</dt>
-          </div>
+        </template>
       </dl>
     </section>
 
     <!-- Tabs -->
-    <div :if="currentUser" class="mb-5 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 sm:inline-grid dark:bg-slate-800" role="tablist">
-      <button @click="activeTab.set('activities')" x-class="activeTab === 'activities' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-5 text-sm font-semibold transition">Activities</button>
-      <button @click="activeTab.set('saved')" x-class="activeTab === 'saved' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-5 text-sm font-semibold transition">Saved trails</button>
+    <div :if="currentUser" class="mb-4 mt-8 flex items-center justify-between gap-3">
+      <div class="inline-grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="tablist">
+        <button type="button" role="tab" x-aria-selected="activeTab === 'activities' ? 'true' : 'false'" @click="activeTab.set('activities')" x-class="activeTab === 'activities' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition">
+          Activities
+          <span :if="myActivities.length > 0" class="tabular-nums opacity-60">{{ myActivities.length }}</span>
+        </button>
+        <button type="button" role="tab" x-aria-selected="activeTab === 'saved' ? 'true' : 'false'" @click="activeTab.set('saved')" x-class="activeTab === 'saved' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition">
+          Saved trails
+          <span :if="savedTrails.length > 0" class="tabular-nums opacity-60">{{ savedTrails.length }}</span>
+        </button>
+      </div>
+      <StxLink :if="activeTab === 'activities'" to="/record" class="hidden min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:inline-flex">
+        <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>Record
+      </StxLink>
     </div>
 
-    <!-- Activities -->
-    <div :if="currentUser && activeTab === 'activities'">
-      <div :if="myActivities.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
-        <template :for="activity in myActivities">
-          <StxLink x-to="'/activity/' + activity.id" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
-            <div class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
-              <i x-class="activity.activityType === 'Hike' ? 'i-lucide-mountain' : activity.activityType === 'Bike' ? 'i-lucide-bike' : 'i-lucide-footprints'" class="h-5 w-5" aria-hidden="true"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ activity.title }}</p>
-              <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ activity.activityType + ' · ' + wl.timeAgo(activity.created_at) }}</p>
-            </div>
-            <div class="shrink-0 text-right">
-              <p class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ activity.distance.toFixed(1) + ' mi' }}</p>
-              <p class="text-xs tabular-nums text-slate-400 dark:text-slate-500">{{ activity.duration }}</p>
-            </div>
-          </StxLink>
-        </template>
-      </div>
-
-      <div :if="myActivities.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
-        <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
-          <Icon name="zap" size="28" class="text-emerald-600 dark:text-emerald-400" />
-        </div>
-        <h3 class="text-base font-semibold text-slate-900 dark:text-white">No activities yet</h3>
-        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record your first run, hike, or walk.</p>
-        <StxLink to="/record" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
-      </div>
+    <!-- Activities: each with its route drawn beside it. -->
+    <div :if="currentUser && activeTab === 'activities' && myActivities.length > 0" class="space-y-3">
+      <template :for="activity in myActivities">
+        <StxLink x-to="'/activity/' + activity.id" class="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 pr-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+          <div x-class="topoClass(activity.id)" class="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-24">
+            <svg :if="activityRoute(activity).points !== ''" viewBox="0 0 100 100" class="absolute inset-0 h-full w-full" role="img" x-aria-label="'Route of ' + activity.title">
+              <polyline x-points="activityRoute(activity).points" class="wl-route-casing" />
+              <polyline x-points="activityRoute(activity).points" class="wl-route-line" />
+              <circle x-cx="activityRoute(activity).startX" x-cy="activityRoute(activity).startY" r="3.5" class="wl-route-start" />
+            </svg>
+            <span :if="activityRoute(activity).points === ''" class="absolute inset-0 grid place-items-center text-emerald-700/60 dark:text-emerald-300/50" aria-hidden="true">
+              <i x-class="activityIcon(activity.activityType)" class="h-7 w-7"></i>
+            </span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ activity.title }}</p>
+            <p class="mt-0.5 flex items-center gap-1.5 truncate text-sm text-slate-500 dark:text-slate-400">
+              <i x-class="activityIcon(activity.activityType)" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>
+              <span class="truncate">{{ activity.activityType + ' · ' + timeAgo(activity.created_at) }}</span>
+            </p>
+            <p :if="activity.trail_name" class="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{{ activity.trail_name }}</p>
+            <dl class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              <div><dt class="sr-only">Distance</dt><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ miles(activity.distance) }}</dd></div>
+              <div :if="activity.duration"><dt class="sr-only">Time</dt><dd class="tabular-nums text-slate-600 dark:text-slate-300">{{ activity.duration }}</dd></div>
+              <div :if="climb(activity.elevation_gain) !== ''"><dt class="sr-only">Climb</dt><dd class="tabular-nums text-slate-600 dark:text-slate-300">{{ climb(activity.elevation_gain) }}</dd></div>
+            </dl>
+          </div>
+          <i class="i-lucide-chevron-right hidden h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500 sm:block dark:text-slate-600" aria-hidden="true"></i>
+        </StxLink>
+      </template>
     </div>
 
-    <!-- Saved -->
+    <div :if="currentUser && activeTab === 'activities' && myActivities.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+        <i class="i-lucide-zap h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+      </div>
+      <h3 class="text-base font-semibold text-slate-900 dark:text-white">No activities yet</h3>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record your first run, hike, or walk.</p>
+      <StxLink to="/record" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
+    </div>
+
+    <!-- Saved: the trail's cover beside its name, like the catalog. -->
     <div :if="currentUser && activeTab === 'saved' && savedTrails.length > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <template :for="trail in savedTrails">
-        <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
-          <StxLink x-to="'/trail/' + trail.id" class="group min-w-0 flex-1">
-            <h3 class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ trail.name }}</h3>
-            <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ trail.location }}</p>
-            <div class="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-              <span class="capitalize" x-class="'px-2 py-0.5 font-semibold rounded-full difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
-              <span class="tabular-nums">{{ trail.distance + ' mi' }}</span>
-              <span class="flex items-center gap-1 tabular-nums">
-                <Icon name="star" size="12" class="text-amber-400" />
-                <span>{{ trail.rating || '-' }}</span>
+        <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 pr-3 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
+          <StxLink x-to="'/trail/' + trail.id" class="group flex min-w-0 flex-1 items-center gap-3">
+            <span x-class="topoClass(trail.id)" class="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
+              <Image :if="trailPhoto(trail) !== ''" x-src="trailPhoto(trail)" x-alt="trailPhotoAlt(trail)" width="64" height="64" sizes="64px" placeholder="blur" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <span :if="trailPhoto(trail) === ''" class="absolute inset-0 grid place-items-center text-emerald-700/40 dark:text-emerald-300/30" aria-hidden="true">
+                <i class="i-lucide-mountain h-5 w-5"></i>
               </span>
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="truncate font-semibold text-slate-900 transition group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">{{ trail.name }}</h3>
+              <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ trail.location }}</p>
+              <div class="mt-1.5 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <span class="capitalize" x-class="'px-2 py-0.5 font-semibold rounded-full difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
+                <span class="tabular-nums">{{ trail.distance + ' mi' }}</span>
+                <span :if="trail.rating" class="flex items-center gap-1 tabular-nums">
+                  <i class="i-lucide-star h-3 w-3 fill-current text-amber-400" aria-hidden="true"></i>{{ trail.rating }}
+                </span>
+              </div>
             </div>
           </StxLink>
-          <button @click="onToggleSave(trail.id)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" aria-label="Unsave trail">
-            <Icon name="heart" size="18" />
+          <button type="button" @click="onToggleSave(trail.id)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" x-aria-label="'Remove ' + trail.name + ' from saved trails'">
+            <i class="i-lucide-heart h-[18px] w-[18px] fill-current" aria-hidden="true"></i>
           </button>
         </div>
       </template>
@@ -235,11 +369,52 @@
 
     <div :if="currentUser && activeTab === 'saved' && savedTrails.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
       <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-red-50 dark:bg-red-500/10">
-        <Icon name="heart" size="28" class="text-red-400" />
+        <i class="i-lucide-heart h-7 w-7 text-red-400" aria-hidden="true"></i>
       </div>
       <h3 class="text-base font-semibold text-slate-900 dark:text-white">No saved trails</h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Tap the heart on any trail to save it.</p>
       <StxLink to="/trails" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Explore trails</StxLink>
     </div>
   </div>
+<style>
+  /* Contour-tinted ground for the banner and for an activity or trail with no
+     picture. The same four layouts the feed and catalog use. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
+  .wl-route-casing,
+  .wl-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-route-casing { stroke: #fff; stroke-width: 6; }
+  .wl-route-line { stroke: #059669; stroke-width: 3; }
+  .wl-route-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
+
+  .dark .wl-route-casing { stroke: #0b1411; }
+  .dark .wl-route-line { stroke: #34d399; }
+  .dark .wl-route-start { stroke: #0b1411; }
+</style>
 @endsection

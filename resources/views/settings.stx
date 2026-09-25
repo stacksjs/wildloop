@@ -21,22 +21,31 @@
 
 <script client>
   import { device, health, isNativeMobile, secureStorage } from '@stacksjs/mobile'
-  import { apiFetch, changePassword, deleteAccount, readyToken, redirectTo, signOut, token } from '../assets/scripts/auth'
+  import { apiFetch, changePassword, deleteAccount, readyToken, redirectTo, removeAvatar, signOut, token, updateProfile, uploadAvatar } from '../assets/scripts/auth'
   import { describeResponseError, describeThrownError } from '../assets/scripts/request-error'
   import { disableNativePushNotifications, enableNativePushNotifications } from '../composables/useNativeServices'
+  import { garminCardState, garminConnectedLabel, garminImportSummary } from '../functions/garmin-status'
   import { formatHealthSummary } from '../functions/health-summary'
   import { passwordChangeError } from '../functions/password-change'
+  import { avatarInitial, avatarTint, avatarUrl } from '../functions/avatars'
+  import { characterCount, PROFILE_LIMITS, validateProfileInput } from '../functions/profile-form'
 
   useHead({ title: 'Settings — Wildloop' })
 
-  const loading = state(true)
   const error = state('')
   const notice = state('')
-  const configured = state(false)
-  const connected = state(false)
-  const connectedAt = state('')
-  const lastSyncAt = state('')
-  const working = state(false)
+  // The Garmin card's signals all carry a garmin prefix. Before stx 0.2.311,
+  // client-side navigation merged every layout component's scope into the
+  // page's, so a page signal sharing a name with one was replaced by it: this
+  // page's `connected` became the offline banner's `connected` (true whenever
+  // the device is online), and the card showed "Connected" beside "Not
+  // available yet" to an account Garmin had never seen. stx fixed the merge;
+  // the prefix keeps the names unambiguous. See
+  // tests/browser/garmin-settings.pw.ts.
+  const garminState = state('loading')
+  const garminConnectedText = state('Connected')
+  const garminImportText = state('')
+  const garminWorking = state(false)
   const privacyLoading = state(true)
   const privacyWorking = state(false)
   const defaultVisibility = state('followers')
@@ -80,17 +89,11 @@
   // The callback lands back here with the outcome in the query string, since
   // a redirect from garmin.com cannot hand us anything else.
   const OUTCOMES = {
-    connected: ['success', 'Garmin connected. New activities will appear here automatically.'],
+    connected: ['success', 'Garmin connected. Your last 30 days of activities are on their way, and new ones will follow on their own.'],
     denied: ['error', 'Garmin access was declined, so nothing was connected.'],
     expired: ['error', 'That connection attempt timed out. Please try again.'],
     unavailable: ['error', 'Garmin syncing is not switched on for Wildloop yet.'],
     failed: ['error', 'Garmin could not complete the connection. Please try again.'],
-  }
-
-  function formatDate(value) {
-    if (!value) return ''
-    const parsed = new Date(value)
-    return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
   async function loadStatus() {
@@ -104,21 +107,19 @@
         const failure = describeResponseError(res.status, payload)
         if (failure.unexpected) console.error('[settings]', res.status, failure.cause)
         error.set(failure.message)
-        loading.set(false)
+        garminState.set('failed')
         return
       }
 
-      configured.set(!!payload.configured)
-      connected.set(!!payload.connected)
-      connectedAt.set(payload.connectedAt || '')
-      lastSyncAt.set(payload.lastSyncAt || '')
-      loading.set(false)
+      garminConnectedText.set(garminConnectedLabel(payload))
+      garminImportText.set(garminImportSummary(payload))
+      garminState.set(garminCardState(payload))
     }
     catch (err) {
       const failure = describeThrownError(err)
       if (failure.unexpected) console.error('[settings]', failure.cause)
       error.set(failure.message)
-      loading.set(false)
+      garminState.set('failed')
     }
   }
 
@@ -211,6 +212,141 @@
   const accountEmail = derived(() => wl?.currentUser()?.email || '')
   const isAdmin = derived(() => Boolean(wl?.currentUser()?.roles?.includes('admin')))
   const signingOut = state(false)
+
+  // Profile: photo, name, bio and location. Every signal here carries a
+  // profile prefix for the reason the Garmin card's carry theirs: on
+  // client-side navigation stx merges the layout components' scopes into the
+  // page's, and a page signal sharing a name with one of theirs is replaced.
+  const profileName = state('')
+  const profileBio = state('')
+  const profileLocation = state('')
+  const profileFilled = state(false)
+  const profileSaving = state(false)
+  const profileError = state('')
+  const profileNotice = state('')
+  const profileNameError = state('')
+  const profileBioError = state('')
+  const profileLocationError = state('')
+  // The photo just picked, shown at once while it uploads. Cleared when the
+  // upload fails, so the old face comes back.
+  const profilePreview = state('')
+  // Set while a removal is on its way, so the initial shows straight away.
+  const profilePhotoHidden = state(false)
+  const profilePhotoBusy = state(false)
+  const profilePhotoError = state('')
+
+  const profileAccount = derived(() => wl?.currentUser() ?? null)
+  const profileFace = derived(() => profilePreview() || (profilePhotoHidden() ? '' : avatarUrl(profileAccount(), 'display')))
+  const profileHasPhoto = derived(() => Boolean(profilePreview()) || (!profilePhotoHidden() && Boolean(avatarUrl(profileAccount()))))
+  const profileInitial = derived(() => avatarInitial(profileName() || profileAccount()?.name || accountEmail()))
+  const profileTint = derived(() => avatarTint(profileAccount()?.id ?? profileName()))
+  const profileBioCount = derived(() => characterCount(profileBio(), PROFILE_LIMITS.bio))
+  const profileAlt = derived(() => `Profile photo of ${profileAccount()?.name || 'you'}`)
+
+  // The form is filled once, when the account is first known. Filling it on
+  // every store change would overwrite what somebody is in the middle of typing.
+  effect(() => {
+    const me = profileAccount()
+    if (!me || profileFilled())
+      return
+    profileName.set(me.name ?? '')
+    profileBio.set(me.bio ?? '')
+    profileLocation.set(me.location ?? '')
+    profileFilled.set(true)
+  })
+
+  function adoptProfileUser(user) {
+    if (wl && user?.id)
+      wl.hydrateAuthenticatedUser(user)
+  }
+
+  async function saveProfile() {
+    if (profileSaving())
+      return
+    profileError.set('')
+    profileNotice.set('')
+    const checked = validateProfileInput({ name: profileName(), bio: profileBio(), location: profileLocation() })
+    const fields = 'errors' in checked ? checked.errors : {}
+    profileNameError.set(fields.name ?? '')
+    profileBioError.set(fields.bio ?? '')
+    profileLocationError.set(fields.location ?? '')
+    if ('errors' in checked)
+      return
+
+    // Optimistic: the header and every card show the new name at once, and
+    // go back to the old one if the server refuses it.
+    const before = profileAccount()
+    adoptProfileUser({ ...before, ...checked.value })
+    profileSaving.set(true)
+    const result = await updateProfile({ name: checked.value.name, bio: checked.value.bio ?? '', location: checked.value.location ?? '' })
+    profileSaving.set(false)
+    if (!result.ok) {
+      if (before)
+        adoptProfileUser(before)
+      profileNameError.set(result.fields?.name ?? '')
+      profileBioError.set(result.fields?.bio ?? '')
+      profileLocationError.set(result.fields?.location ?? '')
+      profileError.set(result.message)
+      return
+    }
+    adoptProfileUser(result.user)
+    profileName.set(result.user?.name ?? checked.value.name)
+    profileBio.set(result.user?.bio ?? '')
+    profileLocation.set(result.user?.location ?? '')
+    profileNotice.set('Profile saved.')
+  }
+
+  async function pickProfilePhoto(event: Event) {
+    const input = event.target as HTMLInputElement | null
+    const file = input?.files?.[0] ?? null
+    // Cleared so choosing the same photo again after a failure still fires.
+    if (input)
+      input.value = ''
+    if (!file || profilePhotoBusy())
+      return
+    profilePhotoError.set('')
+    profileNotice.set('')
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      profilePhotoError.set(/hei[cf]/i.test(file.type) ? 'HEIC photos are not supported. Please choose a JPEG.' : 'Choose a JPEG, PNG or WebP photo.')
+      return
+    }
+
+    const preview = URL.createObjectURL(file)
+    profilePreview.set(preview)
+    profilePhotoHidden.set(false)
+    profilePhotoBusy.set(true)
+    const result = await uploadAvatar(file)
+    profilePhotoBusy.set(false)
+    if (!result.ok) {
+      profilePreview.set('')
+      URL.revokeObjectURL(preview)
+      profilePhotoError.set(result.fields?.avatar ?? result.message)
+      return
+    }
+    adoptProfileUser(result.user)
+    profilePreview.set('')
+    URL.revokeObjectURL(preview)
+    profileNotice.set('Profile photo updated.')
+  }
+
+  async function removeProfilePhoto() {
+    if (profilePhotoBusy())
+      return
+    profilePhotoError.set('')
+    profileNotice.set('')
+    profilePhotoHidden.set(true)
+    profilePhotoBusy.set(true)
+    const result = await removeAvatar()
+    profilePhotoBusy.set(false)
+    if (!result.ok) {
+      profilePhotoHidden.set(false)
+      profilePhotoError.set(result.message)
+      return
+    }
+    adoptProfileUser(result.user)
+    profilePhotoHidden.set(false)
+    profileNotice.set('Profile photo removed.')
+  }
 
   async function handleSignOut(): Promise<void> {
     if (signingOut())
@@ -324,7 +460,7 @@
   async function connectGarmin() {
     error.set('')
     notice.set('')
-    working.set(true)
+    garminWorking.set(true)
 
     try {
       // Two steps on purpose. The session is a bearer token, which a top-level
@@ -341,7 +477,7 @@
         const failure = describeResponseError(res.status, payload)
         if (failure.unexpected) console.error('[settings]', res.status, failure.cause)
         error.set(failure.message)
-        working.set(false)
+        garminWorking.set(false)
         return
       }
 
@@ -351,14 +487,14 @@
       const failure = describeThrownError(err)
       if (failure.unexpected) console.error('[settings]', failure.cause)
       error.set(failure.message)
-      working.set(false)
+      garminWorking.set(false)
     }
   }
 
   async function disconnectGarmin() {
     error.set('')
     notice.set('')
-    working.set(true)
+    garminWorking.set(true)
 
     try {
       const res = await apiFetch('/api/garmin/disconnect', {
@@ -370,20 +506,19 @@
         const failure = describeResponseError(res.status, await res.json().catch(() => null))
         if (failure.unexpected) console.error('[settings]', res.status, failure.cause)
         error.set(failure.message)
-        working.set(false)
+        garminWorking.set(false)
         return
       }
 
-      connected.set(false)
-      lastSyncAt.set('')
+      garminState.set('disconnected')
       notice.set('Garmin disconnected. No further activities will be imported.')
-      working.set(false)
+      garminWorking.set(false)
     }
     catch (err) {
       const failure = describeThrownError(err)
       if (failure.unexpected) console.error('[settings]', failure.cause)
       error.set(failure.message)
-      working.set(false)
+      garminWorking.set(false)
     }
   }
 </script>
@@ -398,6 +533,66 @@
     <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Settings</h1>
     <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">Your privacy, password, connected devices and account.</p>
   </header>
+
+  <section aria-labelledby="profile-heading" class="mb-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
+    <h2 id="profile-heading" class="font-semibold text-slate-900 dark:text-white">Profile</h2>
+    <p class="mt-1 text-slate-500 text-sm dark:text-slate-400">How other athletes see you on the feed, leaderboards and your profile.</p>
+
+    <div class="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
+      <div class="relative h-24 w-24 shrink-0">
+        <Image :if="profileFace()" x-src="profileFace()" x-alt="profileAlt()" width="96" height="96" sizes="96px" class="h-24 w-24 rounded-full object-cover ring-4 ring-emerald-50 dark:ring-emerald-500/10" data-testid="profile-photo" />
+        <div :if="!profileFace()" x-class="'grid h-24 w-24 place-items-center rounded-full font-display text-4xl font-bold ring-4 ring-emerald-50 dark:ring-emerald-500/10 ' + profileTint()" aria-hidden="true">{{ profileInitial() }}</div>
+        <div :if="profilePhotoBusy()" class="absolute inset-0 grid place-items-center rounded-full bg-slate-900/40" aria-hidden="true">
+          <i class="i-lucide-loader-circle h-7 w-7 animate-spin text-white"></i>
+        </div>
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap gap-2">
+          <!-- A label opens the picker without any script, and keeps the
+               native file input (sr-only) as the thing assistive tech reads. -->
+          <label for="profile-photo-input" x-class="'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500/40 ' + (profilePhotoBusy() ? 'pointer-events-none opacity-50' : '')">
+            <i class="i-lucide-camera h-4 w-4" aria-hidden="true"></i>
+            {{ profileHasPhoto() ? 'Change photo' : 'Add photo' }}
+          </label>
+          <input id="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" x-disabled="profilePhotoBusy" @change="pickProfilePhoto($event)" />
+          <button :if="profileHasPhoto()" type="button" @click="removeProfilePhoto()" x-disabled="profilePhotoBusy" class="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700/60">
+            <i class="i-lucide-trash-2 h-4 w-4" aria-hidden="true"></i>
+            Remove photo
+          </button>
+        </div>
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">JPEG, PNG or WebP, up to 15MB. It is cropped to a square, and its location data is removed.</p>
+        <p :if="profilePhotoError()" role="alert" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ profilePhotoError() }}</p>
+      </div>
+    </div>
+
+    <div class="mt-6 grid gap-5 sm:grid-cols-2">
+      <label class="text-sm text-slate-700 dark:text-slate-300">
+        <span class="mb-1.5 block font-medium">Name</span>
+        <input type="text" autocomplete="name" maxlength="100" x-value="profileName" @input="profileName.set($event.target.value)" x-aria-invalid="profileNameError() ? 'true' : 'false'" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+        <span :if="profileNameError()" class="mt-1 block text-sm text-red-600 dark:text-red-400">{{ profileNameError() }}</span>
+      </label>
+      <label class="text-sm text-slate-700 dark:text-slate-300">
+        <span class="mb-1.5 block font-medium">Location</span>
+        <input type="text" autocomplete="address-level2" maxlength="80" placeholder="e.g. Boulder, CO" x-value="profileLocation" @input="profileLocation.set($event.target.value)" x-aria-invalid="profileLocationError() ? 'true' : 'false'" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+        <span :if="profileLocationError()" class="mt-1 block text-sm text-red-600 dark:text-red-400">{{ profileLocationError() }}</span>
+      </label>
+      <label class="text-sm text-slate-700 dark:text-slate-300 sm:col-span-2">
+        <span class="mb-1.5 flex items-baseline justify-between font-medium">
+          <span>Bio</span>
+          <span class="text-xs font-normal tabular-nums text-slate-400 dark:text-slate-500">{{ profileBioCount() }}</span>
+        </span>
+        <textarea rows="3" maxlength="280" placeholder="Trails you love, races you are training for, where to find you out there." x-value="profileBio" @input="profileBio.set($event.target.value)" x-aria-invalid="profileBioError() ? 'true' : 'false'" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"></textarea>
+        <span :if="profileBioError()" class="mt-1 block text-sm text-red-600 dark:text-red-400">{{ profileBioError() }}</span>
+      </label>
+    </div>
+
+    <div class="mt-5 flex flex-wrap items-center gap-3">
+      <button type="button" @click="saveProfile()" x-disabled="profileSaving" class="min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">{{ profileSaving() ? 'Saving…' : 'Save profile' }}</button>
+      <p :if="profileError()" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ profileError() }}</p>
+      <p :if="profileNotice()" role="status" aria-live="polite" class="text-sm text-emerald-700 dark:text-emerald-300">{{ profileNotice() }}</p>
+    </div>
+  </section>
 
   <div :if="error" role="alert" aria-live="assertive" class="flex gap-3 items-start mb-6 p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl dark:border-red-900">
     <i class="i-hugeicons-alert-circle h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i>
@@ -520,42 +715,53 @@
           Finish a run on your watch and it appears here on its own, usually within seconds of your watch syncing. Imports stay private until you publish them.
         </p>
 
-        <div :if="loading" class="mt-5 h-9 w-40 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse"></div>
+        <div :if="garminState() === 'loading'" class="mt-5 h-9 w-40 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse"></div>
 
-        <div :if="!loading && !configured" class="mt-5">
-          <p class="text-slate-500 text-sm dark:text-slate-400">
-            Not available yet. Garmin reviews every app before granting Activity API access, and this turns on the day they approve Wildloop.
+        <p :if="garminState() === 'failed'" class="mt-5 text-slate-500 text-sm dark:text-slate-400">
+          Could not check your Garmin connection. Reload the page to try again.
+        </p>
+
+        <div :if="garminState() === 'unavailable'" class="mt-5">
+          <span class="inline-flex gap-2 items-center px-3 py-1 font-medium text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 rounded-full">
+            <i class="i-hugeicons-clock-01 h-4 w-4" aria-hidden="true"></i>
+            Awaiting Garmin approval
+          </span>
+          <p class="mt-3 text-slate-500 text-sm dark:text-slate-400 max-w-[52ch]">
+            Garmin sync turns on once Garmin approves Wildloop for its Activity API. Until then nothing is imported from Garmin, and nothing needs connecting. Activities you record in Wildloop are not affected.
+          </p>
+          <p class="mt-2 text-slate-500 text-sm dark:text-slate-400 max-w-[52ch]">
+            Have a run on your watch already? Export it from Garmin Connect as a FIT or GPX file and import it from
+            <StxLink to="/record" class="font-medium text-emerald-700 hover:underline dark:text-emerald-300">Record</StxLink>.
           </p>
         </div>
 
-        <div :if="!loading && configured && !connected" class="mt-5">
+        <div :if="garminState() === 'disconnected'" class="mt-5">
           <button
             type="button"
             @click="connectGarmin()"
-            x-disabled="working()"
+            x-disabled="garminWorking()"
             class="min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
           >
             Connect Garmin
           </button>
           <p class="mt-3 text-slate-400 text-xs dark:text-slate-500">
-            You approve this on Garmin's own site. Wildloop never sees your Garmin password, and you can revoke access at any time.
+            You approve this on Garmin's own site. Wildloop never sees your Garmin password, and you can revoke access at any time. Your last 30 days of activities come across when you connect.
           </p>
         </div>
 
-        <div :if="!loading && connected" class="mt-5">
+        <div :if="garminState() === 'connected'" class="mt-5">
           <div class="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
             <span class="inline-flex gap-2 items-center font-medium text-emerald-700 dark:text-emerald-400">
               <i class="i-hugeicons-checkmark-circle-02 h-4 w-4" aria-hidden="true"></i>
-              Connected
+              {{ garminConnectedText() }}
             </span>
-            <span :if="lastSyncAt" class="text-slate-500 dark:text-slate-400">Last activity {{ formatDate(lastSyncAt) }}</span>
-            <span :if="!lastSyncAt" class="text-slate-500 dark:text-slate-400">Waiting for your first activity</span>
+            <span class="text-slate-500 dark:text-slate-400">{{ garminImportText() }}</span>
           </div>
 
           <button
             type="button"
             @click="disconnectGarmin()"
-            x-disabled="working()"
+            x-disabled="garminWorking()"
             class="min-h-11 px-5 font-medium text-sm text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
           >
             Disconnect

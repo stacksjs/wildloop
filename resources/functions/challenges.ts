@@ -7,6 +7,8 @@
 export interface ChallengeNames {
   challengerName?: string
   challengedName?: string
+  challengerAvatar?: string | null
+  challengedAvatar?: string | null
   territoryName?: string
 }
 
@@ -17,6 +19,8 @@ export function shapeChallenge(c: any, names: ChallengeNames = {}): any {
     challengerName: names.challengerName ?? 'Unknown',
     challengedId: c.challenged_id,
     challengedName: names.challengedName ?? 'Unknown',
+    challengerAvatar: names.challengerAvatar ?? null,
+    challengedAvatar: names.challengedAvatar ?? null,
     territoryId: c.territory_id,
     territoryName: names.territoryName ?? 'Territory',
     status: c.status,

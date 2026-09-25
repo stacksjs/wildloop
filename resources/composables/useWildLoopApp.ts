@@ -15,6 +15,9 @@ interface BootstrapUser {
   email: string
   name?: string
   avatar?: string | null
+  bio?: string | null
+  location?: string | null
+  joinedAt?: string | null
   roles?: string[]
 }
 

@@ -8,6 +8,7 @@
 // challenges page can render its active/sent/received/completed tabs.
 
 import { Auth } from '@stacksjs/auth'
+import { avatarOf } from '../../Support/avatars'
 
 export default new Action({
   name: 'Challenge Index',
@@ -28,12 +29,15 @@ export default new Action({
       const users = userIds.length ? await User.whereIn('id', userIds).get() : []
       const territories = territoryIds.length ? await Territory.whereIn('id', territoryIds).get() : []
       const userName = new Map(users.map((u: any) => [u.id, u.name]))
+      const userAvatar = new Map(users.map((u: any) => [u.id, avatarOf(u)]))
       const territoryName = new Map(territories.map((t: any) => [t.id, t.name]))
 
       const challenges = mine
         .map((c: any) => shapeChallenge(c, {
           challengerName: userName.get(c.challenger_id),
           challengedName: userName.get(c.challenged_id),
+          challengerAvatar: userAvatar.get(c.challenger_id) ?? null,
+          challengedAvatar: userAvatar.get(c.challenged_id) ?? null,
           territoryName: territoryName.get(c.territory_id),
         }))
         .sort((a: any, b: any) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''))

@@ -39,7 +39,7 @@
 
 <script client>
   import { routeShapeFor } from '../composables/useRouteShape'
-  import { avatarInitial, avatarTint } from '../functions/avatars'
+  import { avatarInitial, avatarTint, avatarUrl } from '../functions/avatars'
   import { useManualActivity } from '../composables/useManualActivity'
   import { followAthlete, giveKudos } from '../composables/useSocialActions'
 
@@ -116,6 +116,15 @@
     return avatarTint(activity.user_id ?? activity.userName)
   }
 
+  /**
+   * The athlete's photo, or '' for the initial. Your own runs use the photo
+   * you have now, so a new one shows here without waiting for the feed.
+   */
+  function facePhoto(activity: { user_id?: number, userAvatar?: string | null }) {
+    const own = wl && activity.user_id && activity.user_id === wl.currentUserId() ? avatarUrl(wl.currentUser()) : ''
+    return own || avatarUrl(activity.userAvatar)
+  }
+
   function activityIcon(type: string) {
     if (type === 'Hike')
       return 'i-lucide-mountain h-3 w-3'
@@ -176,7 +185,8 @@
       <template :for="activity in filtered">
         <article class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800 dark:shadow-none">
           <div class="flex items-center gap-3 px-4 pb-3 pt-4">
-            <div x-class="'grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ' + faceTint(activity)" aria-hidden="true">{{ faceInitial(activity.userName) }}</div>
+            <Image :if="facePhoto(activity)" x-src="facePhoto(activity)" x-alt="activity.userName" width="40" height="40" sizes="40px" loading="lazy" class="h-10 w-10 shrink-0 rounded-full object-cover" />
+            <div :if="!facePhoto(activity)" x-class="'grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ' + faceTint(activity)" aria-hidden="true">{{ faceInitial(activity.userName) }}</div>
 
             <div class="min-w-0 flex-1">
               <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="block truncate font-semibold leading-tight text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ activity.userName }}</StxLink>

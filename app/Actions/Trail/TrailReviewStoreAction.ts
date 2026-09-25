@@ -16,6 +16,7 @@ import { trailPhotoUrl } from '../../Support/trailPhotoPayload'
 import { invalidateTrailReviews } from '../../Support/reviewCache'
 
 import { TRAIL_CONDITION_IDS } from '../../../resources/functions/trail-conditions'
+import { avatarOf } from '../../Support/avatars'
 
 // The one list the form offers and the database's CHECK allows (#166).
 const REVIEW_CONDITIONS = TRAIL_CONDITION_IDS
@@ -159,6 +160,7 @@ export default new Action({
           id: reviewId,
           userId,
           userName: user?.name ?? 'Unknown',
+          userAvatar: avatarOf(user),
           trailId,
           rating,
           title,

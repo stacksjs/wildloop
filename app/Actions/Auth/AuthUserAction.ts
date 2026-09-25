@@ -8,6 +8,7 @@
 // still guard defensively. The frontend calls this on mount (auth.user()).
 
 import { Auth } from '@stacksjs/auth'
+import { sessionUserPayload } from '../../Support/sessionUser'
 
 export default new Action({
   name: 'Auth User',
@@ -19,26 +20,11 @@ export default new Action({
     if (!user)
       return response.json({ success: false, error: 'Unauthenticated' }, 401)
 
-    let roles: string[] = []
-    try {
-      const { createBqbRbacStore, Rbac } = await import('@stacksjs/auth')
-      Rbac.setStore(createBqbRbacStore())
-      roles = ((await Rbac.getUserRoles(user.id)) ?? [])
-        .map((role: any) => String(role?.name ?? ''))
-        .filter(Boolean)
-    }
-    catch {
-      roles = []
-    }
-
+    // Avatar, bio, location and join date ride along, so the store's current
+    // user can show a face and a profile without a second request.
     return response.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        roles,
-      },
+      user: await sessionUserPayload(user),
     })
   },
 })

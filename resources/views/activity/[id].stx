@@ -12,14 +12,17 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { fetchActivityDetail, postComment, reportContent, toggleKudos } from '../../assets/scripts/game-api'
   import { downloadGpxFile } from '../../functions/activity-files'
-  import { avatarInitial, avatarTint } from '../../functions/avatars'
+  import { avatarInitial, avatarTint, avatarUrl } from '../../functions/avatars'
 
   useHead({ title: 'Activity Details - Wildloop' })
 
   const wl = useStore('wl')
   const hasKudos = state(false)
   const newComment = state('')
-  const comments = state<Array<{ id: number, userName: string, body: string, createdAt: string }>>([])
+  const comments = state<Array<{ id: number, userName: string, userAvatar?: string | null, body: string, createdAt: string }>>([])
+  // The athlete's photo from the detail endpoint, for an activity that came
+  // from somewhere without one (an older cached feed).
+  const detailAvatar = state<string | null>(null)
   const activityRoute = state<Array<{ lat: number, lng: number }>>([])
   /** Set once the map has a line on it; until then the frame shows why not. */
   const mapDrawn = state(false)
@@ -97,6 +100,13 @@
     return avatarTint(seed as string)
   }
 
+  /** A photo for the athlete or a commenter, or '' for the initial. */
+  function athletePhoto(avatar: unknown) {
+    return avatarUrl(typeof avatar === 'string' ? avatar : null)
+  }
+
+  const ownerPhoto = derived(() => athletePhoto(activity()?.userAvatar ?? detailAvatar()))
+
   /** A number that was never recorded reads as a dash, not as a zero. */
   function orDash(value: unknown) {
     const number = Number(value)
@@ -130,6 +140,8 @@
     const detail = await fetchActivityDetail(activityId)
     if (detail && Array.isArray(detail.comments))
       comments.set(detail.comments)
+    if (detail && typeof detail.userAvatar === 'string')
+      detailAvatar.set(detail.userAvatar)
     if (detail && Array.isArray(detail.route))
       activityRoute.set(detail.route)
     else if (activity()?.comments)
@@ -197,7 +209,7 @@
       return
     }
     try {
-      activityMap = await createTrailMap('activity-map', { scrollWheelZoom: false })
+      activityMap = await createTrailMap('activity-map')
       if (!activityMap) return
       await drawTrailRoute(activityMap.map, route, { color: '#059669', weight: 4, opacity: 0.9 })
       activityMap.fitPoints(route, [30, 30])
@@ -248,7 +260,8 @@
     <div class="card mb-6">
       <div class="mb-5 flex items-center justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
-          <div x-class="'grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg font-bold ' + athleteTint(activity.user_id ?? activity.userName)" aria-hidden="true">{{ athleteInitial(activity.userName) }}</div>
+          <Image :if="ownerPhoto()" x-src="ownerPhoto()" x-alt="activity.userName" width="48" height="48" sizes="48px" class="h-12 w-12 shrink-0 rounded-full object-cover" />
+          <div :if="!ownerPhoto()" x-class="'grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg font-bold ' + athleteTint(activity.user_id ?? activity.userName)" aria-hidden="true">{{ athleteInitial(activity.userName) }}</div>
           <div class="min-w-0">
             <p class="truncate font-bold text-slate-900 dark:text-white">{{ activity.userName }}</p>
             <p class="flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500 dark:text-slate-400">
@@ -527,7 +540,8 @@
       <div class="space-y-4 mb-4">
         <template :for="comment in comments">
           <div class="flex gap-3">
-            <div x-class="'grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ' + athleteTint(comment.userName)" aria-hidden="true">{{ athleteInitial(comment.userName) }}</div>
+            <Image :if="athletePhoto(comment.userAvatar)" x-src="athletePhoto(comment.userAvatar)" x-alt="comment.userName" width="32" height="32" sizes="32px" loading="lazy" class="h-8 w-8 shrink-0 rounded-full object-cover" />
+            <div :if="!athletePhoto(comment.userAvatar)" x-class="'grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ' + athleteTint(comment.userName)" aria-hidden="true">{{ athleteInitial(comment.userName) }}</div>
             <div class="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-slate-50 px-3.5 py-2.5 dark:bg-slate-900/40">
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-sm font-semibold text-slate-900 dark:text-white">{{ comment.userName }}</span>

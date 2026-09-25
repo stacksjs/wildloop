@@ -8,6 +8,8 @@
     name: string
     email: string
     avatar: string | null
+    bio?: string | null
+    location?: string | null
     joinedAt: string
     roles?: string[]
   }
@@ -47,6 +49,7 @@
     id: number
     user_id: number
     userName: string
+    userAvatar?: string | null
     trail_id: number | null
     trail_name: string
     title: string
@@ -91,8 +94,10 @@
     territoryName: string
     attacker_id: number
     attackerName: string
+    attackerAvatar?: string | null
     defender_id: number
     defenderName: string
+    defenderAvatar?: string | null
     status: 'active' | 'conquered' | 'defended'
     areaCaptured: number
     runDistance: number
@@ -104,8 +109,10 @@
     id: number
     challenger_id: number
     challengerName: string
+    challengerAvatar?: string | null
     challenged_id: number
     challengedName: string
+    challengedAvatar?: string | null
     territory_id: number
     territoryName: string
     status: 'active' | 'pending' | 'completed'
@@ -446,6 +453,13 @@
       userStats: seedUserStats,
       conquestStats: seedConquestStats,
       trailRoutes,
+      /**
+       * Every part of the trails that are in more than one piece (trail id →
+       * parts), for drawing the whole trail. `trailRoutes` holds each trail's
+       * main line; the parts are never joined into it, because the join would
+       * be a straight line across whatever lies between them.
+       */
+      trailRouteParts: {} as Record<number, [number, number][][]>,
       territoryPolygons,
       /** GPS samples inside enemy polygons this session (territory id → count). */
       captureSamples: {} as Record<number, number>,
@@ -473,14 +487,18 @@
     // re-renders; an in-place push only does on stx 0.2.303 and later.
     actions: {
       /** Merge a server-verified identity into the catalog and select it. */
-      hydrateAuthenticatedUser(user: Partial<User> & { id: number }) {
+      hydrateAuthenticatedUser(user: Partial<User> & { id: number, created_at?: string }) {
         const existing = this.users.find((candidate: User) => candidate.id === user.id)
+        // `undefined` means the payload did not say (an older cached copy);
+        // `null` means the server cleared it, e.g. a removed photo.
         const normalized = {
           id: user.id,
           name: user.name || existing?.name || 'Athlete',
           email: user.email || existing?.email || '',
-          avatar: user.avatar ?? existing?.avatar ?? null,
-          joinedAt: user.joinedAt || existing?.joinedAt || new Date().toISOString(),
+          avatar: user.avatar !== undefined ? user.avatar : existing?.avatar ?? null,
+          bio: user.bio !== undefined ? user.bio : existing?.bio ?? null,
+          location: user.location !== undefined ? user.location : existing?.location ?? null,
+          joinedAt: user.joinedAt || user.created_at || existing?.joinedAt || new Date().toISOString(),
           roles: user.roles ?? existing?.roles ?? [],
         }
         this.users = existing
@@ -539,7 +557,11 @@
        * 200, the upsert ran, and the page still rendered "Trail not found",
        * for every trail outside the featured 200.
        */
-      hydrateTrailsFromApi(trails: Trail[], routes: Record<number, [number, number][]>) {
+      hydrateTrailsFromApi(
+        trails: Trail[],
+        routes: Record<number, [number, number][]>,
+        parts: Record<number, [number, number][][]> = {},
+      ) {
         const incoming = new Set(trails.map((trail: Trail) => trail.id))
         const kept = this.trails.filter((trail: Trail) =>
           this.apiTrailIds.includes(trail.id) && !incoming.has(trail.id))
@@ -549,13 +571,17 @@
         // filed under the same id. Merging over the old map kept the seed's,
         // which drew Sedona's loop under Half Dome.
         const merged = { ...this.trailRoutes, ...routes }
+        const mergedParts = { ...this.trailRouteParts, ...parts }
         for (const id of incoming) {
           if (!routes[id])
             delete merged[id]
+          if (!parts[id])
+            delete mergedParts[id]
         }
         this.trailRoutes = merged
+        this.trailRouteParts = mergedParts
       },
-      upsertTrailFromApi(trail: Trail, route?: [number, number][]) {
+      upsertTrailFromApi(trail: Trail, route?: [number, number][], parts?: [number, number][][]) {
         const index = this.trails.findIndex((candidate: Trail) => candidate.id === trail.id)
         this.trails = index >= 0
           ? this.trails.map((candidate: Trail, i: number) => i === index ? trail : candidate)
@@ -571,6 +597,13 @@
         else if (this.trailRoutes[trail.id]) {
           const { [trail.id]: _stale, ...rest } = this.trailRoutes
           this.trailRoutes = rest
+        }
+        if (parts && parts.length > 1) {
+          this.trailRouteParts = { ...this.trailRouteParts, [trail.id]: parts }
+        }
+        else if (this.trailRouteParts[trail.id]) {
+          const { [trail.id]: _staleParts, ...restParts } = this.trailRouteParts
+          this.trailRouteParts = restParts
         }
       },
       /** Replace seed territories with live data from /api/territories/map. */

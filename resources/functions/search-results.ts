@@ -6,11 +6,15 @@
  * into the same row.
  */
 
+import { avatarUrl } from './avatars'
+
 export interface SearchRow {
   label: string
   detail: string
   href: string
   initial?: string
+  /** An athlete's photo, when they have one; `initial` stands in otherwise. */
+  photo?: string
 }
 
 export interface SearchGroups {
@@ -31,6 +35,7 @@ interface Suggestion {
 interface Athlete {
   id?: number
   name?: string
+  avatar?: string | null
   activityCount?: number
   followerCount?: number
 }
@@ -131,6 +136,7 @@ export function groupSearchResults(answers: SearchAnswers): SearchGroups {
         detail: `${plural(a.activityCount ?? 0, 'activity', 'activities')} · ${plural(a.followerCount ?? 0, 'follower')}`,
         href: `/athlete/${a.id}`,
         initial: (a.name as string).charAt(0).toUpperCase(),
+        ...(avatarUrl(a.avatar ?? null) ? { photo: avatarUrl(a.avatar ?? null) } : {}),
       })),
     clubs: (answers.clubs ?? [])
       .filter(c => typeof c.id === 'number' && c.name)

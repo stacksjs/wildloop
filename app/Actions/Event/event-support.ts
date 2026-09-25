@@ -13,6 +13,7 @@ import EventLap from '../../Models/EventLap'
 
 import type { BackyardEntrantState, BackyardSchedule } from '../../../resources/functions/backyard'
 import { currentYard, isStillIn, msIntoCurrentYard, msToNextStart, resolveOutcome, standings, yardStartsAt } from '../../../resources/functions/backyard'
+import { avatarOf } from '../../Support/avatars'
 
 export interface EventRow {
   id: number
@@ -202,11 +203,13 @@ export async function buildLiveBoard(
   const userIds = [...new Set(entrants.map((entrant: any) => entrant.user_id))]
   const users = userIds.length ? await User.whereIn('id', userIds).get() : []
   const nameOf = new Map((users ?? []).map((user: any) => [user.id, user.name]))
+  const avatarFor = new Map((users ?? []).map((user: any) => [user.id, avatarOf(user)]))
 
   const board = standings(
     entrants.map((entrant: any) => ({
       userId: entrant.user_id,
       name: nameOf.get(entrant.user_id) ?? 'Unknown',
+      avatar: avatarFor.get(entrant.user_id) ?? null,
       status: entrant.status,
       yardsCompleted: entrant.yards_completed ?? 0,
       lastLapAt: entrant.last_lap_at,
@@ -225,6 +228,7 @@ export async function buildLiveBoard(
     .map((lap: any) => ({
       userId: lap.user_id,
       name: nameOf.get(lap.user_id) ?? 'Unknown',
+      avatar: avatarFor.get(lap.user_id) ?? null,
       yard: lap.yard_number,
       finishedAt: lap.finished_at,
       durationSeconds: lap.duration_seconds,

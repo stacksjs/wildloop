@@ -8,6 +8,7 @@
 // leaderboard. Public read; a private club only resolves for its members.
 
 import { Auth } from '@stacksjs/auth'
+import { avatarOf } from '../../Support/avatars'
 
 export default new Action({
   name: 'Club Show',
@@ -34,11 +35,13 @@ export default new Action({
 
       const users = memberIds.length ? await User.whereIn('id', memberIds).get() : []
       const userName = new Map(users.map((u: any) => [u.id, u.name]))
+      const userAvatar = new Map(users.map((u: any) => [u.id, avatarOf(u)]))
 
       const members = memberships
         .map((m: any) => ({
           userId: m.user_id,
           name: userName.get(m.user_id) ?? 'Unknown',
+          avatar: userAvatar.get(m.user_id) ?? null,
           role: m.role,
           joinedAt: m.created_at,
         }))
@@ -62,6 +65,7 @@ export default new Action({
         id: a.id,
         userId: a.user_id,
         userName: userName.get(a.user_id) ?? 'Unknown',
+        userAvatar: userAvatar.get(a.user_id) ?? null,
         title: a.trail_id ? `${a.activity_type}` : a.activity_type,
         activityType: a.activity_type,
         distance: a.distance,
@@ -85,6 +89,7 @@ export default new Action({
         .map((uid: number) => ({
           userId: uid,
           name: userName.get(uid) ?? 'Unknown',
+          avatar: userAvatar.get(uid) ?? null,
           weeklyDistance: Math.round((weeklyByUser.get(uid)?.dist ?? 0) * 10) / 10,
           weeklyActivities: weeklyByUser.get(uid)?.count ?? 0,
         }))

@@ -20,6 +20,7 @@
 </script>
 
 <script client>
+  import { avatarUrl } from '../functions/avatars'
   useHead({ title: 'Your Conquests — Wildloop' })
 
   const wl = useStore('wl')
@@ -40,6 +41,10 @@
     if (f === 'defenses') return wl.conquests().filter((c: any) => c.defender_id === uid)
     return wl.conquests().filter((c: any) => c.defender_id === uid && c.status === 'conquered')
   })
+
+  function photoOf(avatar: string | null | undefined): string {
+    return avatarUrl(avatar ?? null)
+  }
 
   const underAttack = derived(() =>
     wl ? wl.conquests().filter((c: any) => c.defender_id === wl.currentUserId() && c.status === 'active').slice(0, 5) : []
@@ -157,7 +162,8 @@
           <div class="space-y-2">
             <template :for="conquest in underAttack">
               <div class="flex items-center gap-3 rounded-xl bg-red-50 p-3 dark:bg-red-500/10">
-                <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-100 text-xs font-bold text-red-700 dark:bg-red-500/20 dark:text-red-300" aria-hidden="true">{{ conquest.attackerName.charAt(0) }}</div>
+                <Image :if="photoOf(conquest.attackerAvatar)" x-src="photoOf(conquest.attackerAvatar)" x-alt="conquest.attackerName" width="36" height="36" sizes="36px" loading="lazy" class="h-9 w-9 shrink-0 rounded-full object-cover" />
+                <div :if="!photoOf(conquest.attackerAvatar)" class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-100 text-xs font-bold text-red-700 dark:bg-red-500/20 dark:text-red-300" aria-hidden="true">{{ conquest.attackerName.charAt(0) }}</div>
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ conquest.attackerName }}</p>
                   <p class="truncate text-xs text-red-600 dark:text-red-400">{{ 'Targeting ' + conquest.territoryName }}</p>

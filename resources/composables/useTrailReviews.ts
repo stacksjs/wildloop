@@ -16,6 +16,7 @@ interface ReviewRow {
   trail_id: number
   user_id: number
   userName: string
+  userAvatar?: string | null
   rating: number
   text: string
   conditions: string
@@ -65,6 +66,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
       trail_id: trailId(),
       user_id: r.userId,
       userName: r.userName ?? 'Unknown',
+      userAvatar: r.userAvatar ?? null,
       rating: r.rating ?? 0,
       text: r.content ?? '',
       conditions: r.conditions ?? '',

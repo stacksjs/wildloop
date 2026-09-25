@@ -1,5 +1,6 @@
 import { summarizeDifficulty } from '../../Support/reviewDifficulty'
 import { cachedReviews, cacheReviews, REVIEW_CACHE_TTL_MS } from '../../Support/reviewCache'
+import { avatarOf } from '../../Support/avatars'
 
 /**
  * Reviews carry the trail's condition reports and change only when someone
@@ -46,11 +47,13 @@ export default new Action({
       const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))]
       const users = userIds.length ? await User.whereIn('id', userIds).get() : []
       const userName = new Map(users.map((u: any) => [u.id, u.name]))
+      const userAvatar = new Map(users.map((u: any) => [u.id, avatarOf(u)]))
 
       const reviews = rows.map((r: any) => ({
         id: r.id,
         userId: r.user_id,
         userName: userName.get(r.user_id) ?? 'Unknown',
+        userAvatar: userAvatar.get(r.user_id) ?? null,
         rating: r.rating ?? 0,
         title: r.title,
         content: r.content,

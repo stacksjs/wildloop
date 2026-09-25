@@ -13,6 +13,7 @@
 /** Roles allowed to see the dashboard. */
 import { Auth } from '@stacksjs/auth'
 import { countOf } from './admin-overview-support'
+import { avatarOf } from '../../Support/avatars'
 
 const ADMIN_ROLES = ['admin']
 
@@ -101,6 +102,7 @@ export default new Action({
     const accountRoles = accounts.map((account: any) => ({
         id: account.id,
         name: account.name ?? null,
+        avatar: avatarOf(account),
         email: account.email,
         created_at: account.created_at ?? null,
         roles: rolesByUser.get(Number(account.id)) ?? [],
@@ -117,7 +119,7 @@ export default new Action({
 
     return response.json({
       success: true,
-      viewer: { id: user.id, email: user.email, name: user.name ?? null, roles },
+      viewer: { id: user.id, email: user.email, name: user.name ?? null, avatar: avatarOf(user), roles },
       counts: {
         users: allAccounts.length,
         trails,

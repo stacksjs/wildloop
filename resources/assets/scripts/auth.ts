@@ -190,6 +190,9 @@ export interface AuthUser {
   email: string
   name?: string
   avatar?: string | null
+  bio?: string | null
+  location?: string | null
+  joinedAt?: string | null
   roles?: string[]
 }
 
@@ -386,6 +389,70 @@ export async function changePassword(input: {
   catch (error) {
     return { ok: false, message: describeThrownError(error).message }
   }
+}
+
+export interface ProfileResult {
+  ok: boolean
+  /** The account as the server now holds it, when `ok`. */
+  user?: AuthUser
+  /** Present when `ok` is false. Already safe to render. */
+  message: string
+  /** Per-field messages, when the server named the fields at fault. */
+  fields?: Record<string, string>
+}
+
+/**
+ * Take the account the profile endpoints answer with as this device's copy,
+ * so a reload shows the new name and photo before /api/me has answered.
+ */
+async function adoptProfile(response: Response): Promise<ProfileResult> {
+  const payload = await response.json().catch(() => null)
+  if (!response.ok || !payload?.user?.id) {
+    const failure = describeResponseError(response.status, payload)
+    if (failure.unexpected)
+      console.error('[auth:profile]', response.status, failure.cause)
+    return { ok: false, message: failure.message, fields: payload?.fields ?? undefined }
+  }
+  const user = { ...(currentUser() ?? {}), ...payload.user } as AuthUser
+  await persist({ user })
+  return { ok: true, user, message: '' }
+}
+
+async function sendProfileRequest(path: string, init: RequestInit): Promise<ProfileResult> {
+  try {
+    return await adoptProfile(await apiFetch(path, { credentials: 'same-origin', ...init }))
+  }
+  catch (error) {
+    return { ok: false, message: describeThrownError(error).message }
+  }
+}
+
+/** Save the name, bio and location (PUT /api/me/profile). */
+export function updateProfile(input: { name: string, bio: string, location: string }): Promise<ProfileResult> {
+  return sendProfileRequest('/api/me/profile', {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify(input),
+  })
+}
+
+/**
+ * Upload a new profile photo (POST /api/me/avatar). The server crops it square
+ * and re-encodes it, which drops its EXIF and GPS position.
+ */
+export function uploadAvatar(file: Blob): Promise<ProfileResult> {
+  // Multipart: the browser writes the boundary into Content-Type, so the JSON
+  // one headers() sets must not go with it.
+  const multipart = headers()
+  delete multipart['Content-Type']
+  const body = new FormData()
+  body.append('avatar', file)
+  return sendProfileRequest('/api/me/avatar', { method: 'POST', headers: multipart, body })
+}
+
+/** Remove the profile photo (DELETE /api/me/avatar), back to the initial. */
+export function removeAvatar(): Promise<ProfileResult> {
+  return sendProfileRequest('/api/me/avatar', { method: 'DELETE', headers: headers() })
 }
 
 /** Request a reset without turning an HTTP failure into an inbox confirmation. */

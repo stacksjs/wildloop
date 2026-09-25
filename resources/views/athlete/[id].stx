@@ -9,6 +9,7 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../../functions/route-records'
+  import { avatarUrl } from '../../functions/avatars'
 
   useHead({ title: 'Athlete - Wildloop' })
 
@@ -26,6 +27,8 @@
 
   const isSelf = derived(() => !!wl && athleteId === wl.currentUserId())
   const isFollowing = derived(() => !!wl && wl.isFollowing(athleteId))
+  // Your own page shows the photo you have now, so a new one shows at once.
+  const athletePhoto = derived(() => (isSelf() ? avatarUrl(wl.currentUser(), 'display') : '') || avatarUrl(profile()?.user, 'display'))
 
   async function loadAthlete() {
     loading.set(true)
@@ -179,9 +182,12 @@
       <!-- Header -->
       <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
         <div class="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
-          <div class="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-4xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10" aria-hidden="true">{{ (profile.user.name || 'U').charAt(0) }}</div>
+          <Image :if="athletePhoto()" x-src="athletePhoto()" x-alt="profile.user.name" width="96" height="96" sizes="96px" class="h-24 w-24 shrink-0 rounded-full object-cover ring-4 ring-emerald-50 dark:ring-emerald-500/10" />
+          <div :if="!athletePhoto()" class="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-4xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10" aria-hidden="true">{{ (profile.user.name || 'U').charAt(0) }}</div>
           <div class="min-w-0 flex-1">
             <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ profile.user.name }}</h1>
+            <p :if="profile.user.location" class="mt-1 inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400"><i class="i-lucide-map-pin h-3.5 w-3.5" aria-hidden="true"></i>{{ profile.user.location }}</p>
+            <p :if="profile.user.bio" class="mt-2 max-w-prose whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">{{ profile.user.bio }}</p>
             <p :if="isSelf" class="mt-1 text-sm text-slate-500 dark:text-slate-400">This is you.</p>
             <div :if="!isSelf" class="mt-4 flex items-center justify-center gap-2 sm:justify-start">
               <button

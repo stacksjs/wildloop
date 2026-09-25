@@ -3,6 +3,8 @@
 // NOTE: the ORM is snake_case (rows + where/orderBy columns use column names).
 // Reads below use snake_case; JSON output keeps camelCase for the UI.
 
+import { avatarOf } from '../../Support/avatars'
+
 export default new Action({
   name: 'User Territories',
   description: 'Get all territories owned by a specific user',
@@ -50,7 +52,7 @@ export default new Action({
         user: {
           id: user.id,
           name: user.name,
-          avatar: user.avatar,
+          avatar: avatarOf(user),
         },
         territories: formattedTerritories,
         stats: stats

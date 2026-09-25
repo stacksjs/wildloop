@@ -15,7 +15,7 @@
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { routePreviewDataUri } from '../../composables/useRoutePreview'
   import { routeShapeFor } from '../../composables/useRouteShape'
-  import { avatarInitial, avatarTint } from '../../functions/avatars'
+  import { avatarInitial, avatarTint, avatarUrl } from '../../functions/avatars'
   import { copyLink, shareLink, shareNote } from '../../composables/useShareLink'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
   import { parsePhotoList, trailGallery, type GalleryContribution } from '../../functions/trail-photos'
@@ -181,6 +181,10 @@
 
   function reviewerTint(review: any) {
     return avatarTint(review?.user_id ?? review?.userName)
+  }
+
+  function reviewerPhoto(review: any) {
+    return avatarUrl(review?.userAvatar ?? null)
   }
 
   function starsOn(rating: number) {
@@ -513,13 +517,16 @@
       detailMap = await createTrailMap('trail-map', {
         center: [t.lat, t.lng],
         zoom: 13,
-        scrollWheelZoom: false,
       })
       if (!detailMap) return
       const coords = wl.trailRoutes()[t.id]
       if (coords && coords.length > 1) {
-        await drawTrailRoute(detailMap.map, coords, { color: '#059669', weight: 4, opacity: 0.9 })
-        detailMap.fitPoints(coords, [30, 30])
+        // A trail in several pieces is drawn as those pieces, each its own
+        // line: joining them drew straight lines across roads and houses.
+        const parts = wl.trailRouteParts?.()[t.id]
+        const drawn = parts && parts.length > 1 ? parts : [coords]
+        await drawTrailRoute(detailMap.map, drawn, { color: '#059669', weight: 4, opacity: 0.9 })
+        detailMap.fitPoints(drawn.flat(), [30, 30])
       }
       else {
         detailMap.map.setView([t.lat, t.lng], 14)
@@ -547,7 +554,7 @@
         const normalized = normalizeTrailsPayload({ trails: [payload.trail] })
         const found = normalized.trails[0]
         if (found && wl)
-          wl.upsertTrailFromApi(found, normalized.geometryById[found.id])
+          wl.upsertTrailFromApi(found, normalized.geometryById[found.id], normalized.routePartsById[found.id])
       }
       catch {
         const savedTrail = await offlineTrail(trailId())
@@ -1129,7 +1136,8 @@
                 <div class="card">
                   <div class="mb-2.5 flex items-center justify-between gap-3">
                     <div class="flex min-w-0 items-center gap-3">
-                      <div x-class="'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ' + reviewerTint(review)" aria-hidden="true">{{ reviewerInitial(review.userName) }}</div>
+                      <Image :if="reviewerPhoto(review)" x-src="reviewerPhoto(review)" x-alt="review.userName" width="36" height="36" sizes="36px" loading="lazy" class="h-9 w-9 shrink-0 rounded-full object-cover" />
+                      <div :if="!reviewerPhoto(review)" x-class="'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold ' + reviewerTint(review)" aria-hidden="true">{{ reviewerInitial(review.userName) }}</div>
                       <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ review.userName }}</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">{{ wl.timeAgo(review.created_at) }}</p>

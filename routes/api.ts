@@ -446,6 +446,8 @@ route.get('/trails/{id}/reviews', 'Actions/Trail/TrailReviewIndexAction')
 // are served through the file route, which only answers for visible photos.
 route.get('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoIndexAction')
 route.get('/trail-photos/{trailId}/{file}', 'Actions/TrailPhoto/TrailPhotoFileAction')
+// Profile photos, served the same way: only a user's current photo answers.
+route.get('/avatars/{userId}/{file}', 'Actions/Profile/AvatarFileAction')
 // The route's fastest-known-time board. Public and session-free: a records
 // board is a reference work, and requiring a login to read who holds a route
 // would defeat the point of publishing it.
@@ -626,5 +628,13 @@ route.group({ middleware: 'auth' }, () => {
   route.put('/me/password', 'Actions/Auth/PasswordUpdateAction')
   // Trails the athlete has done: activities on them, or saves marked visited
   route.get('/me/completed-trails', 'Actions/Trail/CompletedTrailIndexAction')
+  // The athlete's own profile: name, bio, location and photo. The photo is
+  // decoded and re-encoded on upload (which strips its GPS position), so it
+  // is limited like the other image uploads rather than like a form save.
+  route.put('/me/profile', 'Actions/Profile/ProfileUpdateAction')
+  route.group({ middleware: 'throttle:20,1' }, () => {
+    route.post('/me/avatar', 'Actions/Profile/AvatarStoreAction')
+    route.delete('/me/avatar', 'Actions/Profile/AvatarDestroyAction')
+  })
   route.post('/logout', 'Actions/Auth/LogoutAction')
 })

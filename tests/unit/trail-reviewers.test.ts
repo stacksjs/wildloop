@@ -43,15 +43,25 @@ describe('grouping the rows', () => {
       row(2, 9, 'Alan', 2),
     ])
 
-    expect(summaries[1]).toEqual({ recentCount: 31, reviewers: [{ id: 7, name: 'Ada' }, { id: 8, name: 'Grace' }] })
-    expect(summaries[2]).toEqual({ recentCount: 2, reviewers: [{ id: 9, name: 'Alan' }] })
+    expect(summaries[1]).toEqual({ recentCount: 31, reviewers: [{ id: 7, name: 'Ada', avatar: null }, { id: 8, name: 'Grace', avatar: null }] })
+    expect(summaries[2]).toEqual({ recentCount: 2, reviewers: [{ id: 9, name: 'Alan', avatar: null }] })
   })
 
   it('counts a review whose author is gone without inventing a face for it', () => {
     const summaries = buildReviewerSummaries([row(1, 7, null, 4), row(1, 8, 'Grace', 4)])
 
     expect(summaries[1].recentCount).toBe(4)
-    expect(summaries[1].reviewers).toEqual([{ id: 8, name: 'Grace' }])
+    expect(summaries[1].reviewers).toEqual([{ id: 8, name: 'Grace', avatar: null }])
+  })
+
+  it('carries a photo when the reviewer has one, and only a safe one', () => {
+    const photo = '/api/avatars/7/3f2b8c1e-9a4d-4e7f-b1c2-5d6e7f8a9b0c.jpg'
+    const summaries = buildReviewerSummaries([
+      { ...row(1, 7, 'Ada', 2), avatar: photo },
+      { ...row(1, 8, 'Grace', 2), avatar: 'javascript:alert(1)' },
+    ])
+
+    expect(summaries[1].reviewers).toEqual([{ id: 7, name: 'Ada', avatar: photo }, { id: 8, name: 'Grace', avatar: null }])
   })
 })
 
@@ -64,7 +74,7 @@ afterEach(() => {
 
 function reviewsDatabase(): Database {
   const db = new Database(':memory:')
-  db.run(`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)`)
+  db.run(`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, avatar TEXT)`)
   db.run(`CREATE TABLE trail_reviews (
     id INTEGER PRIMARY KEY, user_id INTEGER, trail_id INTEGER, rating INTEGER, created_at TEXT
   )`)
@@ -100,7 +110,7 @@ describe('the query itself, against SQLite', () => {
     expect(summaries[1].recentCount).toBe(5)
     expect(summaries[1].reviewers.map(r => r.name)).toEqual(['Barbara', 'Edsger', 'Alan'])
     expect(summaries[1].reviewers).toHaveLength(MAX_FACES)
-    expect(summaries[2]).toEqual({ recentCount: 1, reviewers: [{ id: 2, name: 'Grace' }] })
+    expect(summaries[2]).toEqual({ recentCount: 1, reviewers: [{ id: 2, name: 'Grace', avatar: null }] })
     expect(summaries[3]).toBeUndefined()
   })
 
@@ -114,6 +124,6 @@ describe('the query itself, against SQLite', () => {
     const summaries = buildReviewerSummaries(database.query(recentReviewersSql([1], recentCutoff())).all() as ReviewerRow[])
 
     expect(summaries[1].recentCount).toBe(2)
-    expect(summaries[1].reviewers).toEqual([{ id: 1, name: 'Ada' }])
+    expect(summaries[1].reviewers).toEqual([{ id: 1, name: 'Ada', avatar: null }])
   })
 })
