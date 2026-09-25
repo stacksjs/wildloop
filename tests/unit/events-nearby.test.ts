@@ -1,6 +1,6 @@
 import type { EventSummary } from '../../resources/assets/scripts/events-api'
 import { describe, expect, it } from 'bun:test'
-import { eventPointOf, toEventPoint } from '../../app/Actions/Event/event-support'
+import { eventPointOf, toEventPoint } from '../../app/Support/eventBoard'
 import { arrangeEvents, formatMilesAway, milesBetween } from '../../resources/composables/useEvents'
 
 /**

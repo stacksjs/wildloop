@@ -15,7 +15,7 @@ import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 
-import { buildLiveBoard, canViewEvent, syncFieldStatus } from './event-support'
+import { buildLiveBoard, canViewEvent, syncFieldStatus } from '../../Support/eventBoard'
 
 export default new Action({
   name: 'Event Live',

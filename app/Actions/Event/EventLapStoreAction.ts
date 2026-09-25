@@ -19,7 +19,7 @@ import EventEntrant from '../../Models/EventEntrant'
 import EventLap from '../../Models/EventLap'
 
 import { currentYard, isStillIn, resolveOutcome, standings } from '../../../resources/functions/backyard'
-import { scheduleOf } from './event-support'
+import { scheduleOf } from '../../Support/eventBoard'
 
 export default new Action({
   name: 'Event Lap Store',

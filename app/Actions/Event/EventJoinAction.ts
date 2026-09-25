@@ -15,7 +15,7 @@ import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 
-import { canViewEvent } from './event-support'
+import { canViewEvent } from '../../Support/eventBoard'
 
 export default new Action({
   name: 'Event Join',

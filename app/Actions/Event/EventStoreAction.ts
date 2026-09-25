@@ -17,7 +17,7 @@ import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 
 import { STANDARD_YARD_MILES, STANDARD_YARD_MINUTES } from '../../../resources/functions/backyard'
-import { toEventPoint } from './event-support'
+import { toEventPoint } from '../../Support/eventBoard'
 
 const EVENT_TYPES = ['backyard', 'race', 'group_run', 'time_trial']
 const VISIBILITIES = ['public', 'club', 'private']

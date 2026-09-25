@@ -19,7 +19,7 @@ import { Auth } from '@stacksjs/auth'
 import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 import { matchesText, textQuery } from '../../Support/textQuery'
-import { eventPointOf } from './event-support'
+import { eventPointOf } from '../../Support/eventBoard'
 
 import { currentYard, standings } from '../../../resources/functions/backyard'
 

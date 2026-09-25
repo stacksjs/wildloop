@@ -16,7 +16,7 @@ import Event from '../../Models/Event'
 import EventEntrant from '../../Models/EventEntrant'
 
 import { resolveOutcome } from '../../../resources/functions/backyard'
-import { scheduleOf } from './event-support'
+import { scheduleOf } from '../../Support/eventBoard'
 
 const TRANSITIONS: Record<string, string[]> = {
   scheduled: ['live', 'cancelled'],
