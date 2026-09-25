@@ -7,6 +7,7 @@
  * Keys are snake_case to match the backend Actions / ORM.
  */
 
+import type { ConditionReport } from '../../functions/trail-conditions'
 import { describeResponseError } from './request-error'
 import { uploadNeedsAttention } from './run-upload-queue'
 
@@ -460,6 +461,19 @@ export interface TrailReview {
   conditions: string | null
   visitDate: string | null
   createdAt: string
+  /** When the condition was seen, which is not when the review was written. */
+  conditionsReportedAt?: string | null
+}
+
+/**
+ * A trail's recent condition reports, and the danger to warn about.
+ *
+ * Settled by the API over every review of the trail, not the page of reviews
+ * the tab asked for, so a report on review 201 still raises the alert.
+ */
+export interface TrailConditionSummary {
+  reports: ConditionReport[]
+  danger: ConditionReport | null
 }
 
 /** Fetch a trail's reviews (author names joined, newest first) (#981). */
@@ -476,15 +490,15 @@ export interface TrailDifficultySummary {
   consensus: 'easy' | 'moderate' | 'hard' | null
 }
 
-/** A trail's reviews together with the tally of their difficulty votes. */
-export async function fetchTrailReviewPage(trailId: number, fresh = false): Promise<{ reviews: TrailReview[], difficulty: TrailDifficultySummary | null } | null> {
+/** A trail's reviews with the difficulty tally and the condition summary. */
+export async function fetchTrailReviewPage(trailId: number, fresh = false): Promise<{ reviews: TrailReview[], difficulty: TrailDifficultySummary | null, conditions: TrailConditionSummary | null } | null> {
   // Browsers keep this 15 minutes (TrailReviewIndexAction). Right after
   // posting, ask the server instead, which dropped its copy on the write.
   const res = await apiFetch(`/api/trails/${trailId}/reviews`, fresh ? { cache: 'reload' } : {})
   if (!res.ok)
     return null
   const json = await res.json()
-  return json?.success ? { reviews: json.reviews, difficulty: json.difficulty ?? null } : null
+  return json?.success ? { reviews: json.reviews, difficulty: json.difficulty ?? null, conditions: json.conditions ?? null } : null
 }
 
 /**

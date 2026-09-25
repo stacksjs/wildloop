@@ -1,8 +1,9 @@
 import { onMount, state } from 'stx'
+import type { TrailConditionSummary } from '../assets/scripts/game-api'
 import { fetchTrailReviewPage, postTrailReview, uploadTrailPhoto } from '../assets/scripts/game-api'
 import type { DifficultyTally } from '../functions/review-form'
 import { REVIEW_PHOTO_LIMIT, reviewFormError } from '../functions/review-form'
-import { TRAIL_CONDITIONS } from '../functions/trail-conditions'
+import { activeDanger, conditionReports, TRAIL_CONDITIONS } from '../functions/trail-conditions'
 
 /**
  * Trail reviews (#981): hydrate the detail page's review list from the API
@@ -24,6 +25,8 @@ interface ReviewRow {
   created_at: string
   /** The day of the visit, when given: when the conditions were seen. */
   visitDate?: string | null
+  /** When the condition was seen, as the API settled it. */
+  conditionsReportedAt?: string | null
   /** As stored: a JSON array, a comma-separated list or a single URL. */
   photos?: unknown
 }
@@ -49,6 +52,12 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
   const reviews = state<ReviewRow[]>([])
   const reviewSource = state<'api' | 'seed'>('seed')
   const difficultyTally = state<DifficultyTally | null>(null)
+  /**
+   * The trail's condition reports and its danger alert, as the API settled
+   * them over every review. Null until it answers, when the page falls back
+   * to reading the reviews it has.
+   */
+  const conditionSummary = state<TrailConditionSummary | null>(null)
 
   const reviewSheetOpen = state(false)
   const formRating = state(0)
@@ -73,6 +82,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
       difficulty: r.difficulty ?? '',
       created_at: r.createdAt ?? new Date().toISOString(),
       visitDate: r.visitDate ?? null,
+      conditionsReportedAt: r.conditionsReportedAt ?? null,
       photos: r.photos ?? null,
     }
   }
@@ -83,6 +93,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
       return
     reviews.set(page.reviews.map(mapApiReview))
     difficultyTally.set(page.difficulty)
+    conditionSummary.set(page.conditions)
     reviewSource.set('api')
   }
 
@@ -211,6 +222,12 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     const me = wl.currentUserId()
     const mine = mapApiReview({ ...res.review, userName: wl.findUser(me)?.name ?? res.review.userName })
     reviews.set([mine, ...reviews().filter(r => r.user_id !== me)])
+    // Show the report just made without waiting for the server to be asked
+    // again. A hazard the server knows about and this page cannot see — one
+    // on a review past the page it holds — is kept, so posting a review can
+    // only ever add a warning here, never take one away.
+    const posted = conditionReports(reviews())
+    conditionSummary.set({ reports: posted, danger: activeDanger(posted) ?? conditionSummary()?.danger ?? null })
     if (res.trail)
       wl.setTrailRating(res.trail.id, res.trail.rating, res.trail.reviewCount)
 
@@ -227,6 +244,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     reviews,
     reviewSource,
     difficultyTally,
+    conditionSummary,
     reviewSheetOpen,
     formRating,
     formContent,

@@ -1,6 +1,15 @@
 import { summarizeDifficulty } from '../../Support/reviewDifficulty'
 import { cachedReviews, cacheReviews, REVIEW_CACHE_TTL_MS } from '../../Support/reviewCache'
 import { avatarOf } from '../../Support/avatars'
+import { activeDanger, conditionReports } from '../../../resources/functions/trail-conditions'
+
+/**
+ * How many recent condition reports to send.
+ *
+ * The conditions tab lists them; the alert is decided here, over every one of
+ * them, so this cap can never hide a hazard.
+ */
+const MAX_CONDITION_REPORTS = 100
 
 /**
  * Reviews carry the trail's condition reports and change only when someone
@@ -75,7 +84,13 @@ export default new Action({
       const paged = paginate(reviews, readPageParams(request, { defaultLimit: 200, maxLimit: 200 }))
       // Tallied over every review, not the page: it describes the trail.
       const difficulty = summarizeDifficulty(rows.map((r: any) => r.difficulty))
-      const body = { success: true, reviews: paged.items, difficulty, meta: paged.meta }
+      // The same goes for the conditions, and for the danger alert the trail
+      // page puts at the top: asking for one page of reviews must not decide
+      // whether a closure is shown. Both are settled here, over every review
+      // this trail has, and the client renders what it is told.
+      const reports = conditionReports(reviews)
+      const conditions = { reports: reports.slice(0, MAX_CONDITION_REPORTS), danger: activeDanger(reports) }
+      const body = { success: true, reviews: paged.items, difficulty, conditions, meta: paged.meta }
       cacheReviews(trailId, pageKey, body)
       return cachedJson(body, false)
     }

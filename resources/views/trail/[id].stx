@@ -64,8 +64,14 @@
   // weather and hazards. A danger reported in the last week (snow, ice,
   // flooding, a washed out section, extreme heat, wildfire, a closure) is put
   // at the top of the page in red, unless a newer report says it is fine.
-  const reports = derived(() => conditionReports(reviews()))
-  const danger = derived(() => activeDanger(reports()))
+  // The API settles both over every review of the trail, so which page of
+  // reviews the tab asked for cannot decide whether a closure is shown. Only
+  // the store's seed reviews, before the API answers, are read here.
+  const reports = derived(() => conditionSummary()?.reports ?? conditionReports(reviews()))
+  const danger = derived(() => {
+    const summary = conditionSummary()
+    return summary ? summary.danger : activeDanger(reports())
+  })
   const dangerTitle = derived(() => (danger() ? `${danger()!.label} reported on this trail` : ''))
   const dangerDetail = derived(() => {
     const d = danger()
@@ -122,7 +128,7 @@
     markingDone.set(false)
   }
   const {
-    reviews, difficultyTally, reviewSheetOpen,
+    reviews, difficultyTally, conditionSummary, reviewSheetOpen,
     formRating, formContent, formConditions, formDifficulty, formPhotos,
     submittingReview, reviewError, reviewSaved,
     openReviewSheet, closeReviewSheet, addReviewPhotos, removeReviewPhoto, submitReview,

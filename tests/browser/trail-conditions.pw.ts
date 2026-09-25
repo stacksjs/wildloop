@@ -55,6 +55,45 @@ test('a flooding report is listed and shown at the top of the trail in red', asy
   await expect(page.getByText('The creek crossing is waist deep after the storm.').first()).toBeVisible()
 })
 
+test('editing an old review raises today\'s warning', async ({ page }) => {
+  // One review per person per trail, so somebody who walked this trail
+  // before comes back and edits the review they already have. The row is as
+  // old as it was; the hazard on it is not.
+  await signUp(page)
+  await page.goto(`${origin}/trails`)
+  await page.getByRole('link', { name: /Torrey Pines Loop/ }).first().click()
+  // Wait for the page itself: reading the URL before the navigation lands
+  // gives the trail id of the list, which is no id at all.
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Torrey Pines Loop')
+  const trailId = Number(new URL(page.url()).pathname.split('/').pop())
+  expect(trailId).toBeGreaterThan(0)
+
+  await page.getByRole('button', { name: /Conditions/ }).first().click()
+  await page.getByRole('button', { name: 'Report conditions' }).click()
+  await page.getByRole('button', { name: 'Rate 4 stars' }).click()
+  await page.locator('#review-tips').fill('Dry and clear the whole way round today.')
+  await page.getByRole('button', { name: 'Good', exact: true }).click()
+  const first = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/reviews`) && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  expect((await first).ok()).toBeTruthy()
+
+  // Back later, with something worth warning about.
+  await page.getByRole('button', { name: 'Report conditions' }).click()
+  await page.locator('#review-tips').fill('The gate is locked, the trail is closed.')
+  await page.getByRole('button', { name: 'Closed', exact: true }).click()
+  const edited = page.waitForResponse(r => r.url().endsWith(`/api/trails/${trailId}/reviews`) && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  expect((await edited).ok()).toBeTruthy()
+
+  const alert = page.getByRole('alert').filter({ hasText: 'Closed reported on this trail' })
+  await expect(alert).toBeVisible()
+  await expect(alert).toContainText('gate is locked')
+
+  // And it survives the reload, because the server settled it too.
+  await page.reload()
+  await expect(page.getByRole('alert').filter({ hasText: 'Closed reported on this trail' })).toBeVisible()
+})
+
 test('the review form offers weather and hazards', async ({ page }) => {
   await signUp(page)
   await page.goto(`${origin}/trails`)
