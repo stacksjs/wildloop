@@ -1,6 +1,7 @@
 import integrations from '../../../config/integrations'
 import garmin from '../../../config/garmin'
 import { integrationProviderStatuses } from '../../Support/integrationAdapters'
+import { isConfigured as garminIsConfigured } from '../Garmin/garmin'
 
 export default new Action({
   name: 'Integration Status',
@@ -10,7 +11,8 @@ export default new Action({
     return response.json({
       success: true,
       providers: integrationProviderStatuses({
-        garminConfigured: !!(garmin.clientId && garmin.clientSecret && garmin.webhookSecret),
+        // The same test the Garmin card uses, so the two can never disagree.
+        garminConfigured: garminIsConfigured(garmin),
         appleHealthNativeBridge: integrations.appleHealth.nativeBridgeEnabled,
         healthConnectNativeBridge: integrations.healthConnect.nativeBridgeEnabled,
       }),

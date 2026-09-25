@@ -211,9 +211,33 @@ export function buildAuthorizeUrl(options: {
  *
  * Checked before anything starts a flow, so an athlete gets "not available
  * yet" instead of a Garmin error page about an unknown client id.
+ *
+ * The webhook secret counts too. Without it the webhook refuses every push,
+ * so an athlete could finish connecting and then wait forever for activities
+ * that are rejected on arrival - "Connected" on a sync that cannot deliver.
  */
-export function isConfigured(config: { clientId?: string, clientSecret?: string }): boolean {
-  return Boolean(config?.clientId && config?.clientSecret)
+export function isConfigured(config: { clientId?: string, clientSecret?: string, webhookSecret?: string }): boolean {
+  return Boolean(config?.clientId && config?.clientSecret && config?.webhookSecret)
+}
+
+/** How much history to ask Garmin for when someone first connects. */
+export const BACKFILL_DAYS = 30
+
+/**
+ * The window to backfill on connect.
+ *
+ * Push notifications only carry what happens after the athlete connects, so
+ * without a backfill request the runs already on their watch never arrive and
+ * the card sits on "nothing imported" beside a history they can see in Garmin
+ * Connect. Garmin answers a backfill by pushing those summaries to the same
+ * webhook, where the import ledger keeps them from landing twice.
+ *
+ * Garmin caps one request at 90 days; 30 covers "my recent runs" without
+ * flooding someone's private feed with a season they never meant to import.
+ */
+export function backfillWindow(now: Date = new Date(), days = BACKFILL_DAYS): { start: Date, end: Date } {
+  const span = Math.min(Math.max(1, Math.floor(days)), 90)
+  return { start: new Date(now.getTime() - span * 24 * 60 * 60 * 1000), end: now }
 }
 
 /** Pull activity summaries out of a push payload. */

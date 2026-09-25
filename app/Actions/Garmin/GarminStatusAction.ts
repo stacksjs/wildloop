@@ -36,6 +36,17 @@ export default new Action({
       .executeTakeFirst()
       .catch(() => null)
 
+    // How many Garmin activities actually became Wildloop activities. The
+    // card reports this rather than "waiting for your first activity", which
+    // read as though the account had none when it only meant none from
+    // Garmin. Skipped types (a yoga session) have no activity_id and do not
+    // count.
+    const imported = connection
+      ? await (db.sql`SELECT count(*) AS n FROM garmin_activity_imports WHERE user_id = ${user.id} AND activity_id IS NOT NULL`.execute() as Promise<any[]>)
+          .then(rows => rows?.[0])
+          .catch(() => null)
+      : null
+
     // Note what is deliberately absent: no tokens. The client never needs
     // them, and anything sent to a browser is a secret with a wider blast
     // radius than it looks.
@@ -45,6 +56,7 @@ export default new Action({
       connected: Boolean(connection),
       connectedAt: connection?.created_at ?? null,
       lastSyncAt: connection?.last_sync_at ?? null,
+      importedCount: Number(imported?.n ?? 0),
     })
   },
 })

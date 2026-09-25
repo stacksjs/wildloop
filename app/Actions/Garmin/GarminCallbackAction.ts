@@ -10,7 +10,7 @@
 import process from 'node:process'
 import garminConfig from '../../../config/garmin'
 import { OAUTH_COOKIE } from './GarminConnectAction'
-import { createGarminClient, isConfigured, openOAuthState } from './garmin'
+import { backfillWindow, createGarminClient, isConfigured, openOAuthState } from './garmin'
 
 /** Read one cookie off the request. */
 function readCookie(request: any, name: string): string | undefined {
@@ -83,6 +83,19 @@ export default new Action({
         expires_at: expiresAt,
         scope: tokens.scope ?? garminConfig.scope,
       }).execute()
+
+      // Ask for recent history. Pushes only cover activities finished after
+      // this moment, so without this the runs already on the watch never
+      // arrive. Garmin replies 202 and delivers them through the webhook.
+      // Best effort: the connection stands even if Garmin refuses, and new
+      // activities still arrive on their own.
+      try {
+        const { start, end } = backfillWindow()
+        await client.requestBackfill(tokens.accessToken, start, end)
+      }
+      catch (error) {
+        console.error('[garmin] backfill request failed; only new activities will import', error)
+      }
 
       return backToSettings('connected')
     }

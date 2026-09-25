@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it, spyOn } from 'bun:test'
 import {
+  backfillWindow,
   buildAuthorizeUrl,
   createPkcePair,
   evaluateImportedAthletes,
@@ -195,7 +196,34 @@ describe('isConfigured', () => {
   it('is false until Garmin has issued credentials', () => {
     expect(isConfigured({})).toBe(false)
     expect(isConfigured({ clientId: 'abc' })).toBe(false)
-    expect(isConfigured({ clientId: 'abc', clientSecret: 'shh' })).toBe(true)
+    expect(isConfigured({ clientId: 'abc', clientSecret: 'shh', webhookSecret: 'hook' })).toBe(true)
+  })
+
+  it('is false without the webhook secret, which would reject every push', () => {
+    // Connecting would succeed, and then every activity would be refused at
+    // the webhook: "Connected" on a sync that can never deliver.
+    expect(isConfigured({ clientId: 'abc', clientSecret: 'shh' })).toBe(false)
+    expect(isConfigured({ clientId: 'abc', clientSecret: 'shh', webhookSecret: '' })).toBe(false)
+  })
+})
+
+describe('backfillWindow', () => {
+  const now = new Date('2026-09-24T12:00:00Z')
+  const DAY = 24 * 60 * 60 * 1000
+
+  it('asks for the last 30 days, ending now', () => {
+    const { start, end } = backfillWindow(now)
+    expect(end.getTime()).toBe(now.getTime())
+    expect(now.getTime() - start.getTime()).toBe(30 * DAY)
+  })
+
+  it('stays inside the 90 days Garmin accepts in one request', () => {
+    expect(now.getTime() - backfillWindow(now, 365).start.getTime()).toBe(90 * DAY)
+  })
+
+  it('never asks for an empty or inverted window', () => {
+    expect(now.getTime() - backfillWindow(now, 0).start.getTime()).toBe(DAY)
+    expect(now.getTime() - backfillWindow(now, -5).start.getTime()).toBe(DAY)
   })
 })
 
