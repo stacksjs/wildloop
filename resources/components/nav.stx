@@ -81,6 +81,7 @@
 
         <div class="hidden items-center gap-0.5 lg:flex">
           <StxLink to="/trails" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Trails</StxLink>
+          <StxLink to="/routes" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Routes</StxLink>
           <StxLink to="/feed" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Feed</StxLink>
           <StxLink to="/events" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Events</StxLink>
           <StxLink to="/clubs" activeClass="nav-active" class="rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">Clubs</StxLink>
@@ -190,6 +191,7 @@
 
     <div :show="mobileOpen()" x-cloak class="space-y-1 pb-4 lg:hidden">
       <StxLink to="/trails" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Trails</StxLink>
+      <StxLink to="/routes" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Routes</StxLink>
       <StxLink to="/feed" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Feed</StxLink>
       <StxLink to="/events" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Events</StxLink>
       <StxLink to="/territories" class="block rounded px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Territory</StxLink>

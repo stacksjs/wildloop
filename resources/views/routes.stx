@@ -14,11 +14,11 @@
    */
   useSeoMeta({
     title: 'Route Planner — Wildloop',
-    description: 'Draw a running or hiking route anywhere by tapping the map — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
+    description: 'Draw a running or hiking route anywhere by tapping the map, then drag it into shape — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
     canonical: 'https://wildloop.org/routes',
     robots: 'index, follow, max-image-preview:large',
     ogTitle: 'Route Planner — Wildloop',
-    ogDescription: 'Draw a running or hiking route anywhere by tapping the map — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
+    ogDescription: 'Draw a running or hiking route anywhere by tapping the map, then drag it into shape — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
     ogType: 'website',
     ogUrl: 'https://wildloop.org/routes',
     ogImage: 'https://wildloop.org/images/social/og-default.jpg',
@@ -26,7 +26,7 @@
     ogLocale: 'en_US',
     twitterCard: 'summary_large_image',
     twitterTitle: 'Route Planner — Wildloop',
-    twitterDescription: 'Draw a running or hiking route anywhere by tapping the map — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
+    twitterDescription: 'Draw a running or hiking route anywhere by tapping the map, then drag it into shape — it follows real paths and trails — with distance and climb as you go. Save it and plan it for a day.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
 </script>
@@ -100,10 +100,10 @@
   // each change; the builder itself lives outside the reactive graph.
   let builder: RouteBuilderType | null = null
   let builderMap: TrailMapHandle | null = null
-  let line: any = null
-  let casing: any = null
-  let startPin: any = null
-  let endPin: any = null
+  /** The map UI for the builder: the line, and the handles that reshape it. */
+  let editor: any = null
+  /** Room above and below a fitted route, so the stats pill never covers its start or end. */
+  const FIT_PADDING: [number, number] = [32, 80]
   let climbTimer: ReturnType<typeof setTimeout> | null = null
   let climbToken = 0
 
@@ -171,52 +171,16 @@
     return points.map(p => [p.lat, p.lng])
   }
 
-  async function redraw(): Promise<void> {
-    if (!builder || !builderMap)
+  /** Copy the builder's numbers into signals; the editor draws the line itself. */
+  function redraw(): void {
+    if (!builder)
       return
-    const maps = await ensureTsMaps() as any
-    const path = builder.path
     pointCount.set(builder.waypoints.length)
     distanceMi.set(builder.distanceMeters / 1609.344)
     isLoop.set(builder.isLoop)
     isOutAndBack.set(mirrors(builder.waypoints))
     pending.set(builder.pending)
     canUndo.set(builder.canUndo)
-
-    const coords = toPairs(path)
-    if (!line) {
-      casing = new maps.Polyline(coords, { color: '#0b1b15', weight: 8, opacity: 0.35, lineCap: 'round', lineJoin: 'round' }).addTo(builderMap.map)
-      line = new maps.Polyline(coords, { color: '#10b981', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(builderMap.map)
-    }
-    else {
-      casing.setLatLngs(coords)
-      line.setLatLngs(coords)
-    }
-
-    const waypoints = builder.waypoints
-    const first = waypoints[0]
-    const last = waypoints[waypoints.length - 1]
-    if (first) {
-      if (!startPin)
-        startPin = new maps.CircleMarker([first.lat, first.lng], { radius: 8, color: '#ffffff', weight: 3, fillColor: '#059669', fillOpacity: 1 }).addTo(builderMap.map)
-      else
-        startPin.setLatLng([first.lat, first.lng])
-    }
-    else if (startPin) {
-      builderMap.map.removeLayer(startPin)
-      startPin = null
-    }
-    if (last && waypoints.length > 1 && !builder.isLoop) {
-      if (!endPin)
-        endPin = new maps.CircleMarker([last.lat, last.lng], { radius: 7, color: '#ffffff', weight: 3, fillColor: '#0f172a', fillOpacity: 1 }).addTo(builderMap.map)
-      else
-        endPin.setLatLng([last.lat, last.lng])
-    }
-    else if (endPin) {
-      builderMap.map.removeLayer(endPin)
-      endPin = null
-    }
-
     if (builder.lastError && followPaths())
       hint.set(`${builder.lastError} — drew that stretch straight.`)
     scheduleClimb()
@@ -261,15 +225,31 @@
     if (!builderMap)
       return
     builder = new maps.services.RouteBuilder({ router: await currentRouter() }) as RouteBuilderType
-    builder.onChange(() => void redraw())
-    builderMap.map.on('click', (event: any) => {
-      if (!event?.latlng || !builder)
-        return
-      hint.set(null)
-      saveMessage.set(null)
-      void builder.add({ lat: event.latlng.lat, lng: event.latlng.lng })
-    })
+    builder.onChange(() => redraw())
+    // Tap to add; drag a point, the line or a "+" to reshape; tap a point to drop it.
+    editor = new maps.RouteEditor(builder, { color: '#10b981' }).addTo(builderMap.map)
+    editor.on('dragstart', () => clearMessages())
+    builderMap.map.on('click', () => clearMessages())
     await startFromQuery()
+  }
+
+  function clearMessages(): void {
+    hint.set(null)
+    saveMessage.set(null)
+  }
+
+  /**
+   * Waypoints for a line that was not drawn here (a catalog trail, a saved
+   * route): about a dozen along it, so dragging one reshapes that stretch
+   * rather than rerouting the whole thing.
+   */
+  async function loadLine(path: [number, number][]): Promise<void> {
+    if (!builder)
+      return
+    const { services } = await ensureTsMaps() as any
+    const points = path.map(([lat, lng]) => ({ lat, lng }))
+    const every = Math.min(3000, Math.max(300, services.pathLengthMeters(points) / 12))
+    await builder.load(points, { waypointEveryMeters: every })
   }
 
   async function setFollowPaths(value: boolean): Promise<void> {
@@ -340,13 +320,13 @@
         await setFollowPaths(false)
       routeName.set(typeof query.name === 'string' ? query.name.slice(0, 200) : '')
       townName.set(typeof query.town === 'string' ? query.town.slice(0, 80) : '')
-      builderMap.fitPoints(via.map(p => [p.lat, p.lng]))
+      builderMap.fitPoints(via.map(p => [p.lat, p.lng]), FIT_PADDING)
       hint.set(`Drawing through ${via.length} stops along paths…`)
       for (const stop of via)
         void builder.add(stop)
       await builder.settled()
-      builderMap.fitPoints(toPairs(builder.path))
-      hint.set(builder.lastError ? `${builder.lastError} — one stretch is drawn straight.` : 'Drawn through every stop. Tap to extend, undo to trim, then save.')
+      builderMap.fitPoints(toPairs(builder.path), FIT_PADDING)
+      hint.set(builder.lastError ? `${builder.lastError} — one stretch is drawn straight.` : 'Drawn through every stop. Drag any point or the line to reshape it, then save.')
       return
     }
     if (Number.isInteger(trailId) && trailId > 0) {
@@ -369,27 +349,44 @@
       }
     }
     if (path.length >= 2 && builder && builderMap) {
-      await builder.load(path.map(([lat, lng]) => ({ lat, lng })))
-      builderMap.fitPoints(path)
+      await loadLine(path)
+      builderMap.fitPoints(path, FIT_PADDING)
       routeName.set(name)
-      hint.set('Tap the map to extend it, or undo to start over.')
+      hint.set('Drag any point or the line to reshape it, or tap the map to extend it.')
     }
   }
 
+  /** Open a saved route in the planner, to reshape and save over it. */
+  async function editRoute(route: any): Promise<void> {
+    if (!builder || !builderMap || !Array.isArray(route?.route) || route.route.length < 2)
+      return
+    clearMessages()
+    await loadLine(route.route)
+    builderMap.fitPoints(route.route, FIT_PADDING)
+    routeName.set(route.name)
+    savedRouteId.set(route.id)
+    hint.set(`Editing “${route.name}”. Drag any point or the line to reshape it, then save.`)
+  }
+
   // ── Saving, then planning ───────────────────────────────────────────────
-  async function saveRoute(): Promise<void> {
+  /**
+   * Save the line. A route opened from the list (or saved once already) is
+   * saved over itself; `asNew` keeps the original and saves a copy.
+   */
+  async function saveRoute(asNew = false): Promise<void> {
     if (!builder || builder.waypoints.length < 2 || saving())
       return
-    if (!requireAuth('Sign in to save routes and plan them for a day.', () => void saveRoute()))
+    if (!requireAuth('Sign in to save routes and plan them for a day.', () => void saveRoute(asNew)))
       return
+    const updating = !asNew && savedRouteId() > 0
     saving.set(true)
     saveMessage.set(null)
     try {
       const { services } = await ensureTsMaps() as any
       // The API keeps up to 10,000 points; a routed line rarely needs 2,000.
       const path = builder.path.length > 2000 ? services.resamplePath(builder.path, 2000) : builder.path
-      const res = await apiFetch('/api/custom-routes', {
-        method: 'POST',
+      const res = await apiFetch(updating ? `/api/custom-routes/${savedRouteId()}` : '/api/custom-routes', {
+        method: updating ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: routeName().trim() || defaultName(), route: toPairs(path), elevation: climbFt() ?? 0 }),
       })
@@ -399,7 +396,7 @@
         return
       }
       savedRouteId.set(payload.route.id)
-      saveMessage.set(`Saved “${payload.route.name}”.`)
+      saveMessage.set(updating ? `Updated “${payload.route.name}”.` : `Saved “${payload.route.name}”.`)
       await loadRoutes()
     }
     finally {
@@ -421,6 +418,7 @@
     if (climbTimer)
       clearTimeout(climbTimer)
     builderMap?.destroy()
+    editor = null
     builderMap = null
     builder = null
   })
@@ -433,7 +431,7 @@
       Route planner
     </p>
     <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">Draw a route</h1>
-    <p class="mt-1.5 max-w-[60ch] text-sm text-slate-600 dark:text-slate-400">Tap the map to add points — the line follows real paths and trails. Save it, then plan it for a day.</p>
+    <p class="mt-1.5 max-w-[60ch] text-sm text-slate-600 dark:text-slate-400">Tap the map to add points — the line follows real paths and trails. Drag it into shape, save it, then plan it for a day.</p>
   </header>
 
   <!-- Start somewhere: any town. -->
@@ -459,7 +457,7 @@
   </div>
 
   <!-- The map you draw on. -->
-  <div class="relative overflow-hidden rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700">
+  <div id="route-planner" class="relative scroll-mt-20 overflow-hidden rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700">
     <div id="route-builder-map" data-stx-ignore class="ts-map-container h-[58vh] min-h-[320px] w-full sm:h-[480px]"></div>
 
     <!-- What the line adds up to, over the map where the eye already is. -->
@@ -475,6 +473,13 @@
   </div>
 
   <p :if="hint()" class="mt-2 text-sm text-slate-600 dark:text-slate-300" role="status">{{ hint() }}</p>
+
+  <!-- How to reshape it, once there is a line to reshape. -->
+  <ul :if="hasRoute()" class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400" aria-label="Editing the route">
+    <li class="inline-flex items-center gap-1.5"><i class="i-lucide-move h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Drag a point to move it</li>
+    <li class="inline-flex items-center gap-1.5"><i class="i-lucide-spline h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Drag the line or a <span class="font-bold text-emerald-600">+</span> to go through somewhere new</li>
+    <li class="inline-flex items-center gap-1.5"><i class="i-lucide-circle-x h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Tap a point to remove it</li>
+  </ul>
 
   <!-- Tools, thumb-sized. -->
   <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -513,9 +518,13 @@
         <label for="route-name" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Name</label>
         <input id="route-name" x-value="routeName" @input="routeName.set($event.target.value)" x-placeholder="defaultName()" maxlength="200" class="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
       </div>
+      <button :if="savedRouteId() > 0" type="button" @click="saveRoute(true)" x-disabled="saving() || pending() > 0" class="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 active:scale-[0.98] disabled:opacity-60 dark:border-slate-600 dark:text-slate-200">
+        <i class="i-lucide-copy-plus h-4 w-4" aria-hidden="true"></i>
+        Save as new
+      </button>
       <button type="button" @click="saveRoute()" x-disabled="saving() || pending() > 0" class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
         <i x-class="saving() ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : 'i-lucide-bookmark-plus h-4 w-4'" aria-hidden="true"></i>
-        {{ saving() ? 'Saving…' : 'Save route' }}
+        {{ saving() ? 'Saving…' : savedRouteId() > 0 ? 'Save changes' : 'Save route' }}
       </button>
     </div>
     <div :if="saveMessage()" class="mt-3 flex flex-wrap items-center gap-2">
@@ -561,6 +570,10 @@
             </span>
           </p>
           <div class="mt-2 flex flex-wrap gap-1">
+            <a href="#route-planner" @click="editRoute(route)" class="inline-flex min-h-9 items-center gap-1 rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+              <i class="i-lucide-pencil h-3.5 w-3.5" aria-hidden="true"></i>
+              Edit
+            </a>
             <StxLink x-to="planRouteUrl(route)" class="inline-flex min-h-9 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300">
               <i class="i-lucide-calendar-plus h-3.5 w-3.5" aria-hidden="true"></i>
               Plan

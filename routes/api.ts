@@ -611,6 +611,7 @@ route.group({ middleware: 'auth' }, () => {
     route.post('/admin/integrity-review/{id}', 'Actions/Admin/IntegrityReviewAction').middleware('role:admin')
     route.get('/custom-routes', 'Actions/Route/CustomRouteIndexAction')
     route.post('/custom-routes', 'Actions/Route/CustomRouteStoreAction')
+    route.patch('/custom-routes/{id}', 'Actions/Route/CustomRouteUpdateAction')
     route.delete('/custom-routes/{id}', 'Actions/Route/CustomRouteDestroyAction')
     // Trips someone has planned: a trail or any spot, on a date.
     route.get('/plans', 'Actions/Plan/TripPlanIndexAction')
