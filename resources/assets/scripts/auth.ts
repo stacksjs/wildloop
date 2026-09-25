@@ -97,7 +97,11 @@ export function initializeAuthSession(): Promise<void> {
   session.initialization = (async () => {
     if (typeof localStorage === 'undefined') return
     if (!isCraftHost()) {
-      session.token = localStorage.getItem(TOKEN_KEY)
+      // A session storage copy is an ordinary browser session: it survives a
+      // reload and goes when the browser does. "Remember me" writes to local
+      // storage instead, which outlives it.
+      session.token = (typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(SESSION_TOKEN_KEY))
+        ?? localStorage.getItem(TOKEN_KEY)
     }
     else if (!await waitForCraftReady()) {
       // No Keychain yet. Go on with the copy this page session already holds,
@@ -281,7 +285,22 @@ async function saveToKeychain(value: string): Promise<boolean> {
   }
 }
 
-async function persist(data: { token?: string, user?: AuthUser }): Promise<void> {
+/**
+ * Whether this session should outlive the browser.
+ *
+ * Only a sign-in says: a token that replaces another (a password change
+ * reissues one) leaves the session where the sign-in put it, rather than
+ * quietly promoting a this-visit session to a remembered one.
+ */
+function remembersSession(explicit: boolean | undefined): boolean {
+  if (explicit !== undefined)
+    return explicit
+  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(SESSION_TOKEN_KEY))
+    return false
+  return true
+}
+
+async function persist(data: { token?: string, user?: AuthUser, remember?: boolean }): Promise<void> {
   if (typeof localStorage === 'undefined')
     return
   if (data.token) {
@@ -303,8 +322,15 @@ async function persist(data: { token?: string, user?: AuthUser }): Promise<void>
           await secureStorage.delete(TOKEN_KEY).catch(() => undefined)
       }
     }
-    else {
+    else if (remembersSession(data.remember)) {
       localStorage.setItem(TOKEN_KEY, data.token)
+      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SESSION_TOKEN_KEY)
+    }
+    else {
+      // Not remembered: this browser session only. The API issued a short
+      // token to match (config/auth.ts, browserSession).
+      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_TOKEN_KEY, data.token)
+      localStorage.removeItem(TOKEN_KEY)
     }
   }
   if (data.user)
@@ -577,7 +603,7 @@ export async function refreshCurrentUser(): Promise<AuthUser | null> {
  * showing a raw exception is exactly the shape that produced
  * `auth is not defined`, so the failure is part of the return type instead.
  */
-async function submit(path: string, body: Record<string, unknown>, context: string): Promise<AuthResult> {
+async function submit(path: string, body: Record<string, unknown>, context: string, remember?: boolean): Promise<AuthResult> {
   try {
     const response = await fetch(path, {
       method: 'POST',
@@ -608,7 +634,7 @@ async function submit(path: string, body: Record<string, unknown>, context: stri
       }
     }
 
-    await persist({ token: payload.token, user: payload.user })
+    await persist({ token: payload.token, user: payload.user, remember })
     return { ok: true, user: payload.user }
   }
   catch (error) {
@@ -647,8 +673,15 @@ export function redirectTo(url: string): void {
   location.assign(url)
 }
 
-export function signIn(email: string, password: string): Promise<AuthResult> {
-  return submit('/api/login', { email, password }, 'auth:signIn')
+/**
+ * Sign in. `remember` is the sign-in form's "Remember me": it decides both
+ * how long the API's token lasts and whether this browser keeps the session
+ * past the browser closing. It defaults to remembered for the places that
+ * never ask — the in-app sign-in gate, which is a step inside something the
+ * person was already doing.
+ */
+export function signIn(email: string, password: string, remember = true): Promise<AuthResult> {
+  return submit('/api/login', { email, password, remember }, 'auth:signIn', remember)
 }
 
 export function signUp(input: { name: string, email: string, password: string }): Promise<AuthResult> {

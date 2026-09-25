@@ -11,7 +11,7 @@
  * here degrades to "no roles", which shows a plain account rather than
  * blocking sign-in over a dashboard affordance.
  */
-import { Auth } from '@stacksjs/auth'
+import { Auth, resolveBrowserSessionPolicy } from '@stacksjs/auth'
 import { profileFields } from '../../Support/avatars'
 
 async function roleNamesFor(userId?: number): Promise<string[]> {
@@ -49,7 +49,17 @@ export default new Action({
     const email = request.get('email')
     const password = request.get('password')
 
-    const result = await Auth.login({ email, password })
+    // "Remember me" on the sign-in form. The page used to show the box and
+    // send nothing, so every session lasted thirty days whether the person
+    // asked for that or not — on a borrowed laptop as much as their own.
+    // config/auth.ts holds both lifetimes; the browser matches this by
+    // keeping an ordinary session in session storage (assets/scripts/auth.ts).
+    const policy = resolveBrowserSessionPolicy(request.get('remember'))
+
+    const result = await Auth.login({ email, password }, {
+      expiresInMinutes: policy.expiresInMinutes,
+      withRefreshToken: policy.withRefreshToken,
+    })
 
     if (result) {
       const user = result.user
@@ -57,6 +67,10 @@ export default new Action({
       return response.json({
         success: true,
         token: result.token,
+        // Seconds, as the token was actually issued. The client does not
+        // renew, so this is how long this sign-in lasts.
+        expires_in: result.expiresIn,
+        remembered: policy.remembered,
         user: {
           id: user?.id,
           email: user?.email,

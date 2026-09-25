@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { refreshCurrentUser, requestPasswordReset, signIn, signOut, signUp } from '../../resources/assets/scripts/auth'
+import { readyToken, refreshCurrentUser, requestPasswordReset, signIn, signOut, signUp, token } from '../../resources/assets/scripts/auth'
 
 /**
  * The sign-in page called a bare `auth` global that nothing defined, so
@@ -12,23 +12,47 @@ import { refreshCurrentUser, requestPasswordReset, signIn, signOut, signUp } fro
  */
 
 const store = new Map<string, string>()
+const perSession = new Map<string, string>()
+
+function webStorage(map: Map<string, string>) {
+  return {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, v),
+    removeItem: (k: string) => void map.delete(k),
+  }
+}
+
+/**
+ * Start the page over, as a reload or a fresh tab does.
+ *
+ * Also what keeps this file to itself: the session lives on `globalThis`, so
+ * a token left in memory here was still the bearer every later test file saw.
+ */
+function reopenPage(): void {
+  const page = (globalThis as any).__wildloopSession
+  page.token = null
+  page.initialization = null
+  page.inflight.clear()
+}
 
 beforeEach(() => {
   store.clear()
+  perSession.clear()
+  reopenPage()
 
   // Minimal browser surface: the module reads the CSRF cookie and writes the
-  // session to localStorage.
+  // session to local storage, or to session storage when it is not meant to
+  // outlive the browser.
   ;(globalThis as any).document = { cookie: 'X-CSRF-Token=tok-123' }
-  ;(globalThis as any).localStorage = {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
-  }
+  ;(globalThis as any).localStorage = webStorage(store)
+  ;(globalThis as any).sessionStorage = webStorage(perSession)
 })
 
 afterEach(() => {
+  reopenPage()
   delete (globalThis as any).document
   delete (globalThis as any).localStorage
+  delete (globalThis as any).sessionStorage
 })
 
 /** Stub `fetch` with a fixed outcome and capture what was sent. */
@@ -251,5 +275,105 @@ describe('restored sessions', () => {
 
     expect(user).toMatchObject({ id: 8, name: 'Sam' })
     expect(JSON.parse(store.get('auth_user') ?? '{}')).toMatchObject({ id: 8, name: 'Sam' })
+  })
+})
+
+/**
+ * "Remember me" on the sign-in form. The box was on the page and the form
+ * sent nothing, so every sign-in lasted thirty days — on a borrowed laptop as
+ * much as on your own. The choice now decides both how long the API's token
+ * lasts and whether this browser keeps the session after it closes.
+ */
+describe('remember me', () => {
+  const SESSION_KEY = 'wildloop_auth_token'
+
+  it('tells the API which kind of session was asked for', async () => {
+    const { calls } = stubFetch({ body: { token: 'abc', user: { id: 1, email: 'a@b.c' } } })
+
+    await signIn('a@b.c', 'password123', true)
+    expect(JSON.parse(calls[0].init.body).remember).toBe(true)
+
+    await signIn('a@b.c', 'password123', false)
+    expect(JSON.parse(calls[1].init.body).remember).toBe(false)
+  })
+
+  it('keeps a remembered session where it outlives the browser', async () => {
+    stubFetch({ body: { token: 'remembered', user: { id: 1, email: 'a@b.c' } } })
+
+    await signIn('a@b.c', 'password123', true)
+
+    expect(store.get('auth_token')).toBe('remembered')
+    expect(perSession.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('keeps an ordinary session to this browser session', async () => {
+    stubFetch({ body: { token: 'this-visit', user: { id: 1, email: 'a@b.c' } } })
+
+    await signIn('a@b.c', 'password123', false)
+
+    expect(perSession.get(SESSION_KEY)).toBe('this-visit')
+    expect(store.has('auth_token')).toBe(false)
+  })
+
+  it('does not leave the old copy behind when the choice changes', async () => {
+    stubFetch({ body: { token: 'this-visit', user: { id: 1, email: 'a@b.c' } } })
+    await signIn('a@b.c', 'password123', true)
+    await signIn('a@b.c', 'password123', false)
+    expect(store.has('auth_token')).toBe(false)
+
+    stubFetch({ body: { token: 'kept', user: { id: 1, email: 'a@b.c' } } })
+    await signIn('a@b.c', 'password123', true)
+    expect(perSession.has(SESSION_KEY)).toBe(false)
+    expect(store.get('auth_token')).toBe('kept')
+  })
+
+  it('signs the in-app gate in as remembered, which is what it did before', async () => {
+    const { calls } = stubFetch({ body: { token: 'gate', user: { id: 1, email: 'a@b.c' } } })
+
+    await signIn('a@b.c', 'password123')
+
+    expect(JSON.parse(calls[0].init.body).remember).toBe(true)
+    expect(store.get('auth_token')).toBe('gate')
+  })
+
+  it('survives a reload, and goes when the browser does', async () => {
+    stubFetch({ body: { token: 'this-visit', user: { id: 1, email: 'a@b.c' } } })
+    await signIn('a@b.c', 'password123', false)
+
+    // A reload: the page starts over, session storage does not.
+    reopenPage()
+    stubFetch({ body: { user: { id: 1, email: 'a@b.c' } } })
+    expect(await readyToken()).toBe('this-visit')
+
+    // A new browser: session storage is empty.
+    reopenPage()
+    perSession.clear()
+    expect(await readyToken()).toBeNull()
+  })
+
+  it('ends the session on this device once the token has expired', async () => {
+    stubFetch({ body: { token: 'this-visit', user: { id: 1, email: 'a@b.c' } } })
+    await signIn('a@b.c', 'password123', false)
+
+    // The server answers the next page load with 401: the short token is up.
+    reopenPage()
+    stubFetch({ status: 401, body: { error: 'Unauthorized' } })
+    expect(await readyToken()).toBeNull()
+    expect(token()).toBeNull()
+    expect(perSession.has(SESSION_KEY)).toBe(false)
+    expect(store.has('auth_user')).toBe(false)
+  })
+
+  it('leaves a this-visit session where it is when the password changes', async () => {
+    stubFetch({ body: { token: 'this-visit', user: { id: 1, email: 'a@b.c' } } })
+    await signIn('a@b.c', 'password123', false)
+
+    // A password change reissues the token; it must not quietly promote an
+    // ordinary session into a remembered one.
+    stubFetch({ body: { token: 'reissued', message: 'Password changed.' } })
+    const { changePassword } = await import('../../resources/assets/scripts/auth')
+    expect((await changePassword({ currentPassword: 'password123', password: 'another-one', confirmation: 'another-one' })).ok).toBe(true)
+    expect(perSession.get(SESSION_KEY)).toBe('reissued')
+    expect(store.has('auth_token')).toBe(false)
   })
 })

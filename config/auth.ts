@@ -60,6 +60,24 @@ export default {
   tokenExpiry: Number(envVars.AUTH_TOKEN_EXPIRY) || 30 * 24 * 60 * 60 * 1000,
 
   /**
+   * Browser sign-in, where "Remember me" decides how long the session lasts.
+   *
+   * Without it the session is meant to be this visit: the API issues a token
+   * for the working day, and the browser keeps it in session storage, so
+   * closing the browser on a shared machine ends it. With it, the session
+   * lasts as long as tokens ever do here.
+   *
+   * No refresh token: the client holds one bearer token and signs in again
+   * when it expires. Nothing in Wildloop exchanges a refresh token yet, and
+   * issuing one nobody redeems only widens what a stolen response is worth.
+   */
+  browserSession: {
+    baselineLifetime: Number(envVars.AUTH_SESSION_LIFETIME) || 12 * 60 * 60 * 1000,
+    rememberedLifetime: Number(envVars.AUTH_TOKEN_EXPIRY) || 30 * 24 * 60 * 60 * 1000,
+    withRefreshToken: false,
+  },
+
+  /**
    * The token rotation time in hours (default: 24 hours).
    */
   tokenRotation: Number(envVars.AUTH_TOKEN_ROTATION) || 24,

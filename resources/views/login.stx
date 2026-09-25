@@ -38,6 +38,8 @@
 
   const email = state('')
   const password = state('')
+  /** "Remember me": a session that outlives the browser, and a long token. */
+  const remember = state(false)
   const showPassword = state(false)
   const loading = state(false)
   const error = state('')
@@ -61,6 +63,7 @@
     const fields = e.target?.elements
     const emailValue = (fields?.email?.value ?? email()).trim()
     const passwordValue = fields?.password?.value ?? password()
+    const rememberValue = fields?.remember?.checked ?? remember()
 
     if (!emailValue || !passwordValue) {
       error.set('Enter your email and password.')
@@ -72,7 +75,7 @@
     // signIn never throws: every outcome comes back as a result, already
     // phrased for a person. That is what stops a runtime error from being
     // rendered as if it were advice.
-    const result = await signIn(emailValue, passwordValue)
+    const result = await signIn(emailValue, passwordValue, rememberValue)
 
     if (result.ok) {
       success.set('Signed in. Taking you to your feed.')
@@ -135,8 +138,15 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <label class="flex items-center">
-              <input type="checkbox" class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" />
+            <label for="remember" class="flex items-center">
+              <input
+                type="checkbox"
+                id="remember"
+                name="remember"
+                x-checked="remember"
+                @change="remember.set($event.target.checked)"
+                class="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+              />
               <span class="ml-2 text-gray-600 text-sm dark:text-slate-400">Remember me</span>
             </label>
             <StxLink to="/forgot-password" class="font-medium text-emerald-600 text-sm hover:text-emerald-700">Forgot password?</StxLink>
