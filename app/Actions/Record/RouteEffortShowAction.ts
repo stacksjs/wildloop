@@ -13,7 +13,7 @@ import { Auth } from '@stacksjs/auth'
 import RouteEffort from '../../Models/RouteEffort'
 
 import { isHeadlineRecord, rankBucket, recordBucketKey } from '../../../resources/functions/route-records'
-import { canSeePrivateEffort, isAdminUser, PUBLIC_STATUSES, shapeEfforts } from './record-support'
+import { canSeePrivateEffort, isAdminUser, PUBLIC_STATUSES, shapeEfforts } from '../../Support/routeEfforts'
 
 export default new Action({
   name: 'Route Effort Show',

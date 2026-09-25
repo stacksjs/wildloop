@@ -17,7 +17,7 @@
 import { Auth } from '@stacksjs/auth'
 import Activity from '../../Models/Activity'
 import UserNotification from '../../Models/UserNotification'
-import { isAdminUser } from '../Record/record-support'
+import { isAdminUser } from '../../Support/routeEfforts'
 
 const DECISIONS = ['clear', 'uphold', 'reopen'] as const
 type Decision = typeof DECISIONS[number]

@@ -12,7 +12,7 @@
 import RouteEffort from '../../Models/RouteEffort'
 
 import { formatElapsed } from '../../../resources/functions/route-records'
-import { shapeEfforts } from './record-support'
+import { shapeEfforts } from '../../Support/routeEfforts'
 
 /**
  * How long an announced attempt stays on the board without being closed out.

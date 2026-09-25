@@ -11,7 +11,7 @@
 
 import { Auth } from '@stacksjs/auth'
 import Activity from '../../Models/Activity'
-import { isAdminUser } from '../Record/record-support'
+import { isAdminUser } from '../../Support/routeEfforts'
 
 interface IntegrityFlag {
   kind?: string

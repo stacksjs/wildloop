@@ -15,7 +15,7 @@ import RouteEffort from '../../Models/RouteEffort'
 import { paginate, readPageParams } from '../../../resources/functions/pagination'
 import { positiveInt } from '../../../resources/functions/validate'
 
-import { asCategory, asDirection, asStatus, asStyle, isAdminUser, PUBLIC_STATUSES, shapeEfforts } from './record-support'
+import { asCategory, asDirection, asStatus, asStyle, isAdminUser, PUBLIC_STATUSES, shapeEfforts } from '../../Support/routeEfforts'
 
 export default new Action({
   name: 'Route Effort Index',

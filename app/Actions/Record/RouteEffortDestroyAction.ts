@@ -17,7 +17,7 @@
 import { Auth } from '@stacksjs/auth'
 import RouteEffort from '../../Models/RouteEffort'
 
-import { isAdminUser } from './record-support'
+import { isAdminUser } from '../../Support/routeEfforts'
 
 export default new Action({
   name: 'Route Effort Destroy',

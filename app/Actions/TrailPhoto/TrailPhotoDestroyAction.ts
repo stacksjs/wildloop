@@ -4,7 +4,7 @@
 
 import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
-import { isAdminUser } from '../Record/record-support'
+import { isAdminUser } from '../../Support/routeEfforts'
 import { photoStorage } from '../../Support/photoStorage'
 
 export default new Action({

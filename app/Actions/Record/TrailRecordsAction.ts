@@ -22,7 +22,7 @@ import {
   routeIsRankable,
   STYLE_LABELS,
 } from '../../../resources/functions/route-records'
-import { shapeEfforts } from './record-support'
+import { shapeEfforts } from '../../Support/routeEfforts'
 
 export default new Action({
   name: 'Trail Records',

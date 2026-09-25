@@ -21,7 +21,7 @@ import {
   normalizeTrackerUrl,
   routeIsRankable,
 } from '../../../resources/functions/route-records'
-import { asCategory, asDirection, asStyle, shapeEfforts } from './record-support'
+import { asCategory, asDirection, asStyle, shapeEfforts } from '../../Support/routeEfforts'
 
 export default new Action({
   name: 'Route Effort Store',

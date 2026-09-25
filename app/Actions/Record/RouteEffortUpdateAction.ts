@@ -19,7 +19,7 @@ import {
   normalizeEvidenceUrl,
   normalizeTrackerUrl,
 } from '../../../resources/functions/route-records'
-import { shapeEfforts } from './record-support'
+import { shapeEfforts } from '../../Support/routeEfforts'
 
 export default new Action({
   name: 'Route Effort Update',

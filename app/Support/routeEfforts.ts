@@ -4,9 +4,9 @@
 // "which route" — so the name and trail joins live here rather than being
 // re-derived (differently, and eventually inconsistently) in six actions.
 
-import RouteEffort from '../../Models/RouteEffort'
-import Trail from '../../Models/Trail'
-import User from '../../Models/User'
+import RouteEffort from '../Models/RouteEffort'
+import Trail from '../Models/Trail'
+import User from '../Models/User'
 
 import {
   type RecordCategory,
@@ -20,8 +20,8 @@ import {
   RECORD_STYLES,
   formatElapsed,
   recordPace,
-} from '../../../resources/functions/route-records'
-import { avatarOf } from '../../Support/avatars'
+} from '../../resources/functions/route-records'
+import { avatarOf } from './avatars'
 
 export interface ShapedEffort extends RecordEffort {
   trailId: number

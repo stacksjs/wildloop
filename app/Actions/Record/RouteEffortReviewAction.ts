@@ -20,7 +20,7 @@ import User from '../../Models/User'
 import UserNotification from '../../Models/UserNotification'
 
 import { evidenceIsSufficient, STYLE_LABELS } from '../../../resources/functions/route-records'
-import { isAdminUser, shapeEfforts } from './record-support'
+import { isAdminUser, shapeEfforts } from '../../Support/routeEfforts'
 
 const DECISIONS = ['verify', 'reject', 'reopen'] as const
 
