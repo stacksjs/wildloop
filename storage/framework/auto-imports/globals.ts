@@ -177,6 +177,11 @@ declare global {
   const formatTerritoryArea: typeof autoImports.formatTerritoryArea
   const diffTerritories: typeof autoImports.diffTerritories
   const OWN_TERRITORY_COLOR: typeof autoImports.OWN_TERRITORY_COLOR
+  const conditionOption: typeof autoImports.conditionOption
+  const conditionReports: typeof autoImports.conditionReports
+  const activeDanger: typeof autoImports.activeDanger
+  const TRAIL_CONDITIONS: typeof autoImports.TRAIL_CONDITIONS
+  const TRAIL_CONDITION_IDS: typeof autoImports.TRAIL_CONDITION_IDS
   const normalizeTagKey: typeof autoImports.normalizeTagKey
   const readTags: typeof autoImports.readTags
   const featureFromTag: typeof autoImports.featureFromTag
