@@ -63,6 +63,17 @@ interface ReviewLike {
   content?: string | null
 }
 
+/**
+ * Dangers a later "the trail is fine" report really does contradict.
+ *
+ * Someone who walks a trail and calls it good has seen the ground: the ice,
+ * the snow and the water are either there or they are not. They have not seen
+ * whether a closure was lifted, whether the fire is out, whether the washout
+ * was repaired, or what tomorrow's heat will be — a path-quality report is no
+ * evidence about any of those, so only time clears them.
+ */
+const CLEARED_BY_A_GOOD_REPORT: readonly string[] = ['snowy', 'icy', 'flooded']
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 function timeOf(value: string): number {
@@ -93,16 +104,25 @@ export function conditionReports(reviews: ReviewLike[], now: number = Date.now()
 }
 
 /**
- * A danger someone reported in the last `days` days, unless a newer report
- * says the trail is fine again. A caution report (muddy, fallen trees) does
- * not clear it: mud is no answer to whether the ice has gone.
+ * The newest danger reported in the last `days` days that nobody has since
+ * contradicted.
+ *
+ * Clearing one is deliberately narrow. A caution report (muddy, fallen trees)
+ * never clears anything: mud is no answer to whether the ice has gone. A good
+ * report clears only the ground conditions it actually speaks to, and a good
+ * report older than the danger is not an answer to it at all. So a closure, a
+ * wildfire, a washout or extreme heat stands until it ages out, rather than
+ * being certified gone by a stranger who said the path was pleasant.
  */
 export function activeDanger(reports: ConditionReport[], now: number = Date.now(), days = 7): ConditionReport | null {
   const recent = reports.filter(r => now - timeOf(r.at) <= days * DAY_MS)
+  const good = recent.filter(r => r.severity === 'good')
   for (const report of recent) {
-    if (report.severity === 'good')
-      return null
-    if (report.severity === 'danger')
+    if (report.severity !== 'danger')
+      continue
+    const cleared = CLEARED_BY_A_GOOD_REPORT.includes(report.id)
+      && good.some(r => timeOf(r.at) > timeOf(report.at))
+    if (!cleared)
       return report
   }
   return null

@@ -66,6 +66,45 @@ describe('activeDanger', () => {
     expect(activeDanger(muddy, NOW)?.id).toBe('icy')
   })
 
+  // Somebody walking a pleasant path has seen whether there is ice on it.
+  // They have not seen whether a closure was lifted or a fire is out, so a
+  // good report is no evidence about those.
+  it.each(['closed', 'wildfire', 'washed-out', 'extreme-heat'])('keeps a %s warning that only a path report contradicts', (hazard) => {
+    const reports = conditionReports([
+      { conditions: hazard, userName: 'Ana', created_at: daysAgo(3) },
+      { conditions: 'excellent', userName: 'Ben', created_at: daysAgo(2) },
+      { conditions: 'good', userName: 'Cy', created_at: daysAgo(1) },
+    ], NOW)
+    expect(activeDanger(reports, NOW)?.id).toBe(hazard)
+  })
+
+  it('does not let a good report clear a danger reported after it', () => {
+    const reports = conditionReports([
+      { conditions: 'good', userName: 'Ana', created_at: daysAgo(3) },
+      { conditions: 'flooded', userName: 'Ben', created_at: daysAgo(1) },
+    ], NOW)
+    expect(activeDanger(reports, NOW)?.id).toBe('flooded')
+  })
+
+  it('surfaces the hazard still standing when a newer one has been cleared', () => {
+    const reports = conditionReports([
+      { conditions: 'closed', userName: 'Ana', created_at: daysAgo(5) },
+      { conditions: 'icy', userName: 'Ben', created_at: daysAgo(3) },
+      { conditions: 'good', userName: 'Cy', created_at: daysAgo(1) },
+    ], NOW)
+    expect(activeDanger(reports, NOW)?.id).toBe('closed')
+  })
+
+  it('keeps the warning when two people report the same moment differently', () => {
+    // Nothing separates them in time, so there is no later word to go on.
+    // Standing by the warning is the answer that cannot get anyone hurt.
+    const disputed = conditionReports([
+      { conditions: 'good', userName: 'Ana', created_at: daysAgo(2) },
+      { conditions: 'snowy', userName: 'Ben', created_at: daysAgo(2) },
+    ], NOW)
+    expect(activeDanger(disputed, NOW)?.id).toBe('snowy')
+  })
+
   it('ignores dangers older than a week', () => {
     const reports = conditionReports([{ conditions: 'wildfire', userName: 'Ana', created_at: daysAgo(9) }], NOW)
     expect(activeDanger(reports, NOW)).toBeNull()
