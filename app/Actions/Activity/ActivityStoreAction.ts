@@ -12,7 +12,7 @@ import { parseDurationToSeconds } from '../../../resources/functions/duration'
 
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
 import { durationLabel, evaluateTrackIntegrity, isLiveGpsSource, type RecordingSource } from '../../../resources/functions/activity-integrity'
-import { integrityFlagsJson, verifyAgainstHistory } from './VerifyActivityIntegrity'
+import { integrityFlagsJson, verifyAgainstHistory } from '../../Support/activityIntegrityCheck'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
 
 const ACTIVITY_TYPES = ['Trail Run', 'Hike', 'Walk', 'Bike']

@@ -22,7 +22,7 @@ const earnsSomething = [
   'app/Actions/Territory/ClaimTerritoryAction.ts',
   'app/Actions/Social/AthleteShowAction.ts',
   'app/Actions/Maintenance/RecomputeCountersAction.ts',
-  'app/Actions/Activity/VerifyActivityIntegrity.ts',
+  'app/Support/activityIntegrityCheck.ts',
   'resources/functions/activity-anomaly.ts',
 ]
 

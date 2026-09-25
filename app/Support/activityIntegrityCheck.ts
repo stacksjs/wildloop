@@ -1,8 +1,8 @@
-import type { HistoryFinding, NeighbouringActivity } from '../../../resources/functions/activity-history'
-import type { TrackIntegrityResult } from '../../../resources/functions/activity-integrity'
-import Activity from '../../Models/Activity'
-import { checkAgainstHistory } from '../../../resources/functions/activity-history'
-import { parseDurationToSeconds } from '../../../resources/functions/duration'
+import type { HistoryFinding, NeighbouringActivity } from '../../resources/functions/activity-history'
+import type { TrackIntegrityResult } from '../../resources/functions/activity-integrity'
+import Activity from '../Models/Activity'
+import { checkAgainstHistory } from '../../resources/functions/activity-history'
+import { parseDurationToSeconds } from '../../resources/functions/duration'
 
 /**
  * The half of anti-cheat that needs the athlete's other activities.
