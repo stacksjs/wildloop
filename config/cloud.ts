@@ -46,13 +46,34 @@ const SHARED_DATABASE = '/var/www/wildloop-shared/database/stacks.sqlite'
 const LINK_ENV_KEYS = 'ln -sf ../../shared/.env.keys .env.keys 2>/dev/null || true'
 
 /**
- * Install dependencies with the same stable Bun line that writes and verifies
- * the committed lockfile locally. A project-local 1.4 canary previously tried
- * to rewrite Bun 1.3.14's lockfile and correctly failed under
- * `--frozen-lockfile`. The shared box already provides 1.3.14 at this path, so
- * pinning it makes the install reproducible without mutating the owner runtime.
+ * Install dependencies with the box's Bun. This used to say the box provides
+ * 1.3.14 here; it has since been upgraded to 1.4.2 by its owner, which reads
+ * the committed (format 1) lockfile fine under `--frozen-lockfile`.
  */
 const INSTALL_BUN = '/usr/local/bin/bun'
+
+/**
+ * The Bun the web server runs on, pinned rather than taken from the box.
+ *
+ * Under the box's Bun 1.4.2, `buddy serve` keeps about 1 MB of native memory
+ * per page it answers and never gives it back — not to a full `Bun.gc(true)`
+ * either, so it is not garbage the collector is merely slow to reach. A
+ * crawler walking the trail sitemap at two pages a second took the process to
+ * its 2 GB MemoryHigh in quarter of an hour, where the kernel throttled it
+ * into answering nothing and the liveness check restarted it: every page, and
+ * every /api call proxied through it, answered 502/520 in between. The same
+ * load on 1.3.14 — the Bun this app is developed and tested on — stays under
+ * 1.2 GB.
+ *
+ * Installed once per box beside the shared database and linked into the
+ * release as `pantry/.bin/bun`, which `./buddy` prefers over any bun on PATH,
+ * so the owner's runtime is left alone. Revisit when a newer Bun no longer
+ * leaks under `buddy serve`.
+ */
+const PINNED_BUN_VERSION = '1.3.14'
+const PINNED_BUN = `/var/www/wildloop-shared/bin/bun-${PINNED_BUN_VERSION}`
+const PROVISION_PINNED_BUN = `test -x ${PINNED_BUN} || (set -e; t=$(mktemp -d); curl -fsSL https://github.com/oven-sh/bun/releases/download/bun-v${PINNED_BUN_VERSION}/bun-linux-x64.zip -o "$t/bun.zip"; unzip -q "$t/bun.zip" -d "$t"; mkdir -p "$(dirname ${PINNED_BUN})"; install -m 755 "$t/bun-linux-x64/bun" ${PINNED_BUN}; rm -rf "$t")`
+const USE_PINNED_BUN = `mkdir -p pantry/.bin && ln -sf ${PINNED_BUN} pantry/.bin/bun && pantry/.bin/bun --version`
 
 const INSTALL_DEPS = `${INSTALL_BUN} install --frozen-lockfile`
 
@@ -207,6 +228,8 @@ export const tsCloud: TsCloudConfig = {
         LINK_ENV_KEYS,
         INSTALL_DEPS,
         PREPARE_PRODUCTION_BUNFIG,
+        PROVISION_PINNED_BUN,
+        USE_PINNED_BUN,
         // The database lives OUTSIDE the release, so create its directory
         // before migrate runs — on a fresh box nothing else would.
         'mkdir -p /var/www/wildloop-shared/database',
