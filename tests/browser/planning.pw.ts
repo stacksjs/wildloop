@@ -283,20 +283,79 @@ test.describe('on a phone, with one finger', () => {
         return { x: c.x + rect.left, y: c.y + rect.top }
       }
       const w = editor._builder.waypoints
-      // A quarter of the way along the first leg: on the line, clear of its handles.
-      const onLine = screen({ lat: w[0].lat + (w[1].lat - w[0].lat) / 4, lng: w[0].lng + (w[1].lng - w[0].lng) / 4 })
-      return { count: w.length, center: map.getCenter(), via: screen(w[1]), onLine, empty: { x: rect.left + 30, y: rect.bottom - 120 } }
+      // A point on the drawn line: inside the map, and clear of the handles so
+      // a press lands on the line rather than on a waypoint.
+      //
+      // Neither the leg nor the fraction can be fixed. The route is fitted with
+      // its first stop near the right edge, so the pan this test performs first
+      // carries that whole leg off the container — a quarter of the way along
+      // it sat 40px past the right edge on every run. A touch dispatched out
+      // there lands on nothing, so the swipe step asserted against a map it had
+      // never touched, and passed only while the previous pan was still easing.
+      // On a loaded runner the pan had already settled, and it timed out.
+      const at = (leg: number, f: number) => screen({
+        lat: w[leg].lat + (w[leg + 1].lat - w[leg].lat) * f,
+        lng: w[leg].lng + (w[leg + 1].lng - w[leg].lng) * f,
+      })
+      // Both kinds of handle: the waypoints, and the "+" halfway along each
+      // leg. Each has a 44px touch target and its own gesture, so a point
+      // within reach of one is not a point on the bare line.
+      const legs = Array.from({ length: w.length - 1 }, (_, leg) => leg)
+      const handles = [...w.map(screen), ...legs.map(leg => at(leg, 0.5))]
+      const holds = (p: { x: number, y: number }): boolean =>
+        p.x > rect.left + 8 && p.x < rect.right - 8
+        && p.y > rect.top + 8 && p.y < rect.bottom - 8
+        && handles.every(h => Math.hypot(h.x - p.x, h.y - p.y) > 30)
+      const candidates = legs.flatMap(leg => [0.25, 0.75, 0.15, 0.85, 0.35, 0.65].map(f => at(leg, f)))
+      const onLine = candidates.find(holds) ?? candidates[0]
+      return { count: w.length, center: map.getCenter(), via: screen(w[1]), onLine, onLineHolds: holds(onLine), empty: { x: rect.left + 30, y: rect.bottom - 120 } }
     })
   }
 
-  /** A real touch drag, through the browser's own input pipeline (touch-action and all). */
+  /**
+   * Wait for the map to stop moving.
+   *
+   * Every gesture is dispatched at coordinates read from the map's current
+   * projection, and a pan keeps easing after it has visibly begun — so a point
+   * sampled mid-animation is a point the line has already left by the time the
+   * touch arrives. Worse, a poll for "the centre changed" is satisfied by the
+   * previous pan still running, which is how a mis-aimed swipe passed.
+   */
+  async function settle(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+      const map = (document.getElementById('route-builder-map') as any)._tsMap
+      const read = (): string => { const c = map.getCenter(); return `${c.lat},${c.lng}` }
+      let last = read()
+      for (let i = 0; i < 40; i++) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+        const now = read()
+        if (now === last)
+          return
+        last = now
+      }
+    })
+  }
+
+  /**
+   * A real touch drag, through the browser's own input pipeline (touch-action
+   * and all).
+   *
+   * The moves are spread a frame apart rather than fired in one burst. A finger
+   * crosses the screen over several frames, and the gestures being tested here
+   * are told apart by what happens between the moves — a hold before the first
+   * one is what separates pulling the line from panning. Dispatched with no
+   * gap, all ten could be handled in the same frame as the press, which on a
+   * busy runner was the difference between a pull and nothing at all.
+   */
   async function fingerDrag(page: Page, from: Pt, to: Pt, holdMs = 0) {
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
     if (holdMs)
       await page.waitForTimeout(holdMs)
-    for (let i = 1; i <= 10; i++)
+    for (let i = 1; i <= 10; i++) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + (to.x - from.x) * i / 10, y: from.y + (to.y - from.y) * i / 10 }] })
+      await page.waitForTimeout(16)
+    }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await cdp.detach()
   }
@@ -317,21 +376,29 @@ test.describe('on a phone, with one finger', () => {
     await fingerDrag(page, state.empty, { x: state.empty.x + 80, y: state.empty.y - 60 })
     await expect.poll(async () => (await editorState(page)).center.lng).not.toBeCloseTo(state.center.lng, 6)
     expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
+    await settle(page)
 
-    // A swipe that starts on the line pans too: nothing is added.
+    // A swipe that starts on the line pans too: nothing is added. The swipe has
+    // to begin on the line for that to mean anything, so say so — a touch
+    // outside the map moves nothing and would leave the assertion below to be
+    // answered by whatever the map was already doing.
     state = await editorState(page)
+    expect(state.onLineHolds, 'no point on the route is on the bare line, inside the map and clear of the handles').toBe(true)
     await fingerDrag(page, state.onLine, { x: state.onLine.x - 60, y: state.onLine.y + 40 })
     await expect.poll(async () => (await editorState(page)).center.lng).not.toBeCloseTo(state.center.lng, 6)
     expect((await editorState(page)).count).toBe(3)
+    await settle(page)
 
     // Drag a point with one finger: it moves, still three points.
     state = await editorState(page)
     await fingerDrag(page, state.via, { x: state.via.x + 50, y: state.via.y + 40 })
     await expect.poll(async () => (await editorState(page)).via.x).toBeCloseTo(state.via.x + 50, -1)
     expect((await editorState(page)).count).toBe(3)
+    await settle(page)
 
     // Rest a finger on the line, then drag: the route goes through a new point.
     state = await editorState(page)
+    expect(state.onLineHolds, 'no point on the route is on the bare line, inside the map and clear of the handles').toBe(true)
     await fingerDrag(page, state.onLine, { x: state.onLine.x + 40, y: state.onLine.y + 50 }, 500)
     await expect.poll(async () => (await editorState(page)).count).toBe(4)
     await page.locator('#route-builder-map').screenshot({ path: testInfo.outputPath('one-finger-route.png') })
