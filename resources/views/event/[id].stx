@@ -96,7 +96,7 @@
     const route = event()?.loopRoute
     if (!route || route.length < 2) return
     loopMap?.destroy()
-    loopMap = await createTrailMap('event-loop-map', { scrollWheelZoom: false })
+    loopMap = await createTrailMap('event-loop-map')
     if (!loopMap) return
     await drawTrailRoute(loopMap.map, route, { color: '#059669', weight: 5 })
     loopMap.fitPoints(route, [28, 28])

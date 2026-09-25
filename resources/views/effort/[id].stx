@@ -38,7 +38,6 @@
     courseMap = await createTrailMap('effort-map', {
       center: course.trailhead,
       zoom: 14,
-      scrollWheelZoom: false,
       chrome: 'compact',
     })
     if (!courseMap) return

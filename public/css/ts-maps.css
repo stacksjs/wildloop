@@ -116,6 +116,10 @@
   z-index: 200;
 }
 
+.tsmap-building-pane {
+  z-index: 320;
+}
+
 .tsmap-symbol-pane {
   z-index: 350;
 }
@@ -232,14 +236,6 @@
 
 .tsmap-pan-anim .tsmap-tile {
   transition: none;
-}
-
-/* Upright panes — counter-rotate the pane so marker icons, popups and
- * tooltips stay visually upright when the map is rotated (bearing != 0).
- * The transform and transform-origin are driven from JS (see
- * `TsMap._applyBearingToPanes`). */
-.tsmap-upright {
-  will-change: transform;
 }
 
 /* cursors */
@@ -620,6 +616,55 @@ path.tsmap-interactive:focus:not(:focus-visible) {
   width: 1em;
   height: 0.6669em;
   margin-right: 0.277em;
+}
+
+.tsmap-control-scale-transient {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+
+  &.tsmap-visible {
+    opacity: 1;
+    transition-duration: 0.15s;
+  }
+}
+
+/* cooperativeGestures: a map that shares the page.
+   One finger scrolls the page; two move the map. Declared after, and more
+   specific than, the drag/zoom `touch-action: none` above. */
+.tsmap-container.tsmap-cooperative,
+.tsmap-container.tsmap-cooperative.tsmap-touch-drag,
+.tsmap-container.tsmap-cooperative.tsmap-touch-drag.tsmap-touch-zoom {
+  touch-action: pan-x pan-y;
+}
+
+.tsmap-cooperative-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 50%);
+  color: #fff;
+  font: 600 17px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  text-align: center;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 35%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+
+  &.tsmap-visible {
+    opacity: 1;
+    transition-duration: 0.15s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tsmap-cooperative-hint {
+    transition: none;
+  }
 }
 
 .tsmap-left .tsmap-control-scale {
@@ -1219,4 +1264,1048 @@ a.tsmap-control-locate-denied::after {
   width: 100% !important;
   height: 100% !important;
   z-index: 99999;
+}
+
+/* Turn-by-turn navigation, after Apple Maps (see navigation/TurnByTurn). The
+ * banner is dark in both themes, as Apple's is; the card follows the theme. */
+.tsmap-container {
+  --tsmap-nav-banner-bg: #1c1c1e;
+  --tsmap-nav-card-bg: rgb(255 255 255 / 96%);
+  --tsmap-nav-card-fg: #1d1d1f;
+  --tsmap-nav-card-muted: #6e6e73;
+  --tsmap-nav-option-bg: #f2f2f7;
+}
+
+.tsmap-container.tsmap-dark {
+  --tsmap-nav-banner-bg: #2c2c2e;
+  --tsmap-nav-card-bg: rgb(28 28 30 / 96%);
+  --tsmap-nav-card-fg: #f5f5f7;
+  --tsmap-nav-card-muted: #98989d;
+  --tsmap-nav-option-bg: #3a3a3c;
+}
+
+.tsmap-nav-banner,
+.tsmap-nav-card,
+.tsmap-nav-recenter {
+  position: absolute;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.tsmap-nav-banner {
+  top: 12px;
+  left: 12px;
+  right: 60px;
+  max-width: 440px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--tsmap-nav-banner-bg);
+  color: #fff;
+}
+
+.tsmap-nav-icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  color: #fff;
+}
+
+.tsmap-nav-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tsmap-nav-distance {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.tsmap-nav-road {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 92%);
+}
+
+.tsmap-nav-then {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px -18px -14px;
+  padding: 6px 18px 8px;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  font-size: 15px;
+  font-weight: 600;
+  color: rgb(255 255 255 / 80%);
+}
+
+.tsmap-nav-then-icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.tsmap-nav-lanes {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin: 8px -18px -14px;
+  padding: 8px 18px 10px;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 0 0 18px 18px;
+  background: rgb(0 0 0 / 22%);
+}
+
+.tsmap-nav-lane {
+  display: inline-flex;
+  padding: 0 5px;
+  color: #fff;
+
+  svg {
+    width: 28px;
+    height: 36px;
+  }
+
+  & + & {
+    border-left: 1px dashed rgb(255 255 255 / 25%);
+  }
+}
+
+.tsmap-nav-card {
+  left: 12px;
+  right: 12px;
+  bottom: 28px;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--tsmap-nav-card-bg);
+  color: var(--tsmap-nav-card-fg);
+}
+
+.tsmap-nav-card button {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+}
+
+.tsmap-nav-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.tsmap-nav-card-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tsmap-nav-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-option-bg);
+  color: var(--tsmap-nav-card-muted);
+  font-size: 13px;
+}
+
+.tsmap-nav-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tsmap-nav-option {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+  color: inherit;
+  text-align: left;
+  outline: 2px solid transparent;
+
+  &.tsmap-selected {
+    outline-color: #0a84ff;
+  }
+}
+
+.tsmap-nav-option-time {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tsmap-nav-option-detail {
+  font-size: 14px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-nav-go,
+.tsmap-nav-end {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tsmap-nav-go {
+  background: #34c759;
+}
+
+.tsmap-nav-trip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tsmap-nav-trip-stats {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.tsmap-nav-stat {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tsmap-nav-arrival {
+  color: #34c759;
+}
+
+.tsmap-nav-stat-label {
+  font-size: 13px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-nav-end {
+  width: auto;
+  margin: 0;
+  padding: 10px 18px;
+  background: #ff3b30;
+}
+
+.tsmap-nav-mute {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-option-bg);
+  font-size: 18px;
+}
+
+.tsmap-nav-recenter {
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 20px;
+  background: var(--tsmap-nav-card-bg);
+  color: #0a84ff;
+  font: 600 16px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+/* The traveller: a blue disc with a white rim and a heading arrow. */
+.tsmap-nav-puck {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tsmap-nav-puck-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0a84ff;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    transform: translate(-50%, -62%);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 13px solid #fff;
+  }
+}
+
+/* The destination: a red pin. */
+.tsmap-nav-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  background: #ff3b30;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+  transform: rotate(-45deg);
+  box-sizing: border-box;
+}
+
+/* Offline Maps, after Apple Maps (see control/OfflineMapsControl). The card
+ * shares the navigation card's look; the area picker dims the map around a
+ * rounded frame with a handle at each corner. */
+.tsmap-offline-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: var(--tsmap-fg-muted);
+
+  &.tsmap-offline-button-active {
+    color: var(--tsmap-accent);
+  }
+}
+
+.tsmap-offline-card,
+.tsmap-offline-pill {
+  position: absolute;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.tsmap-offline-card {
+  left: 12px;
+  right: 12px;
+  bottom: 28px;
+  max-width: 400px;
+  max-height: calc(100% - 96px);
+  overflow-y: auto;
+  margin: 0 auto;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: var(--tsmap-nav-card-bg);
+  color: var(--tsmap-nav-card-fg);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  font-size: 15px;
+  box-sizing: border-box;
+
+  & button {
+    font: inherit;
+    cursor: pointer;
+    border: 0;
+    background: none;
+    color: inherit;
+  }
+}
+
+.tsmap-offline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tsmap-offline-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tsmap-offline-card .tsmap-offline-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-option-bg);
+  color: var(--tsmap-nav-card-muted);
+  font-size: 13px;
+}
+
+.tsmap-offline-card .tsmap-offline-new {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+  color: #0a84ff;
+  font-weight: 600;
+  text-align: left;
+}
+
+.tsmap-offline-section {
+  margin: 18px 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tsmap-nav-card-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tsmap-offline-list {
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+  overflow: hidden;
+}
+
+.tsmap-offline-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  padding: 11px 14px;
+
+  & + & {
+    border-top: 1px solid rgb(128 128 128 / 20%);
+  }
+}
+
+.tsmap-offline-card .tsmap-offline-row-name {
+  padding: 0;
+  font-weight: 600;
+  text-align: left;
+}
+
+.tsmap-offline-row-detail {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-offline-row-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tsmap-offline-card .tsmap-offline-action {
+  padding: 5px 9px;
+  border-radius: 8px;
+  color: #0a84ff;
+  font-size: 14px;
+
+  &:hover {
+    background: rgb(10 132 255 / 12%);
+  }
+
+  &.tsmap-offline-danger {
+    color: #ff3b30;
+    font-weight: 600;
+  }
+}
+
+.tsmap-offline-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(128 128 128 / 25%);
+  overflow: hidden;
+
+  & > span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: #0a84ff;
+    transition: width 0.3s ease;
+  }
+
+  &.tsmap-offline-bar-paused > span {
+    background: var(--tsmap-nav-card-muted);
+  }
+}
+
+.tsmap-offline-error {
+  color: #ff3b30;
+}
+
+.tsmap-offline-empty,
+.tsmap-offline-hint,
+.tsmap-offline-usage {
+  margin: 12px 2px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-offline-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+  cursor: pointer;
+}
+
+/* An iOS switch. */
+.tsmap-offline-switch {
+  appearance: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 16px;
+  background: rgb(120 120 128 / 32%);
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 3px 8px rgb(0 0 0 / 15%);
+    transition: transform 0.2s ease;
+  }
+
+  &:checked {
+    background: #34c759;
+  }
+
+  &:checked::after {
+    transform: translateX(20px);
+  }
+}
+
+.tsmap-offline-name {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tsmap-nav-option-bg);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+}
+
+.tsmap-offline-estimate {
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.tsmap-offline-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+
+  & button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+  }
+}
+
+.tsmap-offline-card .tsmap-offline-cancel {
+  background: var(--tsmap-nav-option-bg);
+}
+
+.tsmap-offline-card .tsmap-offline-download {
+  background: #0a84ff;
+  color: #fff;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.tsmap-offline-select {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tsmap-offline-frame {
+  position: absolute;
+  border: 2.5px solid #fff;
+  border-radius: 22px;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 38%), 0 0 12px rgb(0 0 0 / 20%);
+}
+
+/* A dark map needs a deeper shade for the outside to read as set aside. */
+.tsmap-container.tsmap-dark .tsmap-offline-frame {
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 58%), 0 0 12px rgb(0 0 0 / 40%);
+}
+
+.tsmap-offline-handle {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  pointer-events: auto;
+  touch-action: none;
+
+  &.tsmap-offline-handle-nw,
+  &.tsmap-offline-handle-se {
+    cursor: nwse-resize;
+  }
+
+  &.tsmap-offline-handle-ne,
+  &.tsmap-offline-handle-sw {
+    cursor: nesw-resize;
+  }
+}
+
+.tsmap-offline-pill {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border-radius: 16px;
+  background: rgb(60 60 67 / 88%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 22%);
+  pointer-events: none;
+
+  &.tsmap-offline-pill-covered {
+    background: rgb(10 132 255 / 92%);
+  }
+}
+
+/* Search, after Apple Maps (see control/SearchControl). A card at the top of
+ * the map: the field, then Find Nearby and Recents, suggestions, results or a
+ * place's card beneath it. Shares the navigation card's colours. */
+.tsmap-search {
+  position: relative;
+  box-sizing: border-box;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  border-radius: 14px;
+  background: var(--tsmap-nav-card-bg);
+  color: var(--tsmap-nav-card-fg);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 15px;
+  overflow: hidden;
+
+  & button {
+    font: inherit;
+    cursor: pointer;
+    border: 0;
+    background: none;
+    color: inherit;
+  }
+}
+
+.tsmap-search-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px;
+  padding: 0 10px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--tsmap-nav-option-bg);
+}
+
+.tsmap-search-icon {
+  display: flex;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 17px;
+
+  &::placeholder {
+    color: var(--tsmap-nav-card-muted);
+  }
+
+  &::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+.tsmap-search .tsmap-search-clear {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-card-muted);
+  color: var(--tsmap-nav-card-bg);
+  font-size: 10px;
+  line-height: 18px;
+  padding: 0;
+}
+
+.tsmap-search-has-text .tsmap-search-clear {
+  display: block;
+}
+
+.tsmap-search .tsmap-search-cancel {
+  display: none;
+  margin-right: -2px;
+  color: #0a84ff;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.tsmap-search-open .tsmap-search-cancel {
+  display: block;
+}
+
+.tsmap-search-body {
+  display: none;
+  max-height: var(--tsmap-search-max, 520px);
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.tsmap-search-open .tsmap-search-body {
+  display: block;
+}
+
+.tsmap-search-sheet .tsmap-search-body {
+  max-height: var(--tsmap-search-sheet, 520px);
+}
+
+.tsmap-search-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 10px 6px 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tsmap-search .tsmap-search-link {
+  color: #0a84ff;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.tsmap-search-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 4px;
+  padding: 2px 0 6px;
+}
+
+.tsmap-search .tsmap-search-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+
+  &:hover {
+    background: var(--tsmap-nav-option-bg);
+  }
+}
+
+.tsmap-search-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.tsmap-search-glyph {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-option-bg);
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-search-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.tsmap-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+
+  &:hover,
+  &.tsmap-search-active {
+    background: var(--tsmap-nav-option-bg);
+  }
+}
+
+.tsmap-search-row-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.tsmap-search-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+
+  & b {
+    font-weight: 700;
+  }
+}
+
+.tsmap-search-row-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+  font-size: 13px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-search-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 8px 6px 6px;
+}
+
+.tsmap-search-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tsmap-search-count,
+.tsmap-search-status {
+  font-size: 13px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-search-status {
+  margin: 4px 6px 10px;
+  line-height: 1.4;
+}
+
+.tsmap-search-place {
+  padding: 4px 4px 6px;
+}
+
+.tsmap-search-place-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tsmap-search-place-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tsmap-search-place-name {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.tsmap-search-place-kind {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+.tsmap-search .tsmap-search-close {
+  flex: none;
+  align-self: flex-start;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-option-bg);
+  color: var(--tsmap-nav-card-muted);
+  font-size: 13px;
+}
+
+.tsmap-search .tsmap-search-directions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  border-radius: 12px;
+  background: #0a84ff;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tsmap-search-place-info {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+}
+
+.tsmap-search-info-label {
+  font-size: 13px;
+  color: var(--tsmap-nav-card-muted);
+
+  &:not(:first-child) {
+    margin-top: 10px;
+  }
+}
+
+.tsmap-search-info-value {
+  margin-top: 2px;
+  user-select: text;
+}
+
+/* Result pins: a round head in the category's colour on a short stem, with
+ * the name beneath the chosen one. */
+.tsmap-search-pin-icon {
+  background: none;
+  border: 0;
+}
+
+.tsmap-search-pin {
+  position: relative;
+  width: 36px;
+  height: 44px;
+  cursor: pointer;
+  transform-origin: 50% 100%;
+  transition: transform 0.18s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 4px;
+    height: 12px;
+    margin-left: -2px;
+    border-radius: 2px;
+    background: var(--pin);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  }
+}
+
+.tsmap-search-pin-head {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--pin);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+
+  & svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.tsmap-search-pin-label {
+  display: none;
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #1d1d1f;
+  font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;
+}
+
+.tsmap-dark .tsmap-search-pin-label {
+  color: #f5f5f7;
+  text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 3px #000;
+}
+
+.tsmap-search-pin-selected {
+  transform: scale(1.35);
+
+  & .tsmap-search-pin-label {
+    display: block;
+    transform: translateX(-50%) scale(0.74);
+    transform-origin: 50% 0;
+  }
+}
+
+.tsmap-search-area {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--tsmap-nav-card-bg);
+  color: #0a84ff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  font: 600 14px -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  cursor: pointer;
 }
