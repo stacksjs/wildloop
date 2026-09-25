@@ -9,8 +9,7 @@
 
 import { Auth } from '@stacksjs/auth'
 
-import { primaryRoutePart } from '../../../resources/functions/trail-geometry'
-import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
 import { avatarOf } from '../../Support/avatars'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
@@ -86,45 +85,6 @@ function titleFor(
   return when ? `${when} ${activityType}` : activityType
 }
 
-/**
- * Points kept per feed route.
- *
- * The preview is drawn a few hundred pixels wide, where a thousand-point track
- * and a fifty-point one are the same picture — but a hundred activities' worth
- * of full tracks is megabytes of JSON for a screen that shows the shape and
- * nothing else.
- */
-const ROUTE_PREVIEW_POINTS = 48
-
-interface RoutePoint { lat: number, lng: number }
-
-/**
- * A trail's main line from its stored geometry.
- *
- * Not GeoJSON, despite the neighbouring `geoJsonToCoordinates`: the ingest
- * writes plain pairs, latitude first — `[[lat, lng], …]`, or one such array per
- * part for a trail in several pieces. A card draws the main part only; gluing
- * the parts together would draw a straight line between them. Malformed
- * geometry (it is ingested from third parties) costs this one card its
- * picture, not the whole feed its response.
- */
-function parseTrailGeometry(geometry: unknown): RoutePoint[] {
-  return primaryRoutePart(geometry).map(([lat, lng]) => ({ lat, lng }))
-}
-
-/** Thin a route to at most `max` points, keeping both ends. */
-function thinRoute(route: RoutePoint[], max: number): RoutePoint[] {
-  if (route.length <= max)
-    return route
-
-  const step = (route.length - 1) / (max - 1)
-  const out: RoutePoint[] = []
-  for (let index = 0; index < max; index++)
-    out.push(route[Math.round(index * step)]!)
-
-  return out
-}
-
 export default new Action({
   name: 'Activity Index',
   description: 'List activities (optionally filtered by user) for the feed',
@@ -174,42 +134,10 @@ export default new Action({
        * Privacy settings are batch-loaded for the same reason the names are:
        * one query rather than one per card.
        */
-      const ownerIds = [...new Set(rows.map((a: any) => a.user_id).filter(Boolean))]
-      const privacyRows = ownerIds.length
-        ? ((await UserPrivacySetting.whereIn('user_id', ownerIds).get().catch(() => [])) as any[])
-        : []
-      const hideMetresByUser = new Map(privacyRows.map(row => [row.user_id, row.hide_start_end_meters ?? 400]))
-
-      const routeFor = (activity: any): Array<[number, number]> => {
-        // The athlete's own recorded track first: it is where they actually
-        // went. The trail's shape is the fallback for a manual entry, which
-        // has no track of its own but was still run somewhere.
-        const exact = activity.gpx_data
-          ? (parseGpsData(activity.gpx_data) as RoutePoint[])
-          : parseTrailGeometry(trailGeometry.get(activity.trail_id))
-
-        if (exact.length < 2)
-          return []
-
-        // Somebody else's run has its start and end blurred, exactly as the
-        // detail page does — a feed is a worse place to leak a front door.
-        const masked = viewerId === activity.user_id
-          ? exact
-          : maskRouteEndpoints(exact, hideMetresByUser.get(activity.user_id) ?? 400)
-
-        // Masking trims 400m off each end, which on a short trail can leave
-        // fewer than two points — a "route" the preview cannot draw, sent as
-        // if it could. Answering with nothing lets the card show its honest
-        // placeholder. Emphatically not a reason to fall back to the unmasked
-        // line: those endpoints are what the masking exists to withhold, and a
-        // short trail is where they give away the most.
-        if (masked.length < 2)
-          return []
-
-        // Emitted as [lat, lng] pairs, which is both what the preview
-        // renderer indexes and about 40% less JSON than named keys across a
-        // hundred activities.
-        return thinRoute(masked, ROUTE_PREVIEW_POINTS).map(point => [point.lat, point.lng] as [number, number])
+      const previewContext = {
+        viewerId,
+        trailGeometry,
+        hideMetres: await hiddenEndMetres(rows.map((a: any) => a.user_id)),
       }
 
       // Historical/dev databases can contain activities whose athlete was
@@ -236,7 +164,7 @@ export default new Action({
           splits: parseSplits(a.splits),
           calories: Math.round((a.distance ?? 0) * 95),
           kudosCount: a.kudos_count ?? 0,
-          route: routeFor(a),
+          route: activityRoutePreview(a, previewContext),
           notes: a.notes,
           hasGps: !!a.gpx_data,
           visibility: a.visibility ?? 'public',

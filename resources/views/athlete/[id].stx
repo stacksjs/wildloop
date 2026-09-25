@@ -10,6 +10,7 @@
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../../functions/route-records'
   import { avatarUrl } from '../../functions/avatars'
+  import { routeShapeFor } from '../../composables/useRouteShape'
 
   useHead({ title: 'Athlete - Wildloop' })
 
@@ -141,6 +142,27 @@
       canonical: `/athlete/${seoId}`,
     })
   })
+
+  /*
+   * Each recent activity's route as a thumbnail, from the masked preview the
+   * API sends (start and finish blurred for anyone but the athlete). Cached
+   * per activity so a re-render does not refit every line.
+   */
+  const NO_RECENT_ROUTE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const recentRouteShapes = new Map<number, typeof NO_RECENT_ROUTE>()
+
+  function recentRoute(activity: { id: number, route?: Array<[number, number]> }) {
+    const cached = recentRouteShapes.get(activity.id)
+    if (cached)
+      return cached
+    const shape = routeShapeFor(activity.route, 100, 100, 12) ?? NO_RECENT_ROUTE
+    recentRouteShapes.set(activity.id, shape)
+    return shape
+  }
+
+  function recentTopo(id: number): string {
+    return `wl-topo wl-topo-${Math.abs(Number(id) || 0) % 4}`
+  }
 </script>
 
   <div class="mx-auto max-w-4xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
@@ -281,8 +303,14 @@
         <div :if="profile.recentActivities.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <template :for="a in profile.recentActivities">
             <StxLink x-to="'/activity/' + a.id" class="group flex min-h-16 items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
-              <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
-                <i x-class="a.activityType === 'Hike' ? 'i-lucide-mountain' : a.activityType === 'Bike' ? 'i-lucide-bike' : 'i-lucide-footprints'" class="h-5 w-5" aria-hidden="true"></i>
+              <div x-class="recentTopo(a.id)" class="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+                <svg :if="recentRoute(a).points !== ''" viewBox="0 0 100 100" class="absolute inset-0 h-full w-full" role="img" x-aria-label="'Route of this ' + a.activityType">
+                  <polyline x-points="recentRoute(a).points" class="wl-route-casing" />
+                  <polyline x-points="recentRoute(a).points" class="wl-route-line" />
+                </svg>
+                <span :if="recentRoute(a).points === ''" class="absolute inset-0 grid place-items-center text-emerald-700/60 dark:text-emerald-300/50" aria-hidden="true">
+                  <i x-class="a.activityType === 'Hike' ? 'i-lucide-mountain' : a.activityType === 'Bike' ? 'i-lucide-bike' : 'i-lucide-footprints'" class="h-5 w-5"></i>
+                </span>
               </div>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-semibold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">
@@ -302,4 +330,42 @@
       </section>
     </template>
   </div>
+<style>
+  /* Contour-tinted ground under a route thumbnail, as on the feed and profile. */
+  .wl-topo {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
+  }
+
+  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .wl-topo {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
+      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
+  }
+
+  .wl-route-casing,
+  .wl-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-route-casing { stroke: #fff; stroke-width: 6; }
+  .wl-route-line { stroke: #059669; stroke-width: 3; }
+
+  .dark .wl-route-casing { stroke: #0b1411; }
+  .dark .wl-route-line { stroke: #34d399; }
+</style>
 @endsection

@@ -7,6 +7,7 @@
 // (from real activities + territory_stats), social counts, and recent activities.
 
 import { Auth } from '@stacksjs/auth'
+import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
 import { profileFields } from '../../Support/avatars'
 
 export default new Action({
@@ -41,6 +42,7 @@ export default new Action({
       const trailIds = [...new Set(activities.map((a: any) => a.trail_id).filter(Boolean))]
       const trails = trailIds.length ? await Trail.whereIn('id', trailIds).get() : []
       const trailName = new Map(trails.map((t: any) => [t.id, t.name]))
+      const trailGeometry = new Map(trails.map((t: any) => [t.id, t.geometry]))
 
       const totalDistance = activities.reduce((s: number, a: any) => s + (a.distance || 0), 0)
       const totalElevation = activities.reduce((s: number, a: any) => s + (a.elevation || 0), 0)
@@ -48,6 +50,10 @@ export default new Action({
       const tStats = await TerritoryStats.where('user_id', '=', userId).first()
       const followers = await Follow.where('following_id', '=', userId).get()
       const following = await Follow.where('follower_id', '=', userId).get()
+
+      // The same masked shape the feed draws: a visitor sees where somebody
+      // ran without seeing where they start and finish.
+      const previewContext = { viewerId, trailGeometry, hideMetres: await hiddenEndMetres([userId]) }
 
       const recentActivities = [...activities]
         .sort((a: any, b: any) => String(b.completed_at).localeCompare(String(a.completed_at)))
@@ -60,6 +66,7 @@ export default new Action({
           duration: a.duration,
           elevationGain: a.elevation ?? 0,
           completedAt: a.completed_at,
+          route: activityRoutePreview(a, previewContext),
         }))
 
       return response.json({
