@@ -1,6 +1,6 @@
 import { Auth } from '@stacksjs/auth'
 import TripPlan from '../../Models/TripPlan'
-import { planResponse } from './plan-support'
+import { planResponse } from '../../Support/tripPlanRequest'
 
 /**
  * GET /api/plans — every plan the signed-in person has, upcoming and past.

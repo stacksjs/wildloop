@@ -1,7 +1,7 @@
-import type { TripPlan, TripPlanFields, TripPlanInput } from '../../../resources/functions/trip-plans'
-import { localDate, validateTripPlan } from '../../../resources/functions/trip-plans'
-import CustomRoute from '../../Models/CustomRoute'
-import Trail from '../../Models/Trail'
+import type { TripPlan, TripPlanFields, TripPlanInput } from '../../resources/functions/trip-plans'
+import { localDate, validateTripPlan } from '../../resources/functions/trip-plans'
+import CustomRoute from '../Models/CustomRoute'
+import Trail from '../Models/Trail'
 
 /** The fields a request may set on a plan; anything else is ignored. */
 const INPUT_KEYS = [

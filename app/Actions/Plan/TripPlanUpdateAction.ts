@@ -1,6 +1,6 @@
 import { Auth } from '@stacksjs/auth'
 import TripPlan from '../../Models/TripPlan'
-import { applyRoute, applyTrail, planResponse, readPlanInput, validatePlanRequest, validationFailed } from './plan-support'
+import { applyRoute, applyTrail, planResponse, readPlanInput, validatePlanRequest, validationFailed } from '../../Support/tripPlanRequest'
 
 /**
  * PATCH /api/plans/{id} — change the date, time, notes or destination.
