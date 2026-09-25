@@ -8,14 +8,14 @@ import {
 
 interface TrailStoreLike {
   trails: () => unknown[]
-  hydrateTrailsFromApi: (trails: unknown[], routes: Record<number, [number, number][]>) => void
+  hydrateTrailsFromApi: (trails: unknown[], routes: Record<number, [number, number][]>, parts?: Record<number, [number, number][][]>) => void
 }
 
 export interface CoverageState {
   total: number
   countries: Array<{ code: string, count: number }>
   /** `country` qualifies `code`: region codes repeat across countries. */
-  states: Array<{ code: string, name: string, country: string, count: number }>
+  states: Array<{ code: string, name: string, country: string, count: number, lat?: number | null, lng?: number | null }>
   sources: Array<{ source: string, count: number }>
 }
 
@@ -157,12 +157,12 @@ export function useTrailCatalog(wl: TrailStoreLike | null) {
         throw new Error(`Trails API returned ${listRes.status}`)
 
       const payload = await listRes.json()
-      const { trails, geometryById } = normalizeTrailsPayload(payload)
+      const { trails, geometryById, routePartsById } = normalizeTrailsPayload(payload)
 
       // Hydrated unconditionally, empty included: the API's answer is the
       // truth, and keeping the store's demo trails when it returns nothing is
       // how a page ends up showing places that do not exist.
-      wl.hydrateTrailsFromApi(trails, routesFromTrails(trails, geometryById))
+      wl.hydrateTrailsFromApi(trails, routesFromTrails(trails, geometryById), routePartsById)
       catalogSource.set('api')
     }
     catch (err) {

@@ -15,23 +15,25 @@
  */
 
 import type { Coordinate } from '../../../resources/functions/geo'
+import type { RouteNetwork } from '../../../resources/functions/trail-geometry'
 import type { NormalizedTrail, Shard, SourceFetchResult, TrailSourceAdapter } from '../types'
 import { TrailHttpClient } from '../client'
 import {
   deriveDifficulty,
   describeDistance,
   deriveRouteType,
-  encodeGeometry,
+  encodeRouteGeometry,
   encodeTags,
   encodeUses,
   estimateTime,
   metersToFeet,
   MIN_TRAIL_MILES,
   normalizeSurface,
-  segmentedPathStats,
+  networkStats,
   pickImage,
 } from '../normalize'
 import { resolveRegion } from '../regions'
+import { lineLengthMeters, routePartsFromSegments } from '../../../resources/functions/trail-geometry'
 
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter'
 
@@ -61,7 +63,7 @@ const COVERAGE_BOXES: Array<[number, number, number, number]> = [
   [45, 5, 56, 18], // Germany, Austria, Switzerland
 ]
 
-interface OverpassElement {
+export interface OverpassElement {
   type: 'way' | 'relation' | 'node'
   id: number
   tags?: Record<string, string>
@@ -126,8 +128,9 @@ function buildQuery(south: number, west: number, north: number, east: number): s
 /**
  * A way yields one segment; a relation yields one per member way.
  *
- * The boundaries matter — see `segmentedPathStats`. Flattening them here made
- * the jump from the end of one member to the start of the next count as trail.
+ * The boundaries matter — see `elementRoute`. Flattening them here made the
+ * jump from the end of one member to the start of the next count as trail, and
+ * drew it as a straight line on the map.
  */
 function extractSegments(element: OverpassElement): Coordinate[][] {
   if (element.geometry)
@@ -140,6 +143,29 @@ function extractSegments(element: OverpassElement): Coordinate[][] {
   }
 
   return []
+}
+
+/**
+ * The route an element describes.
+ *
+ * A way is already one continuous line and is kept exactly as mapped. A
+ * relation's members are not reliably ordered, oriented or contiguous — a
+ * route has alternates, spurs and plain gaps — so they are assembled by shared
+ * endpoints into walkable parts, and a gap is left a gap rather than drawn as
+ * a straight line (see resources/functions/trail-geometry.ts).
+ */
+export function elementRoute(element: OverpassElement): RouteNetwork {
+  const segments = extractSegments(element)
+
+  if (element.geometry) {
+    const line = segments[0] ?? []
+    if (line.length < 2)
+      return { parts: [], partLengths: [], lengthMeters: 0 }
+    const length = lineLengthMeters(line)
+    return { parts: [line], partLengths: [length], lengthMeters: length }
+  }
+
+  return routePartsFromSegments(segments)
 }
 
 function extractName(tags: Record<string, string>): string | null {
@@ -225,21 +251,18 @@ function deriveDisplayTags(tags: Record<string, string>, surface: string, closed
   return encodeTags(display)
 }
 
-function normalizeElement(element: OverpassElement): NormalizedTrail | null {
+export function normalizeElement(element: OverpassElement): NormalizedTrail | null {
   const tags = element.tags ?? {}
 
   const name = extractName(tags)
   if (!name)
     return null
 
-  const segments = extractSegments(element)
-  // The drawn line stays the full point set; only the measurement is per
-  // member, so a relation still renders as one route on the map.
-  const coords = segments.flat()
-  if (coords.length < 2)
+  const route = elementRoute(element)
+  if (route.parts.length === 0)
     return null
 
-  const stats = segmentedPathStats(segments)
+  const stats = networkStats(route)
   if (stats.distanceMiles < MIN_TRAIL_MILES)
     return null
 
@@ -282,7 +305,7 @@ function normalizeElement(element: OverpassElement): NormalizedTrail | null {
     routeType: deriveRouteType(stats.closed, true),
     surface,
     estimatedTime: estimateTime(stats.distanceMiles, ascent),
-    geometry: encodeGeometry(coords),
+    geometry: encodeRouteGeometry(route.parts),
 
     allowedUses: deriveUses(tags),
     dogsAllowed: dogPolicy(tags.dog),
@@ -363,10 +386,10 @@ export const osmSource: TrailSourceAdapter = {
  * Re-fetch specific relations by id, outside the tile grid.
  *
  * Needed to repair rows written before member boundaries were preserved (see
- * `segmentedPathStats`): their distances were measured across the gaps between
- * a relation's member ways. The stored geometry is flattened, so the true
- * length cannot be recovered locally — the members have to come back from
- * Overpass.
+ * `elementRoute`): their distances were measured across the gaps between a
+ * relation's member ways, and their lines were drawn straight across them. The
+ * stored geometry is flattened, so neither can be recovered locally — the
+ * members have to come back from Overpass.
  *
  * Fetching by id rather than re-running the tiles is what makes the repair
  * affordable: ~95 requests for 14,000 relations, against 1,459 tiles for a

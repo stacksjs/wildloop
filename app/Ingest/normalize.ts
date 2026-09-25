@@ -8,8 +8,10 @@
  */
 
 import type { Coordinate } from '../../resources/functions/geo'
+import type { RouteNetwork } from '../../resources/functions/trail-geometry'
 import type { TrailDifficulty, TrailRouteType } from './types'
 import { haversineDistance } from '../../resources/functions/geo'
+import { encodeRouteParts } from '../../resources/functions/trail-geometry'
 import { STOCK_TRAIL_PHOTOS } from '../../resources/functions/stock-photos'
 import { formatTrailTime } from '../../resources/functions/trail-time'
 
@@ -110,6 +112,27 @@ export function segmentedPathStats(segments: Coordinate[][]): PathStats {
   }
 }
 
+/**
+ * Statistics for a trail built by `routePartsFromSegments`.
+ *
+ * Distance is the network's own length — distinct trail only, so neither the
+ * gaps between parts nor a branch walked out and back count twice. Bounds and
+ * centroid cover every part. Closure is judged on the main part, the line the
+ * route type describes.
+ */
+export function networkStats(network: RouteNetwork): PathStats {
+  const stats = segmentedPathStats(network.parts)
+  const main = network.parts[0] ?? []
+  const first = main[0]
+  const last = main[main.length - 1]
+
+  return {
+    ...stats,
+    distanceMiles: round(network.lengthMeters / METERS_PER_MILE, 2),
+    closed: main.length > 3 && haversineDistance(first, last) < 50,
+  }
+}
+
 export function round(value: number, decimals: number): number {
   const factor = 10 ** decimals
   return Math.round(value * factor) / factor
@@ -144,6 +167,24 @@ export function simplifyPath(coords: Coordinate[], maxPoints = MAX_GEOMETRY_POIN
 /** Storage form: `[[lat,lng],…]` at 5dp (~1 m), which the map layer reads directly. */
 export function encodeGeometry(coords: Coordinate[]): string {
   return JSON.stringify(simplifyPath(coords).map(c => [round(c.lat, 5), round(c.lng, 5)]))
+}
+
+/**
+ * Storage form of a route in one or more parts.
+ *
+ * The point budget is shared: each part gets its share of
+ * `MAX_GEOMETRY_POINTS` by point count, never fewer than its two ends. One
+ * part is stored exactly as `encodeGeometry` stores it; several are stored one
+ * array per part (see resources/functions/trail-geometry.ts).
+ */
+export function encodeRouteGeometry(parts: Coordinate[][], maxPoints = MAX_GEOMETRY_POINTS): string {
+  const drawable = parts.filter(part => part.length >= 2)
+  const total = drawable.reduce((sum, part) => sum + part.length, 0)
+  if (total <= maxPoints)
+    return encodeRouteParts(drawable)
+
+  return encodeRouteParts(drawable.map(part =>
+    simplifyPath(part, Math.max(2, Math.floor((maxPoints * part.length) / total)))))
 }
 
 /**

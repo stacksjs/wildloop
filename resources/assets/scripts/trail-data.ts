@@ -2,6 +2,7 @@
  * Trail API ↔ UI normalization (Stacks ORM uses camelCase in JSON).
  */
 
+import { decodeRouteParts, primaryRoutePart } from '../../functions/trail-geometry'
 import { displayTrailTime } from '../../functions/trail-time'
 
 export type LatLng = [number, number]
@@ -51,25 +52,21 @@ export interface UiTrail {
   wheelchairAccessible: boolean | null
 }
 
-/** Parse stored geometry JSON: [[lat,lng],...] */
+/**
+ * A trail's main line from stored geometry (`[[lat,lng],…]`, or one array per
+ * part when the trail is in several pieces — see functions/trail-geometry).
+ *
+ * This is the line navigation, records, offline download and thumbnails
+ * follow: the only part, or the longest. Parts are never glued end to end —
+ * that glue is a straight line across whatever lies between them.
+ */
 export function parseTrailGeometry(raw: unknown): LatLng[] {
-  if (!raw)
-    return []
-  if (Array.isArray(raw)) {
-    return raw
-      .filter((p): p is [number, number] => Array.isArray(p) && p.length >= 2
-        && typeof p[0] === 'number' && typeof p[1] === 'number')
-      .map(p => [p[0], p[1]])
-  }
-  if (typeof raw === 'string') {
-    try {
-      return parseTrailGeometry(JSON.parse(raw))
-    }
-    catch {
-      return []
-    }
-  }
-  return []
+  return primaryRoutePart(raw)
+}
+
+/** Every part of a trail's stored geometry, for drawing the whole trail. */
+export function parseTrailGeometryParts(raw: unknown): LatLng[][] {
+  return decodeRouteParts(raw)
 }
 
 export function routesFromTrails(trails: UiTrail[], geometryById: Record<number, LatLng[]>): Record<number, LatLng[]> {
@@ -188,20 +185,27 @@ export function extractApiTrailRows(payload: unknown): Record<string, unknown>[]
 
 export function normalizeTrailsPayload(payload: unknown): {
   trails: UiTrail[]
+  /** Each trail's main line. */
   geometryById: Record<number, LatLng[]>
+  /** Every part, only for the trails that are in more than one piece. */
+  routePartsById: Record<number, LatLng[][]>
 } {
   const trails: UiTrail[] = []
   const geometryById: Record<number, LatLng[]> = {}
+  const routePartsById: Record<number, LatLng[][]> = {}
 
   for (const row of extractApiTrailRows(payload)) {
     const trail = normalizeTrailRow(row)
     if (!trail)
       continue
     trails.push(trail)
-    const geom = parseTrailGeometry(row.geometry)
+    const parts = parseTrailGeometryParts(row.geometry)
+    const geom = parts.length > 1 ? parseTrailGeometry(parts) : parts[0] ?? []
     if (geom.length >= 2)
       geometryById[trail.id] = geom
+    if (parts.length > 1)
+      routePartsById[trail.id] = parts
   }
 
-  return { trails, geometryById }
+  return { trails, geometryById, routePartsById }
 }

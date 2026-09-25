@@ -10,6 +10,7 @@ interface RepairOptions {
   batch?: number | string
   limit?: number | string
   dryRun?: boolean
+  syncedBefore?: string
 }
 
 /**
@@ -36,16 +37,23 @@ const DEFAULT_BATCH = 150
  * full re-sync would need, and leaves the 230,000 ways (which were never
  * wrong) untouched.
  *
- * Resumable by construction: `writeTrails` stamps `synced_at`, and this only
- * selects relations stamped before the run began. An interrupted repair
- * continues where it stopped, and a completed one is a no-op.
+ * The same re-fetch rebuilds each relation's line: members used to be drawn
+ * end to end in relation order, with a straight line across every gap and
+ * back from every spur. They are now assembled by shared endpoints into
+ * walkable parts (see resources/functions/trail-geometry.ts).
+ *
+ * Resumable: `writeTrails` stamps `synced_at`, and this only selects relations
+ * stamped before the cutoff — the start of the run, or `--synced-before`. Pass
+ * the same `--synced-before` to every run of one repair and an interrupted
+ * repair continues where it stopped, and a completed one is a no-op.
  */
 export default function (cli: CLI) {
   cli
-    .command('trails:repair-distances', 'Recompute OSM relation distances mis-measured across member gaps')
+    .command('trails:repair-distances', 'Re-fetch OSM relations: distances and lines built across member gaps')
     .option('--batch [count]', 'Relation ids per Overpass request', { default: DEFAULT_BATCH })
     .option('--limit [count]', 'Stop after this many relations (0 = all)', { default: 0 })
     .option('--dry-run', 'Report what would change without writing', { default: false })
+    .option('--synced-before <iso>', 'Only relations last synced before this ISO time (default: the start of this run)')
     .action(async (options: RepairOptions) => {
       intro('trails:repair-distances')
 
@@ -54,7 +62,13 @@ export default function (cli: CLI) {
 
       // Anything already re-synced is correct by definition, so the cutoff is
       // taken before the first fetch rather than per batch.
-      const cutoff = new Date().toISOString()
+      const cutoffDate = options.syncedBefore ? new Date(options.syncedBefore) : new Date()
+      if (Number.isNaN(cutoffDate.getTime())) {
+        log.error(`--synced-before is not a date: ${options.syncedBefore}`)
+        process.exitCode = ExitCode.FatalError
+        return
+      }
+      const cutoff = cutoffDate.toISOString()
 
       const rows = await db.sql`
         SELECT source_id, distance

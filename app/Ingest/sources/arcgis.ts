@@ -18,7 +18,9 @@
 
 import type { Coordinate } from '../../../resources/functions/geo'
 import type { TrailHttpClient } from '../client'
+import type { RouteNetwork } from '../../../resources/functions/trail-geometry'
 import { haversineDistance } from '../../../resources/functions/geo'
+import { routePartsFromSegments } from '../../../resources/functions/trail-geometry'
 
 export interface EsriFeature<T> {
   attributes: T
@@ -101,66 +103,87 @@ export async function fetchAllPages<T>(
 }
 
 /**
- * Flatten an Esri polyline into a single coordinate run.
+ * An Esri polyline as one coordinate run, its paths end to end.
  *
- * A feature may hold several disjoint paths. They are concatenated in the
- * order given: for one trail's segments that is the trail, and for the rare
- * genuinely-disjoint feature the extra straight hop only affects the drawn
- * line, never the bounds or the state assignment.
+ * Only for deciding which trail a feature belongs to (see `clusterRuns`):
+ * that grouping has always been made on this flattened run, and keeping it is
+ * what keeps every trail's `#n` source id stable across re-ingests. It is never
+ * drawn or measured — a feature's paths can be disjoint, and the hop between
+ * them is not trail. `pathsToSegments` is what the geometry is built from.
  */
 export function pathsToCoordinates(paths: number[][][] | undefined): Coordinate[] {
+  return pathsToSegments(paths).flat()
+}
+
+/** An Esri polyline as its separate paths, each a coordinate run. */
+export function pathsToSegments(paths: number[][][] | undefined): Coordinate[][] {
   if (!paths)
     return []
 
-  const coords: Coordinate[] = []
-  for (const path of paths) {
-    for (const [lng, lat] of path)
-      coords.push({ lat, lng })
-  }
-
-  return coords
+  return paths
+    .map(path => path
+      .filter(point => Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]))
+      .map(([lng, lat]) => ({ lat, lng })))
+    .filter(run => run.length > 0)
 }
 
 /**
  * The largest gap two segments may have between them and still be considered
  * the same trail, in metres.
  *
- * Segments in these layers abut within a few metres; a kilometre is generous
- * enough to absorb a survey gap or a road crossing, and far too small to bridge
- * two unrelated trails that happen to share an identifier.
+ * This decides identity only — which rows are published as one trail. Pieces
+ * of one trail are never joined across a gap by a drawn line: anything farther
+ * apart than `ROUTE_SNAP_METERS` stays a separate part of the route (see
+ * resources/functions/trail-geometry.ts).
  */
 const MAX_JOIN_GAP_METERS = 1000
 
+export interface RunCluster<T> {
+  /** Where the historical chained route started; orders clusters, and so `#n` ids. */
+  anchor: Coordinate
+  members: T[]
+}
+
 /**
- * Join segment runs into continuous routes, returning one array per
- * *connected* route.
+ * Group segment runs into trails: one cluster per *connected* set.
  *
  * Segments arrive in arbitrary order and arbitrary direction — the Forest
- * Service stores each as it was surveyed — so they have to be chained by
- * proximity: repeatedly attach whichever remaining segment starts or ends
- * nearest the current tail, flipping it when needed.
+ * Service stores each as it was surveyed — so they are grown by proximity:
+ * repeatedly take whichever remaining run starts or ends nearest either end of
+ * the growing chain.
  *
- * The important part is that it refuses to chain across a real gap. Grouping
+ * The important part is that it refuses to grow across a real gap. Grouping
  * upstream is imperfect (Forest Service trail numbers are unique per ranger
  * district, not per forest, so number 7 in the Idaho Panhandle is three
- * different trails in three districts), and without this guard the joiner
- * happily drew a straight line between them and reported "Heart Lake" as a
- * 260-mile trail spanning two degrees of latitude. Disconnected clusters come
- * back as separate routes, and the caller publishes them as separate trails.
+ * different trails in three districts), and without this guard "Heart Lake"
+ * was reported as a 260-mile trail spanning two degrees of latitude.
+ * Disconnected clusters come back separately, and the caller publishes them as
+ * separate trails.
+ *
+ * This is the exact procedure the ingest has always used to decide trail
+ * identity, kept so re-ingesting updates the same rows. It USED to also be the
+ * drawn line — the chain concatenated, with a straight hop of up to a
+ * kilometre wherever the next run did not start where the last one ended, and
+ * branching trails zig-zagging between their branches. The line is now built
+ * per cluster by `routePartsFromSegments`, which never does that.
  *
  * O(n²) in segments per trail, which is fine: trails have tens of segments.
  */
-export function joinSegments(segments: Coordinate[][]): Coordinate[][] {
-  const remaining = segments.filter(segment => segment.length >= 2)
+export function clusterRuns<T>(items: Array<{ run: Coordinate[], member: T }>): Array<RunCluster<T>> {
+  const remaining = items.filter(item => item.run.length >= 2)
   if (remaining.length === 0)
     return []
 
-  const routes: Coordinate[][] = []
+  const clusters: Array<RunCluster<T>> = []
 
   while (remaining.length > 0) {
-    const route = remaining.shift()!
+    const seed = remaining.shift()!
+    // Only the chain's two ends matter for growing it.
+    let head = seed.run[0]
+    let tail = seed.run[seed.run.length - 1]
+    const members = [seed.member]
 
-    // Grow this route until nothing left is close enough to belong to it.
+    // Grow this chain until nothing left is close enough to belong to it.
     // Both ends are eligible: the seed segment is rarely an endpoint of the
     // trail, so growing forward only would strand everything behind it.
     let grew = true
@@ -168,16 +191,16 @@ export function joinSegments(segments: Coordinate[][]): Coordinate[][] {
       grew = false
 
       for (const atTail of [true, false]) {
-        const anchor = atTail ? route[route.length - 1] : route[0]
+        const anchor = atTail ? tail : head
 
         let bestIndex = -1
         let bestDistance = Number.POSITIVE_INFINITY
         let bestFlipped = false
 
         for (let i = 0; i < remaining.length; i++) {
-          const segment = remaining[i]
-          const toHead = haversineDistance(anchor, segment[0])
-          const toTail = haversineDistance(anchor, segment[segment.length - 1])
+          const run = remaining[i].run
+          const toHead = haversineDistance(anchor, run[0])
+          const toTail = haversineDistance(anchor, run[run.length - 1])
 
           if (toHead < bestDistance) {
             bestDistance = toHead
@@ -196,23 +219,41 @@ export function joinSegments(segments: Coordinate[][]): Coordinate[][] {
           continue
 
         const [next] = remaining.splice(bestIndex, 1)
-        // Attaching at the tail consumes the segment head-first; attaching at
-        // the head means it runs into the route, so the orientation inverts.
-        const oriented = bestFlipped ? [...next].reverse() : next
-
+        members.push(next.member)
+        // The run's far end becomes the chain's new end on that side.
+        const far = bestFlipped ? next.run[0] : next.run[next.run.length - 1]
         if (atTail)
-          route.push(...oriented)
+          tail = far
         else
-          route.unshift(...[...oriented].reverse())
+          head = far
 
         grew = true
       }
     }
 
-    routes.push(route)
+    clusters.push({ anchor: head, members })
   }
 
   // Deterministic order, so the ids derived from it are stable between runs
   // even though the upstream row order is not.
-  return routes.sort((a, b) => a[0].lat - b[0].lat || a[0].lng - b[0].lng)
+  return clusters.sort((a, b) => a.anchor.lat - b.anchor.lat || a.anchor.lng - b.anchor.lng)
+}
+
+/**
+ * One named group of Esri features → one route network per physical trail.
+ *
+ * Clustering (identity) runs on each feature's flattened run, exactly as
+ * before; the geometry of each cluster is then built from every feature's
+ * separate paths.
+ */
+export function featureRoutes(features: Array<EsriFeature<unknown>>): RouteNetwork[] {
+  const clusters = clusterRuns(features.map(feature => ({
+    run: pathsToCoordinates(feature.geometry?.paths),
+    member: feature,
+  })))
+
+  // Not filtered, even when a cluster yields nothing drawable: the caller
+  // numbers trails by position here, and dropping one would renumber the rest.
+  return clusters.map(cluster =>
+    routePartsFromSegments(cluster.members.flatMap(feature => pathsToSegments(feature.geometry?.paths))))
 }

@@ -1,6 +1,7 @@
 import type { LatLngLike } from 'ts-maps/services'
 import process from 'node:process'
-import { climb, directionsRouter, resamplePath, ValhallaDirections, ValhallaElevation } from 'ts-maps/services'
+import { climb, resamplePath, ValhallaElevation } from 'ts-maps/services'
+import { decodePolyline } from '../../resources/functions/polyline'
 
 /**
  * Routing for the route builder, done here rather than in the browser: the
@@ -60,11 +61,67 @@ export async function firstAnswer<T>(servers: Server[], attempt: (server: Server
   throw lastError
 }
 
+/**
+ * Pedestrian costing tuned for trails rather than pavements.
+ *
+ * Valhalla's pedestrian defaults are a city walker's: `max_hiking_difficulty`
+ * of 1 refuses every path OpenStreetMap grades harder than `sac_scale=hiking`,
+ * so a leg drawn along an ordinary mountain trail was routed out to the
+ * nearest road instead, and plain `pedestrian` weighs a footway no better
+ * than a street with a sidewalk.
+ *
+ * - `walkway_factor` below 1 makes footways and paths cheaper than streets.
+ * - `use_tracks` above the default leans toward unpaved tracks too.
+ * - `max_hiking_difficulty` 3 admits `demanding_mountain_hiking` (T3), the
+ *   top of what a general trail app should route anyone onto unasked; alpine
+ *   routes (T4+) still need the person to draw them point by point.
+ */
+export const PEDESTRIAN_COSTING = {
+  walkway_factor: 0.6,
+  sidewalk_factor: 1,
+  use_tracks: 0.8,
+  max_hiking_difficulty: 3,
+} as const
+
+/** The `/route` request for one walking leg. Exported for tests. */
+export function footpathRequest(from: LatLngLike, to: LatLngLike): Record<string, unknown> {
+  return {
+    locations: [{ lat: from.lat, lon: from.lng }, { lat: to.lat, lon: to.lng }],
+    costing: 'pedestrian',
+    costing_options: { pedestrian: PEDESTRIAN_COSTING },
+    directions_type: 'none',
+  }
+}
+
+/** The line out of a Valhalla `/route` answer (polyline6 per leg). Exported for tests. */
+export function footpathFromResponse(body: any): LatLngLike[] {
+  const legs: Array<{ shape?: string }> = body?.trip?.legs ?? []
+  const line: LatLngLike[] = []
+  for (const leg of legs) {
+    for (const [lat, lng] of decodePolyline(leg.shape ?? '', 6)) {
+      const last = line[line.length - 1]
+      if (!last || last.lat !== lat || last.lng !== lng)
+        line.push({ lat, lng })
+    }
+  }
+  if (line.length < 2)
+    throw new Error('No route between these points')
+  return line
+}
+
 /** The walking line between two points, along footpaths and trails. */
 export async function footpathBetween(from: LatLngLike, to: LatLngLike): Promise<LatLngLike[]> {
-  return firstAnswer(valhallaServers(), (server) => {
-    const route = directionsRouter(new ValhallaDirections({ baseUrl: server.baseUrl }), 'walking')
-    return route(from, to, AbortSignal.timeout(server.timeoutMs))
+  return firstAnswer(valhallaServers(), async (server) => {
+    const response = await fetch(`${server.baseUrl.replace(/\/$/, '')}/route`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(footpathRequest(from, to)),
+      signal: AbortSignal.timeout(server.timeoutMs),
+    })
+    // Outside a server's coverage, or no path at all, Valhalla answers 400.
+    if (!response.ok)
+      throw new Error(`Valhalla request failed: ${response.status} ${response.statusText}`)
+    return footpathFromResponse(await response.json())
   })
 }
 

@@ -11,24 +11,24 @@
  * route before they are written.
  */
 
-import type { Coordinate } from '../../../resources/functions/geo'
+import type { RouteNetwork } from '../../../resources/functions/trail-geometry'
 import type { NormalizedTrail, Shard, SourceFetchResult, TrailSourceAdapter } from '../types'
 import type { EsriFeature } from './arcgis'
 import { TrailHttpClient } from '../client'
 import {
   deriveDifficulty,
   deriveRouteType,
-  encodeGeometry,
+  encodeRouteGeometry,
   encodeTags,
   encodeUses,
   estimateTime,
   MIN_TRAIL_MILES,
   normalizeSurface,
-  pathStats,
+  networkStats,
   pickImage,
 } from '../normalize'
 import { resolveRegion } from '../regions'
-import { fetchAllPages, joinSegments, pathsToCoordinates } from './arcgis'
+import { featureRoutes, fetchAllPages } from './arcgis'
 
 const TRAILS_LAYER = 'https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer/0'
 const FORESTS_LAYER = 'https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_ForestSystemBoundaries_01/MapServer/0'
@@ -241,19 +241,15 @@ export const usfsSource: TrailSourceAdapter = {
     const trails: NormalizedTrail[] = []
 
     for (const [key, segments] of grouped) {
-      const runs: Coordinate[][] = segments
-        .map(segment => pathsToCoordinates(segment.geometry?.paths))
-        .filter(run => run.length >= 2)
-
       // One group can still yield several trails: where segments sharing an
       // identifier are not physically connected, they are separate paths on
       // the ground and are published as separate trails rather than joined
       // across the gap.
-      const routes = joinSegments(runs)
+      const routes = featureRoutes(segments)
 
-      routes.forEach((coords, index) => {
+      routes.forEach((network, index) => {
         const suffix = routes.length > 1 ? `#${index + 1}` : ''
-        const trail = normalizeTrail(`${key}${suffix}`, segments, forest, coords)
+        const trail = normalizeTrail(`${key}${suffix}`, segments, forest, network)
         if (trail)
           trails.push(trail)
       })
@@ -267,12 +263,12 @@ function normalizeTrail(
   key: string,
   segments: Array<EsriFeature<TrailAttributes>>,
   forest: string,
-  coords: Coordinate[],
+  network: RouteNetwork,
 ): NormalizedTrail | null {
-  if (coords.length < 2)
+  if (network.parts.length === 0)
     return null
 
-  const stats = pathStats(coords)
+  const stats = networkStats(network)
   if (stats.distanceMiles < MIN_TRAIL_MILES)
     return null
 
@@ -350,7 +346,7 @@ function normalizeTrail(
     routeType: deriveRouteType(stats.closed, true),
     surface,
     estimatedTime: estimateTime(stats.distanceMiles, ascent),
-    geometry: encodeGeometry(coords),
+    geometry: encodeRouteGeometry(network.parts),
 
     allowedUses: deriveUses(primary),
     // National forests allow leashed dogs on trails as a rule; the layer has

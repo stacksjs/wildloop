@@ -140,6 +140,44 @@ export async function seedShards(only?: TrailSource[]): Promise<number> {
   return created
 }
 
+/**
+ * Put finished shards back at the front of the queue, ahead of their monthly
+ * re-sync, so the worker re-fetches them next.
+ *
+ * For when the ingest's own processing changed and rows already written are
+ * wrong — not stale upstream data, which the re-sync cycle handles on its own.
+ * Only shards completed before `completedBefore` are touched, which makes this
+ * idempotent: once a shard has been redone its completion time is newer, and
+ * running the same requeue again leaves it alone. Returns the shards requeued
+ * (or, with `dryRun`, that would be).
+ */
+export async function requeueShards(only: TrailSource[], completedBefore: string, dryRun = false): Promise<number> {
+  if (only.length === 0)
+    return 0
+  const inList = only.map(source => `'${source.replace(/'/g, '')}'`).join(',')
+
+  const [row] = await db.sql`
+    SELECT COUNT(*) AS count
+    FROM trail_ingest_shards
+    WHERE source IN (${db.unsafe(inList)})
+      AND status = 'done'
+      AND (completed_at IS NULL OR completed_at < ${completedBefore})
+  `.execute() as Array<{ count: number }>
+  const count = Number(row?.count ?? 0)
+
+  if (!dryRun && count > 0) {
+    await db.sql`
+      UPDATE trail_ingest_shards
+      SET status = 'pending', updated_at = ${new Date().toISOString()}
+      WHERE source IN (${db.unsafe(inList)})
+        AND status = 'done'
+        AND (completed_at IS NULL OR completed_at < ${completedBefore})
+    `.execute()
+  }
+
+  return count
+}
+
 interface ShardRow {
   id: number
   shard_key: string

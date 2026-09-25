@@ -1,3 +1,4 @@
+import { decodeRouteParts } from '../../../resources/functions/trail-geometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 
 export default new Action({
@@ -18,20 +19,8 @@ export default new Action({
         ...trailWithCover,
         lat: trail.latitude,
         lng: trail.longitude,
-        hasGeometry: parseTrailGeometryForApi(trail.geometry).length >= 2,
+        hasGeometry: decodeRouteParts(trail.geometry).length > 0,
       },
     })
   },
 })
-
-function parseTrailGeometryForApi(raw: unknown): unknown[] {
-  if (Array.isArray(raw)) return raw
-  if (typeof raw !== 'string') return []
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  }
-  catch {
-    return []
-  }
-}

@@ -50,6 +50,7 @@ declare global {
   const APP_SHORTCUTS: typeof autoImports.APP_SHORTCUTS
   const AUTH_REQUIRED_EVENT: typeof autoImports.AUTH_REQUIRED_EVENT
   const AUTH_READY_EVENT: typeof autoImports.AUTH_READY_EVENT
+  const avatarUrl: typeof autoImports.avatarUrl
   const avatarInitial: typeof autoImports.avatarInitial
   const avatarTint: typeof autoImports.avatarTint
   const newReviewsLabel: typeof autoImports.newReviewsLabel
@@ -74,6 +75,9 @@ declare global {
   const DECAY_EXPIRE_DAYS: typeof autoImports.DECAY_EXPIRE_DAYS
   const parseDurationToSeconds: typeof autoImports.parseDurationToSeconds
   const paceString: typeof autoImports.paceString
+  const garminCardState: typeof autoImports.garminCardState
+  const garminConnectedLabel: typeof autoImports.garminConnectedLabel
+  const garminImportSummary: typeof autoImports.garminImportSummary
   const haversineDistance: typeof autoImports.haversineDistance
   const isClosedLoop: typeof autoImports.isClosedLoop
   const calculatePolygonArea: typeof autoImports.calculatePolygonArea
@@ -129,10 +133,15 @@ declare global {
   const shareText: typeof autoImports.shareText
   const encodePolyline: typeof autoImports.encodePolyline
   const decodePolyline: typeof autoImports.decodePolyline
+  const validateProfileInput: typeof autoImports.validateProfileInput
+  const characterCount: typeof autoImports.characterCount
+  const PROFILE_LIMITS: typeof autoImports.PROFILE_LIMITS
   const qrSvg: typeof autoImports.qrSvg
   const qrSvgMarkup: typeof autoImports.qrSvgMarkup
   const qrBrandedMarkup: typeof autoImports.qrBrandedMarkup
   const computeTerritoryRankAssignments: typeof autoImports.computeTerritoryRankAssignments
+  const orderRegions: typeof autoImports.orderRegions
+  const regionDistanceLabel: typeof autoImports.regionDistanceLabel
   const reviewFormError: typeof autoImports.reviewFormError
   const difficultyLabel: typeof autoImports.difficultyLabel
   const difficultyTallyText: typeof autoImports.difficultyTallyText
@@ -190,6 +199,12 @@ declare global {
   const routeTypeLabel: typeof autoImports.routeTypeLabel
   const routeTypeIcon: typeof autoImports.routeTypeIcon
   const trailNotices: typeof autoImports.trailNotices
+  const routePartsFromSegments: typeof autoImports.routePartsFromSegments
+  const lineLengthMeters: typeof autoImports.lineLengthMeters
+  const encodeRouteParts: typeof autoImports.encodeRouteParts
+  const decodeRouteParts: typeof autoImports.decodeRouteParts
+  const primaryRoutePart: typeof autoImports.primaryRoutePart
+  const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
   const parsePhotoList: typeof autoImports.parsePhotoList
   const trailGallery: typeof autoImports.trailGallery
   const formatTrailTime: typeof autoImports.formatTrailTime

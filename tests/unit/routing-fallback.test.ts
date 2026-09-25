@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { firstAnswer, readPoint, valhallaServers } from '../../app/Support/routing'
+import { encodePolyline } from '../../resources/functions/polyline'
+import { firstAnswer, footpathFromResponse, footpathRequest, readPoint, valhallaServers } from '../../app/Support/routing'
 
 describe('valhallaServers', () => {
   it('tries our own server first, then the public one', () => {
@@ -60,5 +61,34 @@ describe('readPoint', () => {
     expect(readPoint('91,0')).toBeNull()
     expect(readPoint('abc')).toBeNull()
     expect(readPoint(undefined)).toBeNull()
+  })
+})
+
+describe('footpath routing', () => {
+  it('asks for pedestrian routing that prefers paths and admits mountain trails', () => {
+    const body = footpathRequest({ lat: 34.18, lng: -118.77 }, { lat: 34.19, lng: -118.78 }) as any
+    expect(body.costing).toBe('pedestrian')
+    expect(body.locations).toEqual([{ lat: 34.18, lon: -118.77 }, { lat: 34.19, lon: -118.78 }])
+    const pedestrian = body.costing_options.pedestrian
+    // Footways and paths cheaper than streets.
+    expect(pedestrian.walkway_factor).toBeLessThan(1)
+    // Valhalla's default (1) refuses every trail graded above sac_scale=hiking
+    // and routed legs along ordinary mountain paths out onto the road.
+    expect(pedestrian.max_hiking_difficulty).toBeGreaterThanOrEqual(2)
+  })
+
+  it('reads the line from every leg without repeating the joins', () => {
+    const leg1 = encodePolyline([[34.18, -118.77], [34.181, -118.771]], 6)
+    const leg2 = encodePolyline([[34.181, -118.771], [34.182, -118.772]], 6)
+    expect(footpathFromResponse({ trip: { legs: [{ shape: leg1 }, { shape: leg2 }] } })).toEqual([
+      { lat: 34.18, lng: -118.77 },
+      { lat: 34.181, lng: -118.771 },
+      { lat: 34.182, lng: -118.772 },
+    ])
+  })
+
+  it('treats an answer with no line as no route', () => {
+    expect(() => footpathFromResponse({})).toThrow(/No route/)
+    expect(() => footpathFromResponse({ trip: { legs: [{ shape: '' }] } })).toThrow(/No route/)
   })
 })

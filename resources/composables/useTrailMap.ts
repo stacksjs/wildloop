@@ -372,6 +372,14 @@ export interface TrailMapOptions {
   maxZoom?: number
   scrollWheelZoom?: boolean
   /**
+   * Share gestures with the page. On by default, because every map here sits
+   * in a page that scrolls: a plain wheel or a one-finger swipe scrolls past
+   * the map instead of being swallowed by it, and ⌘/Ctrl + scroll, a trackpad
+   * pinch or two fingers move the map — with a hint saying so, the way a
+   * Google Maps embed behaves. Fullscreen hands gestures back to the map.
+   */
+  cooperativeGestures?: boolean
+  /**
    * How much map chrome to put on screen.
    *
    * `'full'` — navigation (zoom, compass, pitch), scale, locate, fullscreen.
@@ -419,6 +427,7 @@ export async function createTrailMap(
       minZoom: options?.minZoom ?? 2,
       maxZoom: options?.maxZoom ?? MAX_ZOOM,
       scrollWheelZoom: options?.scrollWheelZoom ?? true,
+      cooperativeGestures: options?.cooperativeGestures ?? true,
       // The chrome the app adds below is the chrome it wants; the built-in
       // zoom box would be a second, differently-styled one.
       zoomControl: false,
@@ -674,38 +683,60 @@ export interface LayerTarget {
   addLayer: (layer: unknown) => unknown
 }
 
+/**
+ * Draw a trail's route: one line, or several parts of one trail.
+ *
+ * Parts are drawn as separate lines, never joined. A trail stored in several
+ * pieces (see functions/trail-geometry) has real gaps between them, and a
+ * single polyline through all of them drew a straight line across roads and
+ * back gardens as if it were the trail. The returned line is the main (first)
+ * part's, for callers that fit or style it.
+ */
 export async function drawTrailRoute(
   target: LayerTarget,
-  coords: LatLng[],
+  coords: LatLng[] | LatLng[][],
   options?: { color?: string, weight?: number, opacity?: number, casing?: boolean },
 ): Promise<PolylineType | null> {
-  if (coords.length < 2)
+  const parts = (isRouteParts(coords) ? coords : [coords]).filter(part => part.length >= 2)
+  if (parts.length === 0)
     return null
   const { Polyline } = await ensureTsMaps()
   const weight = options?.weight ?? 5
 
   // A single flat stroke disappears against a green hillside or a grey road.
   // Every map app draws the route twice — a dark casing, then the colour on
-  // top — which is what gives the line an edge at any zoom.
+  // top — which is what gives the line an edge at any zoom. All casings go
+  // under all colours, so where parts meet one never cuts across another.
   if (options?.casing !== false) {
-    target.addLayer(new Polyline(coords, {
-      color: '#0b1b15',
-      weight: weight + 3.5,
-      opacity: 0.35,
-      lineCap: 'round',
-      lineJoin: 'round',
-    }))
+    for (const part of parts) {
+      target.addLayer(new Polyline(part, {
+        color: '#0b1b15',
+        weight: weight + 3.5,
+        opacity: 0.35,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }))
+    }
   }
 
-  const line = new Polyline(coords, {
-    color: options?.color ?? ROUTE_GREEN,
-    weight,
-    opacity: options?.opacity ?? 0.95,
-    lineCap: 'round',
-    lineJoin: 'round',
-  })
-  target.addLayer(line)
-  return line
+  let main: PolylineType | null = null
+  for (const part of parts) {
+    const line = new Polyline(part, {
+      color: options?.color ?? ROUTE_GREEN,
+      weight,
+      opacity: options?.opacity ?? 0.95,
+      lineCap: 'round',
+      lineJoin: 'round',
+    })
+    target.addLayer(line)
+    main ??= line
+  }
+  return main
+}
+
+/** `[[lat,lng],…]` parts rather than one `[lat,lng]` line. */
+function isRouteParts(coords: LatLng[] | LatLng[][]): coords is LatLng[][] {
+  return coords.length > 0 && Array.isArray(coords[0]?.[0])
 }
 
 export async function drawTerritoryPolygon(

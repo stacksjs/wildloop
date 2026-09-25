@@ -14,24 +14,24 @@
  * written.
  */
 
-import type { Coordinate } from '../../../resources/functions/geo'
+import type { RouteNetwork } from '../../../resources/functions/trail-geometry'
 import type { NormalizedTrail, Shard, SourceFetchResult, TrailSourceAdapter } from '../types'
 import type { EsriFeature } from './arcgis'
 import { TrailHttpClient } from '../client'
 import {
   deriveDifficulty,
   deriveRouteType,
-  encodeGeometry,
+  encodeRouteGeometry,
   encodeTags,
   encodeUses,
   estimateTime,
   MIN_TRAIL_MILES,
   normalizeSurface,
-  pathStats,
+  networkStats,
   pickImage,
 } from '../normalize'
 import { resolveRegion } from '../regions'
-import { fetchAllPages, joinSegments, pathsToCoordinates } from './arcgis'
+import { featureRoutes, fetchAllPages } from './arcgis'
 
 const TRAILS_LAYER = 'https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_Trails_Geographic/FeatureServer/0'
 
@@ -209,18 +209,14 @@ export const npsSource: TrailSourceAdapter = {
     const trails: NormalizedTrail[] = []
 
     for (const [key, segments] of grouped) {
-      const runs: Coordinate[][] = segments
-        .map(segment => pathsToCoordinates(segment.geometry?.paths))
-        .filter(run => run.length >= 2)
-
       // Same-named but disconnected trails are common here too — a park will
       // have two "Lakeshore Trail" sections either side of a bay. Publishing
       // them separately beats joining them across the water.
-      const routes = joinSegments(runs)
+      const routes = featureRoutes(segments)
 
-      routes.forEach((coords, index) => {
+      routes.forEach((network, index) => {
         const suffix = routes.length > 1 ? `#${index + 1}` : ''
-        const trail = normalizeTrail(`${key}${suffix}`, segments, coords)
+        const trail = normalizeTrail(`${key}${suffix}`, segments, network)
         if (trail)
           trails.push(trail)
       })
@@ -233,12 +229,12 @@ export const npsSource: TrailSourceAdapter = {
 function normalizeTrail(
   key: string,
   segments: Array<EsriFeature<TrailAttributes>>,
-  coords: Coordinate[],
+  network: RouteNetwork,
 ): NormalizedTrail | null {
-  if (coords.length < 2)
+  if (network.parts.length === 0)
     return null
 
-  const stats = pathStats(coords)
+  const stats = networkStats(network)
   if (stats.distanceMiles < MIN_TRAIL_MILES)
     return null
 
@@ -304,7 +300,7 @@ function normalizeTrail(
     routeType: deriveRouteType(stats.closed, true),
     surface,
     estimatedTime: estimateTime(stats.distanceMiles, ascent),
-    geometry: encodeGeometry(coords),
+    geometry: encodeRouteGeometry(network.parts),
 
     allowedUses: deriveUses(primary),
     // The layer has no per-trail pet field. Policy varies by park (Acadia allows

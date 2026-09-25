@@ -40,6 +40,10 @@ export default {
     file: 'RepairTrailDistances',
     enabled: true,
   },
+  'trails:requeue': {
+    file: 'RequeueTrailShards',
+    enabled: true,
+  },
   'territory:ranks': {
     file: 'ComputeTerritoryRanks',
     enabled: true,
