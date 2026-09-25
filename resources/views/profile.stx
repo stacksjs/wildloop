@@ -45,10 +45,11 @@
    * otherwise the same initial in the same tint they carry on every card in
    * the feed — derived from the account, so it matches everywhere.
    */
-  const avatarUrl = derived(() => {
+  const photoSrc = derived(() => {
     const url = currentUser()?.avatar
     return typeof url === 'string' ? url.trim() : ''
   })
+  const displayName = derived(() => String(currentUser()?.name ?? '').trim() || 'Athlete')
   const initial = derived(() => avatarInitial(currentUser()?.name))
   const tint = derived(() => avatarTint(currentUser()?.id ?? currentUser()?.name))
   const bio = derived(() => String(currentUser()?.bio ?? '').trim())
@@ -235,12 +236,12 @@
              beside the avatar and the name runs underneath both. -->
         <div class="-mt-12 grid grid-cols-1 gap-x-4 gap-y-4 sm:-mt-14 sm:grid-cols-[auto_1fr] sm:items-end">
           <div class="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white ring-4 ring-white shadow-md sm:h-28 sm:w-28 dark:bg-slate-800 dark:ring-slate-800">
-            <Image :if="avatarUrl !== ''" x-src="avatarUrl" x-alt="currentUser?.name || 'Your photo'" width="112" height="112" sizes="112px" class="h-full w-full object-cover" />
-            <span :if="avatarUrl === ''" x-class="tint" class="grid h-full w-full place-items-center font-display text-4xl font-bold" aria-hidden="true">{{ initial }}</span>
+            <Image :if="photoSrc !== ''" x-src="photoSrc" x-alt="displayName" width="112" height="112" sizes="112px" class="h-full w-full object-cover" />
+            <span :if="photoSrc === ''" x-class="tint" class="grid h-full w-full place-items-center font-display text-4xl font-bold" aria-hidden="true">{{ initial }}</span>
           </div>
 
           <div class="min-w-0 sm:col-span-2 sm:row-start-2">
-            <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ currentUser?.name || 'Athlete' }}</h1>
+            <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ displayName }}</h1>
             <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
               <span :if="place !== ''" class="inline-flex items-center gap-1"><i class="i-lucide-map-pin h-3.5 w-3.5" aria-hidden="true"></i>{{ place }}</span>
               <span :if="joinedLabel !== ''" class="inline-flex items-center gap-1"><i class="i-lucide-calendar h-3.5 w-3.5" aria-hidden="true"></i>{{ joinedLabel }}</span>
@@ -250,7 +251,7 @@
               </span>
             </p>
             <p :if="bio !== ''" class="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">{{ bio }}</p>
-            <StxLink :if="bio === '' && avatarUrl === ''" to="/settings" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
+            <StxLink :if="bio === '' && photoSrc === ''" to="/settings" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
               <i class="i-lucide-camera h-4 w-4" aria-hidden="true"></i>Add a photo and a line about you
             </StxLink>
           </div>
