@@ -167,6 +167,9 @@
   /** Apply a row from whichever panel is open, then close it and re-search. */
   function choosePanelOption(id: string) {
     switch (openFilter()) {
+      case 'sort':
+        sortChoice.set(id)
+        break
       case 'difficulty':
         difficulty.set(id)
         break
@@ -539,7 +542,13 @@
   const regionCount = derived(() => coverage().states.filter((s: any) => !countryInView() || s.country === countryInView()).length)
 
   /** The open panel's rows: the filters' own, or the country and region lists. */
+  /** The order the list is in, named: what was picked, or the page's own. */
+  const currentSortId = derived(() => sortChoice() || urlSort() || (search() ? 'featured' : (placeActive() || nearMeActive()) ? 'rating' : 'longest'))
+  const sortLabel = derived(() => sortOptions.find(option => option.id === currentSortId())?.label ?? 'Best match')
+
   const menuOptions = derived(() => {
+    if (openFilter() === 'sort')
+      return sortOptions.map(option => ({ id: option.id, label: option.label, active: currentSortId() === option.id }))
     if (openFilter() === 'country')
       return countryOptions()
     if (openFilter() === 'region')
@@ -586,6 +595,70 @@
 
   let exploreMap: TrailMapHandle | null = null
   let searchToken = 0
+  let lastTrailQuery: Record<string, any> | null = null
+  const loadingMore = state(false)
+  const hasMoreTrails = derived(() => !searchFailed() && matchCount() > results().length)
+
+  /**
+   * The next page of the same search, added under the trails already listed —
+   * a list that stopped at 60 of 2,190 with no way on was a dead end.
+   */
+  async function loadMoreTrails(): Promise<void> {
+    if (!lastTrailQuery || loadingMore())
+      return
+    const token = searchToken
+    loadingMore.set(true)
+    try {
+      const res = await queryTrails({ ...lastTrailQuery, offset: results().length } as any)
+      if (token !== searchToken)
+        return
+      const known = new Set(results().map((trail: any) => trail.id))
+      const fresh = res.trails.filter((trail: any) => !known.has(trail.id))
+      routes.set({ ...routes(), ...res.geometryById })
+      results.set([...results(), ...fresh])
+      void loadReviewers(fresh.map((trail: any) => trail.id))
+    }
+    catch {
+      // The trails already listed stay; the button offers the page again.
+    }
+    finally {
+      loadingMore.set(false)
+    }
+  }
+
+  /*
+   * The list and the map answer each other: pointing at a card lifts its pin
+   * above the rest, the way a trail catalog's map follows the list.
+   */
+  const explorePins = new Map<number, any>()
+  let highlightedPin: number | null = null
+
+  function highlightPin(id: number | null): void {
+    if (highlightedPin !== null && highlightedPin !== id)
+      explorePins.get(highlightedPin)?.setRadius(7).setStyle({ weight: 2.5 })
+    highlightedPin = id
+    if (id !== null) {
+      const pin = explorePins.get(id)
+      pin?.setRadius(11).setStyle({ weight: 3.5 })
+      pin?.bringToFront()
+    }
+  }
+
+  // On a phone the list and the map take turns, switched by one floating
+  // button — the map is useless squeezed under two thousand cards.
+  const mobileView = state<'list' | 'map'>('list')
+
+  function showMobileMap(): void {
+    mobileView.set('map')
+  }
+
+  function showMobileList(): void {
+    mobileView.set('list')
+  }
+
+  function toggleMobileView(): void {
+    mobileView.set(mobileView() === 'map' ? 'list' : 'map')
+  }
   let debounce: ReturnType<typeof setTimeout> | null = null
 
   async function runSearch() {
@@ -624,6 +697,10 @@
       // A slower earlier request must not overwrite a newer result.
       if (token !== searchToken)
         return
+
+      // What "Show more trails" asks for the next page of: this query, as it
+      // was finally answered (after any fallback to the whole catalog).
+      lastTrailQuery = near ? query : { ...query, lat: undefined, lng: undefined, radius: undefined }
 
       // Geometry first: the cards read it as they render, and setting the rows
       // first draws one frame of every card with no route chip.
@@ -755,6 +832,8 @@
     const { map } = exploreMap
     const bounds: [number, number][] = []
     const geometry = routes()
+    explorePins.clear()
+    highlightedPin = null
 
     // Only the first 40 routes are drawn. Beyond that the map is an unreadable
     // thicket and every extra polyline costs a frame.
@@ -767,11 +846,12 @@
         bounds.push(...coords)
       }
 
-      await drawTrailMarker(map, trail.lat, trail.lng, {
+      const pin = await drawTrailMarker(map, trail.lat, trail.lng, {
         difficulty: trail.difficulty,
         popupHtml: `<b>${trail.name}</b><br>${trail.location}<br>${trail.distance} mi · ${trail.difficulty}`,
         onClick: () => selectedTrailId.set(trail.id),
       })
+      explorePins.set(trail.id, pin)
       bounds.push([trail.lat, trail.lng])
     }
 
@@ -984,14 +1064,14 @@
   })
 </script>
 
-  <div class="mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
+  <div class="mx-auto max-w-screen-2xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
     <!-- Catalog header. The count is the product: it is what tells someone
          this is a national database rather than a demo list. -->
-    <div class="mb-6">
-      <h1 class="font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-slate-900 dark:text-white md:text-4xl">{{ listHeading() }}</h1>
+    <div class="mb-4">
+      <h1 class="font-display text-2xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white md:text-3xl">{{ listHeading() }}</h1>
       <p :if="listMode() === 'saved'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">The trails you saved, on every device you sign in on.</p>
       <p :if="listMode() === 'completed'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">The trails you have done: ones your activities are on, and saved trails you marked as done.</p>
-      <p :if="listMode() === 'all'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">
+      <p :if="listMode() === 'all'" class="mt-1 max-w-[75ch] text-sm text-slate-500 dark:text-slate-400">
         <span :if="coverage().total > 0" class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ coverage().total.toLocaleString() }}</span>
         <span :if="coverage().total > 0"> trails across {{ coverage().states.length }} regions in {{ countries().length }} countries, from OpenStreetMap, the Forest Service and the Park Service.</span>
         <span :if="coverage().total === 0">Trail search across the US, Germany, Austria and Switzerland.</span>
@@ -1105,7 +1185,7 @@
          is the control that states the answer it is using and lets it be
          corrected — in one line, above the filters, because it changes what
          every filter below it means. -->
-    <div class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/60 dark:shadow-none">
+    <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
       <span class="flex min-w-0 items-center gap-2.5 text-sm text-slate-600 dark:text-slate-300">
         <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true">
           <i class="i-lucide-map-pin h-4 w-4"></i>
@@ -1172,7 +1252,7 @@
          to, because a bar of controls all reading "Length" gives no way to see
          how the list in front of you was narrowed. Every chip opens the same
          single-select panel; only its rows differ. -->
-    <div class="relative mb-6">
+    <div class="relative z-30 -mx-4 mb-6 bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:sticky lg:top-14 lg:-mx-8 lg:px-8 dark:bg-slate-950/95">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div class="relative flex-1">
           <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -1300,6 +1380,16 @@
         </button>
 
         <button
+          @click="togglePanel('sort')"
+          x-aria-expanded="openFilter === 'sort' ? 'true' : 'false'"
+          x-class="sortChoice !== '' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'"
+          class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition hover:border-slate-300 active:scale-[0.98] dark:hover:border-slate-600">
+          <i class="i-lucide-arrow-up-down h-4 w-4" aria-hidden="true"></i>
+          <span>{{ 'Sort: ' + sortLabel() }}</span>
+          <i class="i-lucide-chevron-down h-3.5 w-3.5 opacity-60" aria-hidden="true"></i>
+        </button>
+
+        <button
           :if="filterCount() > 0"
           @click="clearFilters()"
           class="min-h-10 shrink-0 rounded-full px-3 text-sm font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white">
@@ -1394,267 +1484,219 @@
       <span>{{ downloadNote() }}</span>
     </div>
 
-    <!-- How many matched. Above the split because the list it used to sit in
-         is desktop-only, and the count is the one part of that list a phone
-         still needs. -->
-    <p class="mb-3 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-      <i :if="searching()" class="i-lucide-loader-circle h-4 w-4 animate-spin text-emerald-600" aria-hidden="true"></i>
-      <span :if="searching()">Searching…</span>
-      <span :if="!searching()" class="font-semibold text-slate-700 tabular-nums dark:text-slate-200">{{ matchCount().toLocaleString() + (matchCount() === 1 ? ' trail' : ' trails') }}</span>
-      <span :if="!searching() && matchCount() > results().length">{{ '· showing first ' + results().length }}</span>
-    </p>
+    <!-- The catalog, laid out the way trail catalogs are browsed: a list of
+         photo cards beside a map that stays in view. One list — the rows
+         that used to sit beside the map repeated every card further down.
+         On a phone the two take turns, switched by the floating button. -->
+    <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div x-class="mobileView() === 'map' ? 'hidden lg:block' : ''" class="min-w-0">
+        <p class="mb-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <i :if="searching()" class="i-lucide-loader-circle h-4 w-4 animate-spin text-emerald-600" aria-hidden="true"></i>
+          <span :if="searching()">Searching…</span>
+          <span :if="!searching()" class="font-semibold text-slate-900 tabular-nums dark:text-white">{{ matchCount().toLocaleString() + (matchCount() === 1 ? ' trail' : ' trails') }}</span>
+          <span :if="!searching() && matchCount() > results().length" class="tabular-nums">{{ '· showing ' + results().length.toLocaleString() }}</span>
+        </p>
 
-    <!-- Split: result list + map.
+        <div class="grid gap-x-5 gap-y-8 sm:grid-cols-2">
+          <!-- Card-shaped skeletons while the first answer is on its way, so
+               the list arrives into space already held for it. -->
+          <template :if="searching() && results().length === 0">
+            <div class="animate-pulse"><div class="aspect-[4/3] rounded-2xl bg-slate-200 dark:bg-slate-800"></div><div class="mt-3 h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+            <div class="animate-pulse"><div class="aspect-[4/3] rounded-2xl bg-slate-200 dark:bg-slate-800"></div><div class="mt-3 h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+            <div class="hidden animate-pulse sm:block"><div class="aspect-[4/3] rounded-2xl bg-slate-200 dark:bg-slate-800"></div><div class="mt-3 h-4 w-4/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+            <div class="hidden animate-pulse sm:block"><div class="aspect-[4/3] rounded-2xl bg-slate-200 dark:bg-slate-800"></div><div class="mt-3 h-4 w-3/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800"></div></div>
+          </template>
 
-         The list is the map's other half: it exists to be read beside the pins
-         and to highlight one. Below `lg` the two stack, and it became a second
-         copy of every card further down the page — 21 trails rendered as 42
-         entries to scroll past. So on a phone the map keeps the row to itself
-         and the cards are the only list. -->
-    <div class="grid gap-6 mb-8 lg:grid-cols-5">
-      <div class="hidden lg:block lg:col-span-2 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+          <template :for="trail in results">
+            <article class="group" @mouseenter="highlightPin(trail.id)" @mouseleave="highlightPin(null)">
+              <div class="relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 dark:bg-slate-800 dark:ring-white/5">
+                <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block h-48 sm:h-52">
+                  <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="cardPhotoIllustrative(trail) ? 'Illustrative landscape' : trail.coverScope === 'area' ? 'Photo of ' + trail.coverPlace + ' area' : trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 22vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
+                  <!-- No photo published for this trail. A neutral frame says that
+                       much; the stand-in forest that used to sit here said this is
+                       what the trail looks like, for every trail alike. -->
+                  <!-- When the catalog does hold the line, the line is the picture:
+                       it is the one thing on the card that is actually this trail. -->
+                  <span :if="cardPhoto(trail) === ''" x-class="coverClass(trail)" class="relative grid h-full w-full place-items-center text-emerald-800/25 transition-transform duration-500 group-hover:scale-[1.03] dark:text-emerald-200/20" aria-hidden="true">
+                    <svg :if="coverRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="absolute inset-0 h-full w-full">
+                      <polyline x-points="coverRoute(trail.id).points" class="wl-route-casing" />
+                      <polyline x-points="coverRoute(trail.id).points" class="wl-route-line" />
+                      <circle x-cx="coverRoute(trail.id).endX" x-cy="coverRoute(trail.id).endY" r="3" x-class="coverRoute(trail.id).loop ? 'hidden' : 'wl-route-end'" />
+                      <circle x-cx="coverRoute(trail.id).startX" x-cy="coverRoute(trail.id).startY" r="3" class="wl-route-start" />
+                    </svg>
+                    <i :if="coverRoute(trail.id).points === ''" class="i-lucide-mountain h-12 w-12"></i>
+                  </span>
+                </StxLink>
 
-        <!-- Skeletons match the row shape so the list does not jump. -->
-        <template :if="searching() && results().length === 0">
-          <div class="space-y-3">
-            <div class="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
-            <div class="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
-            <div class="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"><div class="h-14 w-14 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-700"></div><div class="flex-1 space-y-2"><div class="h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-700"></div><div class="h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-700"></div></div></div>
+                <!-- A licensed landscape, not this trail. Said on the card for the
+                     same reason the trail page says it under the hero. -->
+                <span :if="cardPhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Illustrative</span>
+                <span :if="trail.coverScope === 'area'" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Area photo</span>
+                <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}</span>
+
+                <!-- What this trail is, in one word, where a photo has room for
+                     it. Only ever from a tag the catalog actually carries. -->
+                <span :if="highlightLabel(trail) !== ''" class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-slate-900/75 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+                  <i x-class="highlightIcon(trail) + ' h-3.5 w-3.5'" aria-hidden="true"></i>
+                  {{ highlightLabel(trail) }}
+                </span>
+
+                <div class="absolute right-3 top-3 flex gap-1.5">
+                  <!-- Take it offline from the list. Planning a weekend used to
+                       mean opening each trail in turn to press the same button. -->
+                  <button
+                    @click.stop.prevent="onDownload(trail)"
+                    x-class="isDownloaded(trail.id) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400'"
+                    class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 disabled:opacity-60 sm:h-9 sm:w-9 dark:bg-slate-900/85"
+                    x-disabled="isDownloading(trail.id)"
+                    x-aria-label="isDownloaded(trail.id) ? 'Remove offline copy' : 'Download for offline use'">
+                    <i x-class="isDownloading(trail.id) ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : (isDownloaded(trail.id) ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4')" aria-hidden="true"></i>
+                  </button>
+
+                  <!-- Inline SVG rather than <Icon>: the heart has to FILL when the
+                       trail is saved, and the Icon component hardcodes fill="none"
+                       on the svg it renders, so an outline was the only state it
+                       could ever show. -->
+                  <button
+                    @click.stop.prevent="onToggleSave(trail.id)"
+                    x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500 dark:text-slate-200'"
+                    class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 sm:h-9 sm:w-9 dark:bg-slate-900/85"
+                    x-aria-label="wl.isTrailSaved(trail.id) ? 'Remove from saved trails' : 'Save this trail'">
+                    <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="wl.isTrailSaved(trail.id) ? 'currentColor' : 'none'" aria-hidden="true">
+                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- The route's own shape, which is what tells a loop from an out
+                     and back at a glance. Drawn from the geometry the search
+                     already returned, so it costs no request. -->
+                <span :if="cardPhoto(trail) !== '' && routeThumb(trail.id) !== ''" class="absolute bottom-3 right-3 h-14 w-14 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md">
+                  <Image x-src="routeThumb(trail.id)" x-alt="'Route shape for ' + trail.name" width="56" height="56" sizes="56px" class="h-full w-full object-cover" />
+                </span>
+              </div>
+
+              <div class="pt-3">
+                <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block">
+                  <h3 class="font-semibold text-slate-900 dark:text-white line-clamp-1 group-hover:underline">{{ trail.name }}</h3>
+                </StxLink>
+                <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400 line-clamp-1">{{ trail.location }}</p>
+
+                <!-- One meta line, dot-separated. Difficulty is a colour swatch
+                     plus the word: the swatch is what makes a grid of cards
+                     scannable, the word is what makes it readable to anyone who
+                     does not know the colour code yet. -->
+                <p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
+                  <span :if="trail.rating > 0" class="inline-flex items-center gap-1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" class="text-slate-900 dark:text-white" aria-hidden="true">
+                      <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
+                    </svg>
+                    <span class="tabular-nums">{{ trail.rating.toFixed(1) }}</span>
+                    <!-- How many people that average is built on, which is what
+                         makes a 4.8 mean something. -->
+                    <span :if="trail.reviewCount > 0" class="text-slate-400 tabular-nums dark:text-slate-500">{{ '(' + trail.reviewCount.toLocaleString() + ')' }}</span>
+                  </span>
+                  <span :if="trail.rating > 0" class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                    <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                    <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
+                    <span class="capitalize">{{ trail.difficulty }}</span>
+                  </span>
+
+                  <span :if="trail.rating === 0" class="inline-flex items-center gap-1.5">
+                    <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
+                    <span class="capitalize">{{ trail.difficulty }}</span>
+                  </span>
+
+                  <!-- Separator and value travel together, so a wrap never leaves
+                       a dot hanging at the end of a line. -->
+                  <span class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                    <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                    <span class="tabular-nums">{{ trail.distance.toLocaleString() + ' mi' }}</span>
+                  </span>
+
+                  <span :if="trail.estimatedTime" class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
+                    <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                    <span class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
+                  </span>
+                </p>
+
+                <!-- Who has been up there lately.
+
+                     A rating and a lifetime count say how a trail has been judged
+                     over years; three faces and a month's count say whether anyone
+                     has walked it since the last storm — which is the question a
+                     weekend is planned on. Absent entirely for a quiet trail
+                     rather than shown as a zero. -->
+                <p :if="reviewerCountLabel(trail.id) !== ''" class="mt-2 flex items-center gap-2">
+                  <span class="flex -space-x-1.5">
+                    <template :for="reviewer in reviewerFaces(trail.id)">
+                      <span
+                        x-class="'grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ring-2 ring-white dark:ring-slate-900 ' + faceTint(reviewer)"
+                        x-title="reviewer.name"
+                        aria-hidden="true">{{ faceInitial(reviewer.name) }}</span>
+                    </template>
+                    <span
+                      :if="reviewerOverflow(trail.id) !== ''"
+                      class="grid h-6 min-w-6 place-items-center rounded-full bg-slate-200 px-1 text-[10px] font-bold text-slate-600 ring-2 ring-white tabular-nums dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-900"
+                      aria-hidden="true">{{ reviewerOverflow(trail.id) }}</span>
+                  </span>
+                  <span class="text-sm text-slate-500 dark:text-slate-400">{{ reviewerCountLabel(trail.id) }}</span>
+                </p>
+
+                <p :if="trail.nationalTrail || routeLabelFor(trail) !== ''" class="mt-1.5 flex flex-wrap gap-1.5">
+                  <span :if="trail.nationalTrail" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    <i class="i-lucide-landmark h-3 w-3" aria-hidden="true"></i>National Trail
+                  </span>
+                  <!-- Every shape, not just loops: whether you finish where you
+                       started decides whether a second car is needed. -->
+                  <span :if="routeLabelFor(trail) !== ''" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                    <i class="i-lucide-route h-3 w-3" aria-hidden="true"></i>{{ routeLabelFor(trail) }}
+                  </span>
+                </p>
+              </div>
+            </article>
+          </template>
+        </div>
+
+        <div :if="hasMoreTrails() && results().length > 0" class="mt-10 flex justify-center">
+          <button type="button" @click="loadMoreTrails()" x-disabled="loadingMore()" class="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98] disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+            <i :if="loadingMore()" class="i-lucide-loader-circle h-4 w-4 animate-spin" aria-hidden="true"></i>
+            {{ loadingMore() ? 'Loading…' : 'Show more trails' }}
+          </button>
+        </div>
+
+        <div :if="!searching() && results().length === 0" class="py-16 text-center sm:py-20">
+          <div class="wl-topo wl-topo-1 mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl ring-1 ring-emerald-900/5 dark:ring-white/5">
+            <i class="i-lucide-mountain h-9 w-9 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
           </div>
-        </template>
-
-        <template :for="trail in results">
-          <StxLink
-            x-to="'/trail/' + trail.id"
-            @click="selectedTrailId.set(trail.id)"
-            x-class="selectedTrailId === trail.id ? 'border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 bg-white hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-800'"
-            class="flex items-center gap-3 rounded-2xl border p-2.5 pr-3 transition hover:shadow-md dark:hover:border-emerald-700"
-          >
-            <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-              <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="trail.name" width="56" height="56" sizes="56px" placeholder="blur" class="object-cover h-full w-full" />
-              <span :if="cardPhoto(trail) === ''" x-class="coverClass(trail)" class="absolute inset-0 grid place-items-center text-emerald-700/40 dark:text-emerald-300/30" aria-hidden="true">
-                <svg :if="coverRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="h-full w-full">
-                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-casing" />
-                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-line" />
-                </svg>
-                <i :if="coverRoute(trail.id).points === ''" class="i-lucide-mountain h-5 w-5"></i>
-              </span>
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ trail.name }}</p>
-              <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ trail.location }}</p>
-              <p class="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <span x-class="'rounded-md px-1.5 py-px text-[10px] font-bold uppercase tracking-wide difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
-                <span class="tabular-nums">{{ trail.distance + ' mi' }}</span>
-                <span :if="trail.rating > 0" class="inline-flex items-center gap-0.5 tabular-nums"><i class="i-lucide-star h-3 w-3 text-amber-500" aria-hidden="true"></i>{{ trail.rating.toFixed(1) }}</span>
-              </p>
-            </div>
-            <i class="i-lucide-chevron-right h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
-          </StxLink>
-        </template>
-
-        <div :if="!searching() && results().length === 0" class="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-          No trails match your filters.
+          <h3 class="mb-2 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">No trails found</h3>
+          <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">Try a wider search, or clear the filters to browse the whole catalog.</p>
+          <button @click="search.set(''); activeState.set(''); clearFilters()" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+            <i class="i-lucide-rotate-ccw h-4 w-4" aria-hidden="true"></i>
+            Clear filters
+          </button>
         </div>
       </div>
 
-      <!-- Not `card`: its padding framed the map in a white border. -->
-      <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm lg:col-span-3 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
-        <div id="trails-explore-map" data-stx-ignore class="trail-map-panel ts-map-container"></div>
+      <!-- The map, kept in view beside the list on a desktop. Not `card`: its
+           padding framed the map in a white border. -->
+      <!-- On a phone the map takes the whole screen under the header, the
+           way a map view does, with the List button floating over it. -->
+      <div x-class="mobileView() === 'map' ? 'fixed inset-x-0 bottom-0 top-14 z-30 lg:static lg:z-auto' : 'hidden lg:block'" class="min-w-0">
+        <div class="h-full overflow-hidden bg-slate-100 lg:sticky lg:top-[11.5rem] lg:h-[calc(100dvh-12.5rem)] lg:rounded-2xl lg:border lg:border-slate-200 dark:bg-slate-800 lg:dark:border-slate-700">
+          <div id="trails-explore-map" data-stx-ignore class="ts-map-container h-full w-full"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Trail cards.
-
-         Photo first and unobstructed: it is the thing someone actually reads a
-         trail card by, and every chip laid over it was covering the picture to
-         repeat something the line underneath already says. So the image carries
-         one control — the save button — and the facts sit below it on a single
-         line, in the order a decision gets made: how good, how hard, how far,
-         how long. -->
-    <div class="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <!-- Card-shaped skeletons while the first answer is on its way, so the
-           grid arrives into space already held for it. -->
-      <template :if="searching() && results().length === 0">
-        <div class="animate-pulse"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/3 rounded bg-slate-200 dark:bg-slate-800"></div></div>
-        <div class="animate-pulse"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div></div>
-        <div class="hidden animate-pulse sm:block"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-4/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-800"></div></div>
-        <div class="hidden animate-pulse xl:block"><div class="h-48 rounded-2xl bg-slate-200 sm:h-52 dark:bg-slate-800"></div><div class="mt-3 h-4 w-3/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-2/5 rounded bg-slate-200 dark:bg-slate-800"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-800"></div></div>
-      </template>
-
-      <template :for="trail in results">
-        <article class="group">
-          <div class="relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-900/5 dark:bg-slate-800 dark:ring-white/5">
-            <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block h-48 sm:h-52">
-              <Image :if="cardPhoto(trail) !== ''" x-src="cardPhoto(trail)" x-alt="cardPhotoIllustrative(trail) ? 'Illustrative landscape' : trail.coverScope === 'area' ? 'Photo of ' + trail.coverPlace + ' area' : trail.name" width="800" height="600" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" placeholder="blur" class="h-full w-full object-cover duration-500 transition-transform group-hover:scale-[1.03]" />
-              <!-- No photo published for this trail. A neutral frame says that
-                   much; the stand-in forest that used to sit here said this is
-                   what the trail looks like, for every trail alike. -->
-              <!-- When the catalog does hold the line, the line is the picture:
-                   it is the one thing on the card that is actually this trail. -->
-              <span :if="cardPhoto(trail) === ''" x-class="coverClass(trail)" class="relative grid h-full w-full place-items-center text-emerald-800/25 transition-transform duration-500 group-hover:scale-[1.03] dark:text-emerald-200/20" aria-hidden="true">
-                <svg :if="coverRoute(trail.id).points !== ''" viewBox="0 0 160 120" class="absolute inset-0 h-full w-full">
-                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-casing" />
-                  <polyline x-points="coverRoute(trail.id).points" class="wl-route-line" />
-                  <circle x-cx="coverRoute(trail.id).endX" x-cy="coverRoute(trail.id).endY" r="3" x-class="coverRoute(trail.id).loop ? 'hidden' : 'wl-route-end'" />
-                  <circle x-cx="coverRoute(trail.id).startX" x-cy="coverRoute(trail.id).startY" r="3" class="wl-route-start" />
-                </svg>
-                <i :if="coverRoute(trail.id).points === ''" class="i-lucide-mountain h-12 w-12"></i>
-              </span>
-            </StxLink>
-
-            <!-- A licensed landscape, not this trail. Said on the card for the
-                 same reason the trail page says it under the hero. -->
-            <span :if="cardPhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Illustrative</span>
-            <span :if="trail.coverScope === 'area'" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Area photo</span>
-            <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}</span>
-
-            <!-- What this trail is, in one word, where a photo has room for
-                 it. Only ever from a tag the catalog actually carries. -->
-            <span :if="highlightLabel(trail) !== ''" class="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-slate-900/75 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-              <i x-class="highlightIcon(trail) + ' h-3.5 w-3.5'" aria-hidden="true"></i>
-              {{ highlightLabel(trail) }}
-            </span>
-
-            <div class="absolute right-3 top-3 flex gap-1.5">
-              <!-- Take it offline from the list. Planning a weekend used to
-                   mean opening each trail in turn to press the same button. -->
-              <button
-                @click.stop.prevent="onDownload(trail)"
-                x-class="isDownloaded(trail.id) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400'"
-                class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 disabled:opacity-60 sm:h-9 sm:w-9 dark:bg-slate-900/85"
-                x-disabled="isDownloading(trail.id)"
-                x-aria-label="isDownloaded(trail.id) ? 'Remove offline copy' : 'Download for offline use'">
-                <i x-class="isDownloading(trail.id) ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : (isDownloaded(trail.id) ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4')" aria-hidden="true"></i>
-              </button>
-
-              <!-- Inline SVG rather than <Icon>: the heart has to FILL when the
-                   trail is saved, and the Icon component hardcodes fill="none"
-                   on the svg it renders, so an outline was the only state it
-                   could ever show. -->
-              <button
-                @click.stop.prevent="onToggleSave(trail.id)"
-                x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500 dark:text-slate-200'"
-                class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 sm:h-9 sm:w-9 dark:bg-slate-900/85"
-                x-aria-label="wl.isTrailSaved(trail.id) ? 'Remove from saved trails' : 'Save this trail'">
-                <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="wl.isTrailSaved(trail.id) ? 'currentColor' : 'none'" aria-hidden="true">
-                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- The route's own shape, which is what tells a loop from an out
-                 and back at a glance. Drawn from the geometry the search
-                 already returned, so it costs no request. -->
-            <span :if="cardPhoto(trail) !== '' && routeThumb(trail.id) !== ''" class="absolute bottom-3 right-3 h-14 w-14 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md">
-              <Image x-src="routeThumb(trail.id)" x-alt="'Route shape for ' + trail.name" width="56" height="56" sizes="56px" class="h-full w-full object-cover" />
-            </span>
-          </div>
-
-          <div class="pt-3">
-            <StxLink x-to="'/trail/' + trail.id" @click="selectedTrailId.set(trail.id)" class="block">
-              <h3 class="font-semibold text-slate-900 dark:text-white line-clamp-1 group-hover:underline">{{ trail.name }}</h3>
-            </StxLink>
-            <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400 line-clamp-1">{{ trail.location }}</p>
-
-            <!-- One meta line, dot-separated. Difficulty is a colour swatch
-                 plus the word: the swatch is what makes a grid of cards
-                 scannable, the word is what makes it readable to anyone who
-                 does not know the colour code yet. -->
-            <p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
-              <span :if="trail.rating > 0" class="inline-flex items-center gap-1">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" class="text-slate-900 dark:text-white" aria-hidden="true">
-                  <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
-                </svg>
-                <span class="tabular-nums">{{ trail.rating.toFixed(1) }}</span>
-                <!-- How many people that average is built on, which is what
-                     makes a 4.8 mean something. -->
-                <span :if="trail.reviewCount > 0" class="text-slate-400 tabular-nums dark:text-slate-500">{{ '(' + trail.reviewCount.toLocaleString() + ')' }}</span>
-              </span>
-              <span :if="trail.rating > 0" class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
-                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-                <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
-                <span class="capitalize">{{ trail.difficulty }}</span>
-              </span>
-
-              <span :if="trail.rating === 0" class="inline-flex items-center gap-1.5">
-                <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
-                <span class="capitalize">{{ trail.difficulty }}</span>
-              </span>
-
-              <!-- Separator and value travel together, so a wrap never leaves
-                   a dot hanging at the end of a line. -->
-              <span class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
-                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-                <span class="tabular-nums">{{ trail.distance.toLocaleString() + ' mi' }}</span>
-              </span>
-
-              <span :if="trail.estimatedTime" class="inline-flex items-center gap-x-1.5 whitespace-nowrap">
-                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-                <span class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
-              </span>
-            </p>
-
-            <!-- Who has been up there lately.
-
-                 A rating and a lifetime count say how a trail has been judged
-                 over years; three faces and a month's count say whether anyone
-                 has walked it since the last storm — which is the question a
-                 weekend is planned on. Absent entirely for a quiet trail
-                 rather than shown as a zero. -->
-            <p :if="reviewerCountLabel(trail.id) !== ''" class="mt-2 flex items-center gap-2">
-              <span class="flex -space-x-1.5">
-                <template :for="reviewer in reviewerFaces(trail.id)">
-                  <span
-                    x-class="'grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ring-2 ring-white dark:ring-slate-900 ' + faceTint(reviewer)"
-                    x-title="reviewer.name"
-                    aria-hidden="true">{{ faceInitial(reviewer.name) }}</span>
-                </template>
-                <span
-                  :if="reviewerOverflow(trail.id) !== ''"
-                  class="grid h-6 min-w-6 place-items-center rounded-full bg-slate-200 px-1 text-[10px] font-bold text-slate-600 ring-2 ring-white tabular-nums dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-900"
-                  aria-hidden="true">{{ reviewerOverflow(trail.id) }}</span>
-              </span>
-              <span class="text-sm text-slate-500 dark:text-slate-400">{{ reviewerCountLabel(trail.id) }}</span>
-            </p>
-
-            <p :if="trail.nationalTrail || routeLabelFor(trail) !== ''" class="mt-1.5 flex flex-wrap gap-1.5">
-              <span :if="trail.nationalTrail" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                <i class="i-lucide-landmark h-3 w-3" aria-hidden="true"></i>National Trail
-              </span>
-              <!-- Every shape, not just loops: whether you finish where you
-                   started decides whether a second car is needed. -->
-              <span :if="routeLabelFor(trail) !== ''" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                <i class="i-lucide-route h-3 w-3" aria-hidden="true"></i>{{ routeLabelFor(trail) }}
-              </span>
-            </p>
-          </div>
-        </article>
-      </template>
-    </div>
-
-    <!-- The map is below the list on a phone, which is where it belongs while
-         reading results and exactly wrong when the question is "where are
-         these". A plain in-page anchor gets there: no script, no second view
-         to keep in step with the list. -->
-    <a
-      href="#trails-explore-map"
+    <!-- List or map, on a phone. -->
+    <button
+      type="button"
+      @click="toggleMobileView()"
       class="fixed bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition active:scale-[0.98] lg:hidden dark:bg-white dark:text-slate-900">
-      <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
-      Map
-    </a>
-
-    <div :if="!searching() && results().length === 0" class="py-16 text-center sm:py-20">
-      <div class="wl-topo wl-topo-1 mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl ring-1 ring-emerald-900/5 dark:ring-white/5">
-        <i class="i-lucide-mountain h-9 w-9 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-      </div>
-      <h3 class="mb-2 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">No trails found</h3>
-      <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">Try a wider search, or clear the filters to browse the whole catalog.</p>
-      <button @click="search.set(''); activeState.set(''); clearFilters()" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
-        <i class="i-lucide-rotate-ccw h-4 w-4" aria-hidden="true"></i>
-        Clear filters
-      </button>
-    </div>
+      <i x-class="mobileView() === 'map' ? 'i-lucide-list h-4 w-4' : 'i-lucide-map h-4 w-4'" aria-hidden="true"></i>
+      {{ mobileView() === 'map' ? 'List' : 'Map' }}
+    </button>
     </div>
   </div>
 <style>
