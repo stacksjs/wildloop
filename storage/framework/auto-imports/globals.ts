@@ -105,6 +105,7 @@ declare global {
   const validateTrackRealism: typeof autoImports.validateTrackRealism
   const formatHealthSummary: typeof autoImports.formatHealthSummary
   const createHealthWorkout: typeof autoImports.createHealthWorkout
+  const mapArea: typeof autoImports.mapArea
   const extractMentionQuery: typeof autoImports.extractMentionQuery
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention

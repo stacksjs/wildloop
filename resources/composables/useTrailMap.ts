@@ -774,6 +774,56 @@ export async function drawTerritoryPolygon(
   return layer
 }
 
+/**
+ * Call `onMoved` when the person moves the map — a drag, a wheel or pinch
+ * zoom, the zoom buttons, the keyboard — and not when code does.
+ *
+ * The map fires the same `moveend` for both, so a move counts as theirs when
+ * it follows a gesture on the map: a drag in progress, or a pointer, wheel or
+ * key event within the last moment. That is what "Search this area" needs: a
+ * button offered every time the page fitted the map to its own results would
+ * be offering to search where the results already are.
+ */
+export function watchUserMoves(map: TsMapType, onMoved: () => void): () => void {
+  const el = map.getContainer()
+  let dragging = false
+  let gestureUntil = 0
+  const mark = () => {
+    gestureUntil = Date.now() + 1500
+  }
+  const onDragStart = () => {
+    dragging = true
+  }
+  const onDragEnd = () => {
+    dragging = false
+    mark()
+  }
+  const onMoveEnd = () => {
+    if (dragging || Date.now() < gestureUntil)
+      onMoved()
+  }
+
+  // Captured on the way down: the map's own controls (zoom, locate) stop
+  // their clicks from bubbling, so a listener waiting for the bubble never
+  // hears the press that zoomed the map.
+  const capture = { capture: true, passive: true }
+  el.addEventListener('pointerdown', mark, capture)
+  el.addEventListener('wheel', mark, capture)
+  el.addEventListener('keydown', mark, capture)
+  map.on('dragstart', onDragStart)
+  map.on('dragend', onDragEnd)
+  map.on('moveend', onMoveEnd)
+
+  return () => {
+    el.removeEventListener('pointerdown', mark, capture)
+    el.removeEventListener('wheel', mark, capture)
+    el.removeEventListener('keydown', mark, capture)
+    map.off('dragstart', onDragStart)
+    map.off('dragend', onDragEnd)
+    map.off('moveend', onMoveEnd)
+  }
+}
+
 export async function drawTrailMarker(
   target: LayerTarget,
   lat: number,

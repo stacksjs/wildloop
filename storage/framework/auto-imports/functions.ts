@@ -39,6 +39,8 @@ export { formatHealthSummary } from '../../../resources/functions/health-summary
 export type { HealthSummaryValues } from '../../../resources/functions/health-summary'
 export { createHealthWorkout } from '../../../resources/functions/health-workout'
 export type { HealthWorkoutSample, HealthWorkoutInput } from '../../../resources/functions/health-workout'
+export { mapArea } from '../../../resources/functions/map-area'
+export type { MapArea } from '../../../resources/functions/map-area'
 export { extractMentionQuery, mentionCandidates, applyMention, parseMentions } from '../../../resources/functions/mentions'
 export type { MentionUser, MentionSegment } from '../../../resources/functions/mentions'
 export { completedLabel } from '../../../resources/functions/my-trails'

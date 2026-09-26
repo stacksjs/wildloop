@@ -63,7 +63,7 @@
   import { completedLabel } from '../functions/my-trails'
   import { clearNearby, locatePrecisely, locating, nearby, nearbyError, resolveNearby } from '../composables/useNearby'
   import { orderRegions, regionDistanceLabel } from '../functions/region-order'
-  import { usePlaceSearch, type PlaceResult } from '../composables/usePlaceSearch'
+  import { nearestPlace, usePlaceSearch, type PlaceResult } from '../composables/usePlaceSearch'
   import { isStockTrailPhoto } from '../functions/stock-photos'
   import { routeTypeLabel, trailHighlight } from '../functions/trail-features'
   import {
@@ -73,7 +73,9 @@
     runWhenMapReady,
     trailDifficultyColor,
     type TrailMapHandle,
+    watchUserMoves,
   } from '../composables/useTrailMap'
+  import { mapArea } from '../functions/map-area'
 
 
   const wl = useStore('wl')
@@ -442,7 +444,12 @@
    * near San Diego", not near wherever this phone happens to be — and a
    * state or country filter outranks it, as it does near-me.
    */
-  const placeOrigin = state<{ lat: number, lng: number, label: string } | null>(null)
+  /*
+   * `radius` and `view` are set by "Search this area": the circle that covers
+   * what the map was showing, and the view itself, so the answer is drawn on
+   * the map the person chose rather than refitted away from it.
+   */
+  const placeOrigin = state<{ lat: number, lng: number, label: string, radius?: number, view?: { center: [number, number], zoom: number } } | null>(null)
   const placeActive = derived(() => !!placeOrigin() && !activeState() && !activeCountry())
   const placeLabel = derived(() => placeOrigin()?.label ?? '')
   const placeSearch = usePlaceSearch({ limit: 4 })
@@ -644,6 +651,36 @@
     }
   }
 
+  // "Search this area": offered once the person has moved the map themselves,
+  // never after the page fitted it to its own results.
+  const mapMoved = state(false)
+  let stopUserMoves: (() => void) | null = null
+
+  async function searchThisArea(): Promise<void> {
+    const map = exploreMap?.map
+    if (!map)
+      return
+    const center = map.getCenter()
+    const corner = map.getBounds().getNorthEast()
+    const area = mapArea({ lat: center.lat, lng: center.lng }, { lat: corner.lat, lng: corner.lng })
+    const view = { center: [center.lat, center.lng] as [number, number], zoom: map.getZoom() }
+
+    mapMoved.set(false)
+    placeOrigin.set({ lat: area.lat, lng: area.lng, label: 'this map area', radius: area.radius, view })
+    // A region or country chip would intersect the area with somewhere else.
+    activeState.set('')
+    activeCountry.set('')
+    runSearch()
+
+    // Named after the nearest town once the gazetteer answers, so the heading
+    // reads "near Topanga" rather than "near this map area". Only if the
+    // person has not moved on to another search meanwhile.
+    const place = await nearestPlace(area.lat, area.lng)
+    const current = placeOrigin()
+    if (place && current?.view === view)
+      placeOrigin.set({ ...current, label: place.name })
+  }
+
   // On a phone the list and the map take turns, switched by one floating
   // button — the map is useless squeezed under two thousand cards.
   const mobileView = state<'list' | 'map'>('list')
@@ -679,7 +716,7 @@
         // such thing as near, so length is what makes the list impressive
         // rather than arbitrary.
         sort: sortChoice() || urlSort() || (search() ? 'featured' : near ? 'rating' : 'longest'),
-        ...(near ? { lat: near.lat, lng: near.lng, radius: 25 } : {}),
+        ...(near ? { lat: near.lat, lng: near.lng, radius: (placeActive() && placeOrigin()?.radius) || 25 } : {}),
         limit: 60,
       }
       let res = await queryTrails(query)
@@ -823,6 +860,8 @@
   }
 
   async function drawExploreMap() {
+    stopUserMoves?.()
+    stopUserMoves = null
     exploreMap?.destroy()
     exploreMap = null
     exploreMap = await createTrailMap('trails-explore-map', { scrollWheelZoom: true, zoom: 4 })
@@ -834,6 +873,9 @@
     const geometry = routes()
     explorePins.clear()
     highlightedPin = null
+    mapMoved.set(false)
+    stopUserMoves?.()
+    stopUserMoves = watchUserMoves(map, () => mapMoved.set(true))
 
     // Only the first 40 routes are drawn. Beyond that the map is an unreadable
     // thicket and every extra polyline costs a frame.
@@ -855,7 +897,12 @@
       bounds.push([trail.lat, trail.lng])
     }
 
-    if (bounds.length)
+    // A searched area keeps the view it was searched from; anything else is
+    // framed around its results.
+    const keptView = placeActive() ? placeOrigin()?.view : undefined
+    if (keptView)
+      map.setView(keptView.center, keptView.zoom, { animate: false })
+    else if (bounds.length)
       exploreMap.fitPoints(bounds, [48, 48])
   }
 
@@ -1059,6 +1106,8 @@
   onDestroy(() => {
     if (debounce)
       clearTimeout(debounce)
+    stopUserMoves?.()
+    stopUserMoves = null
     exploreMap?.destroy()
     exploreMap = null
   })
@@ -1252,7 +1301,7 @@
          to, because a bar of controls all reading "Length" gives no way to see
          how the list in front of you was narrowed. Every chip opens the same
          single-select panel; only its rows differ. -->
-    <div class="relative z-30 -mx-4 mb-6 bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:sticky lg:top-14 lg:-mx-8 lg:px-8 dark:bg-slate-950/95">
+    <div class="relative z-30 -mx-4 mb-6 bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:sticky lg:top-14 lg:-mx-8 lg:px-8 dark:bg-slate-900/95">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div class="relative flex-1">
           <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -1683,8 +1732,16 @@
       <!-- On a phone the map takes the whole screen under the header, the
            way a map view does, with the List button floating over it. -->
       <div x-class="mobileView() === 'map' ? 'fixed inset-x-0 bottom-0 top-14 z-30 lg:static lg:z-auto' : 'hidden lg:block'" class="min-w-0">
-        <div class="h-full overflow-hidden bg-slate-100 lg:sticky lg:top-[11.5rem] lg:h-[calc(100dvh-12.5rem)] lg:rounded-2xl lg:border lg:border-slate-200 dark:bg-slate-800 lg:dark:border-slate-700">
+        <div class="relative h-full overflow-hidden bg-slate-100 lg:sticky lg:top-[11.5rem] lg:h-[calc(100dvh-12.5rem)] lg:rounded-2xl lg:border lg:border-slate-200 dark:bg-slate-800 lg:dark:border-slate-700">
           <div id="trails-explore-map" data-stx-ignore class="ts-map-container h-full w-full"></div>
+          <button
+            :if="mapMoved()"
+            type="button"
+            @click="searchThisArea()"
+            class="absolute left-1/2 top-3 z-[1000] inline-flex min-h-10 -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white px-4 text-sm font-semibold text-slate-900 shadow-lg ring-1 ring-slate-900/5 transition hover:bg-slate-50 active:scale-[0.98] dark:bg-slate-900 dark:text-white dark:ring-white/10 dark:hover:bg-slate-800">
+            <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
+            Search this area
+          </button>
         </div>
       </div>
     </div>
