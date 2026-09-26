@@ -42,6 +42,12 @@
   import { avatarInitial, avatarTint, avatarUrl } from '../functions/avatars'
   import { useManualActivity } from '../composables/useManualActivity'
   import { followAthlete, giveKudos } from '../composables/useSocialActions'
+  import { openAuthGate } from '../composables/useAuthGate'
+  import { resolveNearby } from '../composables/useNearby'
+  import { queryTrails } from '../composables/useTrailCatalog'
+  import { searchAthletes } from '../assets/scripts/game-api'
+  import { shareLink } from '../composables/useShareLink'
+  import { isStockTrailPhoto } from '../functions/stock-photos'
 
 
   const wl = useStore('wl')
@@ -125,6 +131,116 @@
     return own || avatarUrl(activity.userAvatar)
   }
 
+  // ── Laid out the way a trail app's feed is: you on the left, the posts in
+  // the middle, people and trails worth a look on the right ───────────────
+
+  const me = derived(() => wl?.currentUser() ?? null)
+  const myPhoto = derived(() => avatarUrl(wl?.currentUser()))
+  const myInitial = derived(() => avatarInitial(wl?.currentUser()?.name))
+  const myTint = derived(() => avatarTint(wl?.currentUserId() || wl?.currentUser()?.name))
+  const feedStats = derived(() => {
+    const stats = wl?.userStats()
+    return {
+      activities: Number(stats?.totalActivities) || 0,
+      miles: (Number(stats?.totalDistance) || 0).toFixed(1),
+      following: wl ? wl.following().length : 0,
+    }
+  })
+
+  function openFeedLogin(): void {
+    openAuthGate('Sign in to follow athletes and give kudos.', 'login')
+  }
+
+  function openFeedSignup(): void {
+    openAuthGate('Create an account to record and share your runs.', 'register')
+  }
+
+  /**
+   * What the athlete did, as a sentence: "ran Mist Trail", "went for a hike".
+   * A post reads as someone doing something somewhere, not as a row of type,
+   * date and numbers.
+   */
+  const ON_TRAIL: Record<string, string> = { 'Trail Run': 'ran', 'Hike': 'hiked', 'Walk': 'walked', 'Bike': 'rode' }
+  const OFF_TRAIL: Record<string, string> = { 'Trail Run': 'went for a trail run', 'Hike': 'went for a hike', 'Walk': 'went for a walk', 'Bike': 'went for a ride' }
+
+  function feedVerb(activity: { trail_id?: number | null, activityType: string }): string {
+    return activity.trail_id ? (ON_TRAIL[activity.activityType] ?? 'was out on') : (OFF_TRAIL[activity.activityType] ?? 'logged an activity')
+  }
+
+  function hasPace(activity: { pace?: string }): boolean {
+    return !!activity.pace && activity.pace !== '--'
+  }
+
+  function feedTrailPhoto(activity: any): string {
+    const image = activity?.trail?.image
+    return typeof image === 'string' ? image.trim() : ''
+  }
+
+  function feedTrailPhotoAlt(activity: any): string {
+    return isStockTrailPhoto(feedTrailPhoto(activity)) ? 'Illustrative landscape' : String(activity?.trail?.name ?? '')
+  }
+
+  function shareActivity(activity: { id: number, title: string, userName: string }): void {
+    void shareLink({ title: activity.title, text: `${activity.userName} on Wildloop`, url: `/activity/${activity.id}` })
+  }
+
+  // People to follow: the directory's own "discover" list, minus you and
+  // anyone you already follow.
+  const suggestedAthletes = state<any[]>([])
+  const suggestions = derived(() => suggestedAthletes()
+    .filter((athlete: any) => !wl || (athlete.id !== wl.currentUserId() && !wl.isFollowing(athlete.id)))
+    .slice(0, 4))
+
+  function sidebarPhoto(athlete: any): string {
+    return avatarUrl(athlete?.avatar)
+  }
+
+  function sidebarInitial(athlete: any): string {
+    return avatarInitial(athlete?.name)
+  }
+
+  function sidebarTint(athlete: any): string {
+    return avatarTint(athlete?.id ?? athlete?.name)
+  }
+
+  function followSuggested(athleteId: number): void {
+    void followAthlete(wl, athleteId)
+  }
+
+  // Trails worth a look: near you when the page knows where that is (the
+  // same edge guess the catalog opens on), the catalog's featured otherwise.
+  const nearbyFeedTrails = state<any[]>([])
+  const nearbyFeedLabel = state('')
+
+  onMount(async () => {
+    const found = await searchAthletes('').catch(() => null)
+    if (Array.isArray(found))
+      suggestedAthletes.set(found)
+
+    const place = await resolveNearby().catch(() => null)
+    try {
+      const res = await queryTrails(place
+        ? { lat: place.lat, lng: place.lng, radius: 25, sort: 'rating', limit: 4 }
+        : { sort: 'featured', limit: 4 })
+      nearbyFeedTrails.set(res.trails.slice(0, 4))
+      nearbyFeedLabel.set(place ? (place.source === 'gps' ? 'Trails near you' : `Trails near ${place.label}`) : 'Trails to explore')
+    }
+    catch {
+      nearbyFeedTrails.set([])
+    }
+  })
+
+  /** "Easy · 2.4 mi". */
+  function nearbyTrailLine(trail: any): string {
+    const difficulty = String(trail?.difficulty ?? '')
+    const label = difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : ''
+    return [label, `${trail?.distance ?? 0} mi`].filter(Boolean).join(' · ')
+  }
+
+  function nearbyTrailPhoto(trail: any): string {
+    return typeof trail?.image === 'string' ? trail.image.trim() : ''
+  }
+
   function activityIcon(type: string) {
     if (type === 'Hike')
       return 'i-lucide-mountain h-3 w-3'
@@ -134,183 +250,283 @@
   }
 </script>
 
-  <div class="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-    <!-- Record is one tap away in the tab bar (and the site nav), so the Feed
-         no longer repeats it. Logging by hand stays, as one quiet button. -->
-    <div class="mb-6 flex items-start justify-between gap-4">
-      <div>
-        <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Feed</h1>
-        <p class="mt-1 text-slate-600 dark:text-slate-400">Runs, kudos and turf changing hands.</p>
-      </div>
-      <button @click="openManualEntry()" aria-label="Log activity" title="Log an activity by hand" class="mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">
-        <i class="i-lucide-square-pen h-5 w-5" aria-hidden="true"></i>
-      </button>
-    </div>
-
-    <StxLink :if="wl && wl.liveConquests().length > 0" to="/battles" class="mb-6 flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 transition hover:border-orange-300 dark:border-orange-500/30 dark:bg-orange-500/10">
-      <span class="relative flex h-2.5 w-2.5 shrink-0">
-        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
-        <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"></span>
-      </span>
-      <span class="flex-1 text-sm font-semibold text-orange-900 dark:text-orange-200">Turf is being taken right now</span>
-      <span class="text-sm font-semibold text-orange-700 dark:text-orange-300">See who →</span>
-    </StxLink>
-
-    <!-- Two controls, two jobs: scope is whose runs, filter is which sport.
-         They used to be two identical-looking pill rows stacked on each other,
-         which made the page look like it had one filter applied twice. -->
-    <div class="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700">
-      <div class="flex gap-1">
-        <button @click="scope.set('all')" x-class="scope === 'all' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Everyone</button>
-        <button @click="scope.set('following')" x-class="scope === 'following' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Following</button>
-      </div>
-      <StxLink to="/athletes" class="inline-flex min-h-11 items-center gap-1.5 pb-1 text-sm font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
-        <i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>
-        Find athletes
-      </StxLink>
-    </div>
-
-    <!-- Sport filter. Bleeds to the screen edge on a phone so the row reads as
-         something that scrolls sideways rather than as a row that got cut off. -->
-    <div class="feed-chips -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-      <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">All</button>
-      <button @click="filter.set('Trail Run')" x-class="filter === 'Trail Run' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-footprints h-3.5 w-3.5" aria-hidden="true"></i>Runs</button>
-      <button @click="filter.set('Hike')" x-class="filter === 'Hike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>Hikes</button>
-      <button @click="filter.set('Walk')" x-class="filter === 'Walk' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-footprints h-3.5 w-3.5" aria-hidden="true"></i>Walks</button>
-      <button @click="filter.set('Bike')" x-class="filter === 'Bike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-bike h-3.5 w-3.5" aria-hidden="true"></i>Rides</button>
-    </div>
-
-    <!-- Activity cards -->
-    <div class="space-y-5">
-      <template :for="activity in filtered">
-        <article class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800 dark:shadow-none">
-          <div class="flex items-center gap-3 px-4 pb-3 pt-4">
-            <Image :if="facePhoto(activity)" x-src="facePhoto(activity)" x-alt="activity.userName" width="40" height="40" sizes="40px" loading="lazy" class="h-10 w-10 shrink-0 rounded-full object-cover" />
-            <div :if="!facePhoto(activity)" x-class="'grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ' + faceTint(activity)" aria-hidden="true">{{ faceInitial(activity.userName) }}</div>
-
-            <div class="min-w-0 flex-1">
-              <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="block truncate font-semibold leading-tight text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ activity.userName }}</StxLink>
-              <span :else class="block truncate font-semibold leading-tight text-slate-900 dark:text-white">Deleted athlete</span>
-              <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <span class="inline-flex items-center gap-1">
-                  <i x-class="activityIcon(activity.activityType)" aria-hidden="true"></i>
-                  {{ activity.activityType }}
-                </span>
-                <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-                <span>{{ wl.timeAgo(activity.created_at) }}</span>
-              </p>
+  <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+    <div class="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_17rem]">
+      <!-- You: who is signed in and how their season is going, or the way
+           in for somebody who is not. -->
+      <aside class="hidden lg:block">
+        <div class="sticky top-20 space-y-4">
+          <div :if="me()" class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+            <div class="wl-topo h-14" aria-hidden="true"></div>
+            <div class="-mt-8 px-4 pb-4">
+              <StxLink to="/profile" class="block h-16 w-16 overflow-hidden rounded-full ring-4 ring-white dark:ring-slate-800">
+                <Image :if="myPhoto()" x-src="myPhoto()" x-alt="me()?.name || 'Your photo'" width="64" height="64" sizes="64px" class="h-full w-full object-cover" />
+                <span :if="!myPhoto()" x-class="myTint()" class="grid h-full w-full place-items-center font-display text-2xl font-bold">{{ myInitial() }}</span>
+              </StxLink>
+              <StxLink to="/profile" class="mt-2 block truncate font-display text-lg font-bold text-slate-900 hover:underline dark:text-white">{{ me()?.name }}</StxLink>
+              <dl class="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ feedStats().activities }}</dd><dt class="text-[11px] text-slate-500 dark:text-slate-400">Activities</dt></div>
+                <div><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ feedStats().miles }}</dd><dt class="text-[11px] text-slate-500 dark:text-slate-400">Miles</dt></div>
+                <div><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ feedStats().following }}</dd><dt class="text-[11px] text-slate-500 dark:text-slate-400">Following</dt></div>
+              </dl>
             </div>
-
-            <button
-              :if="activity.user_id && activity.user_id !== wl.currentUserId()"
-              @click="onFollow(activity.user_id)"
-              x-class="wl.isFollowing(activity.user_id) ? 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300' : 'border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-500/10'"
-              class="min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition active:scale-[0.98]"
-            >{{ wl.isFollowing(activity.user_id) ? 'Following' : 'Follow' }}</button>
+            <nav class="border-t border-slate-100 p-2 text-sm dark:border-slate-700" aria-label="Your pages">
+              <StxLink to="/profile" class="flex min-h-10 items-center gap-2.5 rounded-xl px-3 font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"><i class="i-lucide-user h-4 w-4 text-slate-400" aria-hidden="true"></i>Your profile</StxLink>
+              <StxLink to="/trails?list=saved" class="flex min-h-10 items-center gap-2.5 rounded-xl px-3 font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"><i class="i-lucide-heart h-4 w-4 text-slate-400" aria-hidden="true"></i>Saved trails</StxLink>
+              <StxLink to="/stats" class="flex min-h-10 items-center gap-2.5 rounded-xl px-3 font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"><i class="i-lucide-chart-column h-4 w-4 text-slate-400" aria-hidden="true"></i>Your stats</StxLink>
+            </nav>
           </div>
 
-          <div class="px-4 pb-3">
-            <StxLink x-to="'/activity/' + activity.id" class="block text-[15px] font-semibold leading-snug text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ activity.title }}</StxLink>
-            <p :if="activity.title.includes('Capture')" class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
-              <i class="i-lucide-flag h-3 w-3" aria-hidden="true"></i>Territory capture
-            </p>
+          <div :if="!me()" class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+            <p class="font-display text-lg font-bold text-slate-900 dark:text-white">Join Wildloop</p>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record your runs and hikes, follow friends, and give kudos.</p>
+            <div class="mt-4 space-y-2">
+              <button type="button" @click="openFeedSignup()" class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98] bg-emerald-600 text-white hover:bg-emerald-700">Sign up</button>
+              <button type="button" @click="openFeedLogin()" class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98] border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Log in</button>
+            </div>
           </div>
 
-          <StxLink x-to="'/activity/' + activity.id" class="block">
-            <!-- The route, fitted to the banner and drawn in the page's own
-                 colours, over a contour-tinted ground so it reads as a map. -->
-            <div :if="feedRoute(activity).points !== ''" class="wl-topo relative h-44 w-full overflow-hidden">
-              <svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 h-full w-full" role="img" x-aria-label="'Route map for ' + activity.title">
-                <polyline x-points="feedRoute(activity).points" class="wl-route-casing" />
-                <polyline x-points="feedRoute(activity).points" class="wl-route-line" />
-                <circle x-cx="feedRoute(activity).endX" x-cy="feedRoute(activity).endY" r="4" x-class="feedRoute(activity).loop ? 'hidden' : 'wl-route-end'" />
-                <circle x-cx="feedRoute(activity).startX" x-cy="feedRoute(activity).startY" r="4" class="wl-route-start" />
-              </svg>
-              <span :if="activity.trail_id" class="absolute bottom-2.5 left-3 inline-flex max-w-[75%] items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-900/80 dark:text-slate-200">
-                <i class="i-lucide-map-pin h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-                <span class="truncate">{{ activity.trail_name }}</span>
-              </span>
-            </div>
-            <!-- Nothing to draw. Two different reasons, and the card should
-                 say which: an activity logged by hand has no route at all,
-                 while one on a named trail has a place even when the catalog
-                 holds no line for it. "No route recorded" under a run that is
-                 plainly attached to a trail reads as a bug. A slim strip rather
-                 than a full-height frame: an empty map is not worth 176px. -->
-            <div :else class="wl-topo flex h-20 items-center gap-3 px-4">
-              <!-- `trail_id`, not `trail_name`: the store fills the name
-                   with "<Type> Activity" when there is no trail, so it is
-                   never empty and cannot be used to tell the two apart. -->
-              <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/80 text-slate-500 shadow-sm dark:bg-slate-900/60 dark:text-slate-400" aria-hidden="true">
-                <i x-class="activity.trail_id ? 'i-lucide-mountain h-5 w-5' : 'i-lucide-pencil-line h-5 w-5'"></i>
-              </span>
-              <span class="min-w-0">
-                <span :if="activity.trail_id" class="block truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{{ activity.trail_name }}</span>
-                <span :if="activity.trail_id" class="block text-xs text-slate-500 dark:text-slate-400">No mapped route for this trail</span>
-                <span :else class="block text-xs font-medium text-slate-500 dark:text-slate-400">Logged by hand — no route recorded</span>
-              </span>
-            </div>
+          <StxLink to="/record" class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98] bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+            <i class="i-lucide-circle-dot h-4 w-4" aria-hidden="true"></i>
+            Record an activity
           </StxLink>
-
-          <!-- The four numbers, on one baseline. A run is compared by these,
-               so they get equal weight and tabular figures that line up
-               between cards as you scroll. Term first in the markup, value
-               first on screen. -->
-          <dl class="grid grid-cols-4 divide-x divide-slate-100 border-y border-slate-100 dark:divide-slate-700 dark:border-slate-700">
-            <div class="flex flex-col-reverse px-2 py-3 text-center">
-              <dt class="metric-label mt-0.5">Miles</dt>
-              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.distance.toFixed(1) }}</dd>
-            </div>
-            <div class="flex flex-col-reverse px-2 py-3 text-center">
-              <dt class="metric-label mt-0.5">Time</dt>
-              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.duration }}</dd>
-            </div>
-            <div class="flex flex-col-reverse px-2 py-3 text-center">
-              <dt class="metric-label mt-0.5">Pace</dt>
-              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.pace }}</dd>
-            </div>
-            <div class="flex flex-col-reverse px-2 py-3 text-center">
-              <dt class="metric-label mt-0.5">Elev ft</dt>
-              <dd class="font-display text-[17px] font-semibold text-slate-900 dark:text-white tabular-nums">{{ activity.elevation_gain.toLocaleString() }}</dd>
-            </div>
-          </dl>
-
-          <div class="flex items-center gap-1 p-1.5">
-            <button @click="onKudos(activity)" x-class="kudosed[activity.id] ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400'" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition hover:bg-slate-50 active:scale-[0.98] dark:hover:bg-slate-700/50">
-              <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="kudosed[activity.id] ? 'currentColor' : 'none'" aria-hidden="true">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-              </svg>
-              <span class="tabular-nums">{{ activity.kudos_count }}</span>
-              <span>{{ activity.kudos_count === 1 ? 'kudo' : 'kudos' }}</span>
-            </button>
-            <span class="h-5 w-px bg-slate-100 dark:bg-slate-700" aria-hidden="true"></span>
-            <StxLink x-to="'/activity/' + activity.id" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-emerald-400">
-              <i class="i-lucide-message-circle h-4 w-4" aria-hidden="true"></i>
-              Comment
-            </StxLink>
-          </div>
-        </article>
-      </template>
-
-      <!-- Empty state. Which one depends on why it is empty: an athlete with
-           no runs needs a different sentence from somebody who follows nobody
-           yet, and telling the second one to "head outside" is useless. -->
-      <div :if="filtered.length === 0" class="py-20 text-center">
-        <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-emerald-50 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/20">
-          <i :if="scope === 'following'" class="i-lucide-users h-9 w-9 text-emerald-500" aria-hidden="true"></i>
-          <i :else class="i-lucide-activity h-9 w-9 text-emerald-500" aria-hidden="true"></i>
         </div>
-        <h3 class="mb-2 text-lg font-semibold text-slate-900 dark:text-white">
-          <span :if="scope === 'following'">Nothing from the people you follow</span>
-          <span :else>No activities yet</span>
-        </h3>
-        <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">
-          <span :if="scope === 'following'">Follow a few athletes and their runs land here.</span>
-          <span :else>Record a run and it shows up here — yours and everyone else's.</span>
-        </p>
-        <StxLink :if="scope === 'following'" to="/athletes" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>Find athletes</StxLink>
-        <StxLink :else to="/record" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-circle-dot h-4 w-4" aria-hidden="true"></i>Record an activity</StxLink>
+      </aside>
+
+      <!-- The feed. -->
+      <div class="mx-auto w-full min-w-0 max-w-2xl">
+        <!-- Record is one tap away in the tab bar (and the site nav), so the Feed
+             no longer repeats it. Logging by hand stays, as one quiet button. -->
+        <div class="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Feed</h1>
+            <p class="mt-1 text-slate-600 dark:text-slate-400">Runs, kudos and turf changing hands.</p>
+          </div>
+          <button @click="openManualEntry()" aria-label="Log activity" title="Log an activity by hand" class="mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+            <i class="i-lucide-square-pen h-5 w-5" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <StxLink :if="wl && wl.liveConquests().length > 0" to="/battles" class="mb-6 flex items-center gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 transition hover:border-orange-300 dark:border-orange-500/30 dark:bg-orange-500/10">
+          <span class="relative flex h-2.5 w-2.5 shrink-0">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
+            <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"></span>
+          </span>
+          <span class="flex-1 text-sm font-semibold text-orange-900 dark:text-orange-200">Turf is being taken right now</span>
+          <span class="text-sm font-semibold text-orange-700 dark:text-orange-300">See who →</span>
+        </StxLink>
+
+        <!-- Two controls, two jobs: scope is whose runs, filter is which sport.
+             They used to be two identical-looking pill rows stacked on each other,
+             which made the page look like it had one filter applied twice. -->
+        <div class="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700">
+          <div class="flex gap-1">
+            <button @click="scope.set('all')" x-class="scope === 'all' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Everyone</button>
+            <button @click="scope.set('following')" x-class="scope === 'following' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition">Following</button>
+          </div>
+          <StxLink to="/athletes" class="inline-flex min-h-11 items-center gap-1.5 pb-1 text-sm font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
+            <i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>
+            Find athletes
+          </StxLink>
+        </div>
+
+        <!-- Sport filter. Bleeds to the screen edge on a phone so the row reads as
+             something that scrolls sideways rather than as a row that got cut off. -->
+        <div class="feed-chips -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+          <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]">All</button>
+          <button @click="filter.set('Trail Run')" x-class="filter === 'Trail Run' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-footprints h-3.5 w-3.5" aria-hidden="true"></i>Runs</button>
+          <button @click="filter.set('Hike')" x-class="filter === 'Hike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-mountain h-3.5 w-3.5" aria-hidden="true"></i>Hikes</button>
+          <button @click="filter.set('Walk')" x-class="filter === 'Walk' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-footprints h-3.5 w-3.5" aria-hidden="true"></i>Walks</button>
+          <button @click="filter.set('Bike')" x-class="filter === 'Bike' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition active:scale-[0.98]"><i class="i-lucide-bike h-3.5 w-3.5" aria-hidden="true"></i>Rides</button>
+        </div>
+
+        <div class="space-y-5">
+          <template :for="activity in filtered">
+            <article class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-800">
+              <!-- Who did what, where: a sentence, the way a post reads. -->
+              <div class="flex items-start gap-3 px-4 pb-3 pt-4">
+                <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="shrink-0" x-aria-label="activity.userName">
+                  <Image :if="facePhoto(activity)" x-src="facePhoto(activity)" x-alt="activity.userName" width="44" height="44" sizes="44px" loading="lazy" class="h-11 w-11 rounded-full object-cover" />
+                  <span :if="!facePhoto(activity)" x-class="'grid h-11 w-11 place-items-center rounded-full text-sm font-bold ' + faceTint(activity)" aria-hidden="true">{{ faceInitial(activity.userName) }}</span>
+                </StxLink>
+                <div class="min-w-0 flex-1 text-[15px] leading-snug">
+                  <p class="text-slate-600 dark:text-slate-300">
+                    <StxLink :if="activity.user_id" x-to="'/athlete/' + activity.user_id" class="font-semibold text-slate-900 hover:underline dark:text-white">{{ activity.userName }}</StxLink>
+                    <span :else class="font-semibold text-slate-900 dark:text-white">Deleted athlete</span>
+                    <span>{{ ' ' + feedVerb(activity) + ' ' }}</span>
+                    <StxLink :if="activity.trail_id" x-to="'/trail/' + activity.trail_id" class="font-semibold text-slate-900 hover:underline dark:text-white">{{ activity.trail_name }}</StxLink>
+                  </p>
+                  <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <span class="inline-flex items-center gap-1"><i x-class="activityIcon(activity.activityType)" aria-hidden="true"></i>{{ activity.activityType }}</span>
+                    <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                    <span>{{ wl.timeAgo(activity.created_at) }}</span>
+                  </p>
+                </div>
+                <button
+                  :if="activity.user_id && activity.user_id !== wl.currentUserId()"
+                  @click="onFollow(activity.user_id)"
+                  x-class="wl.isFollowing(activity.user_id) ? 'border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300' : 'border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-500/10'"
+                  class="min-h-9 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition active:scale-[0.98]"
+                >{{ wl.isFollowing(activity.user_id) ? 'Following' : 'Follow' }}</button>
+              </div>
+
+              <div class="px-4 pb-3">
+                <StxLink x-to="'/activity/' + activity.id" class="block font-display text-lg font-bold leading-snug text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400">{{ activity.title }}</StxLink>
+                <p :if="activity.title.includes('Capture')" class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                  <i class="i-lucide-flag h-3 w-3" aria-hidden="true"></i>Territory capture
+                </p>
+
+                <!-- The numbers, labelled and inline, in the order a run is
+                     compared: how far, how much climb, how long, how fast. -->
+                <dl class="mt-3 flex flex-wrap gap-x-7 gap-y-2">
+                  <div class="flex flex-col-reverse"><dt class="text-xs text-slate-500 dark:text-slate-400">Length</dt><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ activity.distance.toFixed(1) + ' mi' }}</dd></div>
+                  <div class="flex flex-col-reverse"><dt class="text-xs text-slate-500 dark:text-slate-400">Elev. gain</dt><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ activity.elevation_gain.toLocaleString() + ' ft' }}</dd></div>
+                  <div class="flex flex-col-reverse"><dt class="text-xs text-slate-500 dark:text-slate-400">Time</dt><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ activity.duration }}</dd></div>
+                  <div :if="hasPace(activity)" class="flex flex-col-reverse"><dt class="text-xs text-slate-500 dark:text-slate-400">Pace</dt><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ activity.pace }}</dd></div>
+                </dl>
+              </div>
+
+              <!-- The route, large, the way a post shows where somebody went.
+                   Drawn over a contour ground so it reads as a map. -->
+              <StxLink x-to="'/activity/' + activity.id" class="mx-4 block overflow-hidden rounded-xl">
+                <div :if="feedRoute(activity).points !== ''" class="wl-topo relative h-56 w-full sm:h-64">
+                  <svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 h-full w-full p-2" role="img" x-aria-label="'Route map for ' + activity.title">
+                    <polyline x-points="feedRoute(activity).points" class="wl-route-casing" />
+                    <polyline x-points="feedRoute(activity).points" class="wl-route-line" />
+                    <circle x-cx="feedRoute(activity).endX" x-cy="feedRoute(activity).endY" r="4" x-class="feedRoute(activity).loop ? 'hidden' : 'wl-route-end'" />
+                    <circle x-cx="feedRoute(activity).startX" x-cy="feedRoute(activity).startY" r="4" class="wl-route-start" />
+                  </svg>
+                </div>
+                <!-- Nothing to draw, and why: logged by hand, or on a trail the
+                     catalog holds no line for. `trail_id`, not `trail_name`:
+                     the store fills the name with "<Type> Activity" when there
+                     is no trail. -->
+                <div :else class="wl-topo flex h-20 items-center gap-3 px-4">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/80 text-slate-500 shadow-sm dark:bg-slate-900/60 dark:text-slate-400" aria-hidden="true">
+                    <i x-class="activity.trail_id ? 'i-lucide-mountain h-5 w-5' : 'i-lucide-pencil-line h-5 w-5'"></i>
+                  </span>
+                  <span class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ activity.trail_id ? 'No mapped route for this trail' : 'Logged by hand — no route recorded' }}</span>
+                </div>
+              </StxLink>
+
+              <!-- The trail it was on, as a card: a post is also a way to find
+                   the next place to go. -->
+              <StxLink :if="activity.trail" x-to="'/trail/' + activity.trail.id" class="group/trail mx-4 mt-3 flex items-center gap-3 rounded-xl border border-slate-200 p-2.5 pr-3 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40">
+                <span class="wl-topo relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
+                  <Image :if="feedTrailPhoto(activity) !== ''" x-src="feedTrailPhoto(activity)" x-alt="feedTrailPhotoAlt(activity)" width="56" height="56" sizes="56px" loading="lazy" class="h-full w-full object-cover" />
+                  <span :if="feedTrailPhoto(activity) === ''" class="absolute inset-0 grid place-items-center text-emerald-700/40 dark:text-emerald-300/30" aria-hidden="true"><i class="i-lucide-mountain h-5 w-5"></i></span>
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-slate-900 group-hover/trail:underline dark:text-white">{{ activity.trail.name }}</span>
+                  <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ activity.trail.place }}</span>
+                  <span class="mt-0.5 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                    <span :if="activity.trail.difficulty" x-class="'h-2 w-2 rounded-[2px] difficulty-' + activity.trail.difficulty" aria-hidden="true"></span>
+                    <span :if="activity.trail.difficulty" class="capitalize">{{ activity.trail.difficulty }}</span>
+                    <span :if="activity.trail.difficulty && activity.trail.distance > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                    <span :if="activity.trail.distance > 0" class="tabular-nums">{{ activity.trail.distance + ' mi' }}</span>
+                  </span>
+                </span>
+                <i class="i-lucide-chevron-right h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden="true"></i>
+              </StxLink>
+
+              <div class="mt-3 flex items-center gap-1 border-t border-slate-100 p-1.5 dark:border-slate-700">
+                <button @click="onKudos(activity)" x-class="kudosed[activity.id] ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400'" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition hover:bg-slate-50 active:scale-[0.98] dark:hover:bg-slate-700/50">
+                  <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="kudosed[activity.id] ? 'currentColor' : 'none'" aria-hidden="true">
+                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                  </svg>
+                  <span class="tabular-nums">{{ activity.kudos_count }}</span>
+                  <span>{{ activity.kudos_count === 1 ? 'kudo' : 'kudos' }}</span>
+                </button>
+                <StxLink x-to="'/activity/' + activity.id" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-emerald-400">
+                  <i class="i-lucide-message-circle h-4 w-4" aria-hidden="true"></i>
+                  Comment
+                </StxLink>
+                <button type="button" @click="shareActivity(activity)" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-emerald-600 active:scale-[0.98] dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-emerald-400">
+                  <i class="i-lucide-share-2 h-4 w-4" aria-hidden="true"></i>
+                  Share
+                </button>
+              </div>
+            </article>
+          </template>
+
+          <!-- Empty state. Which one depends on why it is empty: an athlete with
+               no runs needs a different sentence from somebody who follows nobody
+               yet, and telling the second one to "head outside" is useless. -->
+          <div :if="filtered.length === 0" class="py-20 text-center">
+            <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-emerald-50 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/20">
+              <i :if="scope === 'following'" class="i-lucide-users h-9 w-9 text-emerald-500" aria-hidden="true"></i>
+              <i :else class="i-lucide-activity h-9 w-9 text-emerald-500" aria-hidden="true"></i>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-slate-900 dark:text-white">
+              <span :if="scope === 'following'">Nothing from the people you follow</span>
+              <span :else>No activities yet</span>
+            </h3>
+            <p class="mx-auto mb-6 max-w-sm text-slate-500 dark:text-slate-400">
+              <span :if="scope === 'following'">Follow a few athletes and their runs land here.</span>
+              <span :else>Record a run and it shows up here — yours and everyone else's.</span>
+            </p>
+            <StxLink :if="scope === 'following'" to="/athletes" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>Find athletes</StxLink>
+            <StxLink :else to="/record" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-circle-dot h-4 w-4" aria-hidden="true"></i>Record an activity</StxLink>
+          </div>
+        </div>
       </div>
+
+      <!-- Worth a look: people to follow and trails nearby. -->
+      <aside class="hidden xl:block">
+        <div class="sticky top-20 space-y-4">
+          <section :if="suggestions().length > 0" class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800" aria-labelledby="feed-suggest-title">
+            <div class="mb-3 flex items-baseline justify-between">
+              <h2 id="feed-suggest-title" class="text-sm font-semibold text-slate-900 dark:text-white">Athletes to follow</h2>
+              <StxLink to="/athletes" class="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400">See all</StxLink>
+            </div>
+            <ul class="space-y-3">
+              <template :for="athlete in suggestions()">
+                <li class="flex items-center gap-3">
+                  <StxLink x-to="'/athlete/' + athlete.id" class="shrink-0" x-aria-label="athlete.name">
+                    <Image :if="sidebarPhoto(athlete)" x-src="sidebarPhoto(athlete)" x-alt="athlete.name" width="36" height="36" sizes="36px" loading="lazy" class="h-9 w-9 rounded-full object-cover" />
+                    <span :if="!sidebarPhoto(athlete)" x-class="'grid h-9 w-9 place-items-center rounded-full text-xs font-bold ' + sidebarTint(athlete)" aria-hidden="true">{{ sidebarInitial(athlete) }}</span>
+                  </StxLink>
+                  <span class="min-w-0 flex-1">
+                    <StxLink x-to="'/athlete/' + athlete.id" class="block truncate text-sm font-semibold text-slate-900 hover:underline dark:text-white">{{ athlete.name }}</StxLink>
+                    <span class="block text-xs text-slate-500 dark:text-slate-400">{{ athlete.activityCount === 1 ? '1 activity' : athlete.activityCount + ' activities' }}</span>
+                  </span>
+                  <button type="button" @click="followSuggested(athlete.id)" class="min-h-8 shrink-0 rounded-full border border-emerald-600 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 active:scale-[0.98] dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-500/10">Follow</button>
+                </li>
+              </template>
+            </ul>
+          </section>
+
+          <section :if="nearbyFeedTrails().length > 0" class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800" aria-labelledby="feed-trails-title">
+            <div class="mb-3 flex items-baseline justify-between gap-2">
+              <h2 id="feed-trails-title" class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ nearbyFeedLabel() }}</h2>
+              <StxLink to="/trails" class="shrink-0 text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400">Explore</StxLink>
+            </div>
+            <ul class="space-y-3">
+              <template :for="trail in nearbyFeedTrails()">
+                <li>
+                  <StxLink x-to="'/trail/' + trail.id" class="group flex items-center gap-3">
+                    <span class="wl-topo relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
+                      <Image :if="nearbyTrailPhoto(trail) !== ''" x-src="nearbyTrailPhoto(trail)" x-alt="trail.name" width="48" height="48" sizes="48px" loading="lazy" class="h-full w-full object-cover" />
+                      <span :if="nearbyTrailPhoto(trail) === ''" class="absolute inset-0 grid place-items-center text-emerald-700/40 dark:text-emerald-300/30" aria-hidden="true"><i class="i-lucide-mountain h-4 w-4"></i></span>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-slate-900 group-hover:underline dark:text-white">{{ trail.name }}</span>
+                      <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ nearbyTrailLine(trail) }}</span>
+                    </span>
+                  </StxLink>
+                </li>
+              </template>
+            </ul>
+          </section>
+
+          <p class="px-1 text-xs leading-relaxed text-slate-400 dark:text-slate-500">
+            <StxLink to="/privacy" class="hover:underline">Privacy</StxLink> ·
+            <StxLink to="/terms" class="hover:underline">Terms</StxLink> ·
+            <StxLink to="/athletes" class="hover:underline">Athletes</StxLink> ·
+            <StxLink to="/clubs" class="hover:underline">Clubs</StxLink>
+          </p>
+        </div>
+      </aside>
     </div>
   </div>
 

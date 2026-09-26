@@ -69,6 +69,8 @@
     notes?: string
     visibility?: string
     hasGps?: boolean
+    /** The trail it was on: what a feed post's trail card shows. */
+    trail?: { id: number, name: string, place: string, difficulty: string, distance: number, image: string | null } | null
     created_at: string
   }
 

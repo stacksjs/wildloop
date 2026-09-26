@@ -19,6 +19,8 @@ interface ApiActivity {
   userAvatar?: string | null
   trailId: number | null
   trailName: string | null
+  /** The trail it was on, for the card a feed post links to it with. */
+  trail?: { id: number, name: string, place: string, difficulty: string, distance: number, image: string | null } | null
   title: string
   activityType: string
   distance: number
@@ -94,6 +96,7 @@ export async function loadActivities(wl: ActivityStoreLike): Promise<void> {
       visibility: a.visibility ?? 'public',
       hasGps: a.hasGps ?? false,
       route: Array.isArray(a.route) ? a.route : [],
+      trail: a.trail ?? null,
       created_at: a.createdAt ?? a.completedAt ?? new Date().toISOString(),
     }))
 

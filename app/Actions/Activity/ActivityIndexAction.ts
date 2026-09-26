@@ -10,6 +10,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
+import { withBestTrailCovers } from '../../Support/trailCovers'
 import { avatarOf } from '../../Support/avatars'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
@@ -118,6 +119,18 @@ export default new Action({
       const userAvatar = new Map(users.map((u: any) => [u.id, avatarOf(u)]))
       const trailName = new Map(trails.map((t: any) => [t.id, t.name]))
       const trailGeometry = new Map(trails.map((t: any) => [t.id, t.geometry]))
+      // What a post shows of the trail it was on: a card with its cover, the
+      // park, how hard and how long — the way a trail app's feed links a run
+      // to the place. Covers chosen as the catalog chooses them.
+      const covered = await withBestTrailCovers(trails.map((t: any) => ({ ...t })), 'thumb').catch(() => trails)
+      const trailSummary = new Map(covered.map((t: any) => [t.id, {
+        id: t.id,
+        name: t.name,
+        place: t.managed_by || t.location || '',
+        difficulty: t.difficulty ?? '',
+        distance: Number(t.distance) || 0,
+        image: typeof t.image === 'string' && t.image ? t.image : null,
+      }]))
 
       /*
        * Route previews.
@@ -154,6 +167,7 @@ export default new Action({
           userAvatar: userAvatar.get(a.user_id) ?? null,
           trailId: a.trail_id,
           trailName: tName,
+          trail: a.trail_id ? (trailSummary.get(a.trail_id) ?? null) : null,
           title: titleFor(a.activity_type, tName, a.completed_at, a.notes),
           activityType: a.activity_type,
           distance: a.distance,
