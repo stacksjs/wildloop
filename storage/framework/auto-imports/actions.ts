@@ -100,6 +100,7 @@ export const actions = {
   'Actions/Trail/SavedTrailIndexAction': '../../../app/Actions/Trail/SavedTrailIndexAction.ts',
   'Actions/Trail/SavedTrailToggleAction': '../../../app/Actions/Trail/SavedTrailToggleAction.ts',
   'Actions/Trail/TrailDoneToggleAction': '../../../app/Actions/Trail/TrailDoneToggleAction.ts',
+  'Actions/Trail/TrailForecastAction': '../../../app/Actions/Trail/TrailForecastAction.ts',
   'Actions/Trail/TrailIndexAction': '../../../app/Actions/Trail/TrailIndexAction.ts',
   'Actions/Trail/TrailReviewIndexAction': '../../../app/Actions/Trail/TrailReviewIndexAction.ts',
   'Actions/Trail/TrailReviewStoreAction': '../../../app/Actions/Trail/TrailReviewStoreAction.ts',

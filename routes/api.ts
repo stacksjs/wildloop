@@ -442,6 +442,7 @@ route.get('/trails/stats', 'Actions/Trail/TrailStatsAction')
 route.get('/trails/reviewers', 'Actions/Trail/TrailReviewersAction')
 route.get('/trails/{id}', 'Actions/Trail/TrailShowAction')
 route.get('/trails/{id}/reviews', 'Actions/Trail/TrailReviewIndexAction')
+route.get('/trails/{id}/forecast', 'Actions/Trail/TrailForecastAction')
 // Photos people added to a trail. The bucket is private, so the image bytes
 // are served through the file route, which only answers for visible photos.
 route.get('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoIndexAction')
