@@ -308,7 +308,19 @@ test.describe('on a phone, with one finger', () => {
         && handles.every(h => Math.hypot(h.x - p.x, h.y - p.y) > 30)
       const candidates = legs.flatMap(leg => [0.25, 0.75, 0.15, 0.85, 0.35, 0.65].map(f => at(leg, f)))
       const onLine = candidates.find(holds) ?? candidates[0]
-      return { count: w.length, center: map.getCenter(), via: screen(w[1]), onLine, onLineHolds: holds(onLine), empty: { x: rect.left + 30, y: rect.bottom - 120 } }
+      const inMap = (p: { x: number, y: number }): boolean =>
+        p.x > rect.left + 8 && p.x < rect.right - 8 && p.y > rect.top + 8 && p.y < rect.bottom - 8
+      const points = w.map(screen)
+      return {
+        count: w.length,
+        center: map.getCenter(),
+        via: points[1],
+        points,
+        onLine,
+        onLineHolds: holds(onLine),
+        empty: { x: rect.left + 30, y: rect.bottom - 120 },
+        inMap: points.map(inMap),
+      }
     })
   }
 
@@ -404,8 +416,20 @@ test.describe('on a phone, with one finger', () => {
     await page.locator('#route-builder-map').screenshot({ path: testInfo.outputPath('one-finger-route.png') })
 
     // Tap the new point to remove it; tap the map to add one at the end.
+    //
+    // The point is found by where the pull ended rather than assumed to be
+    // `w[1]`: the pull inserts into whichever leg it touched, so the new point
+    // is only index 1 when that was the first leg. It also has to still be on
+    // the map — four gestures have moved it, and a tap past the container's
+    // edge removes nothing while the count stays stubbornly at four.
+    const pulledTo = { x: state.onLine.x + 40, y: state.onLine.y + 50 }
     state = await editorState(page)
-    await page.touchscreen.tap(state.via.x, state.via.y)
+    const newPoint = state.points
+      .map((p, i) => ({ p, i, d: Math.hypot(p.x - pulledTo.x, p.y - pulledTo.y) }))
+      .filter(c => state.inMap[c.i])
+      .sort((a, b) => a.d - b.d)[0]
+    expect(newPoint, 'the point the pull created is not on the map').toBeTruthy()
+    await page.touchscreen.tap(newPoint.p.x, newPoint.p.y)
     await expect.poll(async () => (await editorState(page)).count).toBe(3)
     // Straight after: two quick taps far apart are two taps, not a double-tap zoom.
     state = await editorState(page)
