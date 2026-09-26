@@ -27,6 +27,9 @@
   import { activeDanger, conditionReports } from '../../functions/trail-conditions'
   import { deviceToday, useTripPlans } from '../../composables/useTripPlans'
   import { addDays, PLAN_ACTIVITIES, planDayLabel, planDirections, planTimeLabel } from '../../functions/trip-plans'
+  import { exploreNearLinks, forecastBar, forecastDayLabel, ratingSummary, trailBreadcrumbs, trailFaq } from '../../functions/trail-page'
+  import { queryTrails } from '../../composables/useTrailCatalog'
+  import { isStockTrailPhoto } from '../../functions/stock-photos'
 
   // The served shell's title. Replaced with the trail's own once it loads —
   // see the effect below, and usePageSeo for why that happens on the client.
@@ -647,6 +650,147 @@
     }
   }
 
+  // ── Laid out like the trail pages people already know how to read ──────
+  //
+  // Breadcrumbs back to the region, the facts in one flat row, the photos
+  // beside a map, then conditions, reviews, what is nearby and the questions
+  // people ask. Everything below is derived from the trail itself or fetched
+  // for it; nothing is filled in to make a section look complete.
+
+  const crumbs = derived(() => (trail() ? trailBreadcrumbs(trail()) : []))
+  const recentReports = derived(() => reports().slice(0, 3))
+  const trailheadLabel = derived(() => {
+    const current = trail()
+    return current && Number.isFinite(current.lat) && Number.isFinite(current.lng) ? `${current.lat.toFixed(5)}, ${current.lng.toFixed(5)}` : ''
+  })
+  const faqEntries = derived(() => (trail() ? trailFaq(trail()) : []))
+  const exploreGroups = derived(() => (trail() ? exploreNearLinks(trail()) : []))
+  const reviewStats = derived(() => ratingSummary(reviews()))
+
+  /** The photo beside the main one, when there is a different one to show. */
+  const secondPhoto = derived(() => {
+    const photos = gallery()
+    if (photos.length < 2)
+      return ''
+    const next = photos[(Math.min(photoIndex(), photos.length - 1) + 1) % photos.length]
+    return next && next.url !== heroImage() ? next.url : ''
+  })
+  const photoCountLabel = derived(() => (galleryCount() === 1 ? '1 photo' : `${galleryCount().toLocaleString()} photos`))
+
+  // Every photo at once, in a grid — the way a trail's pictures are browsed
+  // once the one on top is not enough. Picking one makes it the main photo.
+  const galleryOpen = state(false)
+
+  function openGallery(): void {
+    galleryOpen.set(true)
+  }
+
+  function closeGallery(): void {
+    galleryOpen.set(false)
+  }
+
+  function pickGalleryPhoto(index: number): void {
+    showPhoto(index)
+    galleryOpen.set(false)
+  }
+
+  // Weather at the trailhead, from MET Norway through /api/trails/{id}/forecast.
+  // `unavailable` is said out loud rather than filled in: see the note where a
+  // hardcoded "72°F, clear skies" used to sit in the sidebar.
+  const weatherStatus = state<'loading' | 'ready' | 'unavailable'>('loading')
+  const weatherDays = state<any[]>([])
+  const weatherNow = state<any>(null)
+  const weatherAttribution = state<{ label: string, url: string } | null>(null)
+  const weatherLow = derived(() => Math.min(...weatherDays().map((day: any) => day.low)))
+  const weatherHigh = derived(() => Math.max(...weatherDays().map((day: any) => day.high)))
+
+  function weatherDayName(day: any, index: number): string {
+    return forecastDayLabel(day.date, index)
+  }
+
+  function weatherBarStyle(day: any): string {
+    const bar = forecastBar(day, weatherLow(), weatherHigh())
+    return `left:${bar.left}%;width:${bar.width}%`
+  }
+
+  async function loadWeather(id: number): Promise<void> {
+    weatherStatus.set('loading')
+    try {
+      const res = await apiFetch(`/api/trails/${id}/forecast`)
+      const body = res.ok ? await res.json() : null
+      if (!body?.success || !Array.isArray(body.days) || body.days.length === 0) {
+        weatherStatus.set('unavailable')
+        return
+      }
+      weatherDays.set(body.days)
+      weatherNow.set(body.current ?? null)
+      weatherAttribution.set(body.attribution ?? null)
+      weatherStatus.set('ready')
+    }
+    catch {
+      weatherStatus.set('unavailable')
+    }
+  }
+
+  // Top trails nearby: the catalog's own answer for the ground around this
+  // trailhead, this trail left out.
+  const nearbyTrails = state<any[]>([])
+  const nearbyStatus = state<'idle' | 'loading' | 'ready'>('idle')
+  // Keyed by place as well as id: the store can briefly hold a cached or demo
+  // row under this id before the API's answer replaces it, and the search for
+  // the placeholder's coordinates must neither stick nor land late.
+  let nearbyKey = ''
+
+  async function loadNearby(current: any): Promise<void> {
+    if (!Number.isFinite(current?.lat) || !Number.isFinite(current?.lng))
+      return
+    const key = `${current.id}:${current.lat},${current.lng}`
+    if (key === nearbyKey)
+      return
+    nearbyKey = key
+    nearbyStatus.set('loading')
+    let found: any[] = []
+    try {
+      // The API widens a sparse radius rather than answer with nothing, so
+      // order by how close each is: the nearest first, whatever it returned.
+      const result = await queryTrails({ lat: current.lat, lng: current.lng, radius: 25, sort: 'featured', limit: 12 })
+      const away = (candidate: any) => (candidate.lat - current.lat) ** 2 + ((candidate.lng - current.lng) * Math.cos(current.lat * Math.PI / 180)) ** 2
+      found = result.trails
+        .filter((candidate: any) => candidate.id !== current.id && Number.isFinite(candidate.lat) && Number.isFinite(candidate.lng))
+        .sort((a: any, b: any) => away(a) - away(b))
+        .slice(0, 6)
+    }
+    catch {
+      found = []
+    }
+    if (key !== nearbyKey)
+      return
+    nearbyTrails.set(found)
+    nearbyStatus.set('ready')
+  }
+
+  function nearbyPhoto(candidate: any): string {
+    return typeof candidate?.image === 'string' ? candidate.image.trim() : ''
+  }
+
+  function nearbyPhotoAlt(candidate: any): string {
+    return isStockTrailPhoto(nearbyPhoto(candidate)) ? 'Illustrative landscape' : String(candidate?.name ?? '')
+  }
+
+  function nearbyTopo(candidate: any): string {
+    return `trail-topo-tile trail-topo-${Math.abs(Number(candidate?.id) || 0) % 4}`
+  }
+
+  onMount(() => {
+    void loadWeather(trailId())
+    const stopNearby = effect(() => {
+      const current = trail()
+      if (current)
+        void loadNearby(current)
+    })
+    return () => stopNearby()
+  })
+
   onDestroy(() => {
     detailMap?.destroy()
     detailMap = null
@@ -654,79 +798,54 @@
 </script>
 
   <div :if="trail">
-    <!-- Hero -->
-    <section class="group relative h-80 overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 sm:h-96 lg:h-[26rem]">
-      <div :if="heroImage() !== ''" class="absolute inset-0">
-        <Image x-src="heroImage()" x-alt="photoIllustrative() ? 'Illustrative landscape' : photoArea() ? 'Photo of ' + photoPlace() + ' area' : trail.name" width="1600" height="900" sizes="100vw" placeholder="blur" class="absolute inset-0 w-full h-full object-cover" />
-      </div>
-
-      <!-- No photo: contour lines and the route itself, drawn across the
-           space a photo would have filled. -->
-      <div :if="heroImage() === ''" class="trail-hero-topo absolute inset-0" aria-hidden="true"></div>
-      <div :if="heroImage() === '' && heroRoute().points !== ''" class="absolute bottom-40 left-1/3 right-4 top-16 opacity-70 sm:bottom-20 sm:left-1/2 sm:right-8 sm:opacity-90 lg:right-16" aria-hidden="true">
-        <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" class="h-full w-full">
-          <polyline x-points="heroRoute().points" class="trail-hero-casing" />
-          <polyline x-points="heroRoute().points" class="trail-hero-line" />
-          <circle x-cx="heroRoute().endX" x-cy="heroRoute().endY" r="4.5" x-class="heroRoute().loop ? 'hidden' : 'trail-hero-end'" />
-          <circle x-cx="heroRoute().startX" x-cy="heroRoute().startY" r="4.5" class="trail-hero-start" />
-        </svg>
-      </div>
-
-      <div :if="heroImage() !== ''" class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
-      <div :if="heroImage() === ''" class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/20"></div>
-
-      <!-- Gallery controls. Only drawn once a second photo exists: a lone
-           arrow over a single picture is a control that does nothing. -->
-      <button :if="hasGallery()" @click="previousPhoto()" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
-        <i class="i-lucide-chevron-left h-5 w-5" aria-hidden="true"></i>
-      </button>
-      <button :if="hasGallery()" @click="nextPhoto()" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
-        <i class="i-lucide-chevron-right h-5 w-5" aria-hidden="true"></i>
-      </button>
-
-      <!-- Bottom right, because the title block owns the bottom left of the
-           photo on every screen size. -->
-      <div :if="hasGallery()" class="absolute bottom-3 right-4 z-10 flex gap-1.5">
-        <template :for="slot in photoSlots">
-          <button @click="showPhoto(slot)" x-class="dotClass(slot)" x-aria-label="dotLabel(slot)"></button>
-        </template>
-      </div>
-
-      <!-- Whose photo this is. A stock cover says it is one: it is not a
-           picture of this trail, and without the label it reads as one. -->
-      <div :if="photoSourceUrl() !== ''" class="absolute bottom-3 left-4 z-10 flex max-w-[75%] flex-wrap gap-x-2 text-[11px] font-medium text-white/90">
-        <span :if="photoArea()">{{ photoPlace() + ' area photo' }}</span>
-        <a x-href="photoSourceUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ 'Photo by ' + photoCredit() }}</a>
-        <a x-href="photoLicenseUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ photoLicense() + ' (cropped)' }}</a>
-      </div>
-      <p :if="photoSourceUrl() === '' && photoCredit() !== ''" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">{{ 'Photo by ' + photoCredit() }}</p>
-      <p :if="photoCredit() === '' && photoIllustrative()" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">Illustrative photo</p>
-      <!-- Floating controls, over the photo rather than under it: on a phone
-           the photo is the whole first screen, and a control below the fold is
-           a control nobody finds. -->
-      <div class="absolute inset-x-0 top-0 z-10 flex items-start justify-between p-4">
-        <button @click="goBack()" aria-label="Go back" class="grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
-          <i class="i-lucide-arrow-left h-5 w-5" aria-hidden="true"></i>
+    <!-- Header, the way a trail page is usually read: where it sits in the
+         catalog, its name, how it rates, and a row of places to jump to. -->
+    <div class="mx-auto max-w-6xl px-4 pt-4 sm:px-6 lg:px-8">
+      <nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-1 overflow-x-auto whitespace-nowrap text-xs text-slate-500 [scrollbar-width:none] dark:text-slate-400">
+        <button type="button" @click="goBack()" aria-label="Go back" class="-ml-1 mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 sm:hidden dark:text-slate-300 dark:hover:bg-slate-800">
+          <i class="i-lucide-arrow-left h-4 w-4" aria-hidden="true"></i>
         </button>
+        <template :for="(crumb, index) in crumbs()">
+          <span :if="index > 0" class="text-slate-300 dark:text-slate-600" aria-hidden="true">›</span>
+          <StxLink x-to="crumb.href" class="rounded px-0.5 transition hover:text-emerald-700 hover:underline dark:hover:text-emerald-400">{{ crumb.label }}</StxLink>
+        </template>
+        <span class="text-slate-300 dark:text-slate-600" aria-hidden="true">›</span>
+        <span aria-current="page" class="truncate text-slate-700 dark:text-slate-200">{{ trail.name }}</span>
+      </nav>
 
-        <div class="flex gap-2">
-          <button @click="onShare()" aria-label="Share this trail" class="grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
-            <i class="i-lucide-share-2 h-5 w-5" aria-hidden="true"></i>
+      <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+          <h1 class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ trail.name }}</h1>
+          <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
+            <span :if="trail.rating > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+            <a :if="trail.rating > 0" href="#trail-reviews" class="inline-flex items-center gap-1 font-semibold text-slate-900 hover:underline dark:text-white">
+              <i class="i-lucide-star h-4 w-4 fill-current text-amber-400" aria-hidden="true"></i>
+              <span class="tabular-nums">{{ trail.rating.toFixed(1) }}</span>
+              <span :if="trail.reviewCount > 0" class="font-normal text-slate-500 tabular-nums dark:text-slate-400">{{ '(' + trail.reviewCount.toLocaleString() + (trail.reviewCount === 1 ? ' review)' : ' reviews)') }}</span>
+            </a>
+            <span :if="trail.managedBy || trail.location" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+            <span :if="trail.managedBy || trail.location" class="min-w-0 truncate text-slate-600 dark:text-slate-300">{{ trail.managedBy || trail.location }}</span>
+          </div>
+        </div>
+
+        <div class="flex shrink-0 items-center gap-2">
+          <button type="button" @click="onShare()" aria-label="Share this trail" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+            <i class="i-lucide-share-2 h-[18px] w-[18px]" aria-hidden="true"></i>
           </button>
-          <button @click="onToggleSave(trailId())" class="grid h-10 w-10 place-items-center rounded-full backdrop-blur-sm transition active:scale-95" x-class="saved ? 'bg-rose-500 text-white' : 'bg-black/35 text-white hover:bg-black/55'" x-aria-label="saved ? 'Remove from saved trails' : 'Save this trail'">
-            <svg width="19" height="19" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="saved ? 'currentColor' : 'none'" aria-hidden="true">
+          <button type="button" @click="toggleOfflineDownload()" x-aria-label="downloaded ? 'Remove offline trail' : 'Save this trail for offline use'" x-class="downloaded ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : ''" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+            <i x-class="downloaded ? 'i-lucide-circle-check-big h-[18px] w-[18px]' : 'i-lucide-download h-[18px] w-[18px]'" aria-hidden="true"></i>
+          </button>
+          <button type="button" @click="onToggleSave(trailId())" x-aria-label="saved ? 'Remove from saved trails' : 'Save this trail'" x-class="saved ? 'border-rose-200 bg-rose-50 text-rose-500 dark:border-rose-500/30 dark:bg-rose-500/10' : ''" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+            <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="saved ? 'currentColor' : 'none'" aria-hidden="true">
               <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
             </svg>
           </button>
-
           <div class="relative">
-            <button @click="toggleMenu()" aria-label="More actions" x-aria-expanded="menuOpen() ? 'true' : 'false'" class="grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 active:scale-95">
-              <i class="i-lucide-ellipsis h-5 w-5" aria-hidden="true"></i>
+            <button type="button" @click="toggleMenu()" aria-label="More actions" x-aria-expanded="menuOpen() ? 'true' : 'false'" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+              <i class="i-lucide-ellipsis h-[18px] w-[18px]" aria-hidden="true"></i>
             </button>
-
-            <!-- The two things that are neither save nor share: getting to the
-                 trailhead, and taking the link somewhere else. -->
-            <div :if="menuOpen()" class="absolute right-0 top-12 z-20 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div :if="menuOpen()" class="absolute right-0 top-11 z-30 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
               <button @click="openPlanSheet()" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60">
                 <i class="i-lucide-calendar-plus h-4 w-4 text-emerald-600" aria-hidden="true"></i>
                 Plan a visit
@@ -749,43 +868,89 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Anywhere else closes the menu. -->
-      <div :if="menuOpen()" @click="closeMenu()" class="fixed inset-0 z-10" aria-hidden="true"></div>
-
-      <!-- The route's shape, and the way down to the map that draws it. -->
-      <a :if="routeThumb() !== '' && heroImage() !== ''" href="#trail-map" aria-label="See the route on the map" class="absolute bottom-24 right-4 z-10 h-20 w-20 overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg transition hover:scale-105">
-        <Image x-src="routeThumb()" x-alt="'Route shape for ' + trail.name" width="80" height="80" sizes="80px" class="h-full w-full object-cover" />
-      </a>
-
-      <div class="relative h-full flex items-end px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 pb-8">
-        <div class="flex-1">
-          <div class="mb-3 flex flex-wrap items-center gap-2">
-            <span class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize shadow-sm" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
-            <span class="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm tabular-nums">{{ trail.distance + ' mi' }}</span>
-            <span :if="routeLabel() !== ''" class="rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">{{ routeLabel() }}</span>
-          </div>
-          <h1 class="mb-2 max-w-3xl font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-white md:text-5xl">{{ trail.name }}</h1>
-          <p class="flex items-center gap-1.5 text-white/75">
-            <i class="i-lucide-map-pin h-4 w-4 shrink-0" aria-hidden="true"></i>
-            <span class="truncate">{{ trail.location }}</span>
-          </p>
-        </div>
-        <div class="hidden items-center gap-2 lg:flex">
-          <button @click="toggleOfflineDownload()" class="grid h-12 w-12 place-items-center rounded-full backdrop-blur-sm transition active:scale-95" x-class="downloaded ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'" x-aria-label="downloaded ? 'Remove offline trail' : 'Download trail offline'">
-            <i x-class="downloaded ? 'i-lucide-circle-check-big h-5 w-5' : 'i-lucide-download h-5 w-5'" aria-hidden="true"></i>
-          </button>
-          <StxLink to="/record" class="inline-flex h-12 items-center gap-2 rounded-full bg-emerald-500 px-6 font-semibold text-emerald-950 shadow-lg transition hover:bg-emerald-400 active:scale-[0.98]">
+          <StxLink to="/record" class="hidden min-h-10 items-center gap-2 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] lg:inline-flex">
             <i class="i-lucide-play h-4 w-4" aria-hidden="true"></i>
             Start
           </StxLink>
         </div>
       </div>
-    </section>
+      <!-- Anywhere else closes the menu. -->
+      <div :if="menuOpen()" @click="closeMenu()" class="fixed inset-0 z-20" aria-hidden="true"></div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <nav aria-label="Trail sections" class="mt-4 flex gap-6 overflow-x-auto border-b border-slate-200 text-sm font-semibold [scrollbar-width:none] dark:border-slate-700">
+        <a href="#trail-overview" class="-mb-px shrink-0 border-b-2 border-slate-900 pb-2.5 text-slate-900 dark:border-white dark:text-white">Overview</a>
+        <a href="#trail-weather" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Conditions</a>
+        <a href="#trail-reviews" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">{{ 'Reviews' + (reviews().length ? ' (' + reviews().length + ')' : '') }}</a>
+        <a href="#trail-nearby" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Nearby</a>
+      </nav>
+    </div>
+
+    <!-- Photos beside the map: the main picture large, the next one and the
+         route stacked beside it. On a phone, just the main picture. -->
+    <div class="mx-auto mt-4 max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div class="grid h-64 grid-cols-1 gap-2 overflow-hidden rounded-2xl sm:h-80 md:h-[26rem] md:grid-cols-3 md:grid-rows-2">
+        <div class="group relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 md:col-span-2 md:row-span-2">
+          <Image :if="heroImage() !== ''" x-src="heroImage()" x-alt="photoIllustrative() ? 'Illustrative landscape' : photoArea() ? 'Photo of ' + photoPlace() + ' area' : trail.name" width="1200" height="800" sizes="(max-width: 768px) 100vw, 66vw" placeholder="blur" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]" />
+
+          <!-- No photo: contour lines and the route itself, drawn across the
+               space a photo would have filled. -->
+          <div :if="heroImage() === ''" class="trail-hero-topo absolute inset-0" aria-hidden="true"></div>
+          <div :if="heroImage() === '' && heroRoute().points !== ''" class="absolute inset-8 opacity-90" aria-hidden="true">
+            <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" class="h-full w-full">
+              <polyline x-points="heroRoute().points" class="trail-hero-casing" />
+              <polyline x-points="heroRoute().points" class="trail-hero-line" />
+              <circle x-cx="heroRoute().endX" x-cy="heroRoute().endY" r="4.5" x-class="heroRoute().loop ? 'hidden' : 'trail-hero-end'" />
+              <circle x-cx="heroRoute().startX" x-cy="heroRoute().startY" r="4.5" class="trail-hero-start" />
+            </svg>
+          </div>
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" aria-hidden="true"></div>
+
+          <!-- Gallery controls. Only drawn once a second photo exists: a lone
+               arrow over a single picture is a control that does nothing. -->
+          <button :if="hasGallery()" type="button" @click="previousPhoto()" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-slate-800 opacity-100 shadow transition hover:bg-white active:scale-95 md:opacity-0 md:group-hover:opacity-100">
+            <i class="i-lucide-chevron-left h-5 w-5" aria-hidden="true"></i>
+          </button>
+          <button :if="hasGallery()" type="button" @click="nextPhoto()" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-slate-800 opacity-100 shadow transition hover:bg-white active:scale-95 md:opacity-0 md:group-hover:opacity-100">
+            <i class="i-lucide-chevron-right h-5 w-5" aria-hidden="true"></i>
+          </button>
+          <button :if="galleryCount() > 0" type="button" @click="openGallery()" class="absolute bottom-3 right-3 z-10 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-xs font-semibold text-slate-800 shadow transition hover:bg-white active:scale-95 dark:bg-slate-900/90 dark:text-slate-100">
+            <i class="i-lucide-images h-4 w-4" aria-hidden="true"></i>
+            {{ photoCountLabel() }}
+          </button>
+
+          <!-- Whose photo this is. A stock cover says it is one: it is not a
+               picture of this trail, and without the label it reads as one. -->
+          <div :if="photoSourceUrl() !== ''" class="absolute bottom-3 left-4 z-10 flex max-w-[75%] flex-wrap gap-x-2 text-[11px] font-medium text-white/90">
+            <span :if="photoArea()">{{ photoPlace() + ' area photo' }}</span>
+            <a x-href="photoSourceUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ 'Photo by ' + photoCredit() }}</a>
+            <a x-href="photoLicenseUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ photoLicense() + ' (cropped)' }}</a>
+          </div>
+          <p :if="photoSourceUrl() === '' && photoCredit() !== ''" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">{{ 'Photo by ' + photoCredit() }}</p>
+          <p :if="photoCredit() === '' && photoIllustrative()" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">Illustrative photo</p>
+        </div>
+
+        <!-- The next photo, when there is one. With a single photo the map
+             takes the whole column rather than sitting under an empty tile. -->
+        <button :if="secondPhoto() !== ''" type="button" @click="openGallery()" aria-label="Show all photos" class="relative hidden overflow-hidden bg-slate-100 md:block dark:bg-slate-800">
+          <Image x-src="secondPhoto()" x-alt="'Another photo of ' + trail.name" width="600" height="400" sizes="33vw" placeholder="blur" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]" />
+        </button>
+
+        <a href="#trail-map" x-class="secondPhoto() === '' ? 'md:row-span-2' : ''" class="group/map relative hidden overflow-hidden md:block" aria-label="See the route on the map">
+          <div class="trail-map-tile absolute inset-0" aria-hidden="true"></div>
+          <svg :if="heroRoute().points !== ''" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" class="absolute inset-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)]" aria-hidden="true">
+            <polyline x-points="heroRoute().points" class="trail-map-casing" />
+            <polyline x-points="heroRoute().points" class="trail-map-line" />
+            <circle x-cx="heroRoute().startX" x-cy="heroRoute().startY" r="5" class="trail-hero-start" />
+          </svg>
+          <span class="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow transition group-hover/map:bg-white dark:bg-slate-900/90 dark:text-slate-100">
+            <i class="i-lucide-map h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>
+            View map
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <div id="trail-overview" class="mx-auto max-w-6xl scroll-mt-24 px-4 py-6 sm:px-6 lg:px-8">
       <!-- Already planned: when, and the way back to the plan's directions. -->
       <StxLink :if="trailPlan()" x-to="trailPlanLink()" class="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 transition hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
         <i class="i-lucide-calendar-check h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
@@ -795,8 +960,8 @@
       </StxLink>
       <p :if="offlineMessage" class="mb-4 px-4 py-3 text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">{{ offlineMessage }}</p>
       <p :if="shareMessage()" class="mb-4 px-4 py-3 text-sm text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 rounded-xl">{{ shareMessage() }}</p>
-      <div class="grid lg:grid-cols-3 gap-8">
-        <div class="lg:col-span-2 space-y-8">
+      <div class="grid gap-8 lg:grid-cols-3 lg:gap-10">
+        <div class="min-w-0 space-y-6 lg:col-span-2">
           <!-- A danger someone reported this week. First thing on the page,
                in red, because it is the one thing here that can get somebody
                hurt: ice above the treeline, a flooded crossing, a fire. -->
@@ -814,23 +979,6 @@
             </div>
           </div>
 
-          <!-- What the trail is rated, how hard it is and where it sits, on
-               one line — the three things asked before anything else. -->
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span :if="trail.rating > 0" class="inline-flex items-center gap-1 font-semibold text-slate-900 dark:text-white">
-              <i class="i-lucide-star h-4 w-4 text-yellow-400" aria-hidden="true"></i>
-              <span class="tabular-nums">{{ trail.rating.toFixed(1) }}</span>
-              <span :if="trail.reviewCount > 0" class="font-normal text-slate-400 tabular-nums">{{ '(' + trail.reviewCount.toLocaleString() + ')' }}</span>
-            </span>
-            <span :if="trail.rating > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-            <span class="inline-flex items-center gap-1.5 capitalize text-slate-600 dark:text-slate-300">
-              <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>
-              {{ trail.difficulty }}
-            </span>
-            <span :if="trail.managedBy" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-            <span :if="trail.managedBy" class="text-slate-600 dark:text-slate-300">{{ trail.managedBy }}</span>
-          </div>
-
           <!-- Anything that would change the plan, counted up front and
                linked to the detail rather than buried below the reviews. -->
           <a :if="noticeCount() > 0" href="#trail-info" class="-mt-4 inline-flex min-h-9 items-center gap-2 rounded-full bg-amber-50 px-3.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15">
@@ -839,85 +987,121 @@
             <span class="font-semibold underline underline-offset-2">{{ noticeLabel() }}</span>
           </a>
 
-          <!-- Stats. Route shape sits beside the numbers because it answers
-               the same question they do: what am I committing to. -->
-          <div class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 shadow-sm sm:grid-cols-4 dark:border-slate-700 dark:bg-slate-700 dark:shadow-none">
-            <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <i class="i-lucide-ruler mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-              <p class="font-display text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</p>
-              <p class="metric-label mt-0.5">Length</p>
+          <!-- The numbers, flat and large: what am I committing to. The
+               catalog stores 0 when a source recorded no climb (NPS and USFS
+               never do), so 0 reads as unknown, not flat. -->
+          <dl class="flex flex-wrap gap-x-10 gap-y-4">
+            <div>
+              <dd class="font-display text-2xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</dd>
+              <dt class="text-sm text-slate-500 dark:text-slate-400">Length</dt>
             </div>
-            <!-- The catalog stores 0 when a source recorded no climb (NPS and USFS
-                 never do), so 0 means unknown, not flat. -->
-            <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <i class="i-lucide-mountain mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-              <p class="font-display text-xl font-bold text-slate-900 tabular-nums dark:text-white">
+            <div>
+              <dd class="font-display text-2xl font-bold text-slate-900 tabular-nums dark:text-white">
                 <span :if="trail.elevation > 0">{{ trail.elevation.toLocaleString() + ' ft' }}</span>
                 <span :if="!(trail.elevation > 0)"><span aria-hidden="true">—</span><span class="sr-only">Not recorded</span></span>
-              </p>
-              <p class="metric-label mt-0.5">Elev. gain</p>
+              </dd>
+              <dt class="text-sm text-slate-500 dark:text-slate-400">Elevation gain</dt>
             </div>
-            <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <i class="i-lucide-clock mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-              <p class="font-display text-xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.estimatedTime || '—' }}</p>
-              <p class="metric-label mt-0.5">Est. time</p>
+            <div :if="trail.estimatedTime">
+              <dd class="font-display text-2xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.estimatedTime }}</dd>
+              <dt class="text-sm text-slate-500 dark:text-slate-400">Est. time</dt>
             </div>
-            <div class="bg-white p-4 text-center dark:bg-slate-800">
-              <i x-class="routeIcon() + ' mx-auto mb-1.5 block h-4 w-4 text-emerald-600 dark:text-emerald-400'" aria-hidden="true"></i>
-              <p class="font-display text-xl font-bold text-slate-900 dark:text-white">{{ routeLabel() || 'Trail' }}</p>
-              <p class="metric-label mt-0.5">Route</p>
+            <div>
+              <dd class="flex items-center gap-2 font-display text-2xl font-bold text-slate-900 dark:text-white">
+                <i x-class="routeIcon() + ' h-6 w-6 text-slate-700 dark:text-slate-300'" aria-hidden="true"></i>
+                <span class="sr-only">{{ routeLabel() || 'Trail' }}</span>
+              </dd>
+              <dt class="text-sm text-slate-500 dark:text-slate-400">{{ routeLabel() || 'Trail' }}</dt>
             </div>
-          </div>
+          </dl>
 
           <!-- Description -->
-          <div class="card">
-            <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">About this trail</h2>
+          <div>
+            <h2 class="sr-only">About this trail</h2>
             <!-- Clamped to three lines until asked for: a catalog description
                  can run to a page, and it pushed the map and the records off
                  the screen on a phone. -->
             <p x-class="descriptionOpen() || !descriptionLong() ? 'max-w-[68ch] text-slate-600 dark:text-slate-300 leading-relaxed' : 'max-w-[68ch] text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3'">{{ trail.description }}</p>
             <button :if="descriptionLong()" @click="toggleDescription()" class="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
-              {{ descriptionOpen() ? 'Show less' : 'Show more' }}
+              {{ descriptionOpen() ? 'Show less' : 'More' }}
             </button>
+          </div>
+        </div>
 
-            <!-- Tags, read as what they mean: an icon and a phrase rather
-                 than the raw `dog_friendly` the catalog stores. -->
-            <div :if="features().length > 0" class="flex flex-wrap gap-2 mt-4">
-              <template :for="feature in features()">
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                  <i x-class="feature.icon ? feature.icon + ' h-3.5 w-3.5' : 'hidden'" aria-hidden="true"></i>
-                  {{ feature.label }}
-                </span>
-              </template>
+        <!-- Beside the overview: whether you have done it, and what to do
+             next. Where a trail page usually lists the sights along the way;
+             the catalog has none to list, so the column holds the actions. -->
+        <aside class="min-w-0 space-y-4">
+          <!-- Done it? Above the facts, on a phone and a desktop alike: the
+               bar along the bottom of a phone is already full. -->
+          <div class="card flex flex-wrap items-center gap-3">
+            <span x-class="isDone ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'" class="grid h-10 w-10 shrink-0 place-items-center rounded-full" aria-hidden="true">
+              <i class="i-lucide-circle-check h-5 w-5"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="font-semibold text-slate-900 dark:text-white">{{ isDone ? 'You have done this trail' : 'Done this trail?' }}</p>
+              <p class="text-sm text-slate-500 dark:text-slate-400">{{ isDone ? doneText : 'Mark it to keep it in your completed trails.' }}</p>
             </div>
+            <button
+              :if="!doneByActivity"
+              type="button"
+              @click="toggleDone()"
+              x-aria-pressed="isDone ? 'true' : 'false'"
+              x-aria-label="isDone ? 'Undo marking this trail as done' : 'Mark this trail as done'"
+              x-class="isDone ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'"
+              class="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
+              <i x-class="isDone ? 'i-lucide-undo-2 h-4 w-4' : 'i-lucide-check h-4 w-4'" aria-hidden="true"></i>
+              {{ isDone ? 'Undo' : 'Mark as done' }}
+            </button>
           </div>
 
-          <!-- Information. Every row is something the catalog actually says,
-               which is why a trail with nothing to flag shows no card. -->
-          <div :if="noticeCount() > 0" id="trail-info" class="card">
-            <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Before you go</h2>
-            <ul class="space-y-3">
-              <template :for="notice in notices()">
-                <li class="flex gap-3">
-                  <span x-class="notice.tone === 'warn' ? 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">
-                    <i x-class="notice.icon + ' h-4 w-4'" aria-hidden="true"></i>
-                  </span>
-                  <span class="min-w-0">
-                    <span class="block text-sm font-semibold dark:text-white">{{ notice.title }}</span>
-                    <span class="block text-sm text-slate-600 dark:text-slate-400">{{ notice.detail }}</span>
-                  </span>
-                </li>
-              </template>
-            </ul>
+          <!-- The things to do with a trail once it is chosen. Desktop only:
+               on a phone the same three sit in the bar along the bottom. -->
+          <div class="card hidden space-y-2 lg:block">
+            <StxLink to="/record" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+              <i class="i-lucide-play h-4 w-4" aria-hidden="true"></i>
+              Start recording
+            </StxLink>
+            <button @click="openPlanSheet()" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+              <i class="i-lucide-calendar-plus h-4 w-4" aria-hidden="true"></i>
+              {{ trailPlan() ? 'Plan another visit' : 'Plan a visit' }}
+            </button>
+            <StxLink x-to="customizeRouteUrl()" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+              <i class="i-lucide-route h-4 w-4" aria-hidden="true"></i>
+              Customize route
+            </StxLink>
+            <div class="grid grid-cols-2 gap-2">
+              <a x-href="appleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+                <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>
+                Apple Maps
+              </a>
+              <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+                <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
+                Google Maps
+              </a>
+            </div>
+            <button @click="toggleOfflineDownload()" x-class="downloaded ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
+              <i x-class="downloaded ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4'" aria-hidden="true"></i>
+              {{ downloaded ? 'Saved for offline' : 'Save for offline' }}
+            </button>
           </div>
 
+          <!-- A weather card used to sit here reading 72°F and "Clear skies"
+               for every trail in every season, hardcoded. The real forecast
+               for the trailhead now lives in the Conditions section. -->
+        </aside>
+      </div>
+
+      <!-- The trail at a glance: its line on a map, what it is like, and the
+           facts — three cards in a row, as a trail page is usually laid out. -->
+      <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <!-- Map -->
           <!-- Not `card`: its padding framed the map in a white border. -->
-          <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
+          <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:col-span-2 lg:col-span-1 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
               <h2 class="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 dark:text-white">
                 <i class="i-lucide-map h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
-                Route map
+                Preview
               </h2>
               <div class="-mr-2 flex items-center">
                 <a x-href="appleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
@@ -933,6 +1117,143 @@
             <div id="trail-map" data-stx-ignore class="trail-map-panel ts-map-container"></div>
           </div>
 
+          <!-- What the trail is like, as the managing agency lists it: one row
+               per feature, the way a trail page is usually scanned. -->
+          <div class="card">
+            <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Features</h2>
+            <ul :if="features().length > 0" class="space-y-2.5">
+              <template :for="feature in features()">
+                <li class="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300" aria-hidden="true">
+                    <i x-class="(feature.icon || 'i-lucide-check') + ' h-4 w-4'"></i>
+                  </span>
+                  {{ feature.label }}
+                </li>
+              </template>
+            </ul>
+            <p :if="features().length === 0" class="text-sm text-slate-500 dark:text-slate-400">The managing agency lists no features for this trail yet.</p>
+          </div>
+
+          <div id="trail-info" class="card scroll-mt-24">
+            <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Trail info</h2>
+            <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-700">
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Difficulty</dt><dd class="rounded-md px-2 py-0.5 text-xs font-semibold capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Distance</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Elevation gain</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.elevation > 0 ? trail.elevation.toLocaleString() + ' ft' : 'Not recorded' }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Est. time</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.estimatedTime || '—' }}</dd></div>
+              <div :if="routeLabel() !== ''" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Route</dt><dd class="font-medium text-slate-900 dark:text-white">{{ routeLabel() }}</dd></div>
+              <div :if="trail.surface" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Surface</dt><dd class="font-medium capitalize text-slate-900 dark:text-white">{{ trail.surface }}</dd></div>
+              <div :if="trail.managedBy" class="flex items-start justify-between gap-4 py-2.5"><dt class="shrink-0 text-slate-500 dark:text-slate-400">Managed by</dt><dd class="text-right font-medium text-slate-900 dark:text-white">{{ trail.managedBy }}</dd></div>
+            </dl>
+            <!-- Anything that would change the plan. Every row is something the
+                 catalog actually says, so a trail with nothing to flag has none. -->
+            <div :if="noticeCount() > 0" class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700">
+              <h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Before you go</h3>
+              <ul class="space-y-3">
+                <template :for="notice in notices()">
+                  <li class="flex gap-3">
+                    <span x-class="notice.tone === 'warn' ? 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">
+                      <i x-class="notice.icon + ' h-4 w-4'" aria-hidden="true"></i>
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block text-sm font-semibold dark:text-white">{{ notice.title }}</span>
+                      <span class="block text-sm text-slate-600 dark:text-slate-400">{{ notice.detail }}</span>
+                    </span>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </div>
+      </div>
+
+          <!-- Conditions: the week's weather at the trailhead, what people have
+               found on the trail lately, and how to get there. The forecast is
+               real or absent — see TrailForecastAction; this page once showed
+               an invented "72°F, clear skies" for every trail in every season. -->
+          <section id="trail-weather" class="mt-12 scroll-mt-24" aria-labelledby="trail-weather-title">
+            <h2 id="trail-weather-title" class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Conditions</h2>
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div class="card">
+                <div class="mb-2 flex items-baseline justify-between gap-2">
+                  <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Weather</h3>
+                  <a :if="weatherAttribution()" x-href="weatherAttribution()?.url" target="_blank" rel="noopener noreferrer" class="text-[11px] text-slate-400 hover:underline dark:text-slate-500">{{ weatherAttribution()?.label }}</a>
+                </div>
+                <div :if="weatherStatus() === 'loading'" class="h-60 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700/50" aria-label="Loading the forecast" role="status"></div>
+                <p :if="weatherStatus() === 'unavailable'" class="py-6 text-sm text-slate-500 dark:text-slate-400">The forecast for this trail could not be loaded right now. Check a local forecast before you set out.</p>
+                <div :if="weatherStatus() === 'ready' && weatherNow()" class="flex items-center gap-3 pb-2">
+                  <i x-class="weatherNow()?.icon + ' h-9 w-9 text-amber-500'" aria-hidden="true"></i>
+                  <div>
+                    <p class="font-display text-3xl font-bold leading-none text-slate-900 tabular-nums dark:text-white">{{ weatherNow()?.temperature + '°' }}</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ 'Now · ' + weatherNow()?.label }}</p>
+                  </div>
+                </div>
+                <ul :if="weatherStatus() === 'ready'" class="divide-y divide-slate-100 dark:divide-slate-700/70">
+                  <template :for="(day, index) in weatherDays()">
+                    <li class="grid grid-cols-[2.75rem_1.25rem_2.25rem_1fr_2.25rem] items-center gap-2 py-2 text-sm">
+                      <span class="font-semibold text-slate-900 dark:text-white">{{ weatherDayName(day, index) }}</span>
+                      <i x-class="day.icon + ' h-4 w-4 text-slate-500 dark:text-slate-400'" aria-hidden="true"></i>
+                      <span class="text-right tabular-nums text-slate-400 dark:text-slate-500">{{ day.low + '°' }}</span>
+                      <span class="relative h-1.5 rounded-full bg-slate-100 dark:bg-slate-700" x-aria-label="day.label + ', ' + day.low + ' to ' + day.high + ' degrees'" role="img">
+                        <span class="absolute inset-y-0 rounded-full bg-gradient-to-r from-sky-400 via-amber-300 to-orange-500" x-style="weatherBarStyle(day)"></span>
+                      </span>
+                      <span class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ day.high + '°' }}</span>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+
+              <div class="card flex flex-col">
+                <h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Trail conditions</h3>
+                <ul :if="recentReports().length > 0" class="space-y-3">
+                  <template :for="report in recentReports()">
+                    <li class="flex items-start gap-3">
+                      <span x-class="report.severity === 'danger' ? 'bg-red-600 text-white' : report.severity === 'caution' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'" class="grid h-9 w-9 shrink-0 place-items-center rounded-full" aria-hidden="true">
+                        <i x-class="report.icon + ' h-4 w-4'"></i>
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ report.label }}</span>
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">{{ report.by + ' · ' + reportWhen(report) }}</span>
+                      </span>
+                    </li>
+                  </template>
+                </ul>
+                <div :if="recentReports().length === 0" class="flex flex-1 flex-col items-center justify-center py-6 text-center">
+                  <span class="mb-3 grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" aria-hidden="true"><i class="i-lucide-footprints h-6 w-6"></i></span>
+                  <p class="text-sm font-semibold text-slate-900 dark:text-white">Is it muddy? Icy? Dry?</p>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">No one has reported conditions in the last two months.</p>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+                  <button type="button" @click="reportConditions()" class="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+                    <i class="i-lucide-cloud-alert h-4 w-4" aria-hidden="true"></i>
+                    Report conditions
+                  </button>
+                  <a :if="reports().length > 0" href="#trail-conditions" @click="showConditions()" class="inline-flex min-h-10 items-center px-2 text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400">{{ 'See all ' + reports().length }}</a>
+                </div>
+              </div>
+
+              <div class="card flex flex-col">
+                <h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Getting there</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-300">{{ trail.managedBy || trail.location }}</p>
+                <p :if="trailheadLabel() !== ''" class="mt-1 font-mono text-xs text-slate-400 dark:text-slate-500">{{ trailheadLabel() }}</p>
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                  <a x-href="appleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+                    <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>
+                    Apple Maps
+                  </a>
+                  <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
+                    <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
+                    Google Maps
+                  </a>
+                </div>
+                <button type="button" @click="openPlanSheet()" class="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+                  <i class="i-lucide-calendar-plus h-4 w-4" aria-hidden="true"></i>
+                  {{ trailPlan() ? 'Plan another visit' : 'Plan a visit' }}
+                </button>
+              </div>
+            </div>
+          </section>
+
+      <div class="mt-12 space-y-12">
           <!-- Records -->
           <!-- The route's fastest known times. Split into the buckets that
                make two times comparable at all — direction, category, style,
@@ -1114,6 +1435,31 @@
           </div>
 
           <!-- Reviews -->
+          <div id="trail-reviews" class="scroll-mt-24">
+            <h2 class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Reviews</h2>
+
+            <!-- The average and how it splits, above the reviews themselves.
+                 Counted from the reviews on this page, so the bars and the
+                 list beneath them always agree. -->
+            <div :if="reviewStats().count > 0" class="mb-6 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center dark:border-slate-700 dark:bg-slate-800">
+              <div class="shrink-0 text-center sm:w-36">
+                <p class="font-display text-5xl font-bold text-slate-900 tabular-nums dark:text-white">{{ reviewStats().average.toFixed(1) }}</p>
+                <p class="mt-1 text-lg tracking-[0.1em]" role="img" x-aria-label="reviewStats().average.toFixed(1) + ' out of 5 stars'"><span class="text-amber-400">{{ starsOn(Math.round(reviewStats().average)) }}</span><span class="text-slate-200 dark:text-slate-600">{{ starsOff(Math.round(reviewStats().average)) }}</span></p>
+                <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{{ reviewStats().count === 1 ? '1 review' : reviewStats().count + ' reviews' }}</p>
+              </div>
+              <ul class="min-w-0 flex-1 space-y-1.5">
+                <template :for="bar in reviewStats().bars">
+                  <li class="flex items-center gap-3 text-sm">
+                    <span class="w-3 shrink-0 text-right tabular-nums text-slate-500 dark:text-slate-400">{{ bar.stars }}</span>
+                    <span class="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                      <span class="absolute inset-y-0 left-0 rounded-full bg-amber-400" x-style="'width:' + bar.percent + '%'"></span>
+                    </span>
+                    <span class="w-8 shrink-0 text-right tabular-nums text-xs text-slate-400 dark:text-slate-500">{{ bar.count }}</span>
+                  </li>
+                </template>
+              </ul>
+            </div>
+
           <div id="trail-conditions" class="scroll-mt-24">
             <div class="mb-4 flex gap-1 border-b border-slate-200 dark:border-slate-700">
               <button type="button" @click="reviewTab.set('reviews')" x-class="reviewTab() === 'reviews' ? 'border-emerald-600 text-slate-900 dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-4 text-sm font-semibold transition">{{ 'Reviews (' + reviews().length + ')' }}</button>
@@ -1196,89 +1542,82 @@
               </button>
             </div>
           </div>
-        </div>
-
-        <!-- Sidebar -->
-        <!-- Sticky on a desktop, so the facts and the ways to act on them stay
-             beside the reviews and the map instead of leaving a tall empty
-             column once the page scrolls past them. -->
-        <div class="space-y-6 lg:sticky lg:top-20 lg:self-start">
-          <!-- Done it? Above the facts, on a phone and a desktop alike: the
-               bar along the bottom of a phone is already full. -->
-          <div class="card flex items-center gap-3">
-            <span x-class="isDone ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'" class="grid h-10 w-10 shrink-0 place-items-center rounded-full" aria-hidden="true">
-              <i class="i-lucide-circle-check h-5 w-5"></i>
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="font-semibold text-slate-900 dark:text-white">{{ isDone ? 'You have done this trail' : 'Done this trail?' }}</p>
-              <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ isDone ? doneText : 'Mark it to keep it in your completed trails.' }}</p>
-            </div>
-            <button
-              :if="!doneByActivity"
-              type="button"
-              @click="toggleDone()"
-              x-aria-pressed="isDone ? 'true' : 'false'"
-              x-aria-label="isDone ? 'Undo marking this trail as done' : 'Mark this trail as done'"
-              x-class="isDone ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'"
-              class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
-              <i x-class="isDone ? 'i-lucide-undo-2 h-4 w-4' : 'i-lucide-check h-4 w-4'" aria-hidden="true"></i>
-              {{ isDone ? 'Undo' : 'Mark as done' }}
-            </button>
           </div>
-
-          <div class="card">
-            <h3 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Trail info</h3>
-            <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-700">
-              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Difficulty</dt><dd class="rounded-md px-2 py-0.5 text-xs font-semibold capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</dd></div>
-              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Distance</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</dd></div>
-              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Elevation gain</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.elevation > 0 ? trail.elevation.toLocaleString() + ' ft' : 'Not recorded' }}</dd></div>
-              <div class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Est. time</dt><dd class="font-medium text-slate-900 tabular-nums dark:text-white">{{ trail.estimatedTime || '—' }}</dd></div>
-              <div :if="routeLabel() !== ''" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Route</dt><dd class="font-medium text-slate-900 dark:text-white">{{ routeLabel() }}</dd></div>
-              <div :if="trail.surface" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Surface</dt><dd class="font-medium capitalize text-slate-900 dark:text-white">{{ trail.surface }}</dd></div>
-              <div :if="trail.managedBy" class="flex items-start justify-between gap-4 py-2.5"><dt class="shrink-0 text-slate-500 dark:text-slate-400">Managed by</dt><dd class="text-right font-medium text-slate-900 dark:text-white">{{ trail.managedBy }}</dd></div>
-            </dl>
-          </div>
-
-          <!-- The things to do with a trail once it is chosen. Desktop only:
-               on a phone the same three sit in the bar along the bottom. -->
-          <div class="card hidden space-y-2 lg:block">
-            <StxLink to="/record" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
-              <i class="i-lucide-play h-4 w-4" aria-hidden="true"></i>
-              Start recording
-            </StxLink>
-            <button @click="openPlanSheet()" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
-              <i class="i-lucide-calendar-plus h-4 w-4" aria-hidden="true"></i>
-              {{ trailPlan() ? 'Plan another visit' : 'Plan a visit' }}
-            </button>
-            <StxLink x-to="customizeRouteUrl()" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
-              <i class="i-lucide-route h-4 w-4" aria-hidden="true"></i>
-              Customize route
-            </StxLink>
-            <div class="grid grid-cols-2 gap-2">
-              <a x-href="appleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
-                <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>
-                Apple Maps
-              </a>
-              <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 active:scale-[0.98] dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300">
-                <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>
-                Google Maps
-              </a>
-            </div>
-            <button @click="toggleOfflineDownload()" x-class="downloaded ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
-              <i x-class="downloaded ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4'" aria-hidden="true"></i>
-              {{ downloaded ? 'Saved for offline' : 'Save for offline' }}
-            </button>
-          </div>
-
-          <!-- A weather card used to sit here reading 72°F and "Clear skies"
-               for every trail in the catalog, in every season, hardcoded. On a
-               page people plan a day out from, an invented forecast is the one
-               kind of wrong that gets somebody caught out above the treeline.
-               It comes back when a real forecast is wired to the trailhead
-               coordinates, and not before. -->
-        </div>
       </div>
     </div>
+
+    <!-- Below the trail: what else is around it, the questions people ask
+         about it, and ways into the catalog nearby. Full width, like the
+         header, because each reads as a row rather than a column. -->
+    <div class="mx-auto max-w-6xl space-y-12 px-4 pb-12 sm:px-6 lg:px-8">
+      <section id="trail-nearby" class="scroll-mt-24" aria-labelledby="trail-nearby-title">
+        <h2 id="trail-nearby-title" class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Top trails nearby</h2>
+        <div :if="nearbyStatus() === 'loading'" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div class="h-60 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"></div>
+          <div class="hidden h-60 animate-pulse rounded-2xl bg-slate-100 sm:block dark:bg-slate-800"></div>
+          <div class="hidden h-60 animate-pulse rounded-2xl bg-slate-100 sm:block dark:bg-slate-800"></div>
+        </div>
+        <p :if="nearbyStatus() === 'ready' && nearbyTrails().length === 0" class="text-sm text-slate-500 dark:text-slate-400">No other trails nearby in the catalog yet.</p>
+        <div :if="nearbyTrails().length > 0" class="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+          <template :for="candidate in nearbyTrails()">
+            <article class="group relative w-72 shrink-0 snap-start sm:w-auto">
+              <StxLink x-to="'/trail/' + candidate.id" class="block">
+                <div x-class="nearbyTopo(candidate)" class="relative aspect-[4/3] overflow-hidden rounded-2xl">
+                  <Image :if="nearbyPhoto(candidate) !== ''" x-src="nearbyPhoto(candidate)" x-alt="nearbyPhotoAlt(candidate)" width="480" height="360" sizes="(max-width: 640px) 18rem, 33vw" placeholder="blur" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                  <span :if="nearbyPhoto(candidate) === ''" class="absolute inset-0 grid place-items-center text-emerald-700/40 dark:text-emerald-300/30" aria-hidden="true"><i class="i-lucide-mountain h-8 w-8"></i></span>
+                </div>
+                <h3 class="mt-2.5 truncate font-semibold text-slate-900 group-hover:underline dark:text-white">{{ candidate.name }}</h3>
+                <p class="truncate text-sm text-slate-500 dark:text-slate-400">{{ candidate.managedBy || candidate.location }}</p>
+                <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-600 dark:text-slate-300">
+                  <span :if="candidate.rating > 0" class="inline-flex items-center gap-0.5"><i class="i-lucide-star h-3.5 w-3.5 fill-current text-amber-400" aria-hidden="true"></i><span class="tabular-nums">{{ candidate.rating.toFixed(1) }}</span></span>
+                  <span :if="candidate.rating > 0" aria-hidden="true">·</span>
+                  <span class="capitalize">{{ candidate.difficulty }}</span>
+                  <span aria-hidden="true">·</span>
+                  <span class="tabular-nums">{{ candidate.distance + ' mi' }}</span>
+                </p>
+              </StxLink>
+              <button type="button" @click="onToggleSave(candidate.id)" class="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/95 shadow transition hover:scale-105 active:scale-95 dark:bg-slate-900/90" x-class="wl.isTrailSaved(candidate.id) ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'" x-aria-label="wl.isTrailSaved(candidate.id) ? 'Remove ' + candidate.name + ' from saved trails' : 'Save ' + candidate.name">
+                <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" x-fill="wl.isTrailSaved(candidate.id) ? 'currentColor' : 'none'" aria-hidden="true">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                </svg>
+              </button>
+            </article>
+          </template>
+        </div>
+      </section>
+
+      <section :if="faqEntries().length > 0" class="grid gap-6 border-t border-slate-200 pt-10 md:grid-cols-3 dark:border-slate-700" aria-labelledby="trail-faq-title">
+        <h2 id="trail-faq-title" class="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Frequently asked questions</h2>
+        <div class="divide-y divide-slate-200 md:col-span-2 dark:divide-slate-700">
+          <template :for="entry in faqEntries()">
+            <details class="group py-1">
+              <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium text-slate-800 dark:text-slate-100 [&::-webkit-details-marker]:hidden">
+                {{ entry.question }}
+                <i class="i-lucide-chevron-down h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+              </summary>
+              <p class="pb-4 pr-8 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ entry.answer }}</p>
+            </details>
+          </template>
+        </div>
+      </section>
+
+      <section class="border-t border-slate-200 pt-10 dark:border-slate-700" aria-labelledby="trail-explore-title">
+        <h2 id="trail-explore-title" class="mb-5 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">{{ 'Explore near ' + trail.name }}</h2>
+        <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <template :for="group in exploreGroups()">
+            <div>
+              <h3 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">{{ group.title }}</h3>
+              <ul class="space-y-1.5">
+                <template :for="link in group.links">
+                  <li><StxLink x-to="link.href" class="text-sm text-slate-600 transition hover:text-emerald-700 hover:underline dark:text-slate-300 dark:hover:text-emerald-400">{{ link.label }}</StxLink></li>
+                </template>
+              </ul>
+            </div>
+          </template>
+        </div>
+      </section>
+    </div>
+
     <!-- Room for the bar below, which is fixed and would otherwise sit on
          top of the last card. -->
     <div class="h-24 lg:hidden" aria-hidden="true"></div>
@@ -1350,6 +1689,40 @@
       Browse trails
     </StxLink>
   </div>
+<!--
+  All of a trail's photos, full screen: a masonry grid under a bar that says
+  whose they are. Picking one closes the grid on that photo. A page overlay,
+  like the sheets below, so it stacks over the site header.
+-->
+<div
+  :if="galleryOpen() && trail"
+  data-page-overlay
+  :data-open="galleryOpen() ? 'true' : 'false'"
+  class="fixed inset-0 z-[90] overflow-y-auto bg-white dark:bg-slate-950"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="trail-gallery-title"
+>
+  <div class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+    <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+      <button type="button" @click="closeGallery()" aria-label="Close photos" class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-95 dark:text-slate-200 dark:hover:bg-slate-800">
+        <i class="i-lucide-x h-5 w-5" aria-hidden="true"></i>
+      </button>
+      <div class="min-w-0">
+        <h2 id="trail-gallery-title" class="truncate font-display text-lg font-bold text-slate-900 dark:text-white">{{ 'Photos of ' + trail.name }}</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">{{ photoCountLabel() }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="mx-auto max-w-6xl columns-2 gap-2 px-4 py-4 sm:columns-3 sm:px-6 lg:columns-4 lg:px-8">
+    <template :for="(photo, index) in gallery()">
+      <button type="button" @click="pickGalleryPhoto(index)" class="group mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl bg-slate-100 text-left dark:bg-slate-800">
+        <Image x-src="photo.url" x-alt="photo.illustrative ? 'Illustrative landscape' : photo.scope === 'area' ? 'Photo of ' + photo.place + ' area' : 'Photo of ' + trail.name" width="480" height="360" sizes="(max-width: 640px) 50vw, 25vw" placeholder="blur" loading="lazy" class="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        <span :if="photo.credit || photo.illustrative" class="block px-2.5 py-1.5 text-[11px] text-slate-500 dark:text-slate-400">{{ photo.credit ? 'Photo by ' + photo.credit : 'Illustrative photo' }}</span>
+      </button>
+    </template>
+  </div>
+</div>
 <!--
   Leave a review. A bottom sheet on a phone, a centred dialog on a wider
   screen. Visibility is a class rather than :if so the half-written review,
@@ -1542,6 +1915,49 @@
   </div>
 </div>
 <style>
+  /* The map tile beside the photos: a quiet contour ground with the route on
+     it, pointing down to the live map. */
+  .trail-map-tile {
+    background-color: #e8efe9;
+    background-image:
+      repeating-radial-gradient(ellipse 140% 100% at 70% 30%, transparent 0 14px, rgb(15 70 45 / 0.07) 14px 15px),
+      repeating-radial-gradient(ellipse 90% 70% at 20% 80%, transparent 0 22px, rgb(15 70 45 / 0.05) 22px 23px);
+  }
+
+  .dark .trail-map-tile {
+    background-color: #111c18;
+    background-image:
+      repeating-radial-gradient(ellipse 140% 100% at 70% 30%, transparent 0 14px, rgb(167 243 208 / 0.06) 14px 15px),
+      repeating-radial-gradient(ellipse 90% 70% at 20% 80%, transparent 0 22px, rgb(167 243 208 / 0.04) 22px 23px);
+  }
+
+  .trail-map-casing { fill: none; stroke: #fff; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+  .trail-map-line { fill: none; stroke: #059669; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+  .dark .trail-map-casing { stroke: #0b1411; }
+  .dark .trail-map-line { stroke: #34d399; }
+
+  /* A nearby trail with no photo: the same contour ground the catalog uses. */
+  .trail-topo-tile {
+    --topo-x: 78%;
+    --topo-y: 28%;
+
+    background-color: #eef3ef;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px);
+  }
+
+  .trail-topo-1 { --topo-x: 22%; --topo-y: 30%; }
+  .trail-topo-2 { --topo-x: 60%; --topo-y: 85%; }
+  .trail-topo-3 { --topo-x: 95%; --topo-y: 65%; }
+
+  .dark .trail-topo-tile {
+    background-color: #0f1a16;
+    background-image:
+      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
+      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px);
+  }
+
   /* Contour lines over the hero gradient when there is no photo to show. */
   .trail-hero-topo {
     background-image:

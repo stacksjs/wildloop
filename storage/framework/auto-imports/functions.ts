@@ -80,6 +80,8 @@ export { normalizeTagKey, readTags, featureFromTag, trailFeatures, trailHighligh
 export type { TrailFeature, TrailNotice, FeatureTrail } from '../../../resources/functions/trail-features'
 export { routePartsFromSegments, lineLengthMeters, encodeRouteParts, decodeRouteParts, primaryRoutePart, ROUTE_SNAP_METERS } from '../../../resources/functions/trail-geometry'
 export type { RoutePair, RouteNetwork } from '../../../resources/functions/trail-geometry'
+export { countryLabel, trailBreadcrumbs, trailFaq, exploreNearLinks, ratingSummary, forecastDayLabel, forecastBar } from '../../../resources/functions/trail-page'
+export type { PageTrail, Crumb, FaqEntry, LinkGroup, RatingSummary } from '../../../resources/functions/trail-page'
 export { parsePhotoList, trailGallery } from '../../../resources/functions/trail-photos'
 export type { GalleryPhoto, GalleryTrail, GalleryReview, GalleryContribution } from '../../../resources/functions/trail-photos'
 export { formatTrailTime, parseTrailTime, displayTrailTime } from '../../../resources/functions/trail-time'

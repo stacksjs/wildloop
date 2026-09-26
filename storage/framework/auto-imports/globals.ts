@@ -205,6 +205,13 @@ declare global {
   const decodeRouteParts: typeof autoImports.decodeRouteParts
   const primaryRoutePart: typeof autoImports.primaryRoutePart
   const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
+  const countryLabel: typeof autoImports.countryLabel
+  const trailBreadcrumbs: typeof autoImports.trailBreadcrumbs
+  const trailFaq: typeof autoImports.trailFaq
+  const exploreNearLinks: typeof autoImports.exploreNearLinks
+  const ratingSummary: typeof autoImports.ratingSummary
+  const forecastDayLabel: typeof autoImports.forecastDayLabel
+  const forecastBar: typeof autoImports.forecastBar
   const parsePhotoList: typeof autoImports.parsePhotoList
   const trailGallery: typeof autoImports.trailGallery
   const formatTrailTime: typeof autoImports.formatTrailTime

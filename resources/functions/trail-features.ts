@@ -235,7 +235,7 @@ export function trailNotices(trail: FeatureTrail, options: { hasRoute?: boolean 
       tone: 'warn',
       title: 'Route line unavailable',
       detail: 'We hold the trailhead for this trail but not its line. Carry your own map.',
-      icon: 'i-lucide-map-off',
+      icon: 'i-lucide-route-off',
     })
   }
 

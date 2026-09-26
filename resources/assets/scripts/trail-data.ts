@@ -35,6 +35,10 @@ export interface UiTrail {
   conditions: string
   /** Two-letter USPS code, from the national ingest. Empty for older rows. */
   state: string
+  /** The region's name ("California"), for breadcrumbs and headings. */
+  stateName: string
+  /** ISO country code; region codes are only unique within one. */
+  country: string
   /** Park, forest or district that administers the trail. */
   managedBy: string
   routeType: 'loop' | 'out-and-back' | 'point-to-point' | 'network' | ''
@@ -135,6 +139,8 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     tags,
     conditions: String(row.conditions ?? ''),
     state: String(row.state ?? ''),
+    stateName: String(row.stateName ?? row.state_name ?? ''),
+    country: String(row.country ?? ''),
     managedBy: String(row.managedBy ?? row.managed_by ?? ''),
     routeType: normalizeRouteType(row.routeType ?? row.route_type),
     surface: String(row.surface ?? ''),
