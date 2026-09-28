@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   elevationLine,
   elevationOutcome,
+  elevationRecord,
   elevationRequest,
   MAX_PLAUSIBLE_GAIN_FT,
   MIN_ELEVATION_POINTS,
@@ -90,5 +91,30 @@ describe('elevationOutcome', () => {
 
   it('still accepts the biggest gain a real thru-hike could have', () => {
     expect(elevationOutcome(MAX_PLAUSIBLE_GAIN_FT).status).toBe('ok')
+  })
+})
+
+describe('elevationRecord', () => {
+  it('writes a gain there is one to write', () => {
+    expect(elevationRecord({ status: 'ok', gainFt: 412 })).toEqual({ gainFt: 412, answered: true })
+  })
+
+  /*
+   * The backfill used to select on `elevation`, so a trail measured at no gain
+   * looked identical to one nobody had measured: it was read, sent to a
+   * routing server, discarded, and read again on the next run. A third of the
+   * catalog is like that — 50 of a 150-trail production sample, every one
+   * under half a mile — so the job could never finish.
+   */
+  it('answers a flat trail without writing a gain, so it is not asked again', () => {
+    expect(elevationRecord({ status: 'ok', gainFt: 0 })).toEqual({ gainFt: null, answered: true })
+  })
+
+  it.each([
+    ['a line too coarse to measure', { status: 'unmeasurable', reason: 'too-few-points' }],
+    ['no geometry at all', { status: 'unmeasurable', reason: 'no-geometry' }],
+    ['a reading too large to be a trail', { status: 'rejected', reason: 'implausible', gainFt: 90_000 }],
+  ] as const)('settles %s rather than leaving it to be retried forever', (_name, outcome) => {
+    expect(elevationRecord(outcome)).toEqual({ gainFt: null, answered: true })
   })
 })

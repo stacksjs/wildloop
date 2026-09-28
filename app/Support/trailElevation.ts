@@ -84,3 +84,25 @@ export function elevationOutcome(gainFt: number | null | undefined): ElevationOu
     return { status: 'rejected', reason: 'implausible', gainFt: rounded }
   return { status: 'ok', gainFt: rounded }
 }
+
+/**
+ * What a measurement leaves behind: a gain to write, and whether the question
+ * is settled.
+ *
+ * These come apart, and keeping them together is what stopped the backfill
+ * finishing. `gainFt` is null far more often than not — a flat trail, a line
+ * too coarse to measure, a reading too large to be true — while `answered` is
+ * true for all three, because none of them will read differently tomorrow.
+ * Only a routing server that could not be reached leaves the row open, which
+ * is why that case never reaches this function.
+ *
+ * A gain of zero is an answer with nothing to write. `elevation` treats 0 as
+ * "not recorded", so storing it would claim a measurement the page then
+ * denies; storing nothing and marking the row answered says the true thing,
+ * that the trail is flat and we know it.
+ */
+export function elevationRecord(outcome: ElevationOutcome): { gainFt: number | null, answered: boolean } {
+  if (outcome.status === 'ok' && outcome.gainFt > 0)
+    return { gainFt: outcome.gainFt, answered: true }
+  return { gainFt: null, answered: true }
+}
