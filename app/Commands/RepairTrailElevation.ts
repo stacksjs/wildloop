@@ -7,6 +7,7 @@ import { climbAlong } from '../Support/routing'
 import { elevationOutcome, elevationRecord, elevationRequest } from '../Support/trailElevation'
 
 interface RepairOptions {
+  allowPublicRouting?: boolean
   batch?: number | string
   limit?: number | string
   concurrency?: number | string
@@ -64,8 +65,25 @@ export default function (cli: CLI) {
     .option('--concurrency [count]', 'Elevation requests in flight', { default: DEFAULT_CONCURRENCY })
     .option('--country <code>', 'Only trails in this country (e.g. US)')
     .option('--dry-run', 'Measure and report without writing', { default: false })
+    .option('--allow-public-routing', 'Run without VALHALLA_URL, against the public server', { default: false })
     .action(async (options: RepairOptions) => {
       intro('trails:repair-elevation')
+
+      // A backfill must not land on somebody else's routing server.
+      //
+      // `valhallaServers()` falls back to the public FOSSGIS instance so that
+      // one person drawing a route outside our coverage still gets an answer.
+      // That is right for one request and wrong for hundreds of thousands: the
+      // scheduler runs this as whichever site owns the database, and only the
+      // `api` site carries VALHALLA_URL, so the difference between a polite job
+      // and an abusive one was a config key nobody would miss until the block
+      // arrived. Refuse instead, and name the key.
+      if (!process.env.VALHALLA_URL?.trim() && !options.allowPublicRouting) {
+        log.error('VALHALLA_URL is not set, so every measurement would go to the public routing server.')
+        log.info('Set it to our own Valhalla, or pass --allow-public-routing for a small run you are supervising.')
+        process.exitCode = ExitCode.FatalError
+        return
+      }
 
       const batchSize = Math.max(1, Number(options.batch ?? DEFAULT_BATCH) || DEFAULT_BATCH)
       const limit = Math.max(0, Number(options.limit ?? 0) || 0)

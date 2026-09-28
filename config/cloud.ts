@@ -240,6 +240,14 @@ export const tsCloud: TsCloudConfig = {
         // See the note on the api site below — both processes must open the
         // SAME file or they disagree about who exists.
         DB_DATABASE_PATH: SHARED_DATABASE,
+        // Our own Valhalla, as on the api site. The deploy attaches the
+        // scheduler to whichever site owns the database, and
+        // `trails:repair-elevation` measures hundreds of thousands of trails
+        // through it — against the public fallback that is abuse, so the
+        // command refuses to start without this key. Set on every site that
+        // opens the shared database, because which one hosts the scheduler is
+        // not ours to pick.
+        VALHALLA_URL: 'http://91.99.124.84:8002',
       },
     },
 
@@ -343,6 +351,14 @@ export const tsCloud: TsCloudConfig = {
         // The same file the site and the API open. An ingest writing to its
         // own copy would build a catalog nobody could read.
         DB_DATABASE_PATH: SHARED_DATABASE,
+        // Our own Valhalla, as on the api site. The deploy attaches the
+        // scheduler to whichever site owns the database, and
+        // `trails:repair-elevation` measures hundreds of thousands of trails
+        // through it — against the public fallback that is abuse, so the
+        // command refuses to start without this key. Set on every site that
+        // opens the shared database, because which one hosts the scheduler is
+        // not ours to pick.
+        VALHALLA_URL: 'http://91.99.124.84:8002',
       },
     },
 
