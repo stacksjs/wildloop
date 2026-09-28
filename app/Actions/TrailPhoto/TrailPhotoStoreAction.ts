@@ -10,7 +10,7 @@ import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
 import { photoKeys, photoStorage, PhotoStorageNotConfiguredError } from '../../Support/photoStorage'
 import { toTrailPhotoPayload } from '../../Support/trailPhotoPayload'
-import { PhotoRejectedError, processTrailPhoto } from '../../Support/trailPhotoProcessing'
+import { PhotoRejectedError, processPhoto } from '../../Support/trailPhotoProcessing'
 
 /** Enough for a real day on a trail, not enough to use a trail as file hosting. */
 const MAX_PHOTOS_PER_USER_PER_TRAIL = 30
@@ -58,7 +58,7 @@ export default new Action({
     let processed
     try {
       const bytes = file.bytes ? await file.bytes() : new Uint8Array(await file.arrayBuffer!())
-      processed = await processTrailPhoto(bytes)
+      processed = await processPhoto(bytes)
     }
     catch (error) {
       if (error instanceof PhotoRejectedError)

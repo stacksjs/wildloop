@@ -6,7 +6,7 @@ import {
   PHOTO_LIMITS,
   photoProcessingPeak,
   PhotoRejectedError,
-  processTrailPhoto,
+  processPhoto,
 } from '../../app/Support/trailPhotoProcessing'
 
 /** A solid-color test image, encoded for real. */
@@ -110,13 +110,13 @@ describe('inspectUpload', () => {
   })
 })
 
-describe('processTrailPhoto', () => {
+describe('processPhoto', () => {
   it('stores the photo upright and without its EXIF, GPS position included', async () => {
     // 40 wide by 20 tall, tagged to be displayed rotated 90 degrees.
     const upload = withExif(await makeImage(40, 20), 6)
     expect(hasExif(upload)).toBe(true)
 
-    const result = await processTrailPhoto(upload)
+    const result = await processPhoto(upload)
 
     expect({ width: result.width, height: result.height }).toEqual({ width: 20, height: 40 })
     expect(hasExif(result.display)).toBe(false)
@@ -125,7 +125,7 @@ describe('processTrailPhoto', () => {
   })
 
   it('shrinks a large photo to the display and thumbnail sizes', async () => {
-    const result = await processTrailPhoto(await makeImage(3000, 1000))
+    const result = await processPhoto(await makeImage(3000, 1000))
 
     expect({ width: result.width, height: result.height }).toEqual({ width: 2048, height: 683 })
     const thumb = await decode(result.thumb)
@@ -133,7 +133,7 @@ describe('processTrailPhoto', () => {
   })
 
   it('converts a PNG to JPEG', async () => {
-    const result = await processTrailPhoto(await makeImage(30, 30, 'png'))
+    const result = await processPhoto(await makeImage(30, 30, 'png'))
     expect(await getMetadata(result.display)).toMatchObject({ format: 'jpeg' })
   })
 
@@ -143,13 +143,13 @@ describe('processTrailPhoto', () => {
     // prevents is two decoded images being alive together, which happens
     // whenever a second upload starts while the first is between steps.
     const uploads = await Promise.all([makeImage(1200, 800), makeImage(600, 400), makeImage(20, 20)])
-    await Promise.all(uploads.map(upload => processTrailPhoto(upload)))
+    await Promise.all(uploads.map(upload => processPhoto(upload)))
     expect(photoProcessingPeak()).toBe(1)
   })
 
   it('keeps working after a rejected upload', async () => {
-    await expect(processTrailPhoto(new Uint8Array(0))).rejects.toBeInstanceOf(PhotoRejectedError)
-    const result = await processTrailPhoto(await makeImage(10, 10))
+    await expect(processPhoto(new Uint8Array(0))).rejects.toBeInstanceOf(PhotoRejectedError)
+    const result = await processPhoto(await makeImage(10, 10))
     expect(result.width).toBe(10)
   })
 })

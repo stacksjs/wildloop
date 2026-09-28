@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  activityPhotoKeys,
   createPhotoStorage,
   isPhotoKey,
   photoKeys,
@@ -27,13 +28,39 @@ describe('photo keys', () => {
     expect(() => photoKeys(12, uuid.toUpperCase())).toThrow()
   })
 
+  it('names a display image and a thumbnail under the activity', () => {
+    expect(activityPhotoKeys(7, uuid)).toEqual({
+      display: `activities/7/${uuid}.jpg`,
+      thumb: `activities/7/${uuid}-thumb.jpg`,
+    })
+  })
+
+  it('refuses ids that could escape the activity folder', () => {
+    expect(() => activityPhotoKeys(0, uuid)).toThrow()
+    expect(() => activityPhotoKeys(-1, uuid)).toThrow()
+    expect(() => activityPhotoKeys(7, '../../etc/passwd')).toThrow()
+    expect(() => activityPhotoKeys(7, uuid.toUpperCase())).toThrow()
+  })
+
+  it('keeps a trail photo and an activity photo in different folders', () => {
+    // Same uuid, same number: nothing about one owner's photo can name the
+    // other's file, so a mixed-up id cannot serve somebody else's picture.
+    expect(photoKeys(7, uuid).display).not.toBe(activityPhotoKeys(7, uuid).display)
+  })
+
   it('recognizes only keys this app writes, so the photo route serves nothing else', () => {
     expect(isPhotoKey(`trails/12/${uuid}.jpg`)).toBe(true)
     expect(isPhotoKey(`trails/12/${uuid}-thumb.jpg`)).toBe(true)
+    expect(isPhotoKey(`activities/7/${uuid}.jpg`)).toBe(true)
+    expect(isPhotoKey(`activities/7/${uuid}-thumb.jpg`)).toBe(true)
     expect(isPhotoKey(`trails/12/../../${uuid}.jpg`)).toBe(false)
+    expect(isPhotoKey(`activities/7/../../${uuid}.jpg`)).toBe(false)
     expect(isPhotoKey(`/trails/12/${uuid}.jpg`)).toBe(false)
     expect(isPhotoKey(`trails/12/${uuid}.jpg.html`)).toBe(false)
     expect(isPhotoKey(`trails/12/${uuid}.png`)).toBe(false)
+    // Neither a third owner nor a bare uuid is a key, however plausible.
+    expect(isPhotoKey(`users/7/${uuid}.jpg`)).toBe(false)
+    expect(isPhotoKey(`activities/${uuid}.jpg`)).toBe(false)
     expect(isPhotoKey('.env')).toBe(false)
   })
 })

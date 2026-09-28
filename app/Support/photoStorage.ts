@@ -24,7 +24,13 @@ import { createLocalStorage, createS3Storage } from '@stacksjs/storage'
 type Env = Record<string, string | undefined>
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-const PHOTO_KEY = new RegExp(`^trails/[1-9][0-9]{0,9}/${UUID}(-thumb)?\\.jpg$`)
+/**
+ * The two shapes of key this app writes, and the only two the photo routes
+ * will serve. Kept as one expression rather than one per owner: what makes
+ * this safe is that it is exhaustive, and a second regex somewhere else is a
+ * second thing to remember to widen.
+ */
+const PHOTO_KEY = new RegExp(`^(?:trails|activities)/[1-9][0-9]{0,9}/${UUID}(-thumb)?\\.jpg$`)
 
 export class PhotoStorageNotConfiguredError extends Error {
   constructor(missing: string[]) {
@@ -33,11 +39,20 @@ export class PhotoStorageNotConfiguredError extends Error {
   }
 }
 
-/** The storage keys for one photo's display image and thumbnail. */
+/** The storage keys for one trail photo's display image and thumbnail. */
 export function photoKeys(trailId: number, uuid: string): { display: string, thumb: string } {
-  const base = `trails/${trailId}/${uuid}`
+  return keysFor('trails', trailId, uuid)
+}
+
+/** The same, for a photo that belongs to an activity rather than a trail. */
+export function activityPhotoKeys(activityId: number, uuid: string): { display: string, thumb: string } {
+  return keysFor('activities', activityId, uuid)
+}
+
+function keysFor(owner: 'trails' | 'activities', ownerId: number, uuid: string): { display: string, thumb: string } {
+  const base = `${owner}/${ownerId}/${uuid}`
   if (!isPhotoKey(`${base}.jpg`))
-    throw new Error('A photo key needs a positive trail id and a lowercase UUID.')
+    throw new Error('A photo key needs a positive owner id and a lowercase UUID.')
   return { display: `${base}.jpg`, thumb: `${base}-thumb.jpg` }
 }
 

@@ -139,6 +139,6 @@ export function queuePhotoWork<T>(work: () => Promise<T>): Promise<T> {
 }
 
 /** Process one upload. Calls made together run one after another. */
-export function processTrailPhoto(bytes: Uint8Array): Promise<ProcessedPhoto> {
+export function processPhoto(bytes: Uint8Array): Promise<ProcessedPhoto> {
   return queuePhotoWork(() => processOne(bytes))
 }
