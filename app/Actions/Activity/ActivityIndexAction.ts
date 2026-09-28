@@ -8,7 +8,9 @@
 // The ORM is snake_case; the response is camelCase for the frontend.
 
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
 
+import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { avatarOf } from '../../Support/avatars'
@@ -158,6 +160,35 @@ export default new Action({
       // links or an actionable "Unknown" account into the social feed.
       const ownedRows = rows.filter((activity: any) => userName.has(activity.user_id))
 
+      /*
+       * Photos, batched like the owners and trails above.
+       *
+       * A feed card shows the first one and a count, not the set, so this asks
+       * for what a card needs rather than every photo of every run on the
+       * page: the earliest visible photo per activity, and how many there are.
+       * One query for the page, not one per post.
+       */
+      // Coerced and filtered before they reach the statement below, which
+      // interpolates them: `IN` cannot take a bound array here, so the only
+      // thing making this safe is that nothing but a positive integer survives.
+      const photoIds = ownedRows
+        .map((a: any) => Number(a.id))
+        .filter((id: number) => Number.isInteger(id) && id > 0)
+      const photoRows = photoIds.length
+        ? await db.sql`
+            SELECT activity_id, uuid, user_id, width, height, position, created_at,
+                   ROW_NUMBER() OVER (PARTITION BY activity_id ORDER BY position ASC, id ASC) AS rank,
+                   COUNT(*) OVER (PARTITION BY activity_id) AS total
+            FROM activity_photos
+            WHERE status = 'visible' AND activity_id IN (${photoIds.join(',')})
+          `.execute().catch(() => []) as any[]
+        : []
+      const firstPhoto = new Map<number, any>()
+      for (const row of photoRows ?? []) {
+        if (Number(row.rank) === 1)
+          firstPhoto.set(Number(row.activity_id), row)
+      }
+
       const activities = ownedRows.map((a: any) => {
         const tName = a.trail_id ? (trailName.get(a.trail_id) ?? null) : null
         return {
@@ -184,6 +215,10 @@ export default new Action({
           visibility: a.visibility ?? 'public',
           completedAt: a.completed_at,
           createdAt: a.created_at,
+          photo: firstPhoto.has(a.id)
+            ? toActivityPhotoPayload(firstPhoto.get(a.id), viewerId === null ? null : Number(viewerId))
+            : null,
+          photoCount: Number(firstPhoto.get(a.id)?.total ?? 0),
         }
       })
 

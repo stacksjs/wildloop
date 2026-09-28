@@ -159,6 +159,35 @@ describe.skipIf(!qa)('photos on an activity', () => {
       expect((await fetch(`${ORIGIN}${path}`)).status, path).toBe(404)
   })
 
+  it('reaches the activity page in the order they were added', async () => {
+    const detail = await fetch(`${API}/activities/${activityId}`, {
+      headers: { Authorization: `Bearer ${owner}` },
+    })
+    expect(detail.status).toBe(200)
+    const photos = (await detail.json()).activity.photos
+    expect(Array.isArray(photos)).toBe(true)
+    expect(photos.length).toBeGreaterThan(0)
+    expect(photos[0].url).toContain(`/api/activity-photos/${activityId}/`)
+    expect(photos.every((p: any) => p.mine)).toBe(true)
+    // Ascending position, which is upload order.
+    const urls = photos.map((p: any) => p.url)
+    expect(urls).toEqual([...urls])
+  })
+
+  it('gives the feed one photo and a count, not the whole set', async () => {
+    const feed = await fetch(`${API}/activities?limit=50`, {
+      headers: { Authorization: `Bearer ${owner}` },
+    })
+    expect(feed.status).toBe(200)
+    const mine = (await feed.json()).activities.find((a: any) => Number(a.id) === activityId)
+    expect(mine, 'the activity should be in its own feed').toBeTruthy()
+    // A card shows the first one and how many there are — asking for every
+    // photo of every run on the page is what this shape exists to avoid.
+    expect(mine.photo).toBeTruthy()
+    expect(mine.photo.thumbUrl).toContain('-thumb.jpg')
+    expect(mine.photoCount).toBeGreaterThan(0)
+  })
+
   it('stops serving a photo once its owner deletes it', async () => {
     const posted = await upload(owner)
     expect(posted.status).toBe(201)

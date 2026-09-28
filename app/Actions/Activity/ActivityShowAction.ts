@@ -6,8 +6,10 @@
 // Returns a single activity with its parsed GPS route (for the activity detail
 // page / map). The ORM is snake_case; the response is mapped to camelCase.
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
 
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { avatarOf } from '../../Support/avatars'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
@@ -75,6 +77,16 @@ export default new Action({
         createdAt: c.created_at,
       }))
 
+      // In upload order, which is the order the athlete put them in. Only
+      // visible ones: a hidden photo is hidden from its own page too.
+      const photoRows = await db.sql`
+        SELECT uuid, activity_id, user_id, width, height, position, created_at
+        FROM activity_photos
+        WHERE activity_id = ${id} AND status = 'visible'
+        ORDER BY position ASC, id ASC
+      `.execute() as any[]
+      const photos = (photoRows ?? []).map(row => toActivityPhotoPayload(row, viewerId === null ? null : Number(viewerId)))
+
       return response.json({
         success: true,
         activity: {
@@ -98,6 +110,7 @@ export default new Action({
           createdAt: a.created_at,
           route,
           comments,
+          photos,
         },
       })
     }
