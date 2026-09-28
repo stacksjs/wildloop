@@ -29,9 +29,16 @@ import {
   STATE_COOKIE,
 } from '../../Support/socialRequest'
 
-/** Back to the sign-in page, saying what went wrong in a way it can show. */
-function backToLogin(reason: string, cookies: string[] = []): Response {
-  const headers = new Headers({ Location: `/login?error=${encodeURIComponent(reason)}`, 'Cache-Control': 'no-store' })
+/**
+ * Back to the page this started from, saying what went wrong in a way it can
+ * show.
+ *
+ * The page matters: somebody who pressed the button on the sign-up page is
+ * told "we could not create an account", not "we could not sign you in", and
+ * each page carries its own wording for the same reason.
+ */
+function backTo(page: '/login' | '/register', reason: string, cookies: string[] = []): Response {
+  const headers = new Headers({ Location: `${page}?error=${encodeURIComponent(reason)}`, 'Cache-Control': 'no-store' })
   for (const cookie of cookies)
     headers.append('Set-Cookie', cookie)
   return new Response(null, { status: 302, headers })
@@ -43,34 +50,37 @@ export default new Action({
   method: 'GET',
 
   async handle(request: any) {
-    const google = config.auth?.social?.google
-    if (!google?.clientId || !google?.clientSecret)
-      return backToLogin('google-unavailable')
-
     const cookieHeader = request.headers?.get?.('cookie') ?? request.header?.('cookie') ?? null
     const issued = cookieValue(cookieHeader, STATE_COOKIE)
     const spent = clearCookieHeader(STATE_COOKIE)
+    const [issuedValue, issuedAt, issuedFrom] = (issued ?? '').split('|')
+    // Read before anything can fail, because every failure below has to know
+    // which page to return to. Only ever one of two, whatever the cookie says.
+    const back: '/login' | '/register' = issuedFrom === 'register' ? '/register' : '/login'
+
+    const google = config.auth?.social?.google
+    if (!google?.clientId || !google?.clientSecret)
+      return backTo(back, 'google-unavailable', [spent])
 
     // Google reports a refusal here rather than by not arriving: somebody who
     // pressed Cancel comes back with `error=access_denied` and no code.
     if (request.get('error'))
-      return backToLogin('google-cancelled', [spent])
+      return backTo(back, 'google-cancelled', [spent])
 
     const returnedState = String(request.get('state') ?? '')
     const code = String(request.get('code') ?? '')
     if (!code)
-      return backToLogin('google-failed', [spent])
+      return backTo(back, 'google-failed', [spent])
 
     // The cookie carries when it was issued, so an abandoned sign-in stops
     // being usable on its own rather than only when the browser drops it.
-    const [issuedValue, issuedAt] = (issued ?? '').split('|')
     const acceptable = stateIsAcceptable(
       issuedValue ? { value: issuedValue, createdAt: Number(issuedAt) || 0 } : null,
       returnedState,
       Date.now(),
     )
     if (!acceptable)
-      return backToLogin('google-expired', [spent])
+      return backTo(back, 'google-expired', [spent])
 
     let claims: Record<string, unknown>
     try {
@@ -87,7 +97,7 @@ export default new Action({
       })
       if (!exchanged.ok) {
         console.error('[auth] google token exchange failed', exchanged.status, await exchanged.text().catch(() => ''))
-        return backToLogin('google-failed', [spent])
+        return backTo(back, 'google-failed', [spent])
       }
       const body = await exchanged.json() as { id_token?: string }
       const payload = String(body.id_token ?? '').split('.')[1] ?? ''
@@ -95,12 +105,12 @@ export default new Action({
     }
     catch (error) {
       console.error('[auth] google token exchange threw', error)
-      return backToLogin('google-failed', [spent])
+      return backTo(back, 'google-failed', [spent])
     }
 
     const profile = profileFromClaims(claims)
     if (!profile)
-      return backToLogin('google-failed', [spent])
+      return backTo(back, 'google-failed', [spent])
 
     const identity = (await db.sql`
       SELECT user_id FROM user_identities WHERE provider = 'google' AND provider_user_id = ${profile.sub}
@@ -115,7 +125,7 @@ export default new Action({
       existing ? { id: Number(existing.id), email: String(existing.email) } : null,
     )
     if (decision.action === 'refuse')
-      return backToLogin(decision.reason === 'unverified-email' ? 'google-unverified' : 'google-failed', [spent])
+      return backTo(back, decision.reason === 'unverified-email' ? 'google-unverified' : 'google-failed', [spent])
 
     let userId = 0
     const now = new Date().toISOString()
@@ -145,7 +155,7 @@ export default new Action({
     }
 
     if (!userId)
-      return backToLogin('google-failed', [spent])
+      return backTo(back, 'google-failed', [spent])
 
     // Remembered on purpose: somebody who signs in with a provider did not
     // choose a session length, and the provider is the thing they will use
@@ -159,7 +169,7 @@ export default new Action({
       return null
     })
     if (!session?.token)
-      return backToLogin('google-failed', [spent])
+      return backTo(back, 'google-failed', [spent])
 
     // Written after the session, so a failure above leaves no identity row
     // claiming a Google account that never signed in.
@@ -170,7 +180,7 @@ export default new Action({
       `.execute().catch((error: unknown) => console.error('[auth] could not record the google identity', error))
     }
 
-    const headers = new Headers({ Location: '/login?google=1', 'Cache-Control': 'no-store' })
+    const headers = new Headers({ Location: `${back}?google=1`, 'Cache-Control': 'no-store' })
     headers.append('Set-Cookie', spent)
     headers.append('Set-Cookie', handoffCookieHeader(HANDOFF_COOKIE, session.token))
     return new Response(null, { status: 302, headers })

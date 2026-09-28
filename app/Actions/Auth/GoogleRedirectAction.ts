@@ -26,6 +26,7 @@ export default new Action({
     // 32 bytes of randomness, hex. Long enough that guessing is not a strategy,
     // and `stateIsAcceptable` refuses anything shorter than 16 characters.
     const state = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
+    const origin = String(request.get('from') ?? '') === 'register' ? 'register' : 'login'
 
     return new Response(null, {
       status: 302,
@@ -37,8 +38,14 @@ export default new Action({
         }),
         // The issue time rides along, so the callback can refuse an
         // abandoned sign-in itself rather than trusting the browser to have
-        // dropped the cookie on time.
-        'Set-Cookie': stateCookieHeader(STATE_COOKIE, `${state}|${Date.now()}`),
+        // dropped the cookie on time. So does the page this started from, so
+        // somebody who pressed the button on the sign-up page comes back to
+        // the sign-up page rather than watching the sign-in page flash past.
+        //
+        // Matched against a fixed set rather than echoed: this value decides
+        // where the browser is sent afterwards, and anything it can be talked
+        // into holding is an open redirect.
+        'Set-Cookie': stateCookieHeader(STATE_COOKIE, `${state}|${Date.now()}|${origin}`),
         // Nothing about this response is reusable: it carries a one-shot
         // ticket, and a cached copy would send the next person to Google with
         // a state their browser has no cookie for.
