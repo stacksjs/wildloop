@@ -71,6 +71,24 @@ export default {
    * when it expires. Nothing in Wildloop exchanges a refresh token yet, and
    * issuing one nobody redeems only widens what a stolen response is worth.
    */
+  /**
+   * Signing in with a provider instead of a password (#970).
+   *
+   * Absent credentials disable the feature rather than half-enable it: the
+   * buttons stay hidden and the routes refuse, because a sign-in that opens
+   * Google and comes back to an error is worse than one that was never
+   * offered. `configured` is what the pages read.
+   */
+  social: {
+    google: {
+      clientId: envVars.GOOGLE_CLIENT_ID || '',
+      clientSecret: envVars.GOOGLE_CLIENT_SECRET || '',
+      get configured(): boolean {
+        return Boolean(this.clientId && this.clientSecret)
+      },
+    },
+  },
+
   browserSession: {
     baselineLifetime: Number(envVars.AUTH_SESSION_LIFETIME) || 12 * 60 * 60 * 1000,
     rememberedLifetime: Number(envVars.AUTH_TOKEN_EXPIRY) || 30 * 24 * 60 * 60 * 1000,

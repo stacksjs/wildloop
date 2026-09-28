@@ -452,6 +452,20 @@ route.get('/trail-photos/{trailId}/{file}', 'Actions/TrailPhoto/TrailPhotoFileAc
 route.get('/activity-photos/{activityId}/{file}', 'Actions/Activity/ActivityPhotoFileAction')
 // Profile photos, served the same way: only a user's current photo answers.
 route.get('/avatars/{userId}/{file}', 'Actions/Profile/AvatarFileAction')
+/*
+ * Signing in with Google (#970). Public by necessity — somebody using these
+ * has no session yet — and outside the CSRF-guarded block because the callback
+ * is a navigation Google performs, not a form this app submits.
+ *
+ * The state cookie is what makes that safe: a callback carrying a state this
+ * server did not issue in the last ten minutes is refused before anything is
+ * exchanged, which is the same property a CSRF token gives a form.
+ */
+route.get('/auth/google/redirect', 'Actions/Auth/GoogleRedirectAction')
+route.get('/auth/google/callback', 'Actions/Auth/GoogleCallbackAction')
+// Trades the one-minute hand-off cookie for the session. POST because it
+// spends the cookie, and a GET would be followed by a link prefetch.
+route.post('/auth/google/session', 'Actions/Auth/GoogleSessionAction')
 // The route's fastest-known-time board. Public and session-free: a records
 // board is a reference work, and requiring a login to read who holds a route
 // would defeat the point of publishing it.
