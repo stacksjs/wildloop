@@ -447,6 +447,9 @@ route.get('/trails/{id}/forecast', 'Actions/Trail/TrailForecastAction')
 // are served through the file route, which only answers for visible photos.
 route.get('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoIndexAction')
 route.get('/trail-photos/{trailId}/{file}', 'Actions/TrailPhoto/TrailPhotoFileAction')
+// The same, for the photos on an activity. Public because the feed is, and
+// answering only while the photo is visible, like the trail route above.
+route.get('/activity-photos/{activityId}/{file}', 'Actions/Activity/ActivityPhotoFileAction')
 // Profile photos, served the same way: only a user's current photo answers.
 route.get('/avatars/{userId}/{file}', 'Actions/Profile/AvatarFileAction')
 // The route's fastest-known-time board. Public and session-free: a records
@@ -557,6 +560,11 @@ route.group({ middleware: 'auth' }, () => {
     // Trail photos: re-encoded on upload, which strips their GPS position
     route.post('/trails/{id}/photos', 'Actions/TrailPhoto/TrailPhotoStoreAction')
     route.delete('/trail-photos/{uuid}', 'Actions/TrailPhoto/TrailPhotoDestroyAction')
+    // Activity photos, re-encoded the same way. Only the athlete whose
+    // activity it is may add one, which the action enforces rather than the
+    // route: a stranger gets the same 404 as for an activity that is not there.
+    route.post('/activities/{id}/photos', 'Actions/Activity/ActivityPhotoStoreAction')
+    route.delete('/activity-photos/{uuid}', 'Actions/Activity/ActivityPhotoDestroyAction')
     // Social graph - follow/unfollow another athlete
     route.post('/users/{id}/follow', 'Actions/Social/FollowToggleAction')
     route.put('/users/{id}/follow', 'Actions/Social/FollowToggleAction')
