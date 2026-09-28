@@ -21,6 +21,12 @@ interface ApiActivity {
   trailName: string | null
   /** The trail it was on, for the card a feed post links to it with. */
   trail?: { id: number, name: string, place: string, difficulty: string, distance: number, image: string | null } | null
+  /**
+   * The first photo on the run, and how many there are. A card shows one and
+   * a count; the gallery lives on the activity's own page.
+   */
+  photo?: { id: string, url: string, thumbUrl: string, width: number, height: number, mine: boolean } | null
+  photoCount?: number
   title: string
   activityType: string
   distance: number
@@ -97,6 +103,11 @@ export async function loadActivities(wl: ActivityStoreLike): Promise<void> {
       hasGps: a.hasGps ?? false,
       route: Array.isArray(a.route) ? a.route : [],
       trail: a.trail ?? null,
+      // The first photo and how many there are — a card shows one and a count,
+      // never the set. `photo` is null for the activities recorded before #956,
+      // which is every one of them until somebody adds a picture.
+      photo: a.photo ?? null,
+      photo_count: a.photoCount ?? 0,
       created_at: a.createdAt ?? a.completedAt ?? new Date().toISOString(),
     }))
 

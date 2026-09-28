@@ -522,6 +522,38 @@ export async function uploadTrailPhoto(trailId: number, file: Blob): Promise<{ s
   }
 }
 
+/**
+ * Upload one photo to an activity. Same shape as the trail upload above, and
+ * the same re-encode behind it — which matters more here, because the photos
+ * on a run describe where one person was on a particular afternoon.
+ *
+ * Only the athlete whose activity it is may add one; anyone else is answered
+ * with the same 404 as for an activity that does not exist.
+ */
+export async function uploadActivityPhoto(activityId: number, file: Blob): Promise<{ success: boolean, photo?: { id: string, url: string, thumbUrl: string }, error?: string }> {
+  await ensureSession()
+  // Multipart: the browser writes the boundary into Content-Type, so the JSON
+  // one authHeaders() sets must not go with it.
+  const headers = authHeaders()
+  delete headers['Content-Type']
+  const body = new FormData()
+  body.append('photo', file)
+  const res = await apiFetch(`/api/activities/${activityId}/photos`, { method: 'POST', headers, body })
+  try {
+    return await res.json()
+  }
+  catch {
+    return { success: false, error: `HTTP ${res.status}` }
+  }
+}
+
+/** Remove one photo from an activity. Its owner, or an admin. */
+export async function deleteActivityPhoto(photoId: string): Promise<boolean> {
+  await ensureSession()
+  const res = await apiFetch(`/api/activity-photos/${photoId}`, { method: 'DELETE', headers: authHeaders() })
+  return res.ok
+}
+
 /** Create or update the session user's review of a trail (#981). */
 export async function postTrailReview(trailId: number, payload: { rating: number, content: string, conditions?: string | null, title?: string | null, difficulty?: string | null, photo_ids?: string[] }): Promise<{ success: boolean, review?: any, trail?: { id: number, rating: number, reviewCount: number }, updated?: boolean, error?: string, fields?: Record<string, string> }> {
   await ensureSession()

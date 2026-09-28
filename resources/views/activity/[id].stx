@@ -10,7 +10,7 @@
   import { useActivityShare } from '../../composables/useActivityShare'
   import { useMentions } from '../../composables/useMentions'
   import { readRouteParam } from '../../composables/useRouteParam'
-  import { fetchActivityDetail, postComment, reportContent, toggleKudos } from '../../assets/scripts/game-api'
+  import { deleteActivityPhoto, fetchActivityDetail, postComment, reportContent, toggleKudos, uploadActivityPhoto } from '../../assets/scripts/game-api'
   import { downloadGpxFile } from '../../functions/activity-files'
   import { avatarInitial, avatarTint, avatarUrl } from '../../functions/avatars'
 
@@ -24,6 +24,15 @@
   // from somewhere without one (an older cached feed).
   const detailAvatar = state<string | null>(null)
   const activityRoute = state<Array<{ lat: number, lng: number }>>([])
+
+  /** What the run looked like. Empty for every activity recorded before #956. */
+  interface ActivityPhoto { id: string, url: string, thumbUrl: string, width: number, height: number, mine: boolean }
+  const photos = state<ActivityPhoto[]>([])
+  const photoError = state('')
+  const uploading = state(0)
+  /** Which photo the viewer opened, or -1 for none. */
+  const lightbox = state(-1)
+  const lightboxPhoto = derived(() => photos()[lightbox()] ?? null)
   /** Set once the map has a line on it; until then the frame shows why not. */
   const mapDrawn = state(false)
   const detailLoaded = state(false)
@@ -134,6 +143,58 @@
     openEditor, closeEditor, saveEdit, deleteRun, cancelDelete,
   } = useActivityEditor(wl)
 
+  /**
+   * Add photos to this run.
+   *
+   * One request each rather than one for the batch: an upload that is refused
+   * — too large, the wrong kind of file, the twenty-first — should not take
+   * the others down with it, and the person sees each picture appear as it
+   * lands rather than waiting on the slowest.
+   */
+  async function addPhotos(event: Event) {
+    const input = event.target as HTMLInputElement
+    const chosen = Array.from(input.files ?? [])
+    input.value = ''
+    if (!chosen.length)
+      return
+    photoError.set('')
+    uploading.set(uploading() + chosen.length)
+    for (const file of chosen) {
+      const result = await uploadActivityPhoto(activityId, file).catch(() => null)
+      uploading.set(Math.max(uploading() - 1, 0))
+      if (result?.success && result.photo)
+        photos.set([...photos(), { ...result.photo, mine: true } as ActivityPhoto])
+      else
+        photoError.set(result?.error || 'That photo could not be added.')
+    }
+  }
+
+  async function removePhoto(id: string) {
+    const kept = photos().filter(photo => photo.id !== id)
+    // Taken off the page first: the request is the slow part, and a picture
+    // that lingers after a deliberate delete reads as the delete having failed.
+    photos.set(kept)
+    if (lightbox() >= kept.length)
+      lightbox.set(-1)
+    if (!await deleteActivityPhoto(id).catch(() => false))
+      photoError.set('That photo could not be removed.')
+  }
+
+  function openLightbox(index: number) {
+    lightbox.set(index)
+  }
+
+  function closeLightbox() {
+    lightbox.set(-1)
+  }
+
+  function stepLightbox(by: number) {
+    const total = photos().length
+    if (!total)
+      return
+    lightbox.set((lightbox() + by + total) % total)
+  }
+
   // Hydrate real comments from the API on load (falls back to whatever the
   // store activity already carries).
   onMount(async () => {
@@ -144,6 +205,8 @@
       detailAvatar.set(detail.userAvatar)
     if (detail && Array.isArray(detail.route))
       activityRoute.set(detail.route)
+    if (detail && Array.isArray(detail.photos))
+      photos.set(detail.photos)
     else if (activity()?.comments)
       comments.set(activity().comments)
     // The API is authoritative for GPS-lock + notes (persisted store copies
@@ -492,6 +555,58 @@
           </div>
         </template>
       </div>
+    </div>
+
+    <!-- Photos. Hidden entirely for an activity with none, unless you own it
+         and could add some: an empty frame on somebody else's run is a hole,
+         not a feature. -->
+    <section :if="photos.length > 0 || isOwner" class="mb-6">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+          {{ photos.length > 0 ? (photos.length === 1 ? '1 photo' : photos.length + ' photos') : 'Photos' }}
+        </h2>
+        <label :if="isOwner" class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition active:scale-95 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">
+          <i class="i-lucide-image-plus h-4 w-4" aria-hidden="true"></i>
+          Add photos
+          <input type="file" accept="image/*" multiple class="sr-only" @change="addPhotos($event)">
+        </label>
+      </div>
+
+      <p :if="photoError" role="alert" class="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ photoError }}</p>
+
+      <div :if="photos.length > 0" class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <div :for="photo, index in photos" class="group relative aspect-square overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+          <button type="button" @click="openLightbox(index)" x-aria-label="'Open photo ' + (index + 1) + ' of ' + photos.length" class="h-full w-full">
+            <Image x-src="photo.thumbUrl" x-alt="'Photo ' + (index + 1)" width="320" height="320" sizes="(min-width: 640px) 25vw, 33vw" loading="lazy" class="h-full w-full object-cover transition group-hover:scale-105" />
+          </button>
+          <button :if="photo.mine" type="button" @click="removePhoto(photo.id)" aria-label="Remove this photo" class="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white opacity-0 transition focus:opacity-100 group-hover:opacity-100">
+            <i class="i-lucide-trash-2 h-4 w-4" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div :if="uploading > 0" class="grid aspect-square place-items-center rounded-xl border border-dashed border-slate-300 text-slate-400 dark:border-slate-600" aria-live="polite">
+          <i class="i-lucide-loader-circle h-5 w-5 animate-spin" aria-hidden="true"></i>
+          <span class="sr-only">{{ uploading + ' photo(s) uploading' }}</span>
+        </div>
+      </div>
+
+      <p :if="photos.length === 0 && uploading === 0 && isOwner" class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-600 dark:text-slate-400">
+        Add a photo and it shows here and on your post in the feed.
+      </p>
+    </section>
+
+    <!-- The photo, full size. `x-cloak` so it cannot flash before hydration. -->
+    <div :if="lightboxPhoto()" x-cloak role="dialog" aria-modal="true" aria-label="Photo" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4">
+      <button type="button" @click="closeLightbox()" aria-label="Close" class="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white transition active:scale-95">
+        <i class="i-lucide-x h-5 w-5" aria-hidden="true"></i>
+      </button>
+      <button :if="photos.length > 1" type="button" @click="stepLightbox(-1)" aria-label="Previous photo" class="absolute left-3 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white transition active:scale-95">
+        <i class="i-lucide-chevron-left h-6 w-6" aria-hidden="true"></i>
+      </button>
+      <Image x-src="lightboxPhoto()?.url" x-alt="'Photo ' + (lightbox + 1) + ' of ' + photos.length" x-width="lightboxPhoto()?.width" x-height="lightboxPhoto()?.height" sizes="100vw" class="max-h-full max-w-full rounded-lg object-contain" />
+      <button :if="photos.length > 1" type="button" @click="stepLightbox(1)" aria-label="Next photo" class="absolute right-3 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white transition active:scale-95">
+        <i class="i-lucide-chevron-right h-6 w-6" aria-hidden="true"></i>
+      </button>
+      <p :if="photos.length > 1" class="absolute bottom-5 text-sm font-medium text-white/80">{{ (lightbox + 1) + ' of ' + photos.length }}</p>
     </div>
 
     <!-- Share image -->

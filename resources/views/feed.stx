@@ -409,6 +409,17 @@
                 </div>
               </StxLink>
 
+              <!-- What the run looked like. One photo and a count, never the
+                   set: the gallery is on the activity's own page, and this is
+                   a card in a scrolling feed. -->
+              <StxLink :if="activity.photo" x-to="'/activity/' + activity.id" class="group/photo relative mx-4 mt-3 block overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                <Image x-src="activity.photo.thumbUrl" x-alt="'Photo from ' + activity.title" width="640" height="480" sizes="(min-width: 640px) 560px, 100vw" loading="lazy" class="h-44 w-full object-cover transition group-hover/photo:scale-[1.02] sm:h-52" />
+                <span :if="activity.photo_count > 1" class="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+                  <i class="i-lucide-images h-3.5 w-3.5" aria-hidden="true"></i>
+                  {{ activity.photo_count }}
+                </span>
+              </StxLink>
+
               <!-- The trail it was on, as a card: a post is also a way to find
                    the next place to go. -->
               <StxLink :if="activity.trail" x-to="'/trail/' + activity.trail.id" class="group/trail mx-4 mt-3 flex items-center gap-3 rounded-xl border border-slate-200 p-2.5 pr-3 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40">
