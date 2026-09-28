@@ -684,6 +684,21 @@ export function signIn(email: string, password: string, remember = true): Promis
   return submit('/api/login', { email, password, remember }, 'auth:signIn', remember)
 }
 
+/**
+ * Finish a sign-in that went out to Google and came back.
+ *
+ * The callback could not put a token into storage from a redirect, and would
+ * not put one in the URL, so it left the session in a one-minute httpOnly
+ * cookie. This spends it. Everything after the request — the error phrasing,
+ * persisting the session — is the same path a password sign-in takes.
+ *
+ * Remembered, because somebody who signed in with a provider never chose a
+ * session length and the provider is what they will reach for next time.
+ */
+export function completeGoogleSignIn(): Promise<AuthResult> {
+  return submit('/api/auth/google/session', {}, 'auth:google', true)
+}
+
 export function signUp(input: { name: string, email: string, password: string }): Promise<AuthResult> {
   return submit('/api/register', input, 'auth:signUp')
 }
