@@ -407,6 +407,24 @@ export default defineModel({
       factory: faker => faker.number.int({ min: 0, max: 14000 }),
     },
 
+    /**
+     * When the elevation gain was last measured, as opposed to what it is.
+     *
+     * `elevation` treats 0 as not recorded, so a genuinely flat trail cannot
+     * say so through that column alone. This one separates "measured, and it
+     * is flat" from "nobody has looked", which is what lets
+     * `trails:repair-elevation` finish rather than re-measure a third of the
+     * catalog on every run.
+     */
+    elevationCheckedAt: {
+      order: 34,
+      fillable: true,
+      validation: {
+        rule: schema.string(),
+      },
+      factory: () => null,
+    },
+
     /** Comma-separated normalized uses: hiking, running, bike, horse, ski, atv, motorcycle. */
     allowedUses: {
       order: 30,
