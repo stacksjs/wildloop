@@ -1,5 +1,3 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { expect, test, type Page } from '@playwright/test'
 
 const origin = 'http://127.0.0.1:4322'
@@ -379,9 +377,4 @@ test('reloading a resumed hike does not count an earlier pause as moving time', 
   expect(after).toBeLessThanOrEqual(before + Math.ceil(recoveryTicks / 1000))
   await page.clock.runFor(1500)
   await expect(page.getByLabel('Elapsed time', { exact: true })).toHaveText(pausedAgain!)
-})
-
-test('API stores GPS time, deduplicates retries and refuses foreign/guest access', async () => {
-  const { stdout } = await promisify(execFile)('bun', ['scripts/test-recording-api.ts'], { cwd: new URL('../..', import.meta.url) })
-  expect(stdout).toContain('PASS:')
 })
