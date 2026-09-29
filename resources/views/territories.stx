@@ -80,7 +80,7 @@
   <!-- API failure notice - otherwise an unreachable map silently shows stale seed data -->
   <div :if="territoryError" class="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-300">
-      <Icon name="alert-triangle" size="16" class="mt-0.5 shrink-0" />
+      <Icon name="triangle-alert" size="16" class="mt-0.5 shrink-0" />
       <span>Showing saved territory data. We couldn't reach the live map. It'll refresh on your next visit.</span>
     </div>
   </div>

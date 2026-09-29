@@ -143,7 +143,7 @@
          sends them looking for a problem that is not theirs. -->
     <div :if="error && !searching" class="py-16 text-center">
       <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-rose-50 dark:bg-rose-500/10">
-        <Icon name="alert-triangle" size="26" class="text-rose-500" />
+        <Icon name="triangle-alert" size="26" class="text-rose-500" />
       </div>
       <h3 class="mb-1 text-base font-semibold text-slate-900 dark:text-white">Couldn't load athletes</h3>
       <p class="mx-auto mb-4 max-w-sm text-sm text-slate-500 dark:text-slate-400">{{ error }}</p>

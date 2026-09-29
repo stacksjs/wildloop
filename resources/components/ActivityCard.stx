@@ -79,7 +79,7 @@ const kudos = getValue(activity, 'kudosCount', getValue(activity, 'kudos', 0))
         </div>
       </div>
       <button class="text-gray-400 hover:text-gray-600">
-        <Icon name="more-horizontal" size="20" />
+        <Icon name="ellipsis" size="20" />
       </button>
     </div>
 

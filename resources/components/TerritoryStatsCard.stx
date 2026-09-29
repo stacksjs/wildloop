@@ -58,7 +58,7 @@ function formatArea(sqMeters: number): string {
     <dl class="divide-y divide-slate-100 dark:divide-slate-700/70">
       <div class="flex min-h-11 items-center justify-between">
         <dt class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <Icon name="check-circle" size="16" class="text-emerald-500" />
+          <Icon name="circle-check-big" size="16" class="text-emerald-500" />
           Territories claimed
         </dt>
         <dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ props.territoriesClaimed }}</dd>
@@ -79,7 +79,7 @@ function formatArea(sqMeters: number): string {
       </div>
       <div class="flex min-h-11 items-center justify-between">
         <dt class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-          <Icon name="x-circle" size="16" class="text-red-500" />
+          <Icon name="circle-x" size="16" class="text-red-500" />
           Territories lost
         </dt>
         <dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ props.territoriesLost }}</dd>

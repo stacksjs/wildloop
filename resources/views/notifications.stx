@@ -187,7 +187,7 @@
     <!-- Empty state -->
     <div :if="signedIn && filtered.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
-        <Icon name="check-circle" size="30" class="text-emerald-600 dark:text-emerald-400" />
+        <Icon name="circle-check-big" size="30" class="text-emerald-600 dark:text-emerald-400" />
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ filter === 'unread' ? 'All caught up' : filter === 'all' ? 'No notifications yet' : 'Nothing here' }}</h3>
       <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ filter === 'unread' ? 'You\'ve read everything.' : filter === 'all' ? 'When people give kudos, challenge you, or conquer your territory, it\'ll show up here.' : 'Try a different filter above.' }}</p>
