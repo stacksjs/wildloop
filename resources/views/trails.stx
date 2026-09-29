@@ -550,7 +550,7 @@
 
   /** The open panel's rows: the filters' own, or the country and region lists. */
   /** The order the list is in, named: what was picked, or the page's own. */
-  const currentSortId = derived(() => sortChoice() || urlSort() || (search() ? 'featured' : (placeActive() || nearMeActive()) ? 'rating' : 'longest'))
+  const currentSortId = derived(() => sortChoice() || urlSort() || (search() ? 'featured' : (placeActive() || nearMeActive()) ? 'rating' : 'featured'))
   const sortLabel = derived(() => sortOptions.find(option => option.id === currentSortId())?.label ?? 'Best match')
 
   const menuOptions = derived(() => {
@@ -715,7 +715,7 @@
         // of these is good" is the remaining question. Nationally there is no
         // such thing as near, so length is what makes the list impressive
         // rather than arbitrary.
-        sort: sortChoice() || urlSort() || (search() ? 'featured' : near ? 'rating' : 'longest'),
+        sort: sortChoice() || urlSort() || (search() ? 'featured' : near ? 'rating' : 'featured'),
         ...(near ? { lat: near.lat, lng: near.lng, radius: (placeActive() && placeOrigin()?.radius) || 25 } : {}),
         limit: 60,
       }
@@ -725,7 +725,7 @@
       // a visitor whose edge or device location is outside it on an empty
       // result: a location-only empty answer becomes a global browse instead.
       if (shouldFallbackToCatalog(query, res)) {
-        res = await queryTrails({ ...query, sort: 'longest', lat: undefined, lng: undefined, radius: undefined })
+        res = await queryTrails({ ...query, sort: 'featured', lat: undefined, lng: undefined, radius: undefined })
         near = null
         useNearMe.set(false)
         placeOrigin.set(null)

@@ -51,8 +51,7 @@ export default new Action({
       // A count over an indexed predicate is cheap, and it is the only way to
       // give the UI an honest "N trails match" without fetching all of them.
       const fetchPage = async (skipInferredCountry: boolean, radius?: number) => {
-        const rows = await applyFilters(Trail.query(), request, skipInferredCountry, radius)
-          .orderBy(...sortColumns(request))
+        const rows = await applyOrder(applyFilters(Trail.query(), request, skipInferredCountry, radius), request)
           .limit(page.limit)
           .offset(page.offset)
           .get()
@@ -299,25 +298,88 @@ function applyFilters(
 }
 
 /**
- * Default ordering is "featured": National Scenic and Recreation Trails first,
- * then the longest routes. With a catalog this size an unordered page is a
- * random sample of forest service connector spurs, which is a poor first
- * impression of a national trail database.
+ * The band a trail's length puts it in, lowest first.
+ *
+ * The catalog is imported from OpenStreetMap, where a "way" is whatever a
+ * mapper drew between two junctions — so most rows are not trails anybody
+ * would set out to walk. A representative slice of production is 57% under
+ * four tenths of a mile and has a median length of 0.32 miles.
+ *
+ * That is why the list used to open on the longest routes: it was the only
+ * ordering that kept quarter-mile path stubs off the first screen. It bought
+ * that at the cost of opening on thousand-mile thru-hikes instead, which is
+ * the opposite extreme of the same mistake.
+ *
+ * Banding asks the question directly. A day hike comes first, then things
+ * that are plausibly a walk or an expedition, then fragments and epics
+ * together at the back.
+ *
+ * A generated column, defined in migration 0000000175, rather than a CASE in
+ * the ORDER BY: ordering half a million rows by an expression cannot use an
+ * index, and the ORM query builder offers no raw ordering anyway. Nothing
+ * writes it — it is a function of distance, so imports get it for free.
  */
-function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | 'desc'] {
+const LENGTH_BAND = 'browse_band'
+
+/**
+ * How the catalog is ordered.
+ *
+ * Returned as a list because the default is a composite: no single column
+ * says "worth opening" while ratings, reviews, photos and elevation are all
+ * empty in production, so the ordering leans on the signals that do exist
+ * and keeps the ones that do not in place, ready, costing nothing.
+ *
+ * `rating` and `review_count` sit high deliberately. They order nothing today
+ * — every row is zero — and the day the catalog gains that data they take over
+ * without another change here.
+ */
+/**
+ * Apply the ordering to a query.
+ *
+ * Every column named below is a literal in this file — the sort is matched
+ * against `SORTS` before it reaches here, so nothing from the request is ever
+ * passed to `orderBy`.
+ */
+// eslint-disable-next-line pickier/no-unused-vars -- names in a type signature, not bindings
+function applyOrder<Q extends { orderBy: (column: string, direction: 'asc' | 'desc') => Q }>(
+  query: Q,
+  request: { get: (key: string) => any },
+): Q {
+  let ordered = query
+  for (const [column, direction] of sortColumns(request))
+    ordered = ordered.orderBy(column, direction)
+  return ordered
+}
+
+function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | 'desc'][] {
   const sort = readString(request, 'sort')
 
   switch (sort && SORTS.has(sort) ? sort : 'featured') {
     case 'distance':
-      return ['distance', 'asc']
+      return [['distance', 'asc']]
     case 'longest':
-      return ['distance', 'desc']
+      return [['distance', 'desc']]
     case 'rating':
-      return ['rating', 'desc']
+      // An explicit "top rated" still ranks on length once the ratings run
+      // out, rather than handing back whatever order the table happens to be
+      // in — which is what it does today, at 0% rated.
+      return [['rating', 'desc'], ['review_count', 'desc'], [LENGTH_BAND, 'asc'], ['distance', 'desc']]
     case 'name':
-      return ['name', 'asc']
+      return [['name', 'asc']]
     default:
-      return ['national_trail', 'desc']
+      return [
+        [LENGTH_BAND, 'asc'],
+        ['rating', 'desc'],
+        ['review_count', 'desc'],
+        ['national_trail', 'desc'],
+        // Within a day-hike length, the longer walk is the bigger day out.
+        // Below the band this would surface epics, which is why it comes
+        // after the banding rather than instead of it.
+        ['distance', 'desc'],
+        // Stable: two pages of the same list must not disagree about which
+        // trail is 60th, or paging repeats and skips rows.
+        ['id', 'asc'],
+      ]
   }
 }
 
