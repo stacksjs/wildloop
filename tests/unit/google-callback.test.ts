@@ -28,8 +28,22 @@ import { STATE_COOKIE, stateCookieHeader } from '../../app/Support/socialRequest
 
 /** Every statement the action ran, in order, with its interpolated values. */
 let queries: { text: string, values: unknown[] }[] = []
-/** What the recorder should answer with. */
-let rows: { identityUserId?: number | null, userByEmail?: { id: number, email: string } | null, createdId?: number | null }
+/**
+ * What the recorder should answer with.
+ *
+ * `identityOnRecheck` is the second read of `user_identities`, which only
+ * happens after a failed insert: the action re-reads to tell a unique-index
+ * clash (the row is already there) from a real failure. Undefined means "same
+ * as the first read".
+ */
+let rows: {
+  identityUserId?: number | null
+  identityOnRecheck?: number | null
+  userByEmail?: { id: number, email: string } | null
+  createdId?: number | null
+}
+/** How many times `user_identities` has been read this test. */
+let identityReads = 0
 /** Set when the session cannot be opened. */
 let sessionFails = false
 /** Set when writing the identity row fails, as a unique-index clash would. */
@@ -87,8 +101,13 @@ mock.module('@stacksjs/orm', () => ({
         async execute() {
           if (identityWriteFails && text.includes('INSERT INTO user_identities'))
             throw new Error('UNIQUE constraint failed: user_identities.provider, user_identities.provider_user_id')
-          if (text.includes('FROM user_identities'))
-            return rows.identityUserId == null ? [] : [{ user_id: rows.identityUserId }]
+          if (text.includes('FROM user_identities')) {
+            identityReads += 1
+            const answer = identityReads === 1 || rows.identityOnRecheck === undefined
+              ? rows.identityUserId
+              : rows.identityOnRecheck
+            return answer == null ? [] : [{ user_id: answer }]
+          }
           if (text.includes('FROM users'))
             return rows.userByEmail ? [rows.userByEmail] : []
           if (text.includes('INSERT INTO users'))
@@ -188,6 +207,7 @@ beforeEach(() => {
   queries = []
   exchanges = []
   rows = {}
+  identityReads = 0
   logins = []
   sessionFails = false
   identityWriteFails = false
@@ -478,21 +498,63 @@ describe('handing the session over', () => {
     expect(identityWrites()).toHaveLength(0)
   })
 
-  it('still signs somebody in when recording the identity fails', async () => {
-    /*
-     * The row is bookkeeping, and the session is already open by the time it is
-     * written. Letting a failed insert throw would hand somebody Google has
-     * vouched for an error page while a valid session sat in a cookie — and on
-     * a unique-index clash, which is the likely cause, it would happen every
-     * time they tried again.
-     */
+  /*
+   * A sign-in whose identity was not recorded is the one failure that looks
+   * exactly like success: a session is handed over and nothing is wrong until
+   * later, when the missing row means every future sign-in matches on the
+   * address instead of the Google subject — so the day somebody's Wildloop
+   * address differs from their Google one, they silently get a second, empty
+   * account rather than their own.
+   *
+   * Refusing costs the person one confusing attempt. Not refusing costs them
+   * their account later, with nothing to connect the two events.
+   */
+  it('refuses the sign-in when the identity could not be recorded', async () => {
     identityWriteFails = true
     rows.userByEmail = { id: 7, email: 'ada@example.com' }
     const result = await callback({ cookie: issuedCookie() })
 
+    expect(result.reason).toBe('google-failed')
+    expect(result.handoff).toBeNull()
+  })
+
+  /*
+   * The clash that is not a failure.
+   *
+   * A unique-index violation means the row is already there — two tabs racing,
+   * or a retry after a half-finished attempt. Re-reading tells that apart from
+   * a real failure without depending on a driver's error codes, and the right
+   * answer is to carry on: the identity is on record, which is all the insert
+   * was for.
+   */
+  it('carries on when the identity was already recorded', async () => {
+    identityWriteFails = true
+    rows.userByEmail = { id: 7, email: 'ada@example.com' }
+    rows.identityOnRecheck = 7 // the clash: this Google account is already ours
+
+    const result = await callback({ cookie: issuedCookie() })
+
     expect(result.reason).toBeNull()
     expect(result.handoff).toContain('token-for-7')
-    expect(identityWrites()).toHaveLength(1)
+  })
+
+  /*
+   * The same clash, but the row belongs to somebody else.
+   *
+   * It should be impossible — the lookup at the top found nothing — but if two
+   * accounts ever raced for one Google subject, handing over a session tied to
+   * an identity that is on record against another account is the worst of the
+   * available answers.
+   */
+  it('refuses when the Google account is already recorded against another user', async () => {
+    identityWriteFails = true
+    rows.userByEmail = { id: 7, email: 'ada@example.com' }
+    rows.identityOnRecheck = 999
+
+    const result = await callback({ cookie: issuedCookie() })
+
+    expect(result.reason).toBe('google-failed')
+    expect(result.handoff).toBeNull()
   })
 })
 
