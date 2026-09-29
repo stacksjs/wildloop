@@ -61,11 +61,33 @@
   const scope = state<'all' | 'following'>('all')
   const kudosed = state<Record<number, boolean>>({})
 
+  // Who the unfollow dialog is currently asking about, or null when it is shut.
+  // The name is kept alongside the id because the dialog names the person, and
+  // the card it came from may have scrolled out of the list by then.
+  const unfollowing = state<{ id: number, name: string } | null>(null)
+
   // Both live in useSocialActions, shared with the athlete directory, so
   // "what does Follow do" and "what happens when you are signed out" have one
   // answer rather than one per page.
+  //
+  // Following is one tap. Unfollowing asks first: the control is a small circle
+  // in a list people scroll quickly, and an accidental unfollow is silent —
+  // that athlete simply stops appearing and nothing ever says why. The cost is
+  // one extra tap on the rarer action, and none on the common one.
   function onFollow(userId: number) {
+    if (wl && wl.isFollowing(userId)) {
+      const seen = wl.activities().find((a: any) => a.user_id === userId)
+      unfollowing.set({ id: userId, name: seen?.userName || 'this athlete' })
+      return
+    }
     void followAthlete(wl, userId)
+  }
+
+  function confirmUnfollow() {
+    const target = unfollowing()
+    if (target)
+      void followAthlete(wl, target.id)
+    unfollowing.set(null)
   }
 
   function onKudos(activity: { id: number, kudos_count: number }) {
@@ -560,6 +582,30 @@
           </p>
         </div>
       </aside>
+    </div>
+  </div>
+
+  <!--
+    Unfollowing asks first.
+
+    Following again is easy; noticing weeks later that somebody quietly left
+    your feed is not. The dialog names the person, because the control that
+    opened it is an icon in a scrolling list and the tap that reached it may
+    not have been deliberate.
+
+    A sheet on a phone and a centred card from `sm` up, same as the manual
+    entry dialog below it, so the two behave alike.
+  -->
+  <div :if="unfollowing()" data-covers-tab-bar class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="unfollow-title">
+    <div @click="unfollowing.set(null)" class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-sm rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6 dark:bg-slate-900" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
+      <div aria-hidden="true" class="mx-auto -mt-2 mb-4 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+      <h2 id="unfollow-title" class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Unfollow {{ unfollowing()?.name }}?</h2>
+      <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Their runs stop appearing in your feed. You can follow them again whenever you like.</p>
+      <div class="mt-5 flex gap-3">
+        <button type="button" @click="unfollowing.set(null)" class="min-h-11 flex-1 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Cancel</button>
+        <button type="button" @click="confirmUnfollow()" class="min-h-11 flex-1 rounded-full bg-rose-600 text-sm font-semibold text-white transition hover:bg-rose-700 active:scale-[0.98]">Unfollow</button>
+      </div>
     </div>
   </div>
 
