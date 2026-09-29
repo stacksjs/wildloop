@@ -326,7 +326,7 @@
       <label for="plan-where" class="sr-only">Where are you going?</label>
       <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800">
         <i class="i-lucide-search h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
-        <input id="plan-where" type="search" autocomplete="off" placeholder="Where to? San Diego, Chamonix, Moab…" x-value="whereQuery()" @input="onWhereInput($event)" class="min-h-12 w-full min-w-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-sm dark:text-white" />
+        <input id="plan-where" type="search" autocomplete="off" placeholder="Where to? San Diego, Chamonix, Moab…" x-value="whereQuery()" @input="onWhereInput($event)" class="min-h-12 w-full min-w-0 bg-transparent text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-sm md:text-base dark:text-white" />
         <span :if="whereSearching()" class="text-xs text-slate-400">…</span>
       </div>
       <p :if="whereUnavailable() && whereQuery().length > 1" class="mt-2 text-xs text-amber-600 dark:text-amber-400">Place search is still being set up on this server. Try again in a few minutes.</p>
