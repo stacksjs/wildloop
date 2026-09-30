@@ -26,6 +26,7 @@ database/stacks_testing.sqlite
 database/stacks.sqlite
 database/gazetteer.sqlite
 database/gazetteer.sqlite.building
+database/trailbuddy.sqlite
 database/*.sqlite-wal
 database/*.sqlite-shm
 custom-cli
