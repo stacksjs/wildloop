@@ -556,7 +556,12 @@
           <dd class="font-display text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl dark:text-white">{{ activity.pace }}</dd>
         </div>
       </dl>
-      <dl class="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/60 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-900/30">
+      <!-- Two tiles, not three. The third was Avg HR, and nothing in the app
+           has ever produced a heart rate: there is no column for one, the
+           importer does not read one out of a GPX file, and the recorder sets
+           the field to null. It rendered an em dash on every activity ever
+           saved, which reads as a broken number rather than an absent feature. -->
+      <dl class="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/60 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-900/30">
         <div class="flex items-center justify-center gap-2 px-2 py-3">
           <i class="i-lucide-mountain h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
           <div class="flex min-w-0 flex-col-reverse">
@@ -569,13 +574,6 @@
           <div class="flex min-w-0 flex-col-reverse">
             <dt class="text-[11px] text-slate-500 dark:text-slate-400">Calories</dt>
             <dd class="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ orDash(activity.calories) }}</dd>
-          </div>
-        </div>
-        <div class="flex items-center justify-center gap-2 px-2 py-3">
-          <i class="i-lucide-heart-pulse h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
-          <div class="flex min-w-0 flex-col-reverse">
-            <dt class="text-[11px] text-slate-500 dark:text-slate-400">Avg HR</dt>
-            <dd class="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ orDash(activity.heartRateAvg) }}</dd>
           </div>
         </div>
       </dl>

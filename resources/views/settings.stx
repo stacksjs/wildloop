@@ -432,7 +432,11 @@
     error.set('')
     notice.set('')
     try {
-      const authorized = await health.requestAuthorization(['steps', 'distance', 'activeEnergy', 'heartRate', 'workouts'])
+      // Only what is actually used: the three read below, and workouts, which
+      // is what a finished recording is written back as. Heart rate was in this
+      // list and read nowhere - asking somebody for a health permission the app
+      // never opens is a poor trade for them and an awkward answer at review.
+      const authorized = await health.requestAuthorization(['steps', 'distance', 'activeEnergy', 'workouts'])
       if (!authorized) throw new Error(`${nativeHealthProvider()} permission was not granted`)
       const startDate = new Date().setHours(0, 0, 0, 0)
       const [steps, distance, energy] = await Promise.all([
