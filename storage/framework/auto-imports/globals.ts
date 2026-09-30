@@ -189,6 +189,10 @@ declare global {
   const MIN_RECORD_DISTANCE_MI: typeof autoImports.MIN_RECORD_DISTANCE_MI
   const MIN_RECORD_ELEVATION_FT: typeof autoImports.MIN_RECORD_ELEVATION_FT
   const groupSearchResults: typeof autoImports.groupSearchResults
+  const segmentDraft: typeof autoImports.segmentDraft
+  const cumulativeMiles: typeof autoImports.cumulativeMiles
+  const MIN_SEGMENT_MILES: typeof autoImports.MIN_SEGMENT_MILES
+  const MAX_SEGMENT_POINTS: typeof autoImports.MAX_SEGMENT_POINTS
   const distanceMetres: typeof autoImports.distanceMetres
   const matchSegment: typeof autoImports.matchSegment
   const CORRIDOR_METRES: typeof autoImports.CORRIDOR_METRES

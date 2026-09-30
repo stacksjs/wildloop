@@ -503,6 +503,22 @@ export async function fetchTrailReviewPage(trailId: number, fresh = false): Prom
   return json?.success ? { reviews: json.reviews, difficulty: json.difficulty ?? null, conditions: json.conditions ?? null } : null
 }
 
+/** Draw a segment out of part of one of your own activities (#959). */
+export async function createSegment(input: {
+  activityId: number
+  name: string
+  startIndex: number
+  endIndex: number
+}): Promise<{ success: boolean, segment?: { id: number, name: string, distance: number, elevation: number, trailId: number | null }, error?: string } | null> {
+  await ensureSession()
+  const res = await apiFetch('/api/segments', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(input),
+  })
+  return await res.json().catch(() => null)
+}
+
 /** One place on a segment leaderboard. */
 export interface SegmentPlace {
   rank: number

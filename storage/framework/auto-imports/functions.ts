@@ -75,6 +75,8 @@ export { routeIsRankable, elapsedSeconds, formatElapsed, recordPace, recordBucke
 export type { RecordStyle, RecordCategory, RecordDirection, RecordStatus, RecordEligibility, RecordEffort, RecordBoard } from '../../../resources/functions/route-records'
 export { groupSearchResults } from '../../../resources/functions/search-results'
 export type { SearchRow, SearchGroups, SearchAnswers } from '../../../resources/functions/search-results'
+export { segmentDraft, cumulativeMiles, MIN_SEGMENT_MILES, MAX_SEGMENT_POINTS } from '../../../resources/functions/segment-draft'
+export type { DraftSample, SegmentDraft, DraftRefusal, DraftResult } from '../../../resources/functions/segment-draft'
 export { distanceMetres, matchSegment, CORRIDOR_METRES, MIN_SEGMENT_POINTS } from '../../../resources/functions/segment-matching'
 export type { TrackPoint, LatLngPoint, SegmentEffort } from '../../../resources/functions/segment-matching'
 export { totalElevationGainFt, computeSplitsFromSamples, ELEVATION_NOISE_FLOOR_FT, METERS_TO_FEET } from '../../../resources/functions/splits'

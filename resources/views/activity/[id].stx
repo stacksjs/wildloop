@@ -10,8 +10,9 @@
   import { useActivityShare } from '../../composables/useActivityShare'
   import { useMentions } from '../../composables/useMentions'
   import { readRouteParam } from '../../composables/useRouteParam'
-  import { deleteActivityPhoto, fetchActivityDetail, postComment, reportContent, toggleKudos, uploadActivityPhoto } from '../../assets/scripts/game-api'
+  import { createSegment, deleteActivityPhoto, fetchActivityDetail, postComment, reportContent, toggleKudos, uploadActivityPhoto } from '../../assets/scripts/game-api'
   import { downloadGpxFile } from '../../functions/activity-files'
+  import { cumulativeMiles } from '../../functions/segment-draft'
   import { avatarInitial, avatarTint, avatarUrl } from '../../functions/avatars'
 
   useHead({ title: 'Activity Details - Wildloop' })
@@ -32,6 +33,69 @@
    * route and the photos when the page opens.
    */
   const activityProfile = state<{ points: Array<{ mi: number, ft: number }>, minFt: number, maxFt: number, miles: number } | null>(null)
+
+  /*
+   * Drawing a segment out of this run (#959).
+   *
+   * The selection is by index into the recorded route rather than by distance,
+   * because that is what the server cuts the segment from - a distance would
+   * have to be resolved back to a fix on both sides, and the two could disagree.
+   */
+  const segmentFormOpen = state(false)
+  const segmentName = state('')
+  const segmentFrom = state(0)
+  const segmentTo = state(0)
+  const segmentSaving = state(false)
+  const segmentError = state('')
+  const segmentDone = state('')
+
+  function openSegmentForm(): void {
+    const points = activityRoute().length
+    if (points < 3) return
+    segmentName.set('')
+    segmentError.set('')
+    segmentDone.set('')
+    // Opens on the middle half of the run, which is a better starting guess
+    // than the whole thing: most segments are a climb inside a longer outing.
+    segmentFrom.set(Math.floor(points * 0.25))
+    segmentTo.set(Math.floor(points * 0.75))
+    segmentFormOpen.set(true)
+  }
+
+  /** Miles from the start of the run to each recorded fix. */
+  const routeMiles = derived(() => cumulativeMiles(activityRoute()))
+
+  /** What the selection currently covers, for the live readout. */
+  const segmentSpan = derived(() => {
+    const miles = routeMiles()
+    if (miles.length === 0) return 0
+    const from = Math.min(segmentFrom(), miles.length - 1)
+    const to = Math.min(segmentTo(), miles.length - 1)
+    return Math.max(0, Math.round((miles[to] - miles[from]) * 100) / 100)
+  })
+
+  async function saveSegment(): Promise<void> {
+    if (segmentSaving()) return
+    segmentSaving.set(true)
+    segmentError.set('')
+    try {
+      const result = await createSegment({
+        activityId: activityId,
+        name: segmentName(),
+        startIndex: segmentFrom(),
+        endIndex: segmentTo(),
+      })
+      if (!result || !result.success) {
+        segmentError.set(result?.error ?? 'The segment could not be created.')
+        return
+      }
+      segmentDone.set(result.segment.name + ' is now a segment.')
+      segmentFormOpen.set(false)
+    }
+    finally {
+      segmentSaving.set(false)
+    }
+  }
 
   /** What the run looked like. Empty for every activity recorded before #956. */
   interface ActivityPhoto { id: string, url: string, thumbUrl: string, width: number, height: number, mine: boolean }
@@ -589,6 +653,77 @@
           <i x-class="hasMapRoute() || !detailLoaded() ? 'i-lucide-map h-5 w-5 animate-pulse' : 'i-lucide-route-off h-5 w-5'"></i>
         </span>
         <span class="font-medium text-slate-600 dark:text-slate-300">{{ hasMapRoute() || !detailLoaded() ? 'Loading the map…' : 'No GPS route recorded for this activity' }}</span>
+      </div>
+    </div>
+
+    <!-- Draw a segment out of this run (#959). Owner only, and only when there
+         is a recorded route to cut one from. -->
+    <div :if="isOwner && activityRoute.length > 2" class="card mb-6">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Segments</h2>
+          <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Pick a stretch of this run for other people to race.</p>
+        </div>
+        <button
+          :if="!segmentFormOpen"
+          type="button"
+          @click="openSegmentForm()"
+          class="min-h-9 shrink-0 rounded-full border border-emerald-600 px-3.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 active:scale-[0.98] dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
+        >Create a segment</button>
+      </div>
+
+      <p :if="segmentDone" class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{{ segmentDone }}</p>
+
+      <div :if="segmentFormOpen" class="mt-4 space-y-4">
+        <div>
+          <label for="segment-name" class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Name</label>
+          <input
+            id="segment-name"
+            type="text"
+            x-value="segmentName"
+            @input="segmentName.set($event.target.value)"
+            placeholder="Headlands Climb"
+            maxlength="80"
+            class="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+        </div>
+
+        <!-- Two handles over the recorded route. By index, because that is what
+             the server cuts from: a distance would have to be resolved back to
+             a fix on both sides and the two could disagree. -->
+        <div class="space-y-3">
+          <div>
+            <label for="segment-from" class="mb-1 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <span>Start</span>
+              <span class="tabular-nums text-slate-500 dark:text-slate-400">{{ (routeMiles()[Math.min(segmentFrom, routeMiles().length - 1)] ?? 0).toFixed(2) + ' mi' }}</span>
+            </label>
+            <input id="segment-from" type="range" min="0" x-max="String(activityRoute.length - 2)" x-value="String(segmentFrom)" @input="segmentFrom.set(Math.min(Number($event.target.value), segmentTo() - 1))" class="w-full accent-emerald-600" />
+          </div>
+          <div>
+            <label for="segment-to" class="mb-1 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <span>Finish</span>
+              <span class="tabular-nums text-slate-500 dark:text-slate-400">{{ (routeMiles()[Math.min(segmentTo, routeMiles().length - 1)] ?? 0).toFixed(2) + ' mi' }}</span>
+            </label>
+            <input id="segment-to" type="range" min="1" x-max="String(activityRoute.length - 1)" x-value="String(segmentTo)" @input="segmentTo.set(Math.max(Number($event.target.value), segmentFrom() + 1))" class="w-full accent-emerald-600" />
+          </div>
+        </div>
+
+        <p class="text-sm text-slate-600 tabular-nums dark:text-slate-300">
+          {{ segmentSpan().toFixed(2) + ' mi selected' }}
+          <span :if="segmentSpan() < 0.1" class="text-amber-600 dark:text-amber-400">{{ ' — a segment has to be at least 0.10 mi' }}</span>
+        </p>
+
+        <p :if="segmentError" class="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{{ segmentError }}</p>
+
+        <div class="flex gap-3">
+          <button type="button" @click="segmentFormOpen.set(false)" class="min-h-11 flex-1 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Cancel</button>
+          <button
+            type="button"
+            @click="saveSegment()"
+            x-disabled="segmentSaving || !segmentName.trim() || segmentSpan() < 0.1"
+            class="min-h-11 flex-1 rounded-full bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50"
+          >{{ segmentSaving ? 'Creating…' : 'Create segment' }}</button>
+        </div>
       </div>
     </div>
 
