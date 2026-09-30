@@ -44,6 +44,10 @@ export async function recordSegmentEfforts(activity: {
   userId: number
   activityType: string
   samples: TrackPoint[]
+  /** Count what would be recorded without writing it. For a dry backfill. */
+  dryRun?: boolean
+  /** Only this segment, for backfilling one that was just drawn. */
+  onlySegmentId?: number
 }): Promise<number> {
   try {
     const usable = activity.samples.filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
@@ -68,6 +72,7 @@ export async function recordSegmentEfforts(activity: {
       SELECT id, geometry, activity_type
       FROM segments
       WHERE activity_type = ${activity.activityType}
+        AND (${activity.onlySegmentId ?? null} IS NULL OR id = ${activity.onlySegmentId ?? null})
         AND min_lat <= ${maxLat + CANDIDATE_PAD_DEGREES}
         AND max_lat >= ${minLat - CANDIDATE_PAD_DEGREES}
         AND min_lng <= ${maxLng + CANDIDATE_PAD_DEGREES}
@@ -84,6 +89,9 @@ export async function recordSegmentEfforts(activity: {
         continue
 
       for (const effort of matchSegment(usable, line)) {
+        matched += 1
+        if (activity.dryRun)
+          continue
         /*
          * `INSERT OR IGNORE` against the unique index on
          * (segment, activity, started_at). Re-running the matcher over an
@@ -98,11 +106,10 @@ export async function recordSegmentEfforts(activity: {
             ${effort.elapsedSeconds}, ${new Date(effort.startedAt).toISOString()}, ${new Date().toISOString()}
           )
         `.execute()
-        matched += 1
       }
     }
 
-    if (matched > 0) {
+    if (matched > 0 && !activity.dryRun) {
       // Recounted rather than incremented, so a count cannot drift away from
       // the rows it describes after a deleted activity takes its efforts with it.
       await db.sql`
