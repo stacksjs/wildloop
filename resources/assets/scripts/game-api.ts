@@ -503,6 +503,38 @@ export async function fetchTrailReviewPage(trailId: number, fresh = false): Prom
   return json?.success ? { reviews: json.reviews, difficulty: json.difficulty ?? null, conditions: json.conditions ?? null } : null
 }
 
+/** One place on a segment leaderboard. */
+export interface SegmentPlace {
+  rank: number
+  userId: number
+  name: string
+  time: string
+  at: string
+}
+
+/** A segment on a trail, with its board and where the viewer sits on it. */
+export interface TrailSegment {
+  id: number
+  uuid: string
+  name: string
+  activityType: string
+  distance: number
+  elevation: number
+  totalAttempts: number
+  leader: { name: string, time: string, userId: number } | null
+  you: { time: string, rank: number, activityId: number } | null
+  board: SegmentPlace[]
+}
+
+/** The segments on a trail, each with its leaderboard (#959). */
+export async function fetchTrailSegments(trailId: number): Promise<TrailSegment[] | null> {
+  const res = await apiFetch(`/api/trails/${trailId}/segments`)
+  if (!res.ok)
+    return null
+  const json = await res.json()
+  return json?.success ? (json.segments ?? []) : null
+}
+
 /**
  * Upload one photo to a trail. The server re-encodes it, which drops its GPS
  * position, and answers with the stored photo's id and URLs.

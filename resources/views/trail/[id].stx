@@ -21,7 +21,7 @@
   import { parsePhotoList, trailGallery, type GalleryContribution } from '../../functions/trail-photos'
   import { difficultyLabel, difficultyTallyText } from '../../functions/review-form'
   import { requireAuth } from '../../composables/useAuthGate'
-  import { fetchCompletedTrails, setTrailDone } from '../../assets/scripts/game-api'
+  import { fetchCompletedTrails, fetchTrailSegments, setTrailDone } from '../../assets/scripts/game-api'
   import { isSignedIn } from '../../assets/scripts/auth'
   import { completedLabel } from '../../functions/my-trails'
   import { activeDanger, conditionReports } from '../../functions/trail-conditions'
@@ -162,7 +162,6 @@
   function reviewDifficultyText(value: unknown): string {
     return difficultyLabel(value)
   }
-  const segments = derived(() => wl ? wl.segments().filter((s: any) => s.trail_id === trailId()) : [])
 
   /** The trail's own route, when the catalog has a line for it. */
   const routeCoords = derived(() => (wl ? wl.trailRoutes()[trailId()] ?? [] : []))
@@ -732,6 +731,28 @@
     }
   }
 
+  /*
+   * Segments on this trail, with their boards (#959).
+   *
+   * A trail usually has none, and a heading over an empty list is worse than
+   * no heading, so the section and its tab are both hidden until there is
+   * something to show.
+   */
+  const trailSegments = state<any[]>([])
+  /** Which board is expanded. Only one at a time: ten rows each is a wall. */
+  const openBoard = state<number | null>(null)
+
+  async function loadSegments(id: number): Promise<void> {
+    if (!Number.isFinite(id) || id <= 0)
+      return
+    const found = await fetchTrailSegments(id).catch(() => null)
+    trailSegments.set(Array.isArray(found) ? found : [])
+  }
+
+  function toggleBoard(id: number): void {
+    openBoard.set(openBoard() === id ? null : id)
+  }
+
   // Top trails nearby: the catalog's own answer for the ground around this
   // trailhead, this trail left out.
   const nearbyTrails = state<any[]>([])
@@ -783,6 +804,7 @@
 
   onMount(() => {
     void loadWeather(trailId())
+    void loadSegments(trailId())
     const stopNearby = effect(() => {
       const current = trail()
       if (current)
@@ -881,6 +903,7 @@
         <a href="#trail-overview" class="-mb-px shrink-0 border-b-2 border-slate-900 pb-2.5 text-slate-900 dark:border-white dark:text-white">Overview</a>
         <a href="#trail-weather" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Conditions</a>
         <a href="#trail-reviews" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">{{ 'Reviews' + (reviews().length ? ' (' + reviews().length + ')' : '') }}</a>
+        <a :if="trailSegments().length > 0" href="#trail-segments" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">{{ 'Segments (' + trailSegments().length + ')' }}</a>
         <a href="#trail-nearby" class="-mb-px shrink-0 border-b-2 border-transparent pb-2.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Nearby</a>
       </nav>
     </div>
@@ -1428,6 +1451,63 @@
                   <div class="hidden text-right sm:block">
                     <p class="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400"><i class="i-lucide-crown h-3 w-3" aria-hidden="true"></i>CR</p>
                     <p class="text-xs text-slate-500 tabular-nums dark:text-slate-400">{{ seg.leaderTime + ' · ' + seg.leaderName }}</p>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Segments (#959). Hidden entirely when a trail has none: a
+               heading over an empty list is worse than no heading. -->
+          <div :if="trailSegments().length > 0" id="trail-segments" class="mb-10 scroll-mt-24">
+            <h2 class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Segments</h2>
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+              <template :for="segment in trailSegments()">
+                <div class="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
+                  <button
+                    type="button"
+                    @click="toggleBoard(segment.id)"
+                    x-aria-expanded="openBoard() === segment.id ? 'true' : 'false'"
+                    class="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/40"
+                  >
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ segment.name }}</p>
+                      <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                        <span>{{ segment.distance.toFixed(2) + ' mi' }}</span>
+                        <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                        <span>{{ (segment.elevation >= 0 ? '+' : '') + segment.elevation.toLocaleString() + ' ft' }}</span>
+                        <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
+                        <span>{{ segment.totalAttempts === 1 ? '1 effort' : segment.totalAttempts.toLocaleString() + ' efforts' }}</span>
+                      </p>
+                    </div>
+                    <!-- The leader, and your own time beside it. A board that
+                         shows only the top of the list tells most people
+                         nothing about themselves. -->
+                    <div class="shrink-0 text-right">
+                      <p :if="segment.leader" class="text-sm font-bold text-slate-900 tabular-nums dark:text-white">{{ segment.leader.time }}</p>
+                      <p :if="segment.leader" class="max-w-[9rem] truncate text-[11px] text-slate-500 dark:text-slate-400">{{ segment.leader.name }}</p>
+                      <p :if="!segment.leader" class="text-xs text-slate-400 dark:text-slate-500">No efforts yet</p>
+                    </div>
+                    <div :if="segment.you" class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-right dark:bg-emerald-500/10">
+                      <p class="text-xs font-bold text-emerald-700 tabular-nums dark:text-emerald-400">{{ segment.you.time }}</p>
+                      <p class="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-500">{{ 'You #' + segment.you.rank }}</p>
+                    </div>
+                    <i x-class="'h-4 w-4 shrink-0 text-slate-400 transition ' + (openBoard() === segment.id ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down')" aria-hidden="true"></i>
+                  </button>
+
+                  <div :if="openBoard() === segment.id && segment.board.length > 0" class="bg-slate-50/60 px-4 pb-3 dark:bg-slate-900/30">
+                    <div class="grid grid-cols-[2rem_1fr_auto] gap-2 border-b border-slate-200 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                      <span>#</span>
+                      <span>Athlete</span>
+                      <span class="text-right">Time</span>
+                    </div>
+                    <template :for="place in segment.board">
+                      <div class="grid grid-cols-[2rem_1fr_auto] items-center gap-2 border-b border-slate-100 py-2 last:border-b-0 dark:border-slate-700/60">
+                        <span class="text-xs font-semibold text-slate-500 tabular-nums dark:text-slate-400">{{ place.rank }}</span>
+                        <a x-href="'/athlete/' + place.userId" class="truncate text-sm text-slate-900 hover:underline dark:text-white">{{ place.name }}</a>
+                        <span class="text-right text-sm font-semibold text-slate-900 tabular-nums dark:text-white">{{ place.time }}</span>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </template>
