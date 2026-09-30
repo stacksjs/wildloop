@@ -24,11 +24,11 @@ import {
 } from '../assets/scripts/game-api'
 import {
   computeSplitsFromSamples,
-  ELEVATION_NOISE_FLOOR_FT,
   METERS_TO_FEET,
   type RecorderSample,
 } from '../functions/splits'
 import { type DistanceAnchor, emptyAnchor, step as stepDistance } from '../functions/recording-distance'
+import { type ElevationAnchor, emptyElevation, stepElevation } from '../functions/recording-elevation'
 import { loadTerritories } from './useTerritoryCatalog'
 import { loadActivityVisibilityDefault } from '../assets/scripts/privacy-defaults'
 import {
@@ -219,6 +219,14 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
      * `resources/functions/recording-distance.ts`.
      */
     distanceAnchor: DistanceAnchor
+    /**
+     * Ascent so far, smoothed and thresholded.
+     *
+     * GPS altitude is far noisier than position, so the raw per-fix rule this
+     * replaces counted the receiver's own wander as climb. See
+     * `resources/functions/recording-elevation.ts`.
+     */
+    elevationAnchor: ElevationAnchor
     /** Wall-clock start of the run - elapsed time includes pauses (#960). */
     startedAtMs: number | null
     elapsedTimer: ReturnType<typeof setInterval> | null
@@ -248,6 +256,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     routeCoords: [],
     samples: [],
     distanceAnchor: emptyAnchor(),
+    elevationAnchor: emptyElevation(),
     startedAtMs: null,
     elapsedTimer: null,
     simTimer: null,
@@ -402,8 +411,6 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   function rebuildTrackFromSamples(samples: RecorderSample[]): void {
     refs.samples = samples
     refs.routeCoords = samples.map(sample => [sample.lat, sample.lng])
-    let gainFeet = 0
-
     /*
      * Replayed through the same rule the live run used, so recovering a
      * ten-hour effort after a reload cannot hand back a different distance
@@ -415,16 +422,13 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       anchor = stepDistance(anchor, [sample.lat, sample.lng], sample.accuracy ?? null)
     refs.distanceAnchor = anchor
 
-    for (let index = 1; index < samples.length; index++) {
-      const previous = samples[index - 1]
-      const current = samples[index]
-      if (previous.eleFt != null && current.eleFt != null) {
-        const delta = current.eleFt - previous.eleFt
-        if (delta >= ELEVATION_NOISE_FLOOR_FT) gainFeet += delta
-      }
-    }
+    let climb = emptyElevation()
+    for (const sample of samples)
+      climb = stepElevation(climb, sample.eleFt ?? null)
+    refs.elevationAnchor = climb
+
     distance.set(anchor.miles)
-    elevation.set(Math.round(gainFeet))
+    elevation.set(Math.round(climb.gainFt))
     refs.routeLine?.setLatLngs(refs.routeCoords)
   }
 
@@ -504,12 +508,8 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
 
     // Elevation gain: positive altitude deltas above the GPS noise floor (#953).
     const eleFt = altitudeM != null ? altitudeM * METERS_TO_FEET : null
-    const prevSample = refs.samples[refs.samples.length - 1]
-    if (eleFt != null && prevSample?.eleFt != null) {
-      const d = eleFt - prevSample.eleFt
-      if (d >= ELEVATION_NOISE_FLOOR_FT)
-        elevation.set(Math.round(elevation() + d))
-    }
+    refs.elevationAnchor = stepElevation(refs.elevationAnchor, eleFt)
+    elevation.set(Math.round(refs.elevationAnchor.gainFt))
     refs.samples.push({ lat, lng, t: Date.now(), eleFt, movingS: elapsed(), accuracy })
 
     refs.routeLine.addLatLng([lat, lng])
