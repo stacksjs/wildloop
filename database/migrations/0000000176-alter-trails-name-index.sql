@@ -1,0 +1,29 @@
+-- An index on the column the Name sort orders by.
+--
+-- Sorting the catalog by name had no index behind it. The only index that
+-- mentioned a name was on country, state and state_name, which is a different
+-- column, so ORDER BY name sorted all 596,556 rows before it could skip to the
+-- offset. The cost grew with depth until it crossed the edge timeout and came
+-- back as HTTP 520 rather than as a slow page.
+--
+-- Measured on production, three runs each at limit 50:
+--
+--   offset  60,000   200 in 6.7s, 7.5s, 6.6s
+--   offset 120,000   200 in 9.0s, 520 in 10.2s, 200 in 9.3s
+--   offset 300,000   520 in 10.4s, 12.0s, 12.7s
+--
+-- Every other sort answered the same offset in under a second and a half,
+-- because each has an index: trails_trails_distance_index serves distance and
+-- longest, trails_trails_national_trail_index serves the default.
+--
+-- Deep OFFSET stays linear even with this, so paging to the far end of the
+-- catalog by name is still work. What changes is that the work is a walk along
+-- an index rather than a sort of the whole table, which is the difference
+-- between seconds and milliseconds per page.
+--
+-- See issue 1008.
+--
+-- Comments avoid semicolons and apostrophes: the migration runner splits this
+-- file on semicolons.
+
+CREATE INDEX IF NOT EXISTS "trails_name_index" ON "trails" ("name");
