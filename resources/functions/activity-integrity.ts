@@ -2,6 +2,7 @@ import type { Coordinate } from './geo'
 import type { AnomalySignal } from './activity-anomaly'
 import type { SpeedSegment } from './activity-physics'
 import { detectAnomalies, trackFingerprint } from './activity-anomaly'
+import { totalMiles } from './recording-distance'
 import {
   activityKind,
   MAX_ACCELERATION,
@@ -48,7 +49,6 @@ export interface TrackIntegrityResult {
   fingerprint: string | null
 }
 
-const METRES_PER_MILE = 1609.344
 
 function finite(value: unknown): number | null {
   const number = typeof value === 'string' ? Number(value) : value
@@ -249,7 +249,24 @@ export function evaluateTrackIntegrity(input: {
   const durationSeconds = firstTime !== null && lastTime !== null
     ? Math.round((lastTime - firstTime) / 1000)
     : null
-  const distanceMiles = distanceMetres / METRES_PER_MILE
+  /*
+   * The distance the activity is saved with, measured from anchors rather than
+   * from every consecutive fix.
+   *
+   * `distanceMetres` above is the raw sum, and it stays raw because the checks
+   * around it are about the shape of each step — a burst speed between two
+   * fixes means something whether or not those two fixes were far enough apart
+   * to count as travel.
+   *
+   * What gets stored is a different question. A GPS fix is a guess with a
+   * radius that does not shrink when you stand still, so the raw sum charges
+   * the athlete for the receiver's own wander: at one fix a second that is one
+   * to nine phantom miles for every hour spent standing. A fifty-mile ultra
+   * with three quarters of an hour of aid stations came back three to seven
+   * miles long, and this is the number that decides it — the store action
+   * overrides whatever the phone reported with this one for live GPS.
+   */
+  const distanceMiles = totalMiles(samples)
 
   const fingerprint = trackFingerprint(samples)
 

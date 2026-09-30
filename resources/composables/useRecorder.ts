@@ -28,6 +28,7 @@ import {
   METERS_TO_FEET,
   type RecorderSample,
 } from '../functions/splits'
+import { type DistanceAnchor, emptyAnchor, step as stepDistance } from '../functions/recording-distance'
 import { loadTerritories } from './useTerritoryCatalog'
 import { loadActivityVisibilityDefault } from '../assets/scripts/privacy-defaults'
 import {
@@ -209,6 +210,15 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     routeCoords: LatLng[]
     /** Timestamped samples (alt + moving time) for splits/elevation (#952/#953). */
     samples: RecorderSample[]
+    /**
+     * Where the athlete was last known to actually be, for measuring distance.
+     *
+     * Separate from the last drawn point on purpose: the line follows every
+     * fix so the map stays live, while distance only advances once a fix is
+     * too far away to be the receiver's own wander. See
+     * `resources/functions/recording-distance.ts`.
+     */
+    distanceAnchor: DistanceAnchor
     /** Wall-clock start of the run - elapsed time includes pauses (#960). */
     startedAtMs: number | null
     elapsedTimer: ReturnType<typeof setInterval> | null
@@ -237,6 +247,7 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     routeLine: null,
     routeCoords: [],
     samples: [],
+    distanceAnchor: emptyAnchor(),
     startedAtMs: null,
     elapsedTimer: null,
     simTimer: null,
@@ -391,18 +402,28 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
   function rebuildTrackFromSamples(samples: RecorderSample[]): void {
     refs.samples = samples
     refs.routeCoords = samples.map(sample => [sample.lat, sample.lng])
-    let miles = 0
     let gainFeet = 0
+
+    /*
+     * Replayed through the same rule the live run used, so recovering a
+     * ten-hour effort after a reload cannot hand back a different distance
+     * from the one the athlete watched climb. The anchor is kept, because
+     * recording usually carries on from here.
+     */
+    let anchor = emptyAnchor()
+    for (const sample of samples)
+      anchor = stepDistance(anchor, [sample.lat, sample.lng], sample.accuracy ?? null)
+    refs.distanceAnchor = anchor
+
     for (let index = 1; index < samples.length; index++) {
       const previous = samples[index - 1]
       const current = samples[index]
-      miles += haversine([previous.lat, previous.lng], [current.lat, current.lng])
       if (previous.eleFt != null && current.eleFt != null) {
         const delta = current.eleFt - previous.eleFt
         if (delta >= ELEVATION_NOISE_FLOOR_FT) gainFeet += delta
       }
     }
-    distance.set(miles)
+    distance.set(anchor.miles)
     elevation.set(Math.round(gainFeet))
     refs.routeLine?.setLatLngs(refs.routeCoords)
   }
@@ -463,10 +484,22 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     if (!refs.routeLine || !refs.map) return
     if (paused() || !recording()) return
     const coords = refs.routeCoords
-    if (coords.length > 0) {
-      const prev = coords[coords.length - 1]
-      distance.set(distance() + haversine(prev, [lat, lng]))
-    }
+    /*
+     * Distance advances from an anchor, not from the previous fix.
+     *
+     * A GPS fix is a guess with a radius, and the radius does not shrink when
+     * you stand still — so summing consecutive fixes charged the athlete for
+     * the receiver's own wander. At one fix a second that is one to nine
+     * phantom miles for every hour spent standing, and a fifty-mile ultra with
+     * three quarters of an hour of aid stations came back three to seven miles
+     * long. The anchor sits still until a fix is too far off to be noise.
+     *
+     * The drawn line still takes every fix: the map should follow the athlete
+     * live, and the stored samples are what splits, elevation and the
+     * integrity checks read.
+     */
+    refs.distanceAnchor = stepDistance(refs.distanceAnchor, [lat, lng], accuracy)
+    distance.set(refs.distanceAnchor.miles)
     coords.push([lat, lng])
 
     // Elevation gain: positive altitude deltas above the GPS noise floor (#953).

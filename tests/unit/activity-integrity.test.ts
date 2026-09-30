@@ -15,6 +15,84 @@ function track(options: { points?: number, secondsApart?: number, accuracy?: num
   return JSON.stringify({ type: 'LineString', coordinates, properties: { samples } })
 }
 
+/**
+ * A track that goes somewhere and then stops dead, the shape of an aid station
+ * on a long run: `moving` fixes of real travel, then `resting` fixes that only
+ * wander inside the receiver's own noise.
+ */
+function trackWithRest(moving: number, resting: number, jitterDegrees = 0.00004): string {
+  const startedAt = Date.UTC(2026, 7, 12, 12, 0, 0)
+  const coordinates: number[][] = []
+  const samples: Array<{ time: number, accuracy: number | null }> = []
+  // 0.000034 degrees of longitude at this latitude is about three metres, so
+  // one fix a second is a solid running pace rather than a speed the burst
+  // check would refuse outright.
+  const stride = 0.000034
+  for (let i = 0; i < moving; i++) {
+    coordinates.push([-122.42 + i * stride, 37.77])
+    samples.push({ time: startedAt + i * 1000, accuracy: 5 })
+  }
+  const restLng = -122.42 + (moving - 1) * stride
+  for (let i = 0; i < resting; i++) {
+    // A slow wander of a couple of metres, the way a receiver actually drifts.
+    // Jumping the full amplitude between consecutive fixes would be 30 mph and
+    // the burst check would rightly refuse the whole track.
+    coordinates.push([
+      restLng + Math.sin(i / 9) * jitterDegrees,
+      37.77 + Math.cos(i / 11) * jitterDegrees,
+    ])
+    samples.push({ time: startedAt + (moving + i) * 1000, accuracy: 5 })
+  }
+  return JSON.stringify({ type: 'LineString', coordinates, properties: { samples } })
+}
+
+describe('the distance an activity is saved with', () => {
+  /*
+   * The bug this pins.
+   *
+   * The stored distance is whatever this function reports — the store action
+   * overrides the phone's own number with it for live GPS. It used to sum the
+   * gap between every consecutive fix, which charges the athlete for the
+   * receiver's wander while they stand still: one to nine phantom miles for
+   * every hour stopped, so a fifty-mile ultra with three quarters of an hour
+   * of aid stations came back three to seven miles long.
+   */
+  it('does not grow while the athlete is standing still', () => {
+    const evaluate = (gpxData: string) => evaluateTrackIntegrity({
+      gpxData,
+      source: 'web_gps',
+      activityType: 'Trail Run',
+      completedAt: new Date(Date.UTC(2026, 7, 12, 12, 30, 0)).toISOString(),
+      nowMs: Date.UTC(2026, 7, 12, 12, 30, 0),
+    })
+
+    const moving = evaluate(trackWithRest(600, 0)).distanceMiles!
+    const thenResting = evaluate(trackWithRest(600, 600)).distanceMiles!
+
+    expect(moving).toBeGreaterThan(0.9)
+    // Ten minutes of standing, at one fix a second, costs about ten metres of
+    // settling and then nothing. The rule it replaced charged one to nine
+    // miles for the same hour.
+    expect(thenResting - moving).toBeLessThan(0.01)
+    expect(thenResting).toBeGreaterThanOrEqual(moving)
+  })
+
+  it('still measures the travel either side of a rest', () => {
+    // The guard must not be so eager that a real run stops counting.
+    const result = evaluateTrackIntegrity({
+      gpxData: trackWithRest(600, 300),
+      source: 'web_gps',
+      activityType: 'Trail Run',
+      completedAt: new Date(Date.UTC(2026, 7, 12, 12, 30, 0)).toISOString(),
+      nowMs: Date.UTC(2026, 7, 12, 12, 30, 0),
+    })
+
+    // 599 strides of about three metres is roughly 1.1 miles. Anchoring
+    // quantises that into fewer, longer steps; it must not halve it.
+    expect(result.distanceMiles).toBeGreaterThan(0.9)
+  })
+})
+
 describe('activity integrity', () => {
   it('derives metrics and verifies a recent device-quality GPS track', () => {
     const completedAt = new Date(Date.UTC(2026, 7, 12, 12, 4, 0)).toISOString()
