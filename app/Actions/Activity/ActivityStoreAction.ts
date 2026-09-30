@@ -13,6 +13,7 @@ import { parseDurationToSeconds } from '../../../resources/functions/duration'
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
 import { durationLabel, evaluateTrackIntegrity, isLiveGpsSource, type RecordingSource } from '../../../resources/functions/activity-integrity'
 import { integrityFlagsJson, verifyAgainstHistory } from '../../Support/activityIntegrityCheck'
+import { recordSegmentEfforts } from '../../Support/segmentEfforts'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
 
 const ACTIVITY_TYPES = ['Trail Run', 'Hike', 'Walk', 'Bike']
@@ -170,6 +171,19 @@ export default new Action({
         track_fingerprint: integrity.fingerprint,
         review_state: verdict.reviewState,
         completed_at: (completedAt as string | undefined) ?? new Date().toISOString(),
+      })
+
+      /*
+       * Segments (#959). Best-effort like the unlock engine below: a failure
+       * here costs a place on a leaderboard, and blocking the save over it
+       * would cost the run. `recordSegmentEfforts` never throws and logs what
+       * it could not do, so a missed match can be matched again later.
+       */
+      await recordSegmentEfforts({
+        id: Number(activity.id),
+        userId,
+        activityType,
+        samples: integrity.samples.map(sample => ({ lat: sample.lat, lng: sample.lng, time: sample.time })),
       })
 
       // Unlock engine hook (#982) - best-effort, never blocks the store.

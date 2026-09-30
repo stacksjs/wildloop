@@ -86,6 +86,7 @@ export const actions = {
   'Actions/Route/CustomRouteStoreAction': '../../../app/Actions/Route/CustomRouteStoreAction.ts',
   'Actions/Route/CustomRouteUpdateAction': '../../../app/Actions/Route/CustomRouteUpdateAction.ts',
   'Actions/Search/SearchSuggestAction': '../../../app/Actions/Search/SearchSuggestAction.ts',
+  'Actions/Segment/SegmentIndexAction': '../../../app/Actions/Segment/SegmentIndexAction.ts',
   'Actions/Social/AthleteShowAction': '../../../app/Actions/Social/AthleteShowAction.ts',
   'Actions/Social/BlockToggleAction': '../../../app/Actions/Social/BlockToggleAction.ts',
   'Actions/Social/FollowToggleAction': '../../../app/Actions/Social/FollowToggleAction.ts',
