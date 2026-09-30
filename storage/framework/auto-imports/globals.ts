@@ -75,6 +75,8 @@ declare global {
   const DECAY_EXPIRE_DAYS: typeof autoImports.DECAY_EXPIRE_DAYS
   const parseDurationToSeconds: typeof autoImports.parseDurationToSeconds
   const paceString: typeof autoImports.paceString
+  const elevationProfile: typeof autoImports.elevationProfile
+  const PROFILE_POINTS: typeof autoImports.PROFILE_POINTS
   const garminCardState: typeof autoImports.garminCardState
   const garminConnectedLabel: typeof autoImports.garminConnectedLabel
   const garminImportSummary: typeof autoImports.garminImportSummary
@@ -141,6 +143,18 @@ declare global {
   const qrSvgMarkup: typeof autoImports.qrSvgMarkup
   const qrBrandedMarkup: typeof autoImports.qrBrandedMarkup
   const computeTerritoryRankAssignments: typeof autoImports.computeTerritoryRankAssignments
+  const stepFloorMetres: typeof autoImports.stepFloorMetres
+  const haversineMiles: typeof autoImports.haversineMiles
+  const emptyAnchor: typeof autoImports.emptyAnchor
+  const step: typeof autoImports.step
+  const totalMiles: typeof autoImports.totalMiles
+  const MAX_TRUSTED_ACCURACY_M: typeof autoImports.MAX_TRUSTED_ACCURACY_M
+  const DEFAULT_FLOOR_M: typeof autoImports.DEFAULT_FLOOR_M
+  const emptyElevation: typeof autoImports.emptyElevation
+  const stepElevation: typeof autoImports.stepElevation
+  const totalGainFt: typeof autoImports.totalGainFt
+  const ALTITUDE_SMOOTHING: typeof autoImports.ALTITUDE_SMOOTHING
+  const ALTITUDE_FLOOR_FT: typeof autoImports.ALTITUDE_FLOOR_FT
   const orderRegions: typeof autoImports.orderRegions
   const regionDistanceLabel: typeof autoImports.regionDistanceLabel
   const reviewFormError: typeof autoImports.reviewFormError

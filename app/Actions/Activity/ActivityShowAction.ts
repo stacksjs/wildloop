@@ -11,6 +11,8 @@ import { db } from '@stacksjs/orm'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
 import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { avatarOf } from '../../Support/avatars'
+import { parseTrackSamples } from '../../../resources/functions/activity-integrity'
+import { elevationProfile } from '../../../resources/functions/elevation-profile'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
   if (!raw)
@@ -57,6 +59,18 @@ export default new Action({
         ? exactRoute
         : maskRouteEndpoints(exactRoute, privacy?.hide_start_end_meters ?? 400)
 
+      /*
+       * The drawn profile, built here rather than from the route above: the
+       * route carries no altitude, and shipping the raw samples so the page
+       * could derive one would mean 3.6MB of JSON for a ten-hour recording.
+       *
+       * Not masked the way the route is. Endpoint masking hides where somebody
+       * lives; a line of altitude against distance says how high the ground
+       * was, not where it is, so trimming it would cost the shape of the run
+       * and protect nothing.
+       */
+      const profile = a.gpx_data ? elevationProfile(parseTrackSamples(a.gpx_data)) : null
+
       // Comments + their author names.
       const commentRows = await ActivityComment
         .where('activity_id', '=', id)
@@ -102,6 +116,7 @@ export default new Action({
           pace: a.pace,
           elevation: a.elevation,
           splits: parseSplits(a.splits),
+          elevationProfile: profile,
           kudosCount: a.kudos_count ?? 0,
           notes: a.notes,
           hasGps: !!a.gpx_data,

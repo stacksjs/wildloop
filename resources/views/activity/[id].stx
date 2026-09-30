@@ -24,6 +24,14 @@
   // from somewhere without one (an older cached feed).
   const detailAvatar = state<string | null>(null)
   const activityRoute = state<Array<{ lat: number, lng: number }>>([])
+  /**
+   * The elevation profile, from the detail endpoint rather than the store.
+   *
+   * The feed does not carry one — it would be a couple of hundred points per
+   * card for a list nobody scrolls that far into — so this arrives with the
+   * route and the photos when the page opens.
+   */
+  const activityProfile = state<{ points: Array<{ mi: number, ft: number }>, minFt: number, maxFt: number, miles: number } | null>(null)
 
   /** What the run looked like. Empty for every activity recorded before #956. */
   interface ActivityPhoto { id: string, url: string, thumbUrl: string, width: number, height: number, mine: boolean }
@@ -91,6 +99,52 @@
 
   const activity = derived(() => wl ? wl.findActivity(activityId) : null)
   const isOwner = derived(() => !!(wl && activity() && activity().user_id === wl.currentUserId()))
+
+  /**
+   * The elevation profile, as two SVG paths in a 100x40 box.
+   *
+   * Built on the server and sent as a couple of hundred points, so all this
+   * has to do is map them onto a box. The box is stretched to whatever width
+   * the card has, which is why the line carries `non-scaling-stroke` — without
+   * it the stroke stretches with the geometry and thickens horizontally.
+   */
+  const profileChart = derived(() => {
+    const profile = activityProfile()
+    if (!profile || !profile.points || profile.points.length < 2)
+      return null
+
+    const width = 100
+    const height = 40
+    const span = Math.max(profile.miles, 0.001)
+
+    /*
+     * A flat run is a real answer, and it should look flat rather than being
+     * stretched until ten feet of drift fills the card. Below a hundred feet
+     * of range the axis is padded out to a hundred, so the line sits quietly
+     * in the middle instead of drawing a mountain range out of noise.
+     */
+    const range = Math.max(profile.maxFt - profile.minFt, 100)
+    const middle = (profile.maxFt + profile.minFt) / 2
+    const low = middle - range / 2
+
+    const x = (mi: number) => (mi / span) * width
+    const y = (ft: number) => height - ((ft - low) / range) * height
+
+    const line = profile.points
+      .map((point: { mi: number, ft: number }, index: number) =>
+        `${index === 0 ? 'M' : 'L'}${x(point.mi).toFixed(2)},${y(point.ft).toFixed(2)}`)
+      .join(' ')
+
+    return {
+      line,
+      area: `${line} L${width},${height} L0,${height} Z`,
+      low: Math.round(profile.minFt),
+      high: Math.round(profile.maxFt),
+      miles: profile.miles,
+      // Read out instead of the drawing, for anyone who cannot see it.
+      label: `Elevation profile: ${Math.round(profile.minFt)} to ${Math.round(profile.maxFt)} feet over ${profile.miles} miles.`,
+    }
+  })
 
   /** Whether there is any line to draw: the recording, or the trail it was on. */
   const hasMapRoute = derived(() => {
@@ -205,6 +259,8 @@
       detailAvatar.set(detail.userAvatar)
     if (detail && Array.isArray(detail.route))
       activityRoute.set(detail.route)
+    if (detail && detail.elevationProfile)
+      activityProfile.set(detail.elevationProfile)
     if (detail && Array.isArray(detail.photos))
       photos.set(detail.photos)
     else if (activity()?.comments)
@@ -535,6 +591,45 @@
           <i x-class="hasMapRoute() || !detailLoaded() ? 'i-lucide-map h-5 w-5 animate-pulse' : 'i-lucide-route-off h-5 w-5'"></i>
         </span>
         <span class="font-medium text-slate-600 dark:text-slate-300">{{ hasMapRoute() || !detailLoaded() ? 'Loading the map…' : 'No GPS route recorded for this activity' }}</span>
+      </div>
+    </div>
+
+    <!-- Elevation profile. Absent for a manual entry, or a device that never
+         reported altitude: a flat line nobody recorded is worse than no chart. -->
+    <div :if="profileChart()" class="card mb-6">
+      <div class="mb-3 flex items-baseline justify-between gap-3">
+        <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Elevation</h2>
+        <p class="text-xs text-slate-500 tabular-nums dark:text-slate-400">
+          {{ profileChart().low + '–' + profileChart().high + ' ft' }}
+        </p>
+      </div>
+      <svg
+        class="h-28 w-full sm:h-32"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        role="img"
+        x-aria-label="profileChart().label"
+      >
+        <defs>
+          <linearGradient id="elevation-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgb(16 185 129)" stop-opacity="0.35" />
+            <stop offset="100%" stop-color="rgb(16 185 129)" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path x-d="profileChart().area" fill="url(#elevation-fill)" />
+        <path
+          x-d="profileChart().line"
+          fill="none"
+          stroke="rgb(5 150 105)"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+      <div class="mt-2 flex justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400 tabular-nums dark:text-slate-500">
+        <span>0 mi</span>
+        <span>{{ profileChart().miles + ' mi' }}</span>
       </div>
     </div>
 

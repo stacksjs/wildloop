@@ -126,6 +126,8 @@ export interface ActivityPayload {
   gpx_data?: string | null
   /** Per-mile splits computed from the GPS samples (#952). */
   splits?: Array<{ mile: number, pace: string, elev: number }>
+  /** Altitude against distance, downsampled on the server for drawing. */
+  elevationProfile?: { points: Array<{ mi: number, ft: number }>, minFt: number, maxFt: number, miles: number } | null
   notes?: string
   /** Who can see it (#957): public | followers | private. Defaults public. */
   visibility?: string
