@@ -88,6 +88,20 @@ qaActivity.run(qaUserId, 2.6, 'private')
 const qaEvent = db.query(`INSERT INTO events (host_id, name, start_time, description, location, visibility) VALUES (?, ?, '2030-06-01T07:00:00Z', ?, 'San Diego, CA', ?)`)
 qaEvent.run(qaUserId, 'Torrey Pines Sunrise 10K', 'Two loops from the gliderport, chip timed.', 'public')
 qaEvent.run(qaUserId, 'Cove Night Owls Time Trial', 'Members only.', 'club')
+// A record attempt in a status a stranger may see, and one in the status that
+// has to stay hidden. `PUBLIC_STATUSES` excludes 'rejected' because publishing
+// "we did not believe this person" is a reputational act the site does not
+// perform automatically — and an og:title would perform it in every link
+// preview, so the pair exists to prove the effort page withholds it.
+const qaEffort = db.query(`INSERT INTO route_efforts (trail_id, user_id, started_at, status, style, category, direction, elapsed_seconds) VALUES ((SELECT id FROM trails WHERE name = 'Torrey Pines Loop'), ?, '2030-05-01T13:00:00Z', ?, 'unsupported', 'mens', 'standard', ?)`)
+qaEffort.run(qaUserId, 'verified', 1290)
+qaEffort.run(qaUserId, 'rejected', 1180)
+
+// A territory to name, with a holder to resolve. There is no visibility to
+// withhold here — the game's map, leaderboard and battle reads are all public
+// — so this one is a naming fixture only.
+db.run(`INSERT INTO territories (name, user_id, polygon_data, center_lat, center_lng, area_size, status, claimed_at)
+  VALUES ('Torrey Pines Bluff Territory', ${qaUserId}, '{"type":"Polygon","coordinates":[[[-117.2528,32.9209],[-117.2520,32.9209],[-117.2520,32.9215],[-117.2528,32.9215],[-117.2528,32.9209]]]}', 32.9212, -117.2524, 580000, 'active', '2030-05-01T13:00:00Z')`)
 db.close()
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).

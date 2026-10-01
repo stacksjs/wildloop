@@ -3,6 +3,105 @@
 @section('title', 'Record Attempt - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This attempt's own metadata in the HTML — see `trail/[id].stx` for the
+   * mechanism and `club/[id].stx` for the visibility rule.
+   *
+   * The gate here is a status, not a visibility column. `RouteEffortShowAction`
+   * answers 404 for an effort whose status is outside `PUBLIC_STATUSES` unless
+   * the caller is its athlete or an admin, and `canSeePrivateEffort` grants
+   * neither of those to a null viewer — so for the shared, viewerless render
+   * below, the whole gate reduces to the status check.
+   *
+   * What that withholds is a *rejected* claim, and the reason it matters more
+   * than it looks is in that constant's own comment: publishing "we did not
+   * believe this person" is a reputational act the site does not perform
+   * automatically. Putting a rejected attempt's subject into an `og:title`
+   * would perform it in every link preview that scraped the URL.
+   *
+   * The statuses are written out rather than imported because the engine
+   * injects this block into the page scope; they are `PUBLIC_STATUSES` from
+   * `app/Support/routeEfforts.ts`, and 'rejected' is deliberately absent.
+   */
+  const ssrEffortId = Number(params?.id)
+  let ssrEffort: { trail_id?: number, status?: string, style?: string, category?: string, elapsed_seconds?: number } | null = null
+
+  if (Number.isFinite(ssrEffortId) && ssrEffortId > 0) {
+    try {
+      ssrEffort = await RouteEffort.find(ssrEffortId) as any
+    }
+    catch {
+      ssrEffort = null
+    }
+  }
+
+  // Fails closed: an unrecognised or missing status is withheld, not published.
+  const ssrEffortPublicStatuses = ['in_progress', 'dnf', 'pending', 'verified']
+  const ssrEffortIsPublic = ssrEffort !== null
+    && ssrEffortPublicStatuses.includes(String(ssrEffort.status ?? ''))
+
+  // An effort has no name of its own; what identifies it is the route it was
+  // run on, which carries no visibility of its own.
+  let ssrEffortTrail = ''
+  const ssrEffortTrailId = ssrEffortIsPublic ? Number(ssrEffort?.trail_id ?? 0) : 0
+  if (Number.isFinite(ssrEffortTrailId) && ssrEffortTrailId > 0) {
+    try {
+      const ssrEffortOnTrail = await Trail.find(ssrEffortTrailId) as any
+      ssrEffortTrail = String(ssrEffortOnTrail?.name ?? '').trim()
+    }
+    catch {
+      ssrEffortTrail = ''
+    }
+  }
+
+  const ssrEffortStyle = ssrEffortIsPublic
+    ? ({ supported: 'Supported', self_supported: 'Self-supported', unsupported: 'Unsupported' } as Record<string, string>)[String(ssrEffort?.style ?? '')] ?? ''
+    : ''
+  const ssrEffortCategory = ssrEffortIsPublic
+    ? ({ mens: 'Men\'s', womens: 'Women\'s', nonbinary: 'Non-binary' } as Record<string, string>)[String(ssrEffort?.category ?? '')] ?? ''
+    : ''
+
+  // h:mm:ss, which is how every record board in the sport writes a time.
+  const ssrEffortSeconds = ssrEffortIsPublic ? Number(ssrEffort?.elapsed_seconds ?? 0) : 0
+  const ssrEffortTime = ssrEffortSeconds > 0
+    ? [
+        Math.floor(ssrEffortSeconds / 3600),
+        String(Math.floor((ssrEffortSeconds % 3600) / 60)).padStart(2, '0'),
+        String(ssrEffortSeconds % 60).padStart(2, '0'),
+      ].join(':')
+    : ''
+
+  const ssrTitle = ssrEffortTrail ? `${ssrEffortTrail} FKT attempt — Wildloop` : 'Record Attempt - Wildloop'
+
+  const ssrEffortFacts = [ssrEffortCategory, ssrEffortStyle, ssrEffortTime].filter(Boolean).join(' · ')
+
+  const ssrDescription = ssrEffortTrail
+    ? `A record attempt on ${ssrEffortTrail}${ssrEffortFacts ? ` — ${ssrEffortFacts}.` : '.'} Splits, evidence and trip report on Wildloop.`
+    : 'Fastest known times and record attempts on Wildloop — splits, evidence and trip reports.'
+
+  const ssrCanonical = ssrEffortTrail ? `https://wildloop.org/effort/${ssrEffortId}` : 'https://wildloop.org/records'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    // Covers all three reasons there is no trail name: no such effort, a
+    // rejected one, and an effort whose route could not be read.
+    robots: ssrEffortTrail ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'website',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { useEffortDetail, toLocalInputValue, CATEGORY_LABELS, DIRECTION_LABELS, STATUS_LABELS, STYLE_LABELS } from '../../composables/useRouteRecords'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
@@ -114,8 +213,10 @@
   })
 
   // The record's own identity, once it loads. Without it every effort page
-  // serves one title and no canonical. Applied on the client rather than in
-  // a `<script server>` block — see usePageSeo for why that is forced.
+  // serves one title and no canonical. The `<script server>` block above
+  // carries the same identity for crawlers; this one re-applies it for the
+  // viewer, who may be allowed to see a record the anonymous render had to
+  // withhold.
   effect(() => {
     const seoEffort = effort()
     if (!seoEffort?.id)

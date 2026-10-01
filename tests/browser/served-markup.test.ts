@@ -396,8 +396,8 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
 
 describe.skipIf(!qa)('a detail page names its own record, and withholds a private one', () => {
   /**
-   * Both halves of the server blocks added to `club`, `activity`, `athlete` and
-   * `event` detail pages.
+   * Both halves of the server blocks added to the `club`, `activity`, `athlete`,
+   * `event`, `effort` and `territory` detail pages.
    *
    * The naming half is the ordinary SEO defect the trail page had: every record
    * served one generic title, so every shared link previewed identically and a
@@ -478,11 +478,44 @@ describe.skipIf(!qa)('a detail page names its own record, and withholds a privat
     expect(meta(document, 'meta[property="og:type"]'), 'a profile says so').toBe('profile')
   })
 
+  it('names a public record attempt, and never a rejected one', async () => {
+    // An effort has no name of its own — the route it was run on is what
+    // identifies it, so the trail name is what must appear for one and not the
+    // other. The withheld one is 'rejected', which `PUBLIC_STATUSES` excludes.
+    const { shut } = await pair('effort', 'Torrey Pines Loop')
+
+    expect(shut.document.title, 'a rejected attempt falls back to the generic title')
+      .toBe('Record Attempt - Wildloop')
+    expect(shut.html, 'a rejected attempt names no route in the served HTML').not.toContain('Torrey Pines Loop')
+    expect(meta(shut.document, 'meta[name="robots"]'), 'and is not offered for indexing').toContain('noindex')
+  })
+
+  it('names a territory and resolves its holder', async () => {
+    // No visibility to withhold: the game's map, leaderboard and battle reads
+    // are all public. What this guards is the resolution — the row carries
+    // `user_id` and not a name, so a server block that skipped the lookup would
+    // describe every held territory as unclaimed.
+    const { document } = await serve('/territory/1')
+
+    expect(document.title, 'a territory is named in its title').toContain('Torrey Pines Bluff Territory')
+    expect(meta(document, 'meta[name="description"]'), 'its holder is resolved to a name')
+      .toContain('Held by Dana Fixture')
+    expect(meta(document, 'meta[name="description"]'), 'a held territory is never described as unclaimed')
+      .not.toContain('Unclaimed')
+  })
+
   it('does not ask a crawler to index a record that does not exist', async () => {
     // The same failure the trail page had, on each of the new routes: without
     // this, every bad id a crawler tries is indexed as a generic page competing
     // with the real ones.
-    for (const route of ['/club/999999999', '/activity/999999999', '/event/999999999', '/athlete/999999999']) {
+    for (const route of [
+      '/club/999999999',
+      '/activity/999999999',
+      '/event/999999999',
+      '/athlete/999999999',
+      '/effort/999999999',
+      '/territory/999999999',
+    ]) {
       const { document } = await serve(route)
       expect(
         meta(document, 'meta[name="robots"]'),

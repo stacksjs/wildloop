@@ -3,6 +3,83 @@
 @section('title', 'Territory Details - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This territory's own metadata in the HTML — see `trail/[id].stx` for the
+   * mechanism and `club/[id].stx` for the visibility rule.
+   *
+   * The one page in the set with no single-record endpoint behind it: the
+   * client resolves a territory out of the bulk `/territories/map` payload
+   * through the game store, and there is no `/territories/{id}`. So this reads
+   * the model directly, which a server block can do and the client cannot.
+   *
+   * Territories carry no visibility column, and the game's reads — the map, the
+   * leaderboard, the battle list — are all public by design, so naming a
+   * territory's holder here says nothing the leaderboard does not already say.
+   * Two neighbouring settings are deliberately *not* relied on and not needed:
+   * `show_precise_territories` governs geometry, and no geometry is rendered
+   * below; `exclude_home_from_game` keeps home ground out of the game
+   * altogether, so a territory is by construction not somebody's home.
+   */
+  const ssrTerritoryId = Number(params?.id)
+  let ssrTerritory: { name?: string, user_id?: number, area_size?: number, status?: string } | null = null
+
+  if (Number.isFinite(ssrTerritoryId) && ssrTerritoryId > 0) {
+    try {
+      ssrTerritory = await Territory.find(ssrTerritoryId) as any
+    }
+    catch {
+      ssrTerritory = null
+    }
+  }
+
+  const ssrTerritoryName = String(ssrTerritory?.name ?? '').trim()
+
+  // The row carries `user_id`, not a name — the same resolution the client does
+  // through `owner()`. Without it every held territory describes itself as
+  // unclaimed, which is the defect the client-side comment warns about.
+  let ssrTerritoryHolder = ''
+  const ssrTerritoryUserId = Number(ssrTerritory?.user_id ?? 0)
+  if (ssrTerritoryName && Number.isFinite(ssrTerritoryUserId) && ssrTerritoryUserId > 0) {
+    try {
+      const ssrHolder = await User.find(ssrTerritoryUserId) as any
+      ssrTerritoryHolder = String(ssrHolder?.name ?? '').trim()
+    }
+    catch {
+      ssrTerritoryHolder = ''
+    }
+  }
+
+  // Stored in square metres; km² is the unit the page itself shows.
+  const ssrTerritoryArea = Number(ssrTerritory?.area_size ?? 0)
+  const ssrTerritoryAreaText = ssrTerritoryArea > 0 ? `${(ssrTerritoryArea / 1_000_000).toFixed(2)} km²` : ''
+
+  const ssrTitle = ssrTerritoryName ? `${ssrTerritoryName} — Wildloop` : 'Territory - Wildloop'
+
+  const ssrDescription = ssrTerritoryName
+    ? `${ssrTerritoryName} on Wildloop. ${ssrTerritoryHolder ? `Held by ${ssrTerritoryHolder}.` : 'Unclaimed.'}${ssrTerritoryAreaText ? ` ${ssrTerritoryAreaText} of ground.` : ''} Its holder, and how it changed hands.`
+    : 'Claim ground by running it — territories, holders and battles on Wildloop.'
+
+  const ssrCanonical = ssrTerritoryName ? `https://wildloop.org/territory/${ssrTerritoryId}` : 'https://wildloop.org/territories'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    robots: ssrTerritoryName ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'website',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { createTrailMap, drawTerritoryPolygon, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
@@ -71,8 +148,10 @@
   })
 
   // The record's own identity, once it loads. Without it every territory page
-  // serves one title and no canonical. Applied on the client rather than in
-  // a `<script server>` block — see usePageSeo for why that is forced.
+  // serves one title and no canonical. The `<script server>` block above
+  // carries the same identity for crawlers; this one re-applies it for the
+  // viewer, who may be allowed to see a record the anonymous render had to
+  // withhold.
   effect(() => {
     const seoTerritory = territory()
     if (!seoTerritory?.id)
