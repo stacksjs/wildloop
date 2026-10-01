@@ -1117,7 +1117,13 @@
     <!-- Catalog header. The count is the product: it is what tells someone
          this is a national database rather than a demo list. -->
     <div class="mb-4">
-      <h1 class="font-display text-2xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white md:text-3xl">{{ listHeading() }}</h1>
+      <!-- The neutral heading is written out rather than left to the client, so a
+           crawler and a screen reader get one before the runtime boots. It cannot
+           be the *specific* heading: `cache.renderVary: 'source'` keys the render
+           by file path, so one render answers every query string, and a heading
+           for `?country=DE` would be served for all of them. `x-text` replaces it
+           with the real one on hydration. -->
+      <h1 x-text="listHeading()" class="font-display text-2xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white md:text-3xl">Every trail we know</h1>
       <p :if="listMode() === 'saved'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">The trails you saved, on every device you sign in on.</p>
       <p :if="listMode() === 'completed'" class="mt-2 max-w-[65ch] text-slate-600 dark:text-slate-400">The trails you have done: ones your activities are on, and saved trails you marked as done.</p>
       <p :if="listMode() === 'all'" class="mt-1 max-w-[75ch] text-sm text-slate-500 dark:text-slate-400">

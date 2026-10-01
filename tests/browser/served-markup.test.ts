@@ -156,23 +156,30 @@ describe.skipIf(!qa)('the served document', () => {
 })
 
 describe.skipIf(!qa)('heading structure', () => {
-  it('gives the home page exactly one h1', async () => {
-    const { page } = await serve('/')
-    const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
+  it('gives each static route exactly one h1', async () => {
+    for (const route of ROUTES) {
+      const { page } = await serve(route)
+      const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
 
-    expect(h1s.length, `h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
-    expect(h1s[0].trim(), 'h1 text').not.toBe('')
+      expect(h1s.length, `${route} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
+      expect(h1s[0].trim(), `${route} h1 text`).not.toBe('')
+      // The failure this locks in: `/trails` used to serve the literal
+      // `{{ listHeading() }}`, hidden, with no rendered heading at all.
+      expect(h1s[0], `${route} h1 is rendered`).not.toContain('{{')
+    }
   })
 
-  // `/trails` and `/trail/{id}` serve an `<h1>` holding a literal
-  // `{{ listHeading() }}` / `{{ trail.name }}` under `display: none`, and no
-  // rendered heading at all — so a crawler sees none, and a screen reader has no
-  // page heading until hydration. Asserted as a gap rather than written to match
-  // what is served, which would record the defect as the specification.
+  // `/trails` is fixed; `/trail/{id}` is not, and cannot be from the view. Its
+  // `<h1>` holds a literal `{{ trail.name }}` under `display: none`, so a crawler
+  // sees no heading and a screen reader has none until hydration — but writing the
+  // name out would be worse rather than better. `cache.renderVary: 'source'` keys
+  // the render by file path, so one render of `trail/[id].stx` answers all ~600k
+  // trails, and whichever rendered first would supply the heading for every one.
   //
-  // stacksjs/wildloop#1012.
-  it.skip('gives every route a server-rendered h1', async () => {
-    for (const route of [...ROUTES, trailPath]) {
+  // Fixing it needs a URL-keyed render cache, which `bun-plugin-stx` does not
+  // offer — see stacksjs/wildloop#1012.
+  it.skip('gives the trail route a server-rendered h1', async () => {
+    for (const route of [trailPath]) {
       const { page } = await serve(route)
       const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
 
