@@ -26,17 +26,36 @@
    */
   const ssrTrailId = Number(params?.id)
   let ssrTrail: { name?: string, difficulty?: string, distance?: number, location?: string, elevation?: number } | null = null
+  let ssrTrailLookupFailed = false
 
   if (Number.isFinite(ssrTrailId) && ssrTrailId > 0) {
     try {
-      ssrTrail = await Trail.find(ssrTrailId) as any
+      ssrTrail = (await Trail.find(ssrTrailId) ?? null) as any
     }
     catch {
       // A page that cannot reach the database still has to render. Falling back
       // to the generic shell is what it did before this block existed.
       ssrTrail = null
+      ssrTrailLookupFailed = true
     }
   }
+
+  /*
+   * No such trail, as opposed to no answer from the database.
+   *
+   * One `null` used to stand for both, and they want opposite handling: a trail
+   * that does not exist should say so, while a lookup that failed must leave the
+   * client's branch alone, so a database hiccup does not replace a trail that
+   * still loads with a denial. An id that is not a positive number is the first
+   * case — there is no such trail and never could be.
+   */
+  const ssrTrailMissing = !ssrTrailLookupFailed && ssrTrail === null
+
+  // A 404 body under a 200 tells a crawler, a cache and an uptime check that the
+  // URL is a real page. `notFound()` records the status; it does not stop the
+  // render, so the markup below still explains itself.
+  if (ssrTrailMissing)
+    notFound()
 
   const ssrName = String(ssrTrail?.name ?? '').trim()
   // `location` is the readable one — "Monschau, Nordrhein-Westfalen". `state`
@@ -967,7 +986,7 @@
             paragraph. Without one — the lookup failed, but the client may still
             load the trail — there is no heading above, so this has to be it.
           -->
-@if (ssrName)
+@if (ssrName || ssrTrailMissing)
           <p x-text="trail.name" class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ ssrName }}</p>
 @else
           <h1 x-text="trail.name" class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ trail.name }}</h1>
@@ -1888,6 +1907,34 @@
       <div class="hidden h-72 rounded-2xl bg-slate-200 lg:block dark:bg-slate-800"></div>
     </div>
   </div>
+@if (ssrTrailMissing)
+  <!--
+    The not-found state, served rather than left for the client to reveal.
+    
+    The card below it is gated on `:if`, which stx serves `x-cloak`ed — so a
+    request for a trail that does not exist used to answer 200 with every
+    heading hidden: a crawler was told the page was fine and shown nothing, and
+    a reader without JavaScript saw an empty column.
+    
+    This copy carries no client directive, so nothing cloaks it. Its text is
+    fixed rather than `{{ trailLoadError ? … }}`, because the server knows which
+    case this is — the row is absent, not unreachable — and an unresolved
+    expression is exactly what should not be served. The two are mutually
+    exclusive: when this renders, the gated one below is not emitted at all, so
+    the page has one not-found card and one `h1`.
+  -->
+  <div class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
+    <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <i class="i-lucide-map-pin-off h-9 w-9" aria-hidden="true"></i>
+    </div>
+    <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Trail not found</h1>
+    <p class="mt-2 text-slate-500 dark:text-slate-400">It may have been merged into another trail or removed from the catalog.</p>
+    <StxLink to="/trails" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
+      Browse trails
+    </StxLink>
+  </div>
+@else
   <div :if="!loadingTrail && !trail" class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
     <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
       <i x-class="trailLoadError ? 'i-lucide-cloud-off h-9 w-9' : 'i-lucide-map-pin-off h-9 w-9'" aria-hidden="true"></i>
@@ -1920,6 +1967,7 @@
       Browse trails
     </StxLink>
   </div>
+@endif
 <!--
   All of a trail's photos, full screen: a masonry grid under a bar that says
   whose they are. Picking one closes the grid on that photo. A page overlay,

@@ -33,9 +33,15 @@ interface Served {
   html: string
 }
 
-async function serve(path: string): Promise<Served> {
+/**
+ * `expectStatus` is 200 for every page that exists. A page that reports its own
+ * absence answers 404 and still has a body worth reading, so the status is a
+ * parameter rather than an assumption — and it stays asserted either way, since
+ * a not-found body served under a 200 is the defect, not a detail.
+ */
+async function serve(path: string, expectStatus = 200): Promise<Served> {
   const response = await fetch(`${APP}${path}`, { headers: { accept: 'text/html' } })
-  expect(response.status, `GET ${path}`).toBe(200)
+  expect(response.status, `GET ${path}`).toBe(expectStatus)
   expect(response.headers.get('content-type') ?? '', `GET ${path} content-type`).toContain('text/html')
 
   const html = await response.text()
@@ -437,13 +443,34 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
     expect(first.document.title, 'two trails must not share a title').not.toBe(second.document.title)
   })
 
-  it('does not ask a crawler to index a trail that does not exist', async () => {
-    // Otherwise every bad id a crawler tries is indexed as a generic page,
-    // competing with the real ones.
-    const { document } = await serve('/trail/999999999')
-    const robots = document.querySelector('meta[name="robots"]')?.getAttribute('content') ?? ''
+  it('answers 404 for a trail that does not exist, and says so in the page', async () => {
+    /*
+     * The three halves of a 404, which used to be none of them.
+     *
+     * The status, because a not-found body under a 200 tells a crawler, a cache
+     * and an uptime check that the URL is a real page. The heading, rendered and
+     * exposed rather than sitting in a `:if` branch stx serves `x-cloak`ed —
+     * which left a reader without JavaScript an empty column and a crawler no
+     * heading at all. And `noindex`, so a bad id a crawler tries is not indexed
+     * as a generic page competing with the real ones.
+     *
+     * A non-numeric id takes the same path: there is no such trail and never
+     * could be.
+     */
+    for (const path of ['/trail/999999999', '/trail/abc', '/trail/0']) {
+      const { document, page } = await serve(path, 404)
+      const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
 
-    expect(robots, 'a missing trail is noindex').toContain('noindex')
+      expect(h1s.length, `${path} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
+      expect(h1s[0], `${path} says it was not found`).toContain('not found')
+      expect(h1s[0], `${path} heading is rendered, not an expression`).not.toContain('{{')
+
+      const rendered = String(document.body.innerText ?? '')
+      expect(rendered, `${path} renders no template expression`).not.toContain('{{')
+
+      const robots = document.querySelector('meta[name="robots"]')?.getAttribute('content') ?? ''
+      expect(robots, `${path} is noindex`).toContain('noindex')
+    }
   })
 })
 
