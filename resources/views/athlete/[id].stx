@@ -22,6 +22,7 @@
    */
   const ssrAthleteId = Number(params?.id)
   let ssrAthlete: { name?: string } | null = null
+  let ssrAthleteLookupFailed = false
 
   if (Number.isFinite(ssrAthleteId) && ssrAthleteId > 0) {
     try {
@@ -29,8 +30,27 @@
     }
     catch {
       ssrAthlete = null
+      ssrAthleteLookupFailed = true
     }
   }
+
+  /*
+   * No such record, as opposed to no answer from the database.
+   *
+   * One `null` stood for both, and they want opposite handling: a record
+   * that does not exist should say so, while a lookup that failed must leave
+   * the client's branch alone, so a database hiccup does not replace a page
+   * that still loads with a denial. A row that exists but is withheld is
+   * neither — it answers 200 with the generic shell, as it did before, so
+   * nothing here changes what a private record discloses.
+   */
+  const ssrAthleteMissing = !ssrAthleteLookupFailed && ssrAthlete === null
+
+  // A not-found body under a 200 tells a crawler, a cache and an uptime check
+  // that the URL is a real page. `notFound()` records the status without
+  // stopping the render, so the markup still explains itself.
+  if (ssrAthleteMissing)
+    notFound()
 
   const ssrAthleteName = String(ssrAthlete?.name ?? '').trim()
 
@@ -269,6 +289,23 @@
       <button @click="loadAthlete()" class="mt-5 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
     </div>
 
+@if (ssrAthleteMissing)
+  <!--
+    The not-found state, served rather than left for the client to reveal. The
+    gated copy below is `:if`-conditioned, which stx serves `x-cloak`ed — so a
+    request for a record that does not exist answered 200 with its explanation
+    hidden. This copy carries no client directive, and its heading is the page's
+    `h1` because here it is what the page is. The two are mutually exclusive, so
+    there is one card and one heading either way. See `trail/[id].stx`.
+  -->
+  <div class="py-20 text-center">
+    <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+      <i class="i-lucide-user-x h-7 w-7 text-slate-400" aria-hidden="true"></i>
+    </div>
+    <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Athlete not found</h1>
+    <StxLink to="/feed" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to feed</StxLink>
+  </div>
+@else
     <div :if="!loading && !loadError && !profile" class="py-20 text-center">
       <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
         <i class="i-lucide-user-x h-7 w-7 text-slate-400" aria-hidden="true"></i>
@@ -277,6 +314,7 @@
       <p :if="safetyMessage" class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ safetyMessage }}</p>
       <StxLink to="/feed" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to feed</StxLink>
     </div>
+@endif
 
   <!--
     The page's heading, served. `:if` is evaluated on the client, so stx sends
@@ -298,7 +336,7 @@
           <Image :if="athletePhoto()" x-src="athletePhoto()" x-alt="profile.user.name" width="96" height="96" sizes="96px" class="h-24 w-24 shrink-0 rounded-full object-cover ring-4 ring-emerald-50 dark:ring-emerald-500/10" />
           <div :if="!athletePhoto()" class="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-4xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10" aria-hidden="true">{{ (profile.user.name || 'U').charAt(0) }}</div>
           <div class="min-w-0 flex-1">
-            @if (ssrAthleteName)
+            @if (ssrAthleteName || ssrAthleteMissing)
             <p class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ profile.user.name }}</p>
 @else
             <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ profile.user.name }}</h1>

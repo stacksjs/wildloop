@@ -26,6 +26,7 @@
    */
   const ssrActivityId = Number(params?.id)
   let ssrActivity: { activity_type?: string, distance?: number, visibility?: string, trail_id?: number, user_id?: number, notes?: string, duration?: string, pace?: string } | null = null
+  let ssrActivityLookupFailed = false
 
   if (Number.isFinite(ssrActivityId) && ssrActivityId > 0) {
     try {
@@ -37,8 +38,27 @@
     }
     catch {
       ssrActivity = null
+      ssrActivityLookupFailed = true
     }
   }
+
+  /*
+   * No such record, as opposed to no answer from the database.
+   *
+   * One `null` stood for both, and they want opposite handling: a record
+   * that does not exist should say so, while a lookup that failed must leave
+   * the client's branch alone, so a database hiccup does not replace a page
+   * that still loads with a denial. A row that exists but is withheld is
+   * neither — it answers 200 with the generic shell, as it did before, so
+   * nothing here changes what a private record discloses.
+   */
+  const ssrActivityMissing = !ssrActivityLookupFailed && ssrActivity === null
+
+  // A not-found body under a 200 tells a crawler, a cache and an uptime check
+  // that the URL is a real page. `notFound()` records the status without
+  // stopping the render, so the markup still explains itself.
+  if (ssrActivityMissing)
+    notFound()
 
   // Fails closed: anything that is not the literal 'public' — 'followers',
   // 'private', null, a column that has gone missing — is withheld.
@@ -691,7 +711,7 @@
       <p :if="reportMessage" role="status" class="mb-3 text-xs text-slate-500 dark:text-slate-400">{{ reportMessage }}</p>
 
       <div class="flex flex-wrap items-center gap-2">
-        @if (ssrActivityHeading)
+        @if (ssrActivityHeading || ssrActivityMissing)
         <p class="font-display text-2xl font-bold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white sm:text-3xl">{{ activity.title }}</p>
 @else
         <h1 class="font-display text-2xl font-bold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white sm:text-3xl">{{ activity.title }}</h1>
@@ -1118,6 +1138,25 @@
     <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
   </div>
 
+@if (ssrActivityMissing)
+  <!--
+    The not-found state, served rather than left for the client to reveal. The
+    gated copy below is `:if`-conditioned, which stx serves `x-cloak`ed — so a
+    request for a record that does not exist answered 200 with its explanation
+    hidden. This copy carries no client directive, and its heading is the page's
+    `h1` because here it is what the page is. The two are mutually exclusive, so
+    there is one card and one heading either way. See `trail/[id].stx`.
+  -->
+  <div class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
+    <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <i class="i-lucide-search-x h-9 w-9" aria-hidden="true"></i>
+    </div>
+    <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Activity not found</h1>
+    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">It may be private, or it has been deleted.</p>
+    <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
+  </div>
+@endif
+@else
   <div :if="!activity && !deleted" class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
     <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
       <i class="i-lucide-search-x h-9 w-9" aria-hidden="true"></i>

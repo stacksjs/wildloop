@@ -26,6 +26,7 @@
    */
   const ssrEffortId = Number(params?.id)
   let ssrEffort: { trail_id?: number, status?: string, style?: string, category?: string, elapsed_seconds?: number, user_id?: number } | null = null
+  let ssrEffortLookupFailed = false
 
   if (Number.isFinite(ssrEffortId) && ssrEffortId > 0) {
     try {
@@ -35,8 +36,27 @@
     }
     catch {
       ssrEffort = null
+      ssrEffortLookupFailed = true
     }
   }
+
+  /*
+   * No such record, as opposed to no answer from the database.
+   *
+   * One `null` stood for both, and they want opposite handling: a record
+   * that does not exist should say so, while a lookup that failed must leave
+   * the client's branch alone, so a database hiccup does not replace a page
+   * that still loads with a denial. A row that exists but is withheld is
+   * neither — it answers 200 with the generic shell, as it did before, so
+   * nothing here changes what a private record discloses.
+   */
+  const ssrEffortMissing = !ssrEffortLookupFailed && ssrEffort === null
+
+  // A not-found body under a 200 tells a crawler, a cache and an uptime check
+  // that the URL is a real page. `notFound()` records the status without
+  // stopping the render, so the markup still explains itself.
+  if (ssrEffortMissing)
+    notFound()
 
   // Fails closed: an unrecognised or missing status is withheld, not published.
   const ssrEffortPublicStatuses = ['in_progress', 'dnf', 'pending', 'verified']
@@ -263,6 +283,21 @@
 
     <div :if="loading" class="py-20 text-center text-sm text-gray-400 dark:text-slate-500">Loading attempt…</div>
 
+@if (ssrEffortMissing)
+  <!--
+    The not-found state, served rather than left for the client to reveal. The
+    gated copy below is `:if`-conditioned, which stx serves `x-cloak`ed — so a
+    request for a record that does not exist answered 200 with its explanation
+    hidden. This copy carries no client directive, and its heading is the page's
+    `h1` because here it is what the page is. The two are mutually exclusive, so
+    there is one card and one heading either way. See `trail/[id].stx`.
+  -->
+    <div class="py-20 text-center">
+      <h1 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</h1>
+      <p class="mb-6 text-sm text-gray-500 dark:text-slate-400">It may have been withdrawn, or the link is wrong.</p>
+      <StxLink to="/records" class="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to records</StxLink>
+    </div>
+@else
     <div :if="!loading &amp;&amp; loadError" class="py-20 text-center">
 @if (ssrEffortSubject)
       <p class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</p>
@@ -272,6 +307,7 @@
       <p class="mb-6 text-sm text-gray-500 dark:text-slate-400">{{ loadError }}</p>
       <StxLink to="/records" class="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to records</StxLink>
     </div>
+@endif
 
     <div :if="!loading &amp;&amp; effort">
       <StxLink to="/records" class="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-emerald-600 dark:text-slate-400">

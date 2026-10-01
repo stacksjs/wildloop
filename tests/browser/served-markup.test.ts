@@ -588,10 +588,19 @@ describe.skipIf(!qa)('a detail page names its own record, and withholds a privat
       .not.toContain('Unclaimed')
   })
 
-  it('does not ask a crawler to index a record that does not exist', async () => {
-    // The same failure the trail page had, on each of the new routes: without
-    // this, every bad id a crawler tries is indexed as a generic page competing
-    // with the real ones.
+  it('answers 404 for a record that does not exist, and says so in the page', async () => {
+    /*
+     * The same three halves asserted for the trail route, on the other six.
+     *
+     * Each answered 200 with its not-found card `x-cloak`ed — a crawler told the
+     * request succeeded and shown nothing, a cache and an uptime check told the
+     * URL is a real page, a reader without JavaScript given an empty column.
+     *
+     * A record that exists but is withheld is deliberately not in here: it still
+     * answers 200 with the generic shell, because 404 for a private record would
+     * be a different decision about what to disclose than the one these pages
+     * already make.
+     */
     for (const route of [
       '/club/999999999',
       '/activity/999999999',
@@ -600,11 +609,13 @@ describe.skipIf(!qa)('a detail page names its own record, and withholds a privat
       '/effort/999999999',
       '/territory/999999999',
     ]) {
-      const { document } = await serve(route)
-      expect(
-        meta(document, 'meta[name="robots"]'),
-        `${route} must be noindex`,
-      ).toContain('noindex')
+      const { document, page } = await serve(route, 404)
+      const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
+
+      expect(h1s.length, `${route} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
+      expect(h1s[0], `${route} says it was not found`).toMatch(/not found/i)
+      expect(String(document.body.innerText ?? ''), `${route} renders no expression`).not.toContain('{{')
+      expect(meta(document, 'meta[name="robots"]'), `${route} must be noindex`).toContain('noindex')
     }
-  })
+  }, 30_000)
 })
