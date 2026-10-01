@@ -302,6 +302,19 @@
       <StxLink to="/clubs" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Browse clubs</StxLink>
     </div>
 
+  <!--
+    The page's heading, served. `:if` is evaluated on the client, so stx sends
+    that branch with `x-cloak` — `display: none !important` until hydration —
+    and anything inside it is absent from the accessibility tree of the served
+    document. The heading below therefore sat outside it, where nothing cloaks
+    it, holding the name the server block already resolved. `sr-only` keeps it
+    out of the picture but in the accessibility tree, because the painted title
+    says the same words; that title becomes a paragraph here so the page has
+    one heading. See `trail/[id].stx`, where this is spelled out in full.
+  -->
+  @if (ssrClubName)
+  <h1 class="sr-only">{{ ssrClubName }}</h1>
+  @endif
     <template :if="!loading && !loadError && club">
       <!-- Header -->
       <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
@@ -309,7 +322,11 @@
           <div class="flex min-w-0 items-start gap-4">
             <div class="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-emerald-100 font-display text-2xl font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" aria-hidden="true">{{ initialOf(club.name) }}</div>
             <div class="min-w-0">
+              @if (ssrClubName)
+              <p class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ club.name }}</p>
+@else
               <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">{{ club.name }}</h1>
+@endif
               <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500 dark:text-slate-400">
                 <span>{{ club.location || 'Worldwide' }}</span>
                 <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>

@@ -235,10 +235,31 @@
 </script>
 
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <!--
+      The page's heading, served, and the only one it has.
+
+      A loaded attempt had no heading at all: what names it visually is the link
+      to its route below, styled like a title but still a link. The one `h1`
+      this page served belonged to the error card, uncloaked — so a crawler
+      reading a perfectly good attempt was told "Attempt not found".
+
+      This says what the page is, matching the title the server block sets,
+      rather than just the route's name, which would read as the trail's own
+      page. `sr-only` because the route link already shows that name in place;
+      the error card keeps its heading only when the server resolved nothing.
+    -->
+    @if (ssrEffortTrail)
+    <h1 class="sr-only">{{ ssrEffortTrail }} — record attempt</h1>
+    @endif
+
     <div :if="loading" class="py-20 text-center text-sm text-gray-400 dark:text-slate-500">Loading attempt…</div>
 
     <div :if="!loading &amp;&amp; loadError" class="py-20 text-center">
+@if (ssrEffortTrail)
+      <p class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</p>
+@else
       <h1 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</h1>
+@endif
       <p class="mb-6 text-sm text-gray-500 dark:text-slate-400">{{ loadError }}</p>
       <StxLink to="/records" class="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to records</StxLink>
     </div>

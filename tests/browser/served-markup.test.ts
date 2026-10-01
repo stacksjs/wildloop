@@ -197,6 +197,46 @@ describe.skipIf(!qa)('heading structure', () => {
     expect(h1s[0], `${trailPath} h1 names the trail`).toContain(name)
   })
 
+  /**
+   * Every detail route, not just the trail.
+   *
+   * `ROUTES` above is `/` and `/trails`, so these pages had no coverage at all
+   * and each carried the same defect the trail page did: the heading sat inside
+   * a `:if` branch, which stx serves `x-cloak`ed, so the served document had no
+   * heading in its accessibility tree — and what it did contain was the literal
+   * `{{ club.name }}`, never resolved, because those are client signals.
+   * `/effort` was worse: its only served heading belonged to the error card and
+   * was not cloaked, so a crawler reading a perfectly good attempt was told
+   * "Attempt not found".
+   *
+   * Asserted by shape rather than by matching each fixture's name, so the test
+   * does not depend on the order the seed inserts them. Each clause catches one
+   * of the three failures: no exposed heading, an unresolved expression, and a
+   * heading that denies the record exists.
+   */
+  it('gives every detail route exactly one heading, naming its record', async () => {
+    for (const route of ['/club/1', '/activity/1', '/athlete/1', '/event/1', '/territory/1', '/effort/1']) {
+      const { page } = await serve(route)
+      const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
+
+      expect(h1s.length, `${route} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
+      expect(h1s[0].trim(), `${route} h1 is not empty`).not.toBe('')
+      expect(h1s[0], `${route} h1 is rendered, not a literal expression`).not.toContain('{{')
+      expect(h1s[0], `${route} h1 must not deny the record exists`).not.toMatch(/not found/i)
+    }
+  })
+
+  // The two fixtures that are unique in the QA seed, so their names can be
+  // asserted outright rather than by shape.
+  it('names the athlete and the territory in their headings', async () => {
+    for (const [route, subject] of [['/athlete/1', 'Dana Fixture'], ['/territory/1', 'Torrey Pines Bluff Territory']] as const) {
+      const { page } = await serve(route)
+      const [heading] = await page.getByRole('heading', { level: 1 }).allTextContents()
+
+      expect(heading, `${route} h1 names its record`).toContain(subject)
+    }
+  })
+
   it('does not skip a heading level', async () => {
     for (const route of ROUTES) {
       const { document } = await serve(route)

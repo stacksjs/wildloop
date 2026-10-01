@@ -211,11 +211,30 @@
     <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
       <i class="i-lucide-calendar-x h-7 w-7 text-slate-400" aria-hidden="true"></i>
     </div>
+    @if (ssrEventName)
+    <p class="text-lg font-semibold text-slate-900 dark:text-white">Event not found</p>
+@else
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Event not found</h1>
+@endif
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been cancelled and removed, or the link is wrong.</p>
     <StxLink to="/events" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to events</StxLink>
   </div>
 
+  <!--
+    The page's heading, served. `:if` is evaluated on the client, so stx sends
+    that branch with `x-cloak` — `display: none !important` until hydration —
+    and anything inside it is absent from the accessibility tree of the served
+    document. The heading below therefore sits outside it, holding the name the
+    server block already resolved. `sr-only` keeps it out of the picture but in
+    the accessibility tree, because the painted title says the same words; that
+    title becomes a paragraph here so the page has one heading. The not-found
+    card keeps its own heading only when the server resolved nothing, since
+    both branches are served and otherwise there would be two. See
+    `trail/[id].stx`, where this is spelled out in full.
+  -->
+  @if (ssrEventName)
+  <h1 class="sr-only">{{ ssrEventName }}</h1>
+  @endif
   <div :if="event">
     <!-- ── Corral header ────────────────────────────────────────────────── -->
     <section class="event-header">
@@ -235,7 +254,11 @@
               <span :if="event.status === 'cancelled'" class="rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.1em] text-white">Cancelled</span>
               <span class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white/90">{{ typeLabel(event.type) }}</span>
             </div>
+            @if (ssrEventName)
+            <p class="font-display text-3xl font-bold tracking-[-0.03em] text-white md:text-4xl">{{ event.name }}</p>
+@else
             <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-white md:text-4xl">{{ event.name }}</h1>
+@endif
             <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-white/80">
               <span class="inline-flex items-center gap-1.5"><i class="i-lucide-calendar h-4 w-4 opacity-70" aria-hidden="true"></i>{{ whenLabel(event.startTime) }}</span>
               <span :if="event.location" class="inline-flex items-center gap-1.5"><i class="i-lucide-map-pin h-4 w-4 opacity-70" aria-hidden="true"></i>{{ event.location }}</span>

@@ -25,7 +25,7 @@
    * here discloses nothing the trail page does not already serve publicly.
    */
   const ssrActivityId = Number(params?.id)
-  let ssrActivity: { activity_type?: string, distance?: number, visibility?: string, trail_id?: number } | null = null
+  let ssrActivity: { activity_type?: string, distance?: number, visibility?: string, trail_id?: number, user_id?: number, notes?: string } | null = null
 
   if (Number.isFinite(ssrActivityId) && ssrActivityId > 0) {
     try {
@@ -69,6 +69,33 @@
         ? `${ssrActivityKind} on ${ssrActivityTrail}`
         : [ssrActivityKind, ssrActivityDistanceText].filter(Boolean).join(' · '))
     : ''
+
+  /*
+   * What the page calls this activity, by its own rule.
+   *
+   * The heading is not `ssrActivityLabel`: that names the outing ("Trail Run on
+   * Emerald Lake Trail") and is right for a search result, but the page paints
+   * `activity.title`, which resolves to the athlete's own note. A served
+   * heading saying one thing while the painted one says another is the defect
+   * this is meant to remove, so this mirrors the rule the page's own
+   * `setPageSeo` uses further down: the note when there is one, otherwise the
+   * type and whose it is.
+   */
+  let ssrActivityBy = ''
+  const ssrActivityUserId = ssrActivityIsPublic ? Number(ssrActivity?.user_id ?? 0) : 0
+  if (Number.isFinite(ssrActivityUserId) && ssrActivityUserId > 0) {
+    try {
+      const ssrActivityAthlete = await User.find(ssrActivityUserId) as any
+      ssrActivityBy = String(ssrActivityAthlete?.name ?? '').trim()
+    }
+    catch {
+      ssrActivityBy = ''
+    }
+  }
+
+  const ssrActivityNote = ssrActivityIsPublic ? String(ssrActivity?.notes ?? '').trim() : ''
+  const ssrActivityHeading = ssrActivityNote
+    || (ssrActivityKind && ssrActivityBy ? `${ssrActivityKind} by ${ssrActivityBy}` : ssrActivityLabel)
 
   const ssrTitle = ssrActivityLabel ? `${ssrActivityLabel} — Wildloop` : 'Activity Details - Wildloop'
 
@@ -535,6 +562,18 @@
   })
 </script>
 
+  <!--
+    The page's heading, served. `:if` is evaluated on the client, so stx sends
+    that branch with `x-cloak` — `display: none !important` until hydration —
+    and anything inside it is absent from the accessibility tree of the served
+    document. The heading below therefore sits outside it. `sr-only` keeps it
+    out of the picture but in the accessibility tree, because the painted title
+    says the same words; that title becomes a paragraph here so the page has one
+    heading. See `trail/[id].stx`, where this is spelled out in full.
+  -->
+  @if (ssrActivityHeading)
+  <h1 class="sr-only">{{ ssrActivityHeading }}</h1>
+  @endif
   <div :if="activity" class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <StxLink to="/feed" class="native-only mb-4 items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
       <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
@@ -623,7 +662,11 @@
       <p :if="reportMessage" role="status" class="mb-3 text-xs text-slate-500 dark:text-slate-400">{{ reportMessage }}</p>
 
       <div class="flex flex-wrap items-center gap-2">
+        @if (ssrActivityHeading)
+        <p class="font-display text-2xl font-bold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white sm:text-3xl">{{ activity.title }}</p>
+@else
         <h1 class="font-display text-2xl font-bold leading-tight tracking-[-0.02em] text-slate-900 dark:text-white sm:text-3xl">{{ activity.title }}</h1>
+@endif
         <span :if="activity.visibility && activity.visibility !== 'public'" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
           <i x-class="activity.visibility === 'private' ? 'i-lucide-lock h-3 w-3' : 'i-lucide-users h-3 w-3'" aria-hidden="true"></i>
           {{ activity.visibility === 'private' ? 'Private' : 'Followers' }}
