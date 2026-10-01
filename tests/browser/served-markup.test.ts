@@ -169,22 +169,32 @@ describe.skipIf(!qa)('heading structure', () => {
     }
   })
 
-  // `/trails` is fixed; `/trail/{id}` is not, and cannot be from the view. Its
-  // `<h1>` holds a literal `{{ trail.name }}` under `display: none`, so a crawler
-  // sees no heading and a screen reader has none until hydration — but writing the
-  // name out would be worse rather than better. `cache.renderVary: 'source'` keys
-  // the render by file path, so one render of `trail/[id].stx` answers all ~600k
-  // trails, and whichever rendered first would supply the heading for every one.
+  // This one was skipped for a long time on a premise that turned out to be
+  // wrong: that a per-record heading could not be served because
+  // `cache.renderVary: 'source'` keys the render by file path, so one render of
+  // `trail/[id].stx` would answer all ~600k trails. A server script that reads
+  // its params opts the route out of that cache, which the page now does, so the
+  // heading can name its own trail without one trail answering for another.
   //
-  // Fixing it needs a URL-keyed render cache, which `bun-plugin-stx` does not
-  // offer — see stacksjs/wildloop#1012.
-  it.skip('gives the trail route a server-rendered h1', async () => {
-    for (const route of [trailPath]) {
-      const { page } = await serve(route)
-      const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
+  // Two separate defects had to go, and the count is what catches the second.
+  // The heading held a literal `{{ trail.name }}`, because `trail` is a client
+  // signal and nothing had resolved it server-side. And both the trail header
+  // and the not-found card were served — `:if` is evaluated on the client, so
+  // stx sends both branches — which is two `h1`s for one page.
+  it('gives the trail route a server-rendered h1', async () => {
+    const { page } = await serve(trailPath)
+    const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
 
-      expect(h1s.length, `${route} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
-    }
+    expect(h1s.length, `${trailPath} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
+    expect(h1s[0], `${trailPath} h1 is rendered, not a literal expression`).not.toContain('{{')
+
+    // The point of serving it at all: the heading has to say which trail this
+    // is, to a reader who has run no JavaScript.
+    const name = await fetch(`${API}/trails/${trailPath.split('/').pop()}`)
+      .then(r => r.json())
+      .then(payload => String(payload?.trail?.name ?? '').trim())
+    expect(name, 'the API must give a name to compare against').not.toBe('')
+    expect(h1s[0], `${trailPath} h1 names the trail`).toContain(name)
   })
 
   it('does not skip a heading level', async () => {

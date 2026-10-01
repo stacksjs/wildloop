@@ -899,6 +899,27 @@
   })
 </script>
 
+@if (ssrName)
+  <!--
+    The page's heading, outside the container below because that container is
+    where the problem was.
+
+    `:if` is evaluated on the client, so stx serves the branch with `x-cloak` —
+    `display: none !important` until hydration. Anything inside it is therefore
+    absent from the accessibility tree of the served document, which is why the
+    trail had no heading for a crawler or a screen reader however the inner
+    `<h1>` was written: it was hidden, and `{{ trail.name }}` had nothing to
+    resolve against server-side anyway.
+
+    So the heading lives here, where nothing cloaks it, with the name the server
+    block already resolved. It is `sr-only` because the painted title below says
+    the same words — showing both would duplicate them on screen — and `sr-only`
+    hides it visually while leaving it in the accessibility tree, which is the
+    half that was missing. The title below is a paragraph for the same reason:
+    one page, one heading.
+  -->
+  <h1 class="sr-only">{{ ssrName }}</h1>
+@endif
   <div :if="trail">
     <!-- Header, the way a trail page is usually read: where it sits in the
          catalog, its name, how it rates, and a row of places to jump to. -->
@@ -912,12 +933,27 @@
           <StxLink x-to="crumb.href" class="rounded px-0.5 transition hover:text-emerald-700 hover:underline dark:hover:text-emerald-400">{{ crumb.label }}</StxLink>
         </template>
         <span class="text-slate-300 dark:text-slate-600" aria-hidden="true">›</span>
-        <span aria-current="page" class="truncate text-slate-700 dark:text-slate-200">{{ trail.name }}</span>
+        <span aria-current="page" x-text="trail.name" class="truncate text-slate-700 dark:text-slate-200">{{ ssrName }}</span>
       </nav>
 
       <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
-          <h1 class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ trail.name }}</h1>
+          <!--
+            The painted title. `x-text` fills it from the client signal on
+            hydration, and `{{ ssrName }}` is what stands there until then, so
+            the first paint already says which trail this is instead of the
+            characters "{{ trail.name }}".
+
+            Its tag depends on what the server resolved. With a name, the
+            `sr-only` heading above is the document's `h1` and this is a
+            paragraph. Without one — the lookup failed, but the client may still
+            load the trail — there is no heading above, so this has to be it.
+          -->
+@if (ssrName)
+          <p x-text="trail.name" class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ ssrName }}</p>
+@else
+          <h1 x-text="trail.name" class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ trail.name }}</h1>
+@endif
           <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize" x-class="'difficulty-' + trail.difficulty">{{ trail.difficulty }}</span>
             <span :if="trail.rating > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
@@ -1838,7 +1874,28 @@
     <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
       <i x-class="trailLoadError ? 'i-lucide-cloud-off h-9 w-9' : 'i-lucide-map-pin-off h-9 w-9'" aria-hidden="true"></i>
     </div>
+    <!--
+      Whether this card carries the page's heading depends on what the server
+      resolved, which is why the tag is chosen here rather than in the browser.
+
+      Both this card and the trail header above are served: `:if` is evaluated
+      on the client, so stx sends both branches and lets hydration pick. When
+      the server already named the trail, the document has its heading and this
+      card is a transient message about a fetch that failed — a message, not a
+      new page identity, so it is a paragraph and the served HTML has exactly
+      one h1. When the server resolved no trail, this card *is* the page, and it
+      takes the h1.
+
+      A trail that does not exist still serves both headings, since the server
+      cannot tell "no such trail" from "the lookup failed" and must leave the
+      choice to the client. That page is `noindex` and only ever shows one of
+      them, so the duplication costs nothing.
+    -->
+@if (ssrName)
+    <p class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ trailLoadError ? 'Trail could not be loaded' : 'Trail not found' }}</p>
+@else
     <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ trailLoadError ? 'Trail could not be loaded' : 'Trail not found' }}</h1>
+@endif
     <p class="mt-2 text-slate-500 dark:text-slate-400">{{ trailLoadError ? 'Check your connection and try again.' : 'It may have been merged into another trail or removed from the catalog.' }}</p>
     <StxLink to="/trails" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
       <i class="i-lucide-search h-4 w-4" aria-hidden="true"></i>
