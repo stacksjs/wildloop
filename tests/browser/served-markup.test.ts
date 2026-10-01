@@ -169,6 +169,8 @@ describe.skipIf(!qa)('heading structure', () => {
   // rendered heading at all — so a crawler sees none, and a screen reader has no
   // page heading until hydration. Asserted as a gap rather than written to match
   // what is served, which would record the defect as the specification.
+  //
+  // stacksjs/wildloop#1012.
   it.skip('gives every route a server-rendered h1', async () => {
     for (const route of [...ROUTES, trailPath]) {
       const { page } = await serve(route)
@@ -332,11 +334,30 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
     expect(rendered, `${trailPath} rendered text`).not.toContain('{{')
   })
 
-  it('titles and describes the trail page distinctly from the home page', async () => {
+  it('has a title of its own, not the site default', async () => {
     const trail = await serve(trailPath)
     const home = await serve('/')
 
     expect(trail.document.title.trim(), 'trail page title').not.toBe('')
     expect(trail.document.title, 'a trail page must not reuse the home title').not.toBe(home.document.title)
+  })
+
+  // The assertion above is weaker than it looks, and that is why this one exists.
+  // `/trail/{id}` serves the literal title `Trail Details - Wildloop` for every
+  // trail, which differs from the home page's and so satisfies it — the defect sat
+  // behind a passing test. Naming the trail is the property that matters, and every
+  // trail page currently serves the same title, og:title and description.
+  //
+  // stacksjs/wildloop#1012.
+  it.skip('names the trail in its title and social metadata', async () => {
+    const { document } = await serve(trailPath)
+    const name = String(document.querySelector('h1')?.textContent ?? '').trim()
+    const meta = (selector: string): string =>
+      document.querySelector(selector)?.getAttribute('content')?.trim() ?? ''
+
+    expect(name, 'the h1 must hold a name to compare against').not.toMatch(/\{\{/)
+    expect(document.title, 'title names the trail').toContain(name)
+    expect(meta('meta[property="og:title"]'), 'og:title names the trail').toContain(name)
+    expect(meta('meta[name="description"]'), 'description names the trail').toContain(name)
   })
 })
