@@ -36,29 +36,29 @@ test('a trail opened from its card renders, even when the store has not loaded i
 })
 
 /**
- * A trail id that a demo fixture also uses.
+ * The trail a URL names, and no stand-in for it.
  *
- * `resources/components/stores.stx` seeds ten demo trails into the store, under
- * ids 1-10, which are real trail ids in the catalog. `findTrail(1)` answered
- * with the fixture, and because the page skips its fetch when the store already
- * has the id, `/api/trails/1` was never requested — so the page rendered a
- * fabricated trail under a URL for a different one, permanently.
+ * The store used to be seeded with twelve demo trails under ids 1-12, which are
+ * real ids in the catalog. `findTrail(1)` answered with the fixture, and because
+ * the page skips its fetch when the store already holds the id, `/api/trails/1`
+ * was never requested — so the page rendered a fabricated trail under a URL for
+ * a different one, permanently. It only became visible once the heading was
+ * server-rendered: the document said "Torrey Pines Loop" in its `h1` and painted
+ * "Eagle Peak Summit" beneath it.
  *
- * It only became visible once the heading was server-rendered: the document then
- * said "Torrey Pines Loop" in its `h1` and painted "Eagle Peak Summit" beneath
- * it. The fixtures carry a `demo` marker now, and this page refuses to answer
- * with one.
- *
- * Both halves are asserted because they fail independently: the request has to
- * happen at all, and the fixture's name must not survive anywhere on the page.
+ * The fixtures are gone and the store is filled only from the API, so this now
+ * guards against their return — in any form that would let something other than
+ * the API answer for an id. Both halves are asserted because they fail
+ * independently: the request has to happen at all, and no fabricated name may
+ * appear on the page.
  */
-test('a trail whose id collides with a demo fixture renders the real trail', async ({ page }) => {
+test('a trail page renders the record the API holds for its id', async ({ page }) => {
   const fetched = page.waitForResponse(r => new URL(r.url()).pathname === '/api/trails/1')
 
   await page.goto(`${origin}/trail/1`)
 
-  // Before the fix this timed out: the store already had a trail under id 1, so
-  // the page never asked for the real one.
+  // This timed out while the store was seeded: it already had a trail under id
+  // 1, so the page never asked for the real one.
   const payload = await fetched.then(r => r.json())
   const name = String(payload?.trail?.name ?? '').trim()
   expect(name, 'the API must name trail 1 for this to compare against').not.toBe('')

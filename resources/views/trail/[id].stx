@@ -138,20 +138,11 @@
   // valid-but-wrong trail (#987).
   const trailId = derived(() => readRouteParam('id') ?? -1)
 
-  // A demo fixture must not answer for a real id. The store seeds ten of them
-  // under ids 1-10, which are real trail ids, so this page used to paint a
-  // fabricated trail under a URL for a different one — and because `onMount`
-  // skips the fetch when `trail()` is already set, the real record was never
-  // requested. It is the same failure as the sentinel above, from the other
-  // direction: a valid-but-wrong trail, silently loaded.
-  const trail = derived(() => {
-    if (!wl)
-      return null
-
-    const found = wl.trails().find((t: any) => t.id === trailId()) ?? null
-
-    return found?.demo === true ? null : found
-  })
+  // Nothing in the store fabricates a trail now, so matching on the id is
+  // enough: the store is filled only from the API. It used to be seeded with
+  // twelve fixtures under ids 1-12, and this page needed a guard to refuse
+  // one — see the note on `trails` in `stores.stx` for what that cost.
+  const trail = derived(() => wl ? wl.trails().find((t: any) => t.id === trailId()) ?? null : null)
   const saved = derived(() => !!(wl && wl.isTrailSaved(trailId())))
 
   // ── Conditions ───────────────────────────────────────────────────────────

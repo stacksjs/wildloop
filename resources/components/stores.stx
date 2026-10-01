@@ -30,15 +30,6 @@
     image: string | null
     tags: string[]
     conditions: string
-    /**
-     * Set only on the demo fixtures below, never on anything the API sent.
-     *
-     * The fixtures are filed under ids 1-10, which are real trail ids in the
-     * catalog, so `findTrail(1)` answered with a fabricated trail and nothing
-     * downstream could tell. This is what lets a caller that must not accept a
-     * fixture — a detail page, which is about one specific id — say so.
-     */
-    demo?: boolean
   }
 
   interface Split {
@@ -246,21 +237,6 @@
     { id: 8, name: 'Lisa Park', email: 'lisa@example.com', avatar: null, joinedAt: '2025-11-01' },
   ]
 
-  const seedTrails: Trail[] = [
-    { id: 1, name: 'Eagle Peak Summit', location: 'Rocky Mountain NP, CO', difficulty: 'hard', distance: 8.4, elevation: 2847, estimatedTime: '5h 30m', rating: 4.8, reviewCount: 342, description: 'A challenging summit hike with breathtaking 360-degree views of the Continental Divide.', lat: 40.3428, lng: -105.6836, image: null, tags: ['summit', 'views', 'wildflowers'], conditions: 'Mostly clear, some snow above treeline' },
-    { id: 2, name: 'Riverside Loop Trail', location: 'Great Smoky Mountains, TN', difficulty: 'easy', distance: 3.2, elevation: 420, estimatedTime: '1h 30m', rating: 4.5, reviewCount: 891, description: 'A gentle loop trail along the Little River, perfect for families.', lat: 35.6532, lng: -83.5070, image: null, tags: ['family-friendly', 'river', 'wildflowers'], conditions: 'Trail in great condition' },
-    { id: 3, name: 'Cascade Falls Trail', location: 'Yosemite NP, CA', difficulty: 'moderate', distance: 5.6, elevation: 1250, estimatedTime: '3h', rating: 4.9, reviewCount: 1203, description: 'Follow the misty trail to one of the most spectacular waterfalls in the Sierra Nevada.', lat: 37.7346, lng: -119.5632, image: null, tags: ['waterfall', 'scenic', 'photography'], conditions: 'Falls flowing strong' },
-    { id: 4, name: 'Desert Ridge Trail', location: 'Joshua Tree NP, CA', difficulty: 'moderate', distance: 6.1, elevation: 890, estimatedTime: '3h 15m', rating: 4.3, reviewCount: 456, description: 'Wind through unique rock formations and Joshua Tree groves.', lat: 33.8734, lng: -115.9010, image: null, tags: ['desert', 'sunset', 'rock formations'], conditions: 'Hot and dry, bring extra water' },
-    { id: 5, name: 'Redwood Creek Trail', location: 'Muir Woods, CA', difficulty: 'easy', distance: 2.8, elevation: 280, estimatedTime: '1h 15m', rating: 4.7, reviewCount: 2105, description: 'Walk among ancient coastal redwoods, some over 1,000 years old.', lat: 37.8970, lng: -122.5811, image: null, tags: ['redwoods', 'old-growth', 'peaceful'], conditions: 'Slightly muddy after rain' },
-    { id: 6, name: 'Thunder Mountain Loop', location: 'Sedona, AZ', difficulty: 'hard', distance: 7.9, elevation: 2100, estimatedTime: '4h 45m', rating: 4.6, reviewCount: 678, description: 'An epic loop through Sedona\'s red rock country with technical sections and jaw-dropping views.', lat: 34.8697, lng: -111.7610, image: null, tags: ['red rock', 'technical', 'panoramic'], conditions: 'Dry and rocky' },
-    { id: 7, name: 'Lakeshore Path', location: 'Glacier NP, MT', difficulty: 'easy', distance: 4.2, elevation: 350, estimatedTime: '2h', rating: 4.4, reviewCount: 567, description: 'A peaceful walk along the shore of Lake McDonald with views of snow-capped peaks.', lat: 48.5285, lng: -113.9750, image: null, tags: ['lake', 'mountain views', 'peaceful'], conditions: 'Trail open, wildflowers in bloom' },
-    { id: 8, name: 'Appalachian Overlook', location: 'Shenandoah NP, VA', difficulty: 'moderate', distance: 5.3, elevation: 1450, estimatedTime: '3h 30m', rating: 4.5, reviewCount: 389, description: 'A rewarding ridge hike with multiple overlooks showcasing blue-hazed Appalachian Mountains.', lat: 38.2928, lng: -78.6796, image: null, tags: ['ridge', 'overlook', 'fall colors'], conditions: 'Excellent, fall colors emerging' },
-    { id: 9, name: 'Coastal Bluff Trail', location: 'Big Sur, CA', difficulty: 'moderate', distance: 4.8, elevation: 780, estimatedTime: '2h 30m', rating: 4.8, reviewCount: 1456, description: 'Dramatic Pacific Ocean views from towering sea cliffs.', lat: 36.2704, lng: -121.8081, image: null, tags: ['ocean', 'cliffs', 'whales'], conditions: 'Windy, dress in layers' },
-    { id: 10, name: 'Pine Valley Loop', location: 'Cuyamaca Rancho SP, CA', difficulty: 'easy', distance: 3.6, elevation: 480, estimatedTime: '1h 45m', rating: 4.2, reviewCount: 234, description: 'A gentle loop through a recovering pine forest with meadow crossings and a babbling creek.', lat: 32.9355, lng: -116.5600, image: null, tags: ['forest', 'creek', 'running'], conditions: 'Well maintained' },
-    { id: 11, name: 'Granite Peak Scramble', location: 'Beartooth Mountains, MT', difficulty: 'hard', distance: 12.4, elevation: 4200, estimatedTime: '8h', rating: 4.7, reviewCount: 128, description: 'Montana\'s highest point. A serious alpine scramble.', lat: 45.1633, lng: -109.8075, image: null, tags: ['alpine', 'scramble', 'highpoint'], conditions: 'Snow on upper sections' },
-    { id: 12, name: 'Wildflower Meadow Trail', location: 'Mount Rainier NP, WA', difficulty: 'moderate', distance: 5.8, elevation: 1100, estimatedTime: '3h', rating: 4.6, reviewCount: 845, description: 'Famous for its summer wildflower displays with Mount Rainier as a backdrop.', lat: 46.7856, lng: -121.7353, image: null, tags: ['wildflowers', 'mountain', 'wildlife'], conditions: 'Peak wildflower season' },
-  ]
-
   const seedActivities: Activity[] = [
     { id: 1, user_id: 1, userName: 'You', trail_id: 3, trail_name: 'Cascade Falls Trail', title: 'Morning Falls Run', activityType: 'Trail Run', distance: 5.6, duration: '52:18', moving_time: '49:03', pace: '8:47/mi', elevation_gain: 1250, calories: 624, heartRateAvg: 152, heartRateMax: 178, cadence: 164, splits: [{ mile: 1, pace: '9:12', elev: 180 }, { mile: 2, pace: '8:55', elev: 220 }, { mile: 3, pace: '8:34', elev: 310 }, { mile: 4, pace: '8:28', elev: 280 }, { mile: 5, pace: '8:41', elev: 200 }], kudos_count: 14, comments: [{ user_id: 2, userName: 'Sarah Chen', text: 'Beautiful route!', created_at: ago(0, 2) }], created_at: ago(0, 3) },
     { id: 2, user_id: 2, userName: 'Sarah Chen', trail_id: 1, trail_name: 'Eagle Peak Summit', title: 'Summit Push', activityType: 'Hike', distance: 8.4, duration: '5:12:30', moving_time: '4:48:00', pace: '34:17/mi', elevation_gain: 2847, calories: 1450, heartRateAvg: 138, heartRateMax: 165, cadence: null, splits: [], kudos_count: 28, comments: [], created_at: ago(0, 8) },
@@ -397,20 +373,6 @@
   }
 
   // GPS route polylines and territory polygons for Leaflet
-  const trailRoutes: Record<number, [number, number][]> = {
-    1: [[40.3428,-105.6836],[40.3445,-105.6810],[40.3462,-105.6785],[40.3480,-105.6762],[40.3498,-105.6740],[40.3515,-105.6718],[40.3530,-105.6700],[40.3548,-105.6682],[40.3560,-105.6660],[40.3575,-105.6642],[40.3590,-105.6625],[40.3605,-105.6610]],
-    2: [[35.6532,-83.5070],[35.6545,-83.5050],[35.6558,-83.5035],[35.6570,-83.5018],[35.6578,-83.4998],[35.6568,-83.4980],[35.6555,-83.4968],[35.6540,-83.4958],[35.6525,-83.4965],[35.6515,-83.4985],[35.6510,-83.5010],[35.6518,-83.5035],[35.6532,-83.5070]],
-    3: [[37.7346,-119.5632],[37.7360,-119.5610],[37.7375,-119.5588],[37.7388,-119.5565],[37.7400,-119.5542],[37.7415,-119.5520],[37.7428,-119.5498],[37.7440,-119.5478],[37.7455,-119.5460],[37.7468,-119.5442],[37.7480,-119.5425]],
-    4: [[33.8734,-115.9010],[33.8750,-115.8990],[33.8768,-115.8972],[33.8785,-115.8955],[33.8800,-115.8935],[33.8815,-115.8918],[33.8830,-115.8900],[33.8845,-115.8885],[33.8858,-115.8865],[33.8870,-115.8848]],
-    5: [[37.8970,-122.5811],[37.8980,-122.5795],[37.8992,-122.5780],[37.9002,-122.5765],[37.9010,-122.5748],[37.9018,-122.5732],[37.9008,-122.5718],[37.8995,-122.5728],[37.8982,-122.5745],[37.8970,-122.5760],[37.8965,-122.5780],[37.8968,-122.5800]],
-    6: [[34.8697,-111.7610],[34.8712,-111.7590],[34.8728,-111.7572],[34.8745,-111.7555],[34.8760,-111.7538],[34.8775,-111.7520],[34.8788,-111.7502],[34.8798,-111.7485],[34.8780,-111.7470],[34.8762,-111.7458],[34.8745,-111.7472],[34.8730,-111.7490],[34.8715,-111.7510],[34.8700,-111.7530],[34.8690,-111.7555],[34.8692,-111.7580],[34.8697,-111.7610]],
-    7: [[48.5285,-113.9750],[48.5298,-113.9730],[48.5312,-113.9712],[48.5325,-113.9695],[48.5340,-113.9680],[48.5355,-113.9665],[48.5368,-113.9648],[48.5380,-113.9632],[48.5395,-113.9618]],
-    8: [[38.2928,-78.6796],[38.2942,-78.6778],[38.2958,-78.6760],[38.2972,-78.6742],[38.2988,-78.6725],[38.3002,-78.6708],[38.3015,-78.6690],[38.3028,-78.6672],[38.3040,-78.6655]],
-    9: [[36.2704,-121.8081],[36.2718,-121.8060],[36.2732,-121.8042],[36.2748,-121.8025],[36.2762,-121.8008],[36.2775,-121.7990],[36.2788,-121.7972],[36.2800,-121.7955],[36.2812,-121.7938]],
-    10: [[32.9355,-116.5600],[32.9368,-116.5582],[32.9380,-116.5565],[32.9392,-116.5548],[32.9400,-116.5530],[32.9390,-116.5512],[32.9378,-116.5498],[32.9365,-116.5510],[32.9352,-116.5528],[32.9342,-116.5548],[32.9345,-116.5570],[32.9355,-116.5600]],
-    11: [[45.1633,-109.8075],[45.1648,-109.8055],[45.1665,-109.8035],[45.1680,-109.8015],[45.1698,-109.7995],[45.1715,-109.7975],[45.1730,-109.7958],[45.1748,-109.7940],[45.1765,-109.7920],[45.1780,-109.7900],[45.1795,-109.7882],[45.1810,-109.7865]],
-    12: [[46.7856,-121.7353],[46.7870,-121.7335],[46.7885,-121.7318],[46.7898,-121.7300],[46.7912,-121.7282],[46.7925,-121.7265],[46.7938,-121.7248],[46.7950,-121.7232],[46.7960,-121.7215]],
-  }
 
   const territoryPolygons: Record<number, [number, number][]> = {
     1: [[37.735,-119.570],[37.740,-119.558],[37.745,-119.555],[37.748,-119.562],[37.746,-119.572],[37.742,-119.578],[37.738,-119.576],[37.735,-119.570]],
@@ -433,11 +395,21 @@
       // from /api/me; it is never inferred from seed/demo data.
       currentUserId: 0,
       users: seedUsers,
-      // Tagged on the way in rather than written into each fixture, so the
-      // marker cannot be forgotten when one is added. `hydrateTrailsFromApi`
-      // and `upsertTrailFromApi` both replace a record wholesale, so a trail
-      // that has come from the API never carries it.
-      trails: seedTrails.map((trail: Trail) => ({ ...trail, demo: true })),
+      /**
+       * Only the API fills this. The demo list that seeded it held twelve
+       * trails under ids 1-12, which are real ids in the catalog, so
+       * `findTrail(1)` answered with a fabricated trail and a detail page
+       * painted it under a URL for a different one — and because that page
+       * skips its fetch when the store already holds the id, the real record
+       * was never requested.
+       *
+       * It cost three patches before it was removed: `hydrateTrailsFromApi`
+       * learned to throw the fixtures away, `upsertTrailFromApi` learned to
+       * drop a stale route so a seeded line was not drawn under a real trail,
+       * and the detail page learned to refuse a fixture outright. None of that
+       * is needed once nothing fabricates a trail to begin with.
+       */
+      trails: [] as Trail[],
       /**
        * Ids of trails fetched one at a time, by a detail page.
        *
@@ -467,7 +439,11 @@
       segments: seedSegments,
       userStats: seedUserStats,
       conquestStats: seedConquestStats,
-      trailRoutes,
+      // Keyed by trail id, and the seed that filled it used the same ids 1-12
+      // as the trail fixtures — a demo line under whatever real trail shares
+      // the id. `trailRouteParts` below has always started empty; this now
+      // matches it.
+      trailRoutes: {} as Record<number, [number, number][]>,
       /**
        * Every part of the trails that are in more than one piece (trail id →
        * parts), for drawing the whole trail. `trailRoutes` holds each trail's
