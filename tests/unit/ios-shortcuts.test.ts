@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdtemp, mkdir, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -121,6 +122,60 @@ describe('writing into a project', () => {
 
     const theirs = join(dir, 'Sources', 'CraftAppExtensions.swift')
     await writeFile(theirs, 'struct CraftShortcuts: AppShortcutsProvider {}\n')
+    expect(await conflictingProviders(dir, ours)).toEqual([theirs])
+  })
+
+  /*
+   * The script used to report its own output.
+   *
+   * `appName` was once capitalised differently, and Craft never prunes the
+   * sources it regenerates around, so the file that spelling produced outlived
+   * it. On macOS the write lands back in that same inode and `readdir` returns
+   * the name it was created with, which an exact compare reads as somebody
+   * else's provider — a warning on every iOS build, about nothing.
+   */
+  it('does not report its own file back under a different capitalisation', async () => {
+    const dir = await project()
+    // Written under the old spelling, asked about under the new one: this is
+    // exactly what `readdir` hands back on a case-insensitive filesystem after
+    // the write has already landed in that file.
+    const onDisk = join(dir, 'Sources', 'WildLoopAppShortcuts.swift')
+    await writeFile(onDisk, 'struct WildloopAppShortcuts: AppShortcutsProvider {}\n')
+
+    const ours = join(dir, 'Sources', 'WildloopAppShortcuts.swift')
+    expect(await conflictingProviders(dir, ours)).toEqual([])
+  })
+
+  /*
+   * And the half that only a case-sensitive filesystem would have shown: there
+   * the stale file is a second file, declaring a second provider, and iOS
+   * honours whichever it likes. One has to go, and it is not the fresh one.
+   */
+  it('clears a stale provider left under a different capitalisation', async () => {
+    const dir = await project()
+    const stale = join(dir, 'Sources', 'WildLoopAppShortcuts.swift')
+    await writeFile(stale, 'struct WildLoopAppShortcuts: AppShortcutsProvider {}\n')
+
+    const ours = await writeIosShortcuts(dir, options)
+    const providers = (await readdir(join(dir, 'Sources')))
+      .filter(entry => entry.toLowerCase().endsWith('appshortcuts.swift'))
+
+    // One file, and under the spelling this run asked for. The count alone
+    // proves nothing on a case-insensitive filesystem, where the stale file
+    // absorbs the write and stays the only one either way — what separates
+    // the two is whose name survived.
+    expect(providers).toEqual(['WildloopAppShortcuts.swift'])
+    expect(await Bun.file(ours).text()).toContain('AppShortcutsProvider')
+  })
+
+  it('leaves a provider that is genuinely another file alone', async () => {
+    const dir = await project()
+    const ours = await writeIosShortcuts(dir, options)
+    const theirs = join(dir, 'Sources', 'OtherAppShortcuts.swift')
+    await writeFile(theirs, 'struct OtherAppShortcuts: AppShortcutsProvider {}\n')
+
+    await writeIosShortcuts(dir, options)
+    expect(existsSync(theirs)).toBe(true)
     expect(await conflictingProviders(dir, ours)).toEqual([theirs])
   })
 })

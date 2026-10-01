@@ -20,7 +20,7 @@
 /* eslint-disable ts/no-top-level-await */
 import type { AppShortcut } from '../resources/functions/app-shortcuts'
 import { existsSync } from 'node:fs'
-import { readdir, writeFile } from 'node:fs/promises'
+import { readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { APP_SHORTCUTS, appShortcutDeepLink } from '../resources/functions/app-shortcuts'
@@ -175,16 +175,24 @@ export function shortcutsSourcePath(projectDir: string, appName: string): string
 /**
  * Another provider in the project would make the row ambiguous — iOS takes one
  * — so say so rather than quietly shipping two.
+ *
+ * Our own file is matched without regard to case. A rename of `appName` that
+ * changes only capitalisation leaves the old file behind on a case-sensitive
+ * filesystem and silently retargets the write on a case-insensitive one, so an
+ * exact compare made the script report its own output: `readdir` hands back
+ * the name on disk, which is the casing the file was first created with rather
+ * than the one just written to it.
  */
 export async function conflictingProviders(projectDir: string, ownPath: string): Promise<string[]> {
   const sources = join(projectDir, 'Sources')
   if (!existsSync(sources))
     return []
 
+  const own = ownPath.toLowerCase()
   const found: string[] = []
   for (const entry of await readdir(sources)) {
     const path = join(sources, entry)
-    if (!entry.endsWith('.swift') || path === ownPath)
+    if (!entry.endsWith('.swift') || path.toLowerCase() === own)
       continue
     if ((await Bun.file(path).text()).includes('AppShortcutsProvider'))
       found.push(path)
@@ -192,8 +200,27 @@ export async function conflictingProviders(projectDir: string, ownPath: string):
   return found
 }
 
+/**
+ * Clear a copy of our own file left under different capitalisation.
+ *
+ * Craft regenerates the project around these sources but never prunes them, so
+ * a file an earlier `appName` produced survives every later build. macOS hides
+ * that — the write lands in the existing inode and keeps its old name — while
+ * on a case-sensitive filesystem both files exist, both declare a provider,
+ * and iOS honours whichever it likes. Removing it leaves exactly one on both.
+ */
+async function removeStaleProvider(sources: string, ownPath: string): Promise<void> {
+  const own = ownPath.toLowerCase()
+  for (const entry of await readdir(sources)) {
+    const path = join(sources, entry)
+    if (path !== ownPath && path.toLowerCase() === own)
+      await rm(path)
+  }
+}
+
 export async function writeIosShortcuts(projectDir: string, options: IosShortcutsOptions): Promise<string> {
   const path = shortcutsSourcePath(projectDir, options.appName)
+  await removeStaleProvider(join(projectDir, 'Sources'), path)
   await writeFile(path, iosShortcutsSwift(options))
   return path
 }
