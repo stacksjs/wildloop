@@ -30,6 +30,15 @@
     image: string | null
     tags: string[]
     conditions: string
+    /**
+     * Set only on the demo fixtures below, never on anything the API sent.
+     *
+     * The fixtures are filed under ids 1-10, which are real trail ids in the
+     * catalog, so `findTrail(1)` answered with a fabricated trail and nothing
+     * downstream could tell. This is what lets a caller that must not accept a
+     * fixture — a detail page, which is about one specific id — say so.
+     */
+    demo?: boolean
   }
 
   interface Split {
@@ -424,7 +433,11 @@
       // from /api/me; it is never inferred from seed/demo data.
       currentUserId: 0,
       users: seedUsers,
-      trails: seedTrails,
+      // Tagged on the way in rather than written into each fixture, so the
+      // marker cannot be forgotten when one is added. `hydrateTrailsFromApi`
+      // and `upsertTrailFromApi` both replace a record wholesale, so a trail
+      // that has come from the API never carries it.
+      trails: seedTrails.map((trail: Trail) => ({ ...trail, demo: true })),
       /**
        * Ids of trails fetched one at a time, by a detail page.
        *
