@@ -359,11 +359,39 @@ test.describe('on a phone, with one finger', () => {
    * gap, all ten could be handled in the same frame as the press, which on a
    * busy runner was the difference between a pull and nothing at all.
    */
-  async function fingerDrag(page: Page, from: Pt, to: Pt, holdMs = 0) {
+  /**
+   * One finger: touch down, drag along a path, lift.
+   *
+   * `awaitHold` is for the gesture that inserts a point — rest the finger on the
+   * line, then drag. The editor arms that with a `touchHoldMs` timer (300ms) and
+   * cancels it the moment the finger travels further than its slop allowance
+   * (10px), so a drag that begins before the timer has fired kills the hold at
+   * the second move and inserts nothing.
+   *
+   * This used to sleep 500ms and assume the 300ms timer had fired. That is a
+   * wall-clock wait in the driver standing in for a timer in the renderer, and
+   * on a loaded runner the renderer's timer arrives late: the moves then cancel
+   * the hold, the count never reaches four, and the test fails having done
+   * nothing wrong. It failed exactly that way twice while passing in isolation.
+   *
+   * So it waits for the editor to be armed, which is the thing the gesture
+   * actually depends on. Nothing moves while it waits, so the slop allowance is
+   * untouched and the hold cannot be cancelled by the wait itself.
+   */
+  async function fingerDrag(page: Page, from: Pt, to: Pt, awaitHold = false) {
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
-    if (holdMs)
-      await page.waitForTimeout(holdMs)
+    if (awaitHold) {
+      await page.waitForFunction(() => {
+        const map = (document.getElementById('route-builder-map') as any)?._tsMap
+        const editor: any = map && Object.values(map._layers).find((l: any) => l._builder)
+
+        // Set by the editor when the hold arms. A timeout here means the touch
+        // never landed on the line, which is worth failing loudly for rather
+        // than dragging on and reporting a missing point.
+        return !!editor?._lineDrag
+      }, undefined, { timeout: 15_000 })
+    }
     for (let i = 1; i <= 10; i++) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + (to.x - from.x) * i / 10, y: from.y + (to.y - from.y) * i / 10 }] })
       await page.waitForTimeout(16)
@@ -411,7 +439,7 @@ test.describe('on a phone, with one finger', () => {
     // Rest a finger on the line, then drag: the route goes through a new point.
     state = await editorState(page)
     expect(state.onLineHolds, 'no point on the route is on the bare line, inside the map and clear of the handles').toBe(true)
-    await fingerDrag(page, state.onLine, { x: state.onLine.x + 40, y: state.onLine.y + 50 }, 500)
+    await fingerDrag(page, state.onLine, { x: state.onLine.x + 40, y: state.onLine.y + 50 }, true)
     await expect.poll(async () => (await editorState(page)).count).toBe(4)
     await page.locator('#route-builder-map').screenshot({ path: testInfo.outputPath('one-finger-route.png') })
 
