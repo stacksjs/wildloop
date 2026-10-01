@@ -3,6 +3,86 @@
 @section('title', 'Trail Details - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This trail's own metadata, in the HTML rather than applied after hydration.
+   *
+   * `resources/composables/usePageSeo.ts` says a `<script server>` block "does
+   * not work for a detail page", because `cache.renderVary: 'source'` keys the
+   * render by file path and one render would then answer for all ~600k trails.
+   * That premise is out of date: `serve.ts` skips the shell cache for a dynamic
+   * route whose server script reads its params, precisely so one record's output
+   * is never served for another — `serverScriptsReadParams`, covered by
+   * stx's `render-cache.test.ts:209`. Reading `params.id` below is what opts this
+   * route into that.
+   *
+   * The cost is real and deliberate: this route no longer serves a cached shell,
+   * so every trail page renders. It buys the half the client-side helper cannot
+   * reach — social scrapers do not run JavaScript, so `og:` tags were whatever
+   * the shell carried and every shared trail link previewed identically.
+   *
+   * `useSeoMeta` is written inline because the engine injects it into the page's
+   * own scope and not into a module it imports, where it is silently undefined.
+   */
+  const ssrTrailId = Number(params?.id)
+  let ssrTrail: { name?: string, difficulty?: string, distance?: number, location?: string } | null = null
+
+  if (Number.isFinite(ssrTrailId) && ssrTrailId > 0) {
+    try {
+      ssrTrail = await Trail.find(ssrTrailId) as any
+    }
+    catch {
+      // A page that cannot reach the database still has to render. Falling back
+      // to the generic shell is what it did before this block existed.
+      ssrTrail = null
+    }
+  }
+
+  const ssrName = String(ssrTrail?.name ?? '').trim()
+  // `location` is the readable one — "Monschau, Nordrhein-Westfalen". `state`
+  // holds the ISO subdivision, so a description built from it reads
+  // "… in DE-NW", which is worse than saying nothing.
+  const ssrWhere = String(ssrTrail?.location ?? '').trim()
+  const ssrDistance = Number(ssrTrail?.distance ?? 0)
+  const ssrDifficulty = String(ssrTrail?.difficulty ?? '').trim()
+
+  const ssrTitle = ssrName ? `${ssrName} — Wildloop` : 'Trail Details - Wildloop'
+
+  // What a search result should say about this trail, in the order someone
+  // scanning results cares about: where it is, how far, how hard.
+  const ssrFacts = [
+    ssrWhere,
+    ssrDistance > 0 ? `${ssrDistance} km` : '',
+    ssrDifficulty,
+  ].filter(Boolean).join(' · ')
+
+  const ssrDescription = ssrName
+    ? `${ssrName}${ssrFacts ? ` — ${ssrFacts}.` : '.'} Route, elevation, conditions and reviews on Wildloop.`
+    : 'Find and track trails for running and hiking, with live GPS, pace, segments and territory.'
+
+  const ssrCanonical = ssrName ? `https://wildloop.org/trail/${ssrTrailId}` : 'https://wildloop.org/trails'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    // A trail that does not exist must not be indexed. Without this it would be
+    // one of however many bad ids a crawler tries, each indexed as a generic
+    // page competing with the real ones.
+    robots: ssrName ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'website',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { apiFetch } from '../../assets/scripts/auth'
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'

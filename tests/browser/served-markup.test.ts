@@ -349,22 +349,47 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
     expect(trail.document.title, 'a trail page must not reuse the home title').not.toBe(home.document.title)
   })
 
-  // The assertion above is weaker than it looks, and that is why this one exists.
-  // `/trail/{id}` serves the literal title `Trail Details - Wildloop` for every
-  // trail, which differs from the home page's and so satisfies it — the defect sat
-  // behind a passing test. Naming the trail is the property that matters, and every
-  // trail page currently serves the same title, og:title and description.
-  //
-  // stacksjs/wildloop#1012.
-  it.skip('names the trail in its title and social metadata', async () => {
+  // Asserting that a trail's title merely *differs* from the home page's is
+  // satisfied by `Trail Details - Wildloop`, which is what every trail page used
+  // to serve — the defect sat behind a passing test. These name the trail, which
+  // is the property that matters.
+  it('names the trail in its title and social metadata', async () => {
+    const trailName = await fetch(`${API}/trails/${trailPath.split('/').pop()}`)
+      .then(r => r.json())
+      .then(payload => String(payload?.trail?.name ?? '').trim())
+    expect(trailName, 'the API must give a name to compare against').not.toBe('')
+
     const { document } = await serve(trailPath)
-    const name = String(document.querySelector('h1')?.textContent ?? '').trim()
     const meta = (selector: string): string =>
       document.querySelector(selector)?.getAttribute('content')?.trim() ?? ''
 
-    expect(name, 'the h1 must hold a name to compare against').not.toMatch(/\{\{/)
-    expect(document.title, 'title names the trail').toContain(name)
-    expect(meta('meta[property="og:title"]'), 'og:title names the trail').toContain(name)
-    expect(meta('meta[name="description"]'), 'description names the trail').toContain(name)
+    expect(document.title, 'title names the trail').toContain(trailName)
+    expect(meta('meta[property="og:title"]'), 'og:title names the trail').toContain(trailName)
+    expect(meta('meta[name="description"]'), 'description names the trail').toContain(trailName)
+    // The half a client-side helper cannot reach: a social scraper runs no
+    // JavaScript, so this had to be in the served HTML or nowhere.
+    expect(meta('meta[name="twitter:title"]'), 'twitter:title names the trail').toContain(trailName)
+  })
+
+  it('gives two different trails different metadata', async () => {
+    // What the render cache would have broken: one render answering for every
+    // trail. Reading `params.id` in the server block opts this route out of the
+    // shell cache, and this is the assertion that it worked.
+    const listed = await fetch(`${API}/trails?limit=2&sort=featured`).then(r => r.json())
+    const ids = (listed.trails ?? []).map((t: any) => t.id).slice(0, 2)
+    expect(ids.length, 'need two trails to compare').toBe(2)
+
+    const [first, second] = await Promise.all(ids.map((id: number) => serve(`/trail/${id}`)))
+
+    expect(first.document.title, 'two trails must not share a title').not.toBe(second.document.title)
+  })
+
+  it('does not ask a crawler to index a trail that does not exist', async () => {
+    // Otherwise every bad id a crawler tries is indexed as a generic page,
+    // competing with the real ones.
+    const { document } = await serve('/trail/999999999')
+    const robots = document.querySelector('meta[name="robots"]')?.getAttribute('content') ?? ''
+
+    expect(robots, 'a missing trail is noindex').toContain('noindex')
   })
 })
