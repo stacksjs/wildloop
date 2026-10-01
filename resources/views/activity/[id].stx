@@ -3,6 +3,100 @@
 @section('title', 'Activity Details - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This activity's own metadata in the HTML — see `trail/[id].stx` for the
+   * mechanism and `club/[id].stx` for the visibility rule.
+   *
+   * An activity is the strictest of the set. `canViewActivity` in
+   * `resources/functions/visibility.ts` grants a non-public activity only to a
+   * viewer who follows the owner and is not blocked — all three properties of
+   * *who is asking*. A server render has no asking viewer and is shared by
+   * every reader, so the only answer it may embed is the one given to a
+   * signed-out stranger, which that function reduces to
+   * `visibility === 'public'`. The gate below is written out rather than
+   * imported because the engine injects this block into the page scope; it is
+   * exactly `canViewActivity(activity, null, new Set(), new Set())`.
+   *
+   * There is no `name` column on `activities` — the model's readable title is
+   * assembled, so this does the same: the type and distance always, and the
+   * trail's name when the activity is attached to one. A trail carries no
+   * visibility of its own (`TrailShowAction` has no privacy gate), so naming it
+   * here discloses nothing the trail page does not already serve publicly.
+   */
+  const ssrActivityId = Number(params?.id)
+  let ssrActivity: { activity_type?: string, distance?: number, visibility?: string, trail_id?: number } | null = null
+
+  if (Number.isFinite(ssrActivityId) && ssrActivityId > 0) {
+    try {
+      ssrActivity = await Activity.find(ssrActivityId) as any
+    }
+    catch {
+      ssrActivity = null
+    }
+  }
+
+  // Fails closed: anything that is not the literal 'public' — 'followers',
+  // 'private', null, a column that has gone missing — is withheld.
+  const ssrActivityIsPublic = ssrActivity !== null && String(ssrActivity.visibility ?? '') === 'public'
+  const ssrActivityKind = ssrActivityIsPublic ? String(ssrActivity?.activity_type ?? '').trim() : ''
+  const ssrActivityDistance = ssrActivityIsPublic ? Number(ssrActivity?.distance ?? 0) : 0
+
+  // Only reached for an activity already cleared above, so a failed lookup
+  // costs the trail's name and nothing else.
+  let ssrActivityTrail = ''
+  const ssrActivityTrailId = ssrActivityIsPublic ? Number(ssrActivity?.trail_id ?? 0) : 0
+  if (Number.isFinite(ssrActivityTrailId) && ssrActivityTrailId > 0) {
+    try {
+      const ssrOnTrail = await Trail.find(ssrActivityTrailId) as any
+      ssrActivityTrail = String(ssrOnTrail?.name ?? '').trim()
+    }
+    catch {
+      ssrActivityTrail = ''
+    }
+  }
+
+  const ssrActivityDistanceText = ssrActivityDistance > 0 ? `${ssrActivityDistance} km` : ''
+
+  // "Trail Run on Emerald Lake Trail", falling back to "Trail Run · 41.7 km"
+  // when the activity is not attached to a trail.
+  const ssrActivityLabel = ssrActivityKind
+    ? (ssrActivityTrail
+        ? `${ssrActivityKind} on ${ssrActivityTrail}`
+        : [ssrActivityKind, ssrActivityDistanceText].filter(Boolean).join(' · '))
+    : ''
+
+  const ssrTitle = ssrActivityLabel ? `${ssrActivityLabel} — Wildloop` : 'Activity Details - Wildloop'
+
+  // When the label named the trail it does not carry the distance, so the
+  // description adds it; when it fell back to "type · distance" it already has
+  // it and repeating it reads badly.
+  const ssrDescription = ssrActivityLabel
+    ? `${ssrActivityLabel}${ssrActivityTrail && ssrActivityDistanceText ? ` — ${ssrActivityDistanceText}.` : '.'} Route, splits and segments on Wildloop.`
+    : 'Track runs and hikes with live GPS, pace, splits and segments on Wildloop.'
+
+  const ssrCanonical = ssrActivityLabel ? `https://wildloop.org/activity/${ssrActivityId}` : 'https://wildloop.org/feed'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    // A private or followers-only activity reaches this with no label, and must
+    // not be indexed under the generic title either.
+    robots: ssrActivityLabel ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'website',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
@@ -409,8 +503,10 @@
   })
 
   // The record's own identity, once it loads. Without it every activity page
-  // serves one title and no canonical. Applied on the client rather than in
-  // a `<script server>` block — see usePageSeo for why that is forced.
+  // serves one title and no canonical. The `<script server>` block above
+  // carries the same identity for crawlers; this one re-applies it for the
+  // viewer, who may be allowed to see a record the anonymous render had to
+  // withhold.
   effect(() => {
     const seoActivity = activity()
     if (!seoActivity?.id)

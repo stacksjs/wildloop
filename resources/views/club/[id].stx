@@ -3,6 +3,83 @@
 @section('title', 'Club - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This club's own metadata in the HTML, for the readers that never run the
+   * client: search crawlers and social scrapers. Same shape as
+   * `trail/[id].stx` — see the long note there for why reading `params.id`
+   * is what opts this route out of the shared shell cache, and why
+   * `useSeoMeta` has to be written inline rather than imported.
+   *
+   * What differs from a trail, and the reason this is not a copy: a club can
+   * be private. `ClubShowAction` answers a private club only to a member, so
+   * putting its name and description in the HTML would publish, to everyone,
+   * exactly what that action withholds — and an og:description is worse than
+   * a page, because it travels into link previews on its own.
+   *
+   * The gate is therefore the *anonymous* reader's answer, not the current
+   * viewer's: a server render is shared, so it may only ever contain what a
+   * signed-out stranger is allowed to see. A private club falls back to the
+   * generic shell plus `noindex`.
+   */
+  const ssrClubId = Number(params?.id)
+  let ssrClub: { name?: string, description?: string, location?: string, is_private?: boolean } | null = null
+
+  if (Number.isFinite(ssrClubId) && ssrClubId > 0) {
+    try {
+      ssrClub = await Club.find(ssrClubId) as any
+    }
+    catch {
+      ssrClub = null
+    }
+  }
+
+  // The gate. `is_private` is the same column `ClubShowAction` checks.
+  //
+  // It is compared this way because SQLite has no boolean type: the column
+  // arrives as 0 or 1, so the obvious `is_private !== true` reads *every*
+  // private club as public and publishes exactly what this gate exists to
+  // withhold. Only an explicitly-stored falsy flag counts as public, so a
+  // column that is absent, null or unrecognised fails closed.
+  const ssrClubFlag = ssrClub?.is_private
+  const ssrClubIsPublic = ssrClub !== null
+    && (ssrClubFlag === false || ssrClubFlag === 0 || String(ssrClubFlag) === '0')
+  const ssrClubName = ssrClubIsPublic ? String(ssrClub?.name ?? '').trim() : ''
+  const ssrClubWhere = ssrClubIsPublic ? String(ssrClub?.location ?? '').trim() : ''
+  const ssrClubAbout = ssrClubIsPublic ? String(ssrClub?.description ?? '').trim() : ''
+
+  const ssrTitle = ssrClubName ? `${ssrClubName} — Wildloop` : 'Club - Wildloop'
+
+  // The club's own words first, trimmed to a length a search result will show;
+  // its location is the fallback, which at least says which club this is.
+  const ssrDescription = ssrClubName
+    ? (ssrClubAbout
+        ? (ssrClubAbout.length > 150 ? `${ssrClubAbout.slice(0, 149).trimEnd()}…` : ssrClubAbout)
+        : `${ssrClubName}${ssrClubWhere ? ` — a running and hiking club in ${ssrClubWhere}.` : ' on Wildloop.'} Members, events and group activities.`)
+    : 'Find a running or hiking club on Wildloop — members, events and group activities.'
+
+  const ssrCanonical = ssrClubName ? `https://wildloop.org/club/${ssrClubId}` : 'https://wildloop.org/clubs'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    // Covers both reasons there is no name: the club does not exist, and the
+    // club is private. Neither belongs in an index.
+    robots: ssrClubName ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'website',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { deleteClub, fetchClubDetail, toggleClubMembership } from '../../assets/scripts/game-api'
   import { fetchClubInvites, inviteToClub, redeemClubInvite } from '../../assets/scripts/events-api'
@@ -162,8 +239,10 @@
   }
 
   // The record's own identity, once it loads. Without it every club page
-  // serves one title and no canonical. Applied on the client rather than in
-  // a `<script server>` block — see usePageSeo for why that is forced.
+  // serves one title and no canonical. The `<script server>` block above
+  // carries the same identity for crawlers; this one re-applies it for the
+  // viewer, who may be allowed to see a record the anonymous render had to
+  // withhold.
   effect(() => {
     const seoClub = club()
     if (!seoClub?.id)

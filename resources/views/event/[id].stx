@@ -3,6 +3,62 @@
 @section('title', 'Live Event - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This event's own metadata in the HTML — see `trail/[id].stx` for the
+   * mechanism and `club/[id].stx` for the visibility rule.
+   *
+   * `canViewEvent` in `app/Support/eventBoard.ts` grants a non-public event to
+   * its entrants and to the signed-in users it was shared with; for a null
+   * session user it returns false outright. A server render is shared and has
+   * no session user, so the gate below is that function's anonymous answer:
+   * `visibility === 'public'`.
+   */
+  const ssrEventId = Number(params?.id)
+  let ssrEvent: { name?: string, description?: string, location?: string, visibility?: string } | null = null
+
+  if (Number.isFinite(ssrEventId) && ssrEventId > 0) {
+    try {
+      ssrEvent = await Event.find(ssrEventId) as any
+    }
+    catch {
+      ssrEvent = null
+    }
+  }
+
+  const ssrEventIsPublic = ssrEvent !== null && String(ssrEvent.visibility ?? '') === 'public'
+  const ssrEventName = ssrEventIsPublic ? String(ssrEvent?.name ?? '').trim() : ''
+  const ssrEventWhere = ssrEventIsPublic ? String(ssrEvent?.location ?? '').trim() : ''
+  const ssrEventAbout = ssrEventIsPublic ? String(ssrEvent?.description ?? '').trim() : ''
+
+  const ssrTitle = ssrEventName ? `${ssrEventName} — Wildloop` : 'Live Event - Wildloop'
+
+  const ssrDescription = ssrEventName
+    ? (ssrEventAbout
+        ? (ssrEventAbout.length > 150 ? `${ssrEventAbout.slice(0, 149).trimEnd()}…` : ssrEventAbout)
+        : `${ssrEventName}${ssrEventWhere ? ` — in ${ssrEventWhere}.` : ' on Wildloop.'} Live standings, laps and entrants.`)
+    : 'Follow live running events on Wildloop — standings, laps and entrants in real time.'
+
+  const ssrCanonical = ssrEventName ? `https://wildloop.org/event/${ssrEventId}` : 'https://wildloop.org/events'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    robots: ssrEventName ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'website',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { useLiveEvent } from '../../composables/useLiveEvent'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
@@ -110,8 +166,10 @@
   })
 
   // The record's own identity, once it loads. Without it every event page
-  // serves one title and no canonical. Applied on the client rather than in
-  // a `<script server>` block — see usePageSeo for why that is forced.
+  // serves one title and no canonical. The `<script server>` block above
+  // carries the same identity for crawlers; this one re-applies it for the
+  // viewer, who may be allowed to see a record the anonymous render had to
+  // withhold.
   effect(() => {
     const seoEvent = event()
     if (!seoEvent?.id)

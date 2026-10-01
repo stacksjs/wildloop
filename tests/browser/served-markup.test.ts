@@ -393,3 +393,101 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
     expect(robots, 'a missing trail is noindex').toContain('noindex')
   })
 })
+
+describe.skipIf(!qa)('a detail page names its own record, and withholds a private one', () => {
+  /**
+   * Both halves of the server blocks added to `club`, `activity`, `athlete` and
+   * `event` detail pages.
+   *
+   * The naming half is the ordinary SEO defect the trail page had: every record
+   * served one generic title, so every shared link previewed identically and a
+   * crawler saw no difference between them.
+   *
+   * The withholding half is why these are not the same test as the trail's. A
+   * club, an activity and an event each carry a visibility the application
+   * enforces per viewer, and a server render has no viewer and is shared by
+   * everyone who asks — so it may only ever contain what a signed-out stranger
+   * is allowed to see. Rendering a private record's name into a `<meta>` tag
+   * would publish it further than the page itself ever goes, into every link
+   * preview that scrapes it.
+   *
+   * The fixtures come in pairs for that reason: asserting only that a public
+   * record is named would pass just as well with the gate removed.
+   */
+  const meta = (document: any, selector: string): string =>
+    document.querySelector(selector)?.getAttribute('content')?.trim() ?? ''
+
+  /**
+   * The seeded pair at ids 1 and 2, split into the one that names `subject` and
+   * the one that does not.
+   *
+   * Located by probing rather than by asking an API for ids, because the pairs
+   * are the first and only rows the QA seed writes to a freshly migrated
+   * database. Asserting that *exactly* one of the two is named is what makes
+   * this a test of the gate: both named, or neither, fails.
+   */
+  async function pair(route: string, subject: string): Promise<{ open: Served, shut: Served }> {
+    const [first, second] = await Promise.all([serve(`/${route}/1`), serve(`/${route}/2`)])
+    const named = [first, second].filter(s => s.document.title.includes(subject))
+
+    expect(named.length, `exactly one ${route} fixture may name "${subject}"`).toBe(1)
+
+    return { open: named[0], shut: [first, second].find(s => !s.document.title.includes(subject))! }
+  }
+
+  it('names a public club, and never a private one', async () => {
+    const { open, shut } = await pair('club', 'Torrey Pines Striders')
+
+    expect(meta(open.document, 'meta[property="og:title"]'), 'og:title names the public club')
+      .toContain('Torrey Pines Striders')
+
+    expect(shut.html, 'a private club appears nowhere in the served HTML').not.toContain('Cove Night Owls')
+    expect(shut.html, 'nor does its description').not.toContain('Invite-only dawn patrol')
+    expect(meta(shut.document, 'meta[name="robots"]'), 'and it is not offered for indexing').toContain('noindex')
+  })
+
+  it('names a public activity, and never a private one', async () => {
+    // Activities have no `name` column: the title is assembled from the type and
+    // either the trail it is attached to or its distance. Both fixtures sit on
+    // Torrey Pines Loop, so the trail name is the thing that must appear for one
+    // and not the other.
+    const { shut } = await pair('activity', 'Torrey Pines Loop')
+
+    expect(shut.document.title, 'the private one falls back to the generic title')
+      .toBe('Activity Details - Wildloop')
+    expect(meta(shut.document, 'meta[name="robots"]'), 'and is not offered for indexing').toContain('noindex')
+  })
+
+  it('names a public event, and never a members-only one', async () => {
+    const { shut } = await pair('event', 'Torrey Pines Sunrise 10K')
+
+    expect(shut.html, 'a members-only event appears nowhere in the served HTML').not.toContain('Cove Night Owls Time Trial')
+    expect(meta(shut.document, 'meta[name="robots"]'), 'and it is not offered for indexing').toContain('noindex')
+  })
+
+  it('names an athlete, whose name is already public', async () => {
+    // The one page in the set with nothing to withhold: `user_privacy_settings`
+    // governs activity defaults, home-location masking and territory precision,
+    // not whether a profile exists, and a name already appears in leaderboards
+    // and event standings. Only the name is rendered — stats and location are
+    // not, because those are governed by per-activity visibility the server
+    // cannot resolve for an anonymous reader.
+    const { document } = await serve('/athlete/1')
+
+    expect(document.title, 'an athlete is named in their title').toContain('Dana Fixture')
+    expect(meta(document, 'meta[property="og:type"]'), 'a profile says so').toBe('profile')
+  })
+
+  it('does not ask a crawler to index a record that does not exist', async () => {
+    // The same failure the trail page had, on each of the new routes: without
+    // this, every bad id a crawler tries is indexed as a generic page competing
+    // with the real ones.
+    for (const route of ['/club/999999999', '/activity/999999999', '/event/999999999', '/athlete/999999999']) {
+      const { document } = await serve(route)
+      expect(
+        meta(document, 'meta[name="robots"]'),
+        `${route} must be noindex`,
+      ).toContain('noindex')
+    }
+  })
+})

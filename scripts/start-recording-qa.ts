@@ -67,6 +67,27 @@ for (const [name, location, state, stateName, country, distance, latitude, longi
   ['Nordkette Panorama Trail', 'Innsbruck, Tirol', 'AT-7', 'Tirol', 'AT', 6.5, 47.3126, 11.3803],
 ] as const)
   alpineTrail.run(name, location, state, stateName, country, distance, latitude, longitude)
+// One record of each kind the detail pages render, in a public and a withheld
+// variant, so the suite can assert both halves of each page's server block:
+// that a public record reaches the HTML, and that a private one does not.
+//
+// Without the private twin the gates would be untested — every seeded record
+// would be public, every assertion would pass, and a gate that had stopped
+// withholding would look exactly the same. These exist to be withheld.
+db.run(`INSERT INTO users (name, email, password) VALUES ('Dana Fixture', 'dana@qa.invalid', 'x')`)
+const qaUserId = Number((db.query(`SELECT id FROM users WHERE email = 'dana@qa.invalid'`).get() as any).id)
+
+const qaClub = db.query(`INSERT INTO clubs (creator_id, name, club_type, description, location, is_private) VALUES (?, ?, 'Running', ?, 'San Diego, CA', ?)`)
+qaClub.run(qaUserId, 'Torrey Pines Striders', 'Weekly tempo on the coast road, all paces welcome.', 0)
+qaClub.run(qaUserId, 'Cove Night Owls', 'Invite-only dawn patrol.', 1)
+
+const qaActivity = db.query(`INSERT INTO activities (user_id, trail_id, activity_type, distance, duration, visibility) VALUES (?, (SELECT id FROM trails WHERE name = 'Torrey Pines Loop'), 'Trail Run', ?, '00:21:30', ?)`)
+qaActivity.run(qaUserId, 2.4, 'public')
+qaActivity.run(qaUserId, 2.6, 'private')
+
+const qaEvent = db.query(`INSERT INTO events (host_id, name, start_time, description, location, visibility) VALUES (?, ?, '2030-06-01T07:00:00Z', ?, 'San Diego, CA', ?)`)
+qaEvent.run(qaUserId, 'Torrey Pines Sunrise 10K', 'Two loops from the gliderport, chip timed.', 'public')
+qaEvent.run(qaUserId, 'Cove Night Owls Time Trial', 'Members only.', 'club')
 db.close()
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).

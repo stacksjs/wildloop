@@ -3,6 +3,63 @@
 @section('title', 'Athlete - Wildloop')
 
 @section('content')
+<script server>
+  /*
+   * This athlete's name in the HTML — see `trail/[id].stx` for the mechanism.
+   *
+   * A profile is the one page in this set with no visibility column:
+   * `user_privacy_settings` governs activity defaults, home-location masking
+   * and territory precision, not whether a profile exists, and a name already
+   * appears publicly in leaderboards, clubs and event standings. Blocking is
+   * real but viewer-specific, and a shared server render has no viewer, so it
+   * cannot and does not try to honour it — which is why nothing below is
+   * viewer-dependent.
+   *
+   * Only the name is rendered. Stats, location and recent activity are not:
+   * each is either governed by a per-activity visibility the server cannot
+   * resolve for an anonymous reader, or self-entered profile detail that
+   * belongs on the page rather than in a link preview.
+   */
+  const ssrAthleteId = Number(params?.id)
+  let ssrAthlete: { name?: string } | null = null
+
+  if (Number.isFinite(ssrAthleteId) && ssrAthleteId > 0) {
+    try {
+      ssrAthlete = await User.find(ssrAthleteId) as any
+    }
+    catch {
+      ssrAthlete = null
+    }
+  }
+
+  const ssrAthleteName = String(ssrAthlete?.name ?? '').trim()
+
+  const ssrTitle = ssrAthleteName ? `${ssrAthleteName} — Wildloop` : 'Athlete - Wildloop'
+
+  const ssrDescription = ssrAthleteName
+    ? `${ssrAthleteName} on Wildloop — activities, routes, achievements and territory.`
+    : 'Athlete profiles on Wildloop — activities, routes, achievements and territory.'
+
+  const ssrCanonical = ssrAthleteName ? `https://wildloop.org/athlete/${ssrAthleteId}` : 'https://wildloop.org'
+
+  useSeoMeta({
+    title: ssrTitle,
+    description: ssrDescription,
+    canonical: ssrCanonical,
+    robots: ssrAthleteName ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    ogTitle: ssrTitle,
+    ogDescription: ssrDescription,
+    ogType: 'profile',
+    ogUrl: ssrCanonical,
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: ssrTitle,
+    twitterDescription: ssrDescription,
+  })
+</script>
+
 <script client>
   import { fetchAthlete, reportContent, toggleBlock, toggleFollow } from '../../assets/scripts/game-api'
   import { fetchRecords } from '../../assets/scripts/records-api'
@@ -112,8 +169,9 @@
   }
 
   // The record's own identity, once it loads. Without it every athlete page
-  // serves one title and no canonical. Applied on the client rather than in
-  // a `<script server>` block — see usePageSeo for why that is forced.
+  // serves one title and no canonical. The `<script server>` block above
+  // carries the name for crawlers; this one fills in the rest of the profile,
+  // which only exists once the client has fetched it.
   effect(() => {
     const seoAthlete = profile()
     if (!seoAthlete)
