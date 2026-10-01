@@ -15,7 +15,7 @@
    * `visibility === 'public'`.
    */
   const ssrEventId = Number(params?.id)
-  let ssrEvent: { name?: string, description?: string, location?: string, visibility?: string } | null = null
+  let ssrEvent: { name?: string, description?: string, location?: string, visibility?: string, event_type?: string, host_id?: number } | null = null
 
   if (Number.isFinite(ssrEventId) && ssrEventId > 0) {
     try {
@@ -33,12 +33,36 @@
   const ssrEventWhere = ssrEventIsPublic ? String(ssrEvent?.location ?? '').trim() : ''
   const ssrEventAbout = ssrEventIsPublic ? String(ssrEvent?.description ?? '').trim() : ''
 
-  const ssrTitle = ssrEventName ? `${ssrEventName} — Wildloop` : 'Live Event - Wildloop'
+  /*
+   * `recordTitle(name, context)` — the same shape the page's own `setPageSeo`
+   * uses, so the served title and the one the client sets after hydration are
+   * the same string. They were not: this said `${name} — Wildloop` while the
+   * client said `${name} — ${context} | Wildloop`, so a shared link previewed
+   * with one title and opened with another.
+   */
+  // Who is hosting, which the page's own description names. A host's name is
+  // public — it is on the event itself — and this event has already passed the
+  // visibility gate above.
+  let ssrEventHost = ''
+  const ssrEventHostId = ssrEventIsPublic ? Number(ssrEvent?.host_id ?? 0) : 0
+  if (Number.isFinite(ssrEventHostId) && ssrEventHostId > 0) {
+    try {
+      const ssrHost = await User.find(ssrEventHostId) as any
+      ssrEventHost = String(ssrHost?.name ?? '').trim()
+    }
+    catch {
+      ssrEventHost = ''
+    }
+  }
 
+  const ssrEventKind = String(ssrEvent?.event_type ?? 'event')
+  const ssrTitle = ssrEventName
+    ? (ssrEventWhere ? `${ssrEventName} — ${ssrEventWhere} | Wildloop` : `${ssrEventName} | Wildloop`)
+    : 'Live Event - Wildloop'
+
+  // The sentence the page itself sets.
   const ssrDescription = ssrEventName
-    ? (ssrEventAbout
-        ? (ssrEventAbout.length > 150 ? `${ssrEventAbout.slice(0, 149).trimEnd()}…` : ssrEventAbout)
-        : `${ssrEventName}${ssrEventWhere ? ` — in ${ssrEventWhere}.` : ' on Wildloop.'} Live standings, laps and entrants.`)
+    ? `${ssrEventAbout ? `${ssrEventAbout} ` : ''}${ssrEventKind} event${ssrEventWhere ? ` in ${ssrEventWhere}` : ''} on Wildloop.${ssrEventHost ? ` Hosted by ${ssrEventHost}.` : ''}`.slice(0, 200)
     : 'Follow live running events on Wildloop — standings, laps and entrants in real time.'
 
   const ssrCanonical = ssrEventName ? `https://wildloop.org/event/${ssrEventId}` : 'https://wildloop.org/events'

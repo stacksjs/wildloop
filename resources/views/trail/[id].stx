@@ -25,7 +25,7 @@
    * own scope and not into a module it imports, where it is silently undefined.
    */
   const ssrTrailId = Number(params?.id)
-  let ssrTrail: { name?: string, difficulty?: string, distance?: number, location?: string } | null = null
+  let ssrTrail: { name?: string, difficulty?: string, distance?: number, location?: string, elevation?: number } | null = null
 
   if (Number.isFinite(ssrTrailId) && ssrTrailId > 0) {
     try {
@@ -45,22 +45,33 @@
   const ssrWhere = String(ssrTrail?.location ?? '').trim()
   const ssrDistance = Number(ssrTrail?.distance ?? 0)
   const ssrDifficulty = String(ssrTrail?.difficulty ?? '').trim()
+  const ssrElevation = Number(ssrTrail?.elevation ?? 0)
 
-  const ssrTitle = ssrName ? `${ssrName} — Wildloop` : 'Trail Details - Wildloop'
+  /*
+   * `recordTitle(name, context)` — the same shape the page's own `setPageSeo`
+   * uses, so the served title and the one the client sets after hydration are
+   * the same string. They were not: this said `${name} — Wildloop` while the
+   * client said `${name} — ${context} | Wildloop`, so a shared link previewed
+   * with one title and opened with another.
+   */
+  const ssrTitle = ssrName
+    ? (ssrWhere ? `${ssrName} — ${ssrWhere} | Wildloop` : `${ssrName} | Wildloop`)
+    : 'Trail Details - Wildloop'
 
-  // What a search result should say about this trail, in the order someone
-  // scanning results cares about: where it is, how far, how hard.
+  // What a search result should say about this trail, in the order the page's own
+  // `trailDescription` puts them: how hard, how far, how much climbing.
   const ssrFacts = [
-    ssrWhere,
-    // Miles. The column is miles and the page labels it so — `trail.distance
-    // + ' mi'` — so `km` here restated the number in a unit it is not: Half
-    // Dome's 14.2 is miles, and as km it would be a different trail.
+    ssrDifficulty ? `${ssrDifficulty.charAt(0).toUpperCase()}${ssrDifficulty.slice(1)}` : '',
+    // Miles. The column is miles and the page labels it so — calling it km
+    // restated the number in a unit it is not: Half Dome's 14.2 is miles.
     ssrDistance > 0 ? `${ssrDistance.toFixed(1)} mi` : '',
-    ssrDifficulty,
+    ssrElevation > 0 ? `${Math.round(ssrElevation).toLocaleString()} ft elevation gain` : '',
   ].filter(Boolean).join(' · ')
 
+  // The sentence the page's own `trailDescription` builds, so the preview a
+  // scraper takes and the description the client sets are the same string.
   const ssrDescription = ssrName
-    ? `${ssrName}${ssrFacts ? ` — ${ssrFacts}.` : '.'} Route, elevation, conditions and reviews on Wildloop.`
+    ? `${ssrName}${ssrWhere ? ` in ${ssrWhere}` : ''}.${ssrFacts ? ` ${ssrFacts}.` : ''} Route map, records and recent conditions on Wildloop.`
     : 'Find and track trails for running and hiking, with live GPS, pace, segments and territory.'
 
   const ssrCanonical = ssrName ? `https://wildloop.org/trail/${ssrTrailId}` : 'https://wildloop.org/trails'

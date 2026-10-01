@@ -23,7 +23,7 @@
    * generic shell plus `noindex`.
    */
   const ssrClubId = Number(params?.id)
-  let ssrClub: { name?: string, description?: string, location?: string, is_private?: boolean } | null = null
+  let ssrClub: { name?: string, description?: string, location?: string, is_private?: boolean, club_type?: string } | null = null
 
   if (Number.isFinite(ssrClubId) && ssrClubId > 0) {
     try {
@@ -49,14 +49,37 @@
   const ssrClubWhere = ssrClubIsPublic ? String(ssrClub?.location ?? '').trim() : ''
   const ssrClubAbout = ssrClubIsPublic ? String(ssrClub?.description ?? '').trim() : ''
 
-  const ssrTitle = ssrClubName ? `${ssrClubName} — Wildloop` : 'Club - Wildloop'
+  /*
+   * `recordTitle(name, context)` — the same shape the page's own `setPageSeo`
+   * uses, so the served title and the one the client sets after hydration are
+   * the same string. They were not: this said `${name} — Wildloop` while the
+   * client said `${name} — ${context} | Wildloop`, so a shared link previewed
+   * with one title and opened with another.
+   */
+  // How many members, which the page's own description states. One extra read,
+  // and not viewer-dependent: a club lists its own size to anyone who can see
+  // the club at all, and a private one never reaches here.
+  let ssrClubMembers = 0
+  if (ssrClubName) {
+    try {
+      ssrClubMembers = ((await ClubMember.where('club_id', '=', ssrClubId).get()) ?? []).length
+    }
+    catch {
+      ssrClubMembers = 0
+    }
+  }
+
+  const ssrClubKind = String(ssrClub?.club_type ?? 'running').toLowerCase()
+  const ssrClubMemberText = ssrClubMembers === 1 ? '1 member' : `${ssrClubMembers} members`
+  const ssrTitle = ssrClubName
+    ? (ssrClubWhere ? `${ssrClubName} — ${ssrClubWhere} | Wildloop` : `${ssrClubName} | Wildloop`)
+    : 'Club - Wildloop'
 
   // The club's own words first, trimmed to a length a search result will show;
   // its location is the fallback, which at least says which club this is.
+  // The sentence the page itself sets, so the preview and the page agree.
   const ssrDescription = ssrClubName
-    ? (ssrClubAbout
-        ? (ssrClubAbout.length > 150 ? `${ssrClubAbout.slice(0, 149).trimEnd()}…` : ssrClubAbout)
-        : `${ssrClubName}${ssrClubWhere ? ` — a running and hiking club in ${ssrClubWhere}.` : ' on Wildloop.'} Members, events and group activities.`)
+    ? `${ssrClubAbout ? `${ssrClubAbout} ` : ''}${ssrClubName} is a ${ssrClubKind} club on Wildloop with ${ssrClubMemberText}.`.slice(0, 200)
     : 'Find a running or hiking club on Wildloop — members, events and group activities.'
 
   const ssrCanonical = ssrClubName ? `https://wildloop.org/club/${ssrClubId}` : 'https://wildloop.org/clubs'

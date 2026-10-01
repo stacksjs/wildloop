@@ -85,6 +85,12 @@ qaClub.run(qaUserId, 'Cove Night Owls', 'Invite-only dawn patrol.', 1)
 // note when it has one — the rule the page's own heading and metadata follow —
 // so a pair without notes would title identically and no test could tell which
 // one it was looking at.
+// The public club gets its founder as a member, so its description states a
+// real count and exercises the singular branch of "1 member" / "N members".
+// Without this the fixture read "0 members", which is true of the row and true
+// of nothing a reader would ever see.
+db.run(`INSERT INTO club_members (club_id, user_id, role) VALUES ((SELECT id FROM clubs WHERE name = 'Torrey Pines Striders'), ${qaUserId}, 'owner')`)
+
 const qaActivity = db.query(`INSERT INTO activities (user_id, trail_id, activity_type, distance, duration, visibility, notes) VALUES (?, (SELECT id FROM trails WHERE name = 'Torrey Pines Loop'), 'Trail Run', ?, '00:21:30', ?, ?)`)
 qaActivity.run(qaUserId, 2.4, 'public', 'Sunrise loop, legs felt good.')
 qaActivity.run(qaUserId, 2.6, 'private', 'Kept this one to myself.')

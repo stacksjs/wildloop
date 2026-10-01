@@ -571,7 +571,13 @@
     const seoParts: string[] = []
     if (typeof seoActivity.distance === 'number' && seoActivity.distance > 0) seoParts.push(`${seoActivity.distance.toFixed(1)} mi`)
     if (seoActivity.duration) seoParts.push(String(seoActivity.duration))
-    if (seoActivity.pace) seoParts.push(`${seoActivity.pace}/mi`)
+    // `useActivityCatalog` fills a missing pace with '--' so a column has
+    // something to show, and that placeholder read straight into this
+    // description as "--/mi". A pace nobody recorded is not a fact about the
+    // activity, so it is left out — which is also what the server block does,
+    // reading the column rather than the display value.
+    const seoPace = String(seoActivity.pace ?? '').trim()
+    if (seoPace && seoPace !== '--') seoParts.push(`${seoPace}/mi`)
 
     // The athlete's own note is the only part of an activity that is about
     // this one rather than any other, so it leads when there is one.

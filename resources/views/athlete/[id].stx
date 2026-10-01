@@ -34,10 +34,30 @@
 
   const ssrAthleteName = String(ssrAthlete?.name ?? '').trim()
 
-  const ssrTitle = ssrAthleteName ? `${ssrAthleteName} — Wildloop` : 'Athlete - Wildloop'
+  /*
+   * `recordTitle(name, context)` — the same shape the page's own `setPageSeo`
+   * uses, so the served title and the one the client sets after hydration are
+   * the same string. They were not: this said `${name} — Wildloop` while the
+   * client said `${name} — ${context} | Wildloop`, so a shared link previewed
+   * with one title and opened with another.
+   */
+  const ssrTitle = ssrAthleteName ? `${ssrAthleteName} | Wildloop` : 'Athlete - Wildloop'
 
+  /*
+   * The page's own sentence, in the form it takes when there are no counts to
+   * state — which is a real branch of that rule, not a different sentence:
+   * `${name} on Wildloop. Recent runs, territory and records.`
+   *
+   * The counts are deliberately left out. `activityCount` is filtered through
+   * `canViewActivity` against the asking viewer, so the number a follower sees
+   * is not the number a stranger may be told; a shared render has no viewer and
+   * would have to publish the stranger's count as if it were the whole truth.
+   * Leaving it unsaid costs a preview some detail and keeps it from stating a
+   * figure that is wrong for whoever opens the link. The client fills them in
+   * once it knows who is asking.
+   */
   const ssrDescription = ssrAthleteName
-    ? `${ssrAthleteName} on Wildloop — activities, routes, achievements and territory.`
+    ? `${ssrAthleteName} on Wildloop. Recent runs, territory and records.`
     : 'Athlete profiles on Wildloop — activities, routes, achievements and territory.'
 
   const ssrCanonical = ssrAthleteName ? `https://wildloop.org/athlete/${ssrAthleteId}` : 'https://wildloop.org'

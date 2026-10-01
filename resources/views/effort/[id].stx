@@ -25,7 +25,7 @@
    * `app/Support/routeEfforts.ts`, and 'rejected' is deliberately absent.
    */
   const ssrEffortId = Number(params?.id)
-  let ssrEffort: { trail_id?: number, status?: string, style?: string, category?: string, elapsed_seconds?: number } | null = null
+  let ssrEffort: { trail_id?: number, status?: string, style?: string, category?: string, elapsed_seconds?: number, user_id?: number } | null = null
 
   if (Number.isFinite(ssrEffortId) && ssrEffortId > 0) {
     try {
@@ -56,30 +56,39 @@
     }
   }
 
-  const ssrEffortStyle = ssrEffortIsPublic
-    ? ({ supported: 'Supported', self_supported: 'Self-supported', unsupported: 'Unsupported' } as Record<string, string>)[String(ssrEffort?.style ?? '')] ?? ''
+  // Whose attempt it is. The page's own `setPageSeo` titles this
+  // "<athlete> on <route>", so the server needs the name too or the served
+  // title and the hydrated one are different strings for the same page. An
+  // athlete's name is public — it is on every leaderboard — and this effort has
+  // already passed the status gate above.
+  let ssrEffortBy = ''
+  const ssrEffortUserId = ssrEffortIsPublic ? Number(ssrEffort?.user_id ?? 0) : 0
+  if (Number.isFinite(ssrEffortUserId) && ssrEffortUserId > 0) {
+    try {
+      const ssrEffortAthlete = await User.find(ssrEffortUserId) as any
+      ssrEffortBy = String(ssrEffortAthlete?.name ?? '').trim()
+    }
+    catch {
+      ssrEffortBy = ''
+    }
+  }
+
+  // `recordTitle("<athlete> on <route>")`, which is what the page sets once it
+  // has loaded. Without the athlete it names the route alone rather than
+  // inventing one.
+  const ssrEffortSubject = ssrEffortTrail
+    ? (ssrEffortBy ? `${ssrEffortBy} on ${ssrEffortTrail}` : ssrEffortTrail)
     : ''
-  const ssrEffortCategory = ssrEffortIsPublic
-    ? ({ mens: 'Men\'s', womens: 'Women\'s', nonbinary: 'Non-binary' } as Record<string, string>)[String(ssrEffort?.category ?? '')] ?? ''
-    : ''
-
-  // h:mm:ss, which is how every record board in the sport writes a time.
-  const ssrEffortSeconds = ssrEffortIsPublic ? Number(ssrEffort?.elapsed_seconds ?? 0) : 0
-  const ssrEffortTime = ssrEffortSeconds > 0
-    ? [
-        Math.floor(ssrEffortSeconds / 3600),
-        String(Math.floor((ssrEffortSeconds % 3600) / 60)).padStart(2, '0'),
-        String(ssrEffortSeconds % 60).padStart(2, '0'),
-      ].join(':')
-    : ''
-
-  const ssrTitle = ssrEffortTrail ? `${ssrEffortTrail} FKT attempt — Wildloop` : 'Record Attempt - Wildloop'
-
-  const ssrEffortFacts = [ssrEffortCategory, ssrEffortStyle, ssrEffortTime].filter(Boolean).join(' · ')
-
-  const ssrDescription = ssrEffortTrail
-    ? `A record attempt on ${ssrEffortTrail}${ssrEffortFacts ? ` — ${ssrEffortFacts}.` : '.'} Splits, evidence and trip report on Wildloop.`
-    : 'Fastest known times and record attempts on Wildloop — splits, evidence and trip reports.'
+  const ssrTitle = ssrEffortSubject ? `${ssrEffortSubject} | Wildloop` : 'Record Attempt - Wildloop'
+  // The sentence the page itself sets. Category, style and the elapsed time were
+  // built here and are gone with it: the page's own description does not carry
+  // them, and a preview listing a time the page then frames differently is the
+  // mismatch this exists to remove.
+  const ssrDescription = ssrEffortBy && ssrEffortTrail
+    ? `${ssrEffortBy}'s record attempt on ${ssrEffortTrail}, with its evidence and verification status on Wildloop.`
+    : (ssrEffortTrail
+        ? `A record attempt on ${ssrEffortTrail}, with its evidence and verification status on Wildloop.`
+        : 'Fastest known times and record attempts on Wildloop — splits, evidence and trip reports.')
 
   const ssrCanonical = ssrEffortTrail ? `https://wildloop.org/effort/${ssrEffortId}` : 'https://wildloop.org/records'
 
@@ -248,14 +257,14 @@
       page. `sr-only` because the route link already shows that name in place;
       the error card keeps its heading only when the server resolved nothing.
     -->
-    @if (ssrEffortTrail)
-    <h1 class="sr-only">{{ ssrEffortTrail }} — record attempt</h1>
+    @if (ssrEffortSubject)
+    <h1 class="sr-only">{{ ssrEffortSubject }}</h1>
     @endif
 
     <div :if="loading" class="py-20 text-center text-sm text-gray-400 dark:text-slate-500">Loading attempt…</div>
 
     <div :if="!loading &amp;&amp; loadError" class="py-20 text-center">
-@if (ssrEffortTrail)
+@if (ssrEffortSubject)
       <p class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</p>
 @else
       <h1 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</h1>

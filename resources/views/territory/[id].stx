@@ -54,7 +54,14 @@
   const ssrTerritoryArea = Number(ssrTerritory?.area_size ?? 0)
   const ssrTerritoryAreaText = ssrTerritoryArea > 0 ? `${(ssrTerritoryArea / 1_000_000).toFixed(2)} km²` : ''
 
-  const ssrTitle = ssrTerritoryName ? `${ssrTerritoryName} — Wildloop` : 'Territory - Wildloop'
+  /*
+   * `recordTitle(name, context)` — the same shape the page's own `setPageSeo`
+   * uses, so the served title and the one the client sets after hydration are
+   * the same string. They were not: this said `${name} — Wildloop` while the
+   * client said `${name} — ${context} | Wildloop`, so a shared link previewed
+   * with one title and opened with another.
+   */
+  const ssrTitle = ssrTerritoryName ? `${ssrTerritoryName} | Wildloop` : 'Territory - Wildloop'
 
   const ssrDescription = ssrTerritoryName
     ? `${ssrTerritoryName} on Wildloop. ${ssrTerritoryHolder ? `Held by ${ssrTerritoryHolder}.` : 'Unclaimed.'}${ssrTerritoryAreaText ? ` ${ssrTerritoryAreaText} of ground.` : ''} Its holder, and how it changed hands.`
