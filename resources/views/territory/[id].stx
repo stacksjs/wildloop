@@ -26,7 +26,7 @@
 
   if (Number.isFinite(ssrTerritoryId) && ssrTerritoryId > 0) {
     try {
-      ssrTerritory = await Territory.find(ssrTerritoryId) as any
+      ssrTerritory = (await Territory.find(ssrTerritoryId) ?? null) as any
     }
     catch {
       ssrTerritory = null

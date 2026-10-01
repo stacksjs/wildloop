@@ -29,7 +29,11 @@
 
   if (Number.isFinite(ssrActivityId) && ssrActivityId > 0) {
     try {
-      ssrActivity = await Activity.find(ssrActivityId) as any
+      // `?? null` because a missing row comes back as `undefined`, not null:
+      // without it `ssrActivity !== null` passed, the field access below threw,
+      // and the whole server script aborted — taking `useSeoMeta` with it, so a
+      // nonexistent activity served the site's default `index` robots value.
+      ssrActivity = (await Activity.find(ssrActivityId) ?? null) as any
     }
     catch {
       ssrActivity = null
@@ -38,7 +42,7 @@
 
   // Fails closed: anything that is not the literal 'public' — 'followers',
   // 'private', null, a column that has gone missing — is withheld.
-  const ssrActivityIsPublic = ssrActivity !== null && String(ssrActivity.visibility ?? '') === 'public'
+  const ssrActivityIsPublic = String(ssrActivity?.visibility ?? '') === 'public'
   const ssrActivityKind = ssrActivityIsPublic ? String(ssrActivity?.activity_type ?? '').trim() : ''
   const ssrActivityDistance = ssrActivityIsPublic ? Number(ssrActivity?.distance ?? 0) : 0
 

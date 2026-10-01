@@ -27,7 +27,9 @@
 
   if (Number.isFinite(ssrClubId) && ssrClubId > 0) {
     try {
-      ssrClub = await Club.find(ssrClubId) as any
+      // `?? null`: a missing row is `undefined`, and the guards below read
+      // better against one representation of absent than two.
+      ssrClub = (await Club.find(ssrClubId) ?? null) as any
     }
     catch {
       ssrClub = null
@@ -42,8 +44,7 @@
   // withhold. Only an explicitly-stored falsy flag counts as public, so a
   // column that is absent, null or unrecognised fails closed.
   const ssrClubFlag = ssrClub?.is_private
-  const ssrClubIsPublic = ssrClub !== null
-    && (ssrClubFlag === false || ssrClubFlag === 0 || String(ssrClubFlag) === '0')
+  const ssrClubIsPublic = ssrClubFlag === false || ssrClubFlag === 0 || String(ssrClubFlag) === '0'
   const ssrClubName = ssrClubIsPublic ? String(ssrClub?.name ?? '').trim() : ''
   const ssrClubWhere = ssrClubIsPublic ? String(ssrClub?.location ?? '').trim() : ''
   const ssrClubAbout = ssrClubIsPublic ? String(ssrClub?.description ?? '').trim() : ''

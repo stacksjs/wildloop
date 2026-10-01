@@ -19,14 +19,16 @@
 
   if (Number.isFinite(ssrEventId) && ssrEventId > 0) {
     try {
-      ssrEvent = await Event.find(ssrEventId) as any
+      // `?? null`: a missing row is `undefined`, which would slip past a
+      // `!== null` guard and throw on the field access below.
+      ssrEvent = (await Event.find(ssrEventId) ?? null) as any
     }
     catch {
       ssrEvent = null
     }
   }
 
-  const ssrEventIsPublic = ssrEvent !== null && String(ssrEvent.visibility ?? '') === 'public'
+  const ssrEventIsPublic = String(ssrEvent?.visibility ?? '') === 'public'
   const ssrEventName = ssrEventIsPublic ? String(ssrEvent?.name ?? '').trim() : ''
   const ssrEventWhere = ssrEventIsPublic ? String(ssrEvent?.location ?? '').trim() : ''
   const ssrEventAbout = ssrEventIsPublic ? String(ssrEvent?.description ?? '').trim() : ''

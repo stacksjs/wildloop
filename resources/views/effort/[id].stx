@@ -29,7 +29,9 @@
 
   if (Number.isFinite(ssrEffortId) && ssrEffortId > 0) {
     try {
-      ssrEffort = await RouteEffort.find(ssrEffortId) as any
+      // `?? null`: a missing row is `undefined`, which would slip past a
+      // `!== null` guard and throw on the status read below.
+      ssrEffort = (await RouteEffort.find(ssrEffortId) ?? null) as any
     }
     catch {
       ssrEffort = null
@@ -38,8 +40,7 @@
 
   // Fails closed: an unrecognised or missing status is withheld, not published.
   const ssrEffortPublicStatuses = ['in_progress', 'dnf', 'pending', 'verified']
-  const ssrEffortIsPublic = ssrEffort !== null
-    && ssrEffortPublicStatuses.includes(String(ssrEffort.status ?? ''))
+  const ssrEffortIsPublic = ssrEffortPublicStatuses.includes(String(ssrEffort?.status ?? ''))
 
   // An effort has no name of its own; what identifies it is the route it was
   // run on, which carries no visibility of its own.
