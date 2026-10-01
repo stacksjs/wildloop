@@ -81,9 +81,13 @@ const qaClub = db.query(`INSERT INTO clubs (creator_id, name, club_type, descrip
 qaClub.run(qaUserId, 'Torrey Pines Striders', 'Weekly tempo on the coast road, all paces welcome.', 0)
 qaClub.run(qaUserId, 'Cove Night Owls', 'Invite-only dawn patrol.', 1)
 
-const qaActivity = db.query(`INSERT INTO activities (user_id, trail_id, activity_type, distance, duration, visibility) VALUES (?, (SELECT id FROM trails WHERE name = 'Torrey Pines Loop'), 'Trail Run', ?, '00:21:30', ?)`)
-qaActivity.run(qaUserId, 2.4, 'public')
-qaActivity.run(qaUserId, 2.6, 'private')
+// The notes are what distinguishes these two. An activity is titled by its
+// note when it has one — the rule the page's own heading and metadata follow —
+// so a pair without notes would title identically and no test could tell which
+// one it was looking at.
+const qaActivity = db.query(`INSERT INTO activities (user_id, trail_id, activity_type, distance, duration, visibility, notes) VALUES (?, (SELECT id FROM trails WHERE name = 'Torrey Pines Loop'), 'Trail Run', ?, '00:21:30', ?, ?)`)
+qaActivity.run(qaUserId, 2.4, 'public', 'Sunrise loop, legs felt good.')
+qaActivity.run(qaUserId, 2.6, 'private', 'Kept this one to myself.')
 
 const qaEvent = db.query(`INSERT INTO events (host_id, name, start_time, description, location, visibility) VALUES (?, ?, '2030-06-01T07:00:00Z', ?, 'San Diego, CA', ?)`)
 qaEvent.run(qaUserId, 'Torrey Pines Sunrise 10K', 'Two loops from the gliderport, chip timed.', 'public')

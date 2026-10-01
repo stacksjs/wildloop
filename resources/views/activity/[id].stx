@@ -25,7 +25,7 @@
    * here discloses nothing the trail page does not already serve publicly.
    */
   const ssrActivityId = Number(params?.id)
-  let ssrActivity: { activity_type?: string, distance?: number, visibility?: string, trail_id?: number, user_id?: number, notes?: string } | null = null
+  let ssrActivity: { activity_type?: string, distance?: number, visibility?: string, trail_id?: number, user_id?: number, notes?: string, duration?: string, pace?: string } | null = null
 
   if (Number.isFinite(ssrActivityId) && ssrActivityId > 0) {
     try {
@@ -60,10 +60,14 @@
     }
   }
 
-  const ssrActivityDistanceText = ssrActivityDistance > 0 ? `${ssrActivityDistance} km` : ''
+  // Miles. `distance` is stored in miles and every screen labels it `mi` —
+  // `trail.distance + ' mi'`, `distance.toFixed(1) + ' mi'` — so calling it km
+  // here restated the number in a unit it is not: Half Dome's 14.2 is miles,
+  // and 14.2 km would be most of the way back down.
+  const ssrActivityDistanceText = ssrActivityDistance > 0 ? `${ssrActivityDistance.toFixed(1)} mi` : ''
 
-  // "Trail Run on Emerald Lake Trail", falling back to "Trail Run · 41.7 km"
-  // when the activity is not attached to a trail.
+  // Kept for the canonical/robots decision below, which only needs to know
+  // whether this activity resolved to anything at all.
   const ssrActivityLabel = ssrActivityKind
     ? (ssrActivityTrail
         ? `${ssrActivityKind} on ${ssrActivityTrail}`
@@ -97,16 +101,35 @@
   const ssrActivityHeading = ssrActivityNote
     || (ssrActivityKind && ssrActivityBy ? `${ssrActivityKind} by ${ssrActivityBy}` : ssrActivityLabel)
 
-  const ssrTitle = ssrActivityLabel ? `${ssrActivityLabel} — Wildloop` : 'Activity Details - Wildloop'
+  /*
+   * The title and description the page itself would set, not a second opinion
+   * on the same activity.
+   *
+   * These used to be built from `ssrActivityLabel` ("Trail Run on Emerald Lake
+   * Trail") while the page's own `setPageSeo` further down used the athlete's
+   * note and `recordTitle`'s ` | Wildloop`. Nothing was wrong with either, but a
+   * shared link previewed as one thing and opened as another, and the whole
+   * point of rendering this server-side is that a scraper sees what a reader
+   * sees. So both follow the page's rule: the note when there is one, the type
+   * and whose it is otherwise, with the measurements after it.
+   */
+  const ssrActivityFacts = [
+    ssrActivityDistanceText,
+    String(ssrActivity?.duration ?? '').trim(),
+    ssrActivityIsPublic && String(ssrActivity?.pace ?? '').trim() ? `${String(ssrActivity?.pace).trim()}/mi` : '',
+  ].filter(Boolean).join(' · ')
 
-  // When the label named the trail it does not carry the distance, so the
-  // description adds it; when it fell back to "type · distance" it already has
-  // it and repeating it reads badly.
-  const ssrDescription = ssrActivityLabel
-    ? `${ssrActivityLabel}${ssrActivityTrail && ssrActivityDistanceText ? ` — ${ssrActivityDistanceText}.` : '.'} Route, splits and segments on Wildloop.`
+  const ssrActivityWhose = ssrActivityKind && ssrActivityBy ? `${ssrActivityKind} by ${ssrActivityBy}` : ssrActivityLabel
+
+  const ssrTitle = ssrActivityHeading ? `${ssrActivityHeading} | Wildloop` : 'Activity Details - Wildloop'
+
+  // Matches the client's string, including the 200-character cut: the note
+  // leads when there is one, then what it was and whose, then the numbers.
+  const ssrDescription = ssrActivityHeading
+    ? `${ssrActivityNote ? `${ssrActivityNote} ` : ''}${ssrActivityWhose}${ssrActivityFacts ? ` — ${ssrActivityFacts}` : ''}.`.slice(0, 200)
     : 'Track runs and hikes with live GPS, pace, splits and segments on Wildloop.'
 
-  const ssrCanonical = ssrActivityLabel ? `https://wildloop.org/activity/${ssrActivityId}` : 'https://wildloop.org/feed'
+  const ssrCanonical = ssrActivityHeading ? `https://wildloop.org/activity/${ssrActivityId}` : 'https://wildloop.org/feed'
 
   useSeoMeta({
     title: ssrTitle,
@@ -114,7 +137,7 @@
     canonical: ssrCanonical,
     // A private or followers-only activity reaches this with no label, and must
     // not be indexed under the generic title either.
-    robots: ssrActivityLabel ? 'index, follow, max-image-preview:large' : 'noindex, follow',
+    robots: ssrActivityHeading ? 'index, follow, max-image-preview:large' : 'noindex, follow',
     ogTitle: ssrTitle,
     ogDescription: ssrDescription,
     ogType: 'website',

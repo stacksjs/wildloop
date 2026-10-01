@@ -52,7 +52,10 @@
   // scanning results cares about: where it is, how far, how hard.
   const ssrFacts = [
     ssrWhere,
-    ssrDistance > 0 ? `${ssrDistance} km` : '',
+    // Miles. The column is miles and the page labels it so — `trail.distance
+    // + ' mi'` — so `km` here restated the number in a unit it is not: Half
+    // Dome's 14.2 is miles, and as km it would be a different trail.
+    ssrDistance > 0 ? `${ssrDistance.toFixed(1)} mi` : '',
     ssrDifficulty,
   ].filter(Boolean).join(' · ')
 

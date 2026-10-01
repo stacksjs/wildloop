@@ -224,7 +224,10 @@ describe.skipIf(!qa)('heading structure', () => {
       expect(h1s[0], `${route} h1 is rendered, not a literal expression`).not.toContain('{{')
       expect(h1s[0], `${route} h1 must not deny the record exists`).not.toMatch(/not found/i)
     }
-  })
+    // Six routes, each an uncached render — a server script that reads its params
+    // opts the route out of the shell cache — so this needs more than the 5s
+    // default. It is slow by design, not flaky.
+  }, 30_000)
 
   // The two fixtures that are unique in the QA seed, so their names can be
   // asserted outright rather than by shape.
@@ -497,14 +500,18 @@ describe.skipIf(!qa)('a detail page names its own record, and withholds a privat
   })
 
   it('names a public activity, and never a private one', async () => {
-    // Activities have no `name` column: the title is assembled from the type and
-    // either the trail it is attached to or its distance. Both fixtures sit on
-    // Torrey Pines Loop, so the trail name is the thing that must appear for one
-    // and not the other.
-    const { shut } = await pair('activity', 'Torrey Pines Loop')
+    // Activities have no `name` column. What titles one is the athlete's own
+    // note, which is also what the page paints as its heading, so the note is
+    // what must appear for one of the pair and not the other — the trail name
+    // no longer appears in either, since naming the outing is not how the page
+    // names itself.
+    const { open, shut } = await pair('activity', 'Sunrise loop')
 
+    expect(open.document.title, 'the public one is titled by its note').toContain('Sunrise loop, legs felt good.')
     expect(shut.document.title, 'the private one falls back to the generic title')
       .toBe('Activity Details - Wildloop')
+    expect(shut.html, 'a private activity\'s note appears nowhere in the served HTML')
+      .not.toContain('Kept this one to myself')
     expect(meta(shut.document, 'meta[name="robots"]'), 'and is not offered for indexing').toContain('noindex')
   })
 
