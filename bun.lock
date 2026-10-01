@@ -19,7 +19,7 @@
       },
       "devDependencies": {
         "@types/bun": "^1.4.2",
-        "very-happy-dom": "^0.1.11",
+        "very-happy-dom": "^0.3.5",
       },
     },
   },
@@ -418,7 +418,7 @@
 
     "undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
-    "very-happy-dom": ["very-happy-dom@0.1.11", "", {}, "sha512-Q8Gr+CvHjGWwNuY3NxO7BFRIRI0nb0zgTZZKdjWoRPNPTeHPst0b19PIrEsj1D/0oBCBu+YEdaek3pPZOtVnbw=="],
+    "very-happy-dom": ["very-happy-dom@0.3.5", "", {}, "sha512-uuyxaij6RPM15Znv22NwAK/rBJTHsWi7+EP4tmf7XetvpwSLtX7EYFkQRwYFlbiswHV07MiFnyfU2HK1xGdlQg=="],
 
     "@stacksjs/browser/bun-query-builder": ["bun-query-builder@0.2.70", "", { "dependencies": { "@stacksjs/clapp": "^0.2.16", "@stacksjs/ts-faker": "^0.1.8", "@stacksjs/ts-validation": "^0.5.2", "dynamodb-tooling": "^0.3.6" }, "bin": { "qb": "./dist/bin/cli.js", "qbx": "./dist/bin/cli.js", "query-builder": "./dist/bin/cli.js" } }, "sha512-4vDGC0NtaSsw0HjwZkDq6Oj+pWB6RK5sB3xuNA3cg025t7IgSyLILAqN7Juu6MhhGaBrdufsDY+zwq05cwOTnA=="],
 
