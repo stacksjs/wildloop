@@ -169,9 +169,16 @@ export default new Action({
        * page: the earliest visible photo per activity, and how many there are.
        * One query for the page, not one per post.
        */
-      // Coerced and filtered before they reach the statement below, which
-      // interpolates them: `IN` cannot take a bound array here, so the only
-      // thing making this safe is that nothing but a positive integer survives.
+      /*
+       * Coerced and filtered before they reach `db.unsafe` below, which is the
+       * only thing making this safe: nothing but a positive integer survives.
+       *
+       * `db.unsafe` rather than a plain interpolation, because `db.sql` binds
+       * what it interpolates. `IN (${ids.join(',')})` becomes `IN (?)` with
+       * the string "1,2,3", which equals no id at all — so a feed of one
+       * activity showed its photo and a feed of two showed none, silently and
+       * without an error.
+       */
       const photoIds = ownedRows
         .map((a: any) => Number(a.id))
         .filter((id: number) => Number.isInteger(id) && id > 0)
@@ -181,7 +188,7 @@ export default new Action({
                    ROW_NUMBER() OVER (PARTITION BY activity_id ORDER BY position ASC, id ASC) AS rank,
                    COUNT(*) OVER (PARTITION BY activity_id) AS total
             FROM activity_photos
-            WHERE status = 'visible' AND activity_id IN (${photoIds.join(',')})
+            WHERE status = 'visible' AND activity_id IN (${db.unsafe(photoIds.join(','))})
           `.execute().catch(() => []) as any[]
         : []
       const firstPhoto = new Map<number, any>()

@@ -76,7 +76,7 @@ export default new Action({
               ORDER BY e.elapsed_seconds ASC, e.started_at ASC
             ) AS personal_rank
           FROM segment_efforts e
-          WHERE e.segment_id IN (${ids.join(',')})
+          WHERE e.segment_id IN (${db.unsafe(ids.join(','))})
         ) pb
         JOIN users u ON u.id = pb.user_id
         WHERE pb.personal_rank = 1
