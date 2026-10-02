@@ -61,6 +61,28 @@ export default new Action({
     const elevation = elevationRaw === undefined || elevationRaw === null ? 0 : boundedNumber(elevationRaw, 0, 100000)
     if (elevation === null)
       fields.elevation = 'must be feet as a number between 0 and 100000'
+
+    /*
+     * Heart rate, when the imported file carried one (#1010).
+     *
+     * Absent and zero are different answers and are kept different: an
+     * activity with no reading stores null, and the tile hides rather than
+     * printing a dash on every run ever saved. The bounds match the window
+     * the importer already applies per fix.
+     */
+    const heartRate = (name: 'heartRateAvg' | 'heartRateMax'): number | null | undefined => {
+      const raw = request.get(name)
+      if (raw === undefined || raw === null || raw === '')
+        return null
+      const value = boundedNumber(raw, 20, 250)
+      if (value === null) {
+        fields[name] = 'must be a heart rate between 20 and 250'
+        return undefined
+      }
+      return Math.round(value)
+    }
+    const heartRateAvg = heartRate('heartRateAvg')
+    const heartRateMax = heartRate('heartRateMax')
     const trailIdRaw = request.get('trail_id')
     const trailId = trailIdRaw === undefined || trailIdRaw === null ? null : positiveInt(trailIdRaw)
     if (trailIdRaw !== undefined && trailIdRaw !== null && trailId === null)
@@ -155,6 +177,8 @@ export default new Action({
         moving_time: serverMovingTime,
         pace: serverPace,
         elevation,
+        heart_rate_avg: heartRateAvg ?? null,
+        heart_rate_max: heartRateMax ?? null,
         kudos_count: 0,
         notes: request.get<string>('notes') ?? null,
         gpx_data: (gpxData as string | undefined) ?? null,
@@ -213,6 +237,8 @@ function activityResponse(activity: any) {
     movingTime: activity.moving_time,
     pace: activity.pace,
     elevation: activity.elevation,
+    heartRateAvg: activity.heart_rate_avg ?? null,
+    heartRateMax: activity.heart_rate_max ?? null,
     completedAt: activity.completed_at,
     visibility: activity.visibility ?? 'public',
     hasGps: !!activity.gpx_data,

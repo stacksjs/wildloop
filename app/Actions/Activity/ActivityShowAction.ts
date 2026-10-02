@@ -116,6 +116,8 @@ export default new Action({
           movingTime: a.moving_time ?? a.duration,
           pace: a.pace,
           elevation: a.elevation,
+          heartRateAvg: a.heart_rate_avg ?? null,
+          heartRateMax: a.heart_rate_max ?? null,
           splits: parseSplits(a.splits),
           // Computed here as well as in the index, from the same inputs, so the
           // detail page no longer renders whatever the feed happened to leave

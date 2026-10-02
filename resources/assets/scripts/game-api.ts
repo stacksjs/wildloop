@@ -123,6 +123,9 @@ export interface ActivityPayload {
   moving_time?: string | null
   pace?: string | null
   elevation?: number
+  /** Beats per minute, when an imported file carried a reading (#1010). */
+  heartRateAvg?: number | null
+  heartRateMax?: number | null
   gpx_data?: string | null
   /** Per-mile splits computed from the GPS samples (#952). */
   splits?: Array<{ mile: number, pace: string, elev: number }>

@@ -59,7 +59,7 @@
     moving_time: string
     pace: string
     elevation_gain: number
-    calories: number
+    calories: number | null
     heartRateAvg: number | null
     heartRateMax: number | null
     cadence: number | null

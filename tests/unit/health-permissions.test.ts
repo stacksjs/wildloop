@@ -49,11 +49,37 @@ describe('the HealthKit permissions the app asks for', () => {
 })
 
 describe('the activity page', () => {
-  it('does not print a heart rate it can never have', async () => {
+  /*
+   * The tile is back, and the rule that removed it still holds.
+   *
+   * 50f4c2ef took it out because nothing could produce a heart rate and it
+   * printed an em dash on every activity ever saved, which reads as broken
+   * rather than as absent. #1010 gave it a source — heart rate parsed out of
+   * an imported GPX, TCX or FIT file — so the tile may render, but only for
+   * an activity that actually has one. What this asserts is the guard, not
+   * the absence.
+   */
+  it('renders the heart rate tile only for an activity that has one', async () => {
     const page = await Bun.file('resources/views/activity/[id].stx').text()
-    // The rendered label and the binding behind it, not the word: the comment
-    // recording why the tile went is allowed to say what it was.
-    expect(page).not.toMatch(/>\s*Avg HR\s*</)
-    expect(page).not.toContain('activity.heartRateAvg')
+
+    // One Avg HR label, and the element carrying it is guarded. Checked as
+    // two plain facts rather than one regex spanning the whole tile, which
+    // breaks every time the markup is reformatted.
+    const labels = [...page.matchAll(/>\s*Avg HR\s*</g)]
+    expect(labels).toHaveLength(1)
+
+    const guarded = page.indexOf('<div :if="activity.heartRateAvg"')
+    expect(guarded, 'the Avg HR tile should be guarded by :if="activity.heartRateAvg"').toBeGreaterThan(-1)
+    // The label falls inside the guarded element, not before it.
+    expect(labels[0].index!).toBeGreaterThan(guarded)
+  })
+
+  /*
+   * The grid has to narrow with it, or the two surviving tiles stretch across
+   * three columns and leave a gap where the heart rate would have been.
+   */
+  it('drops to two columns when there is no heart rate', async () => {
+    const page = await Bun.file('resources/views/activity/[id].stx').text()
+    expect(page).toContain("activity.heartRateAvg ? 'grid-cols-3' : 'grid-cols-2'")
   })
 })

@@ -22,6 +22,8 @@ export interface ImportedTrackSample {
   time: number | null
   altitude: number | null
   accuracy: number | null
+  /** Beats per minute at this fix, when the file carried one. */
+  heartRate: number | null
 }
 
 export interface ImportedActivityFile {
@@ -31,7 +33,22 @@ export interface ImportedActivityFile {
   durationSeconds: number
   distanceMiles: number
   elevationGainFeet: number
+  /** Averaged over the fixes that carried a reading, not over every fix. */
+  heartRateAvg: number | null
+  heartRateMax: number | null
 }
+
+/**
+ * The window a heart rate has to fall in to be believed.
+ *
+ * A strap that has lost contact reports 0, and a few report 255; both appear
+ * mid-file surrounded by real readings, so they have to be dropped per fix
+ * rather than per file. The upper bound is deliberately above any human
+ * maximum — the job here is to reject sensor noise, not to referee how hard
+ * somebody was working.
+ */
+const MIN_PLAUSIBLE_BPM = 20
+const MAX_PLAUSIBLE_BPM = 250
 
 function numberBetween(value: unknown, min: number, max: number): number | null {
   const number = Number(value)
@@ -67,6 +84,10 @@ function summarize(name: string, samples: ImportedTrackSample[]): ImportedActivi
     if (previous !== null && current !== null && current - previous >= 1)
       elevationMetres += current - previous
   }
+  const beats = samples
+    .map(sample => sample.heartRate)
+    .filter((bpm): bpm is number => bpm !== null)
+
   const times = samples.map(sample => sample.time).filter((time): time is number => time !== null)
   const first = times[0] ?? Date.now()
   const last = times[times.length - 1] ?? first
@@ -77,6 +98,13 @@ function summarize(name: string, samples: ImportedTrackSample[]): ImportedActivi
     durationSeconds: Math.max(1, Math.round((last - first) / 1000)),
     distanceMiles: metres / 1609.344,
     elevationGainFeet: Math.round(elevationMetres * 3.28084),
+    /*
+     * Null, not zero, when the file carried no heart rate — which is most
+     * files, since only a watch paired with a strap or an optical sensor
+     * writes one. Zero would read as a stopped heart (#1010).
+     */
+    heartRateAvg: beats.length > 0 ? Math.round(beats.reduce((sum, bpm) => sum + bpm, 0) / beats.length) : null,
+    heartRateMax: beats.length > 0 ? Math.max(...beats) : null,
   }
 }
 
@@ -84,6 +112,17 @@ function addSample(samples: ImportedTrackSample[], sample: ImportedTrackSample):
   if (samples.length >= MAX_ACTIVITY_TRACK_POINTS)
     throw new Error(`Activity files may contain at most ${MAX_ACTIVITY_TRACK_POINTS.toLocaleString()} track points`)
   samples.push(sample)
+}
+
+/**
+ * The inner XML of an element, nested children included.
+ *
+ * `tag` below stops at the first `<`, which is right for a leaf but returns
+ * nothing for a wrapper like TCX's `<HeartRateBpm><Value>152</Value></…>`.
+ */
+function block(source: string, name: string): string | null {
+  const match = source.match(new RegExp(`<(?:\\w+:)?${name}[^>]*>([\\s\\S]*?)<\\/(?:\\w+:)?${name}>`, 'i'))
+  return match?.[1] ?? null
 }
 
 function tag(block: string, name: string): string | null {
@@ -104,6 +143,9 @@ export function parseGpxActivity(text: string, fallbackName = 'GPX import'): Imp
       time: timeValue(tag(match[2], 'time')),
       altitude: numberBetween(tag(match[2], 'ele'), -1000, 10000),
       accuracy: null,
+      // Garmin, COROS and Suunto all write `<gpxtpx:hr>` inside the point's
+      // `<extensions>`; `tag` is already namespace-tolerant.
+      heartRate: numberBetween(tag(match[2], 'hr'), MIN_PLAUSIBLE_BPM, MAX_PLAUSIBLE_BPM),
     })
   }
   return summarize(tag(text, 'name') ?? fallbackName, samples)
@@ -122,6 +164,10 @@ export function parseTcxActivity(text: string, fallbackName = 'TCX import'): Imp
       time: timeValue(tag(match[1], 'Time')),
       altitude: numberBetween(tag(match[1], 'AltitudeMeters'), -1000, 10000),
       accuracy: null,
+      // Scoped to the HeartRateBpm block first: a Trackpoint carries several
+      // other `<Value>` elements (cadence, watts), and reading the first one
+      // in the point would pick up whichever happened to come first.
+      heartRate: numberBetween(tag(block(match[1], 'HeartRateBpm') ?? '', 'Value'), MIN_PLAUSIBLE_BPM, MAX_PLAUSIBLE_BPM),
     })
   }
   return summarize(tag(text, 'Name') ?? fallbackName, samples)
@@ -235,6 +281,8 @@ export function parseFitActivity(bytes: ArrayBuffer, fallbackName = 'FIT import'
       time: timestamp === null ? null : FIT_EPOCH_MS + timestamp * 1000,
       altitude: altitudeValue === undefined ? null : altitudeValue / 5 - 500,
       accuracy: null,
+      // Record message field 3 is heart_rate, already in bpm.
+      heartRate: numberBetween(values.get(3), MIN_PLAUSIBLE_BPM, MAX_PLAUSIBLE_BPM),
     })
   }
 
@@ -277,7 +325,10 @@ export function trackToGpx(name: string, samples: ImportedTrackSample[]): string
 
 export function downloadGpxFile(name: string, route: Array<{ lat: number, lng: number }>): void {
   if (typeof document === 'undefined') return
-  const samples = route.map(point => ({ ...point, time: null, altitude: null, accuracy: null }))
+  // No heart rate on a drawn route. `trackToGpx` writes none either, so an
+  // imported file that carried one loses it on export — worth fixing if GPX
+  // export ever becomes a migration path out, rather than a share link.
+  const samples = route.map(point => ({ ...point, time: null, altitude: null, accuracy: null, heartRate: null }))
   const blob = new Blob([trackToGpx(name, samples)], { type: 'application/gpx+xml' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')

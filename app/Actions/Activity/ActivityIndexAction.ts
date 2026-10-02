@@ -207,6 +207,8 @@ export default new Action({
           movingTime: a.moving_time ?? a.duration,
           pace: a.pace,
           elevationGain: a.elevation ?? 0,
+          heartRateAvg: a.heart_rate_avg ?? null,
+          heartRateMax: a.heart_rate_max ?? null,
           splits: parseSplits(a.splits),
           calories: estimateCalories({
             activityType: a.activity_type,

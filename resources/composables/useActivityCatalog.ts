@@ -34,7 +34,7 @@ interface ApiActivity {
   movingTime: string
   pace: string | null
   elevationGain: number
-  calories: number
+  calories: number | null
   kudosCount: number
   splits?: Array<{ mile: number, pace: string, elev: number }>
   notes?: string | null
@@ -91,9 +91,12 @@ export async function loadActivities(wl: ActivityStoreLike): Promise<void> {
       moving_time: a.movingTime ?? a.duration,
       pace: a.pace ?? '--',
       elevation_gain: a.elevationGain ?? 0,
-      calories: a.calories ?? 0,
-      heartRateAvg: null,
-      heartRateMax: null,
+      // `?? null`, not `?? 0`: the estimator returns null when it cannot
+      // estimate, and coercing that to zero reinstates the "burned nothing"
+      // claim the null exists to avoid (#1011).
+      calories: a.calories ?? null,
+      heartRateAvg: a.heartRateAvg ?? null,
+      heartRateMax: a.heartRateMax ?? null,
       cadence: null,
       splits: Array.isArray(a.splits) ? a.splits : [],
       kudos_count: a.kudosCount ?? 0,

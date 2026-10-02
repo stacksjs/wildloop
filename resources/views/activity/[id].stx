@@ -817,7 +817,18 @@
            importer does not read one out of a GPX file, and the recorder sets
            the field to null. It rendered an em dash on every activity ever
            saved, which reads as a broken number rather than an absent feature. -->
-      <dl class="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/60 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-900/30">
+      <!-- Three tiles when the activity carried a heart rate, two when it did
+           not. The tile is never rendered empty: 50f4c2ef removed it precisely
+           because an em dash on every activity ever saved reads as broken
+           rather than as absent (#1010). -->
+      <dl class="grid divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/60 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-900/30" :class="activity.heartRateAvg ? 'grid-cols-3' : 'grid-cols-2'">
+        <div :if="activity.heartRateAvg" class="flex items-center justify-center gap-2 px-2 py-3">
+          <i class="i-lucide-heart-pulse h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+          <div class="flex min-w-0 flex-col-reverse">
+            <dt class="text-[11px] text-slate-500 dark:text-slate-400">Avg HR</dt>
+            <dd class="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{{ activity.heartRateAvg }}</dd>
+          </div>
+        </div>
         <div class="flex items-center justify-center gap-2 px-2 py-3">
           <i class="i-lucide-mountain h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
           <div class="flex min-w-0 flex-col-reverse">
