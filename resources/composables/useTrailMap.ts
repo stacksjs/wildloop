@@ -778,16 +778,23 @@ export async function drawTerritoryPolygon(
  * Call `onMoved` when the person moves the map — a drag, a wheel or pinch
  * zoom, the zoom buttons, the keyboard — and not when code does.
  *
- * The map fires the same `moveend` for both, so a move counts as theirs when
- * it follows a gesture on the map: a drag in progress, or a pointer, wheel or
- * key event within the last moment. That is what "Search this area" needs: a
- * button offered every time the page fitted the map to its own results would
- * be offering to search where the results already are.
+ * The map fires the same `movestart`/`moveend` pair for both, so a move counts
+ * as theirs when it *began* just after a gesture on the map: a drag in
+ * progress, or a pointer, wheel or key event within the last moment. That is
+ * what "Search this area" needs: a button offered every time the page fitted
+ * the map to its own results would be offering to search where the results
+ * already are.
+ *
+ * Asked at the start of the move and remembered, never asked at the end. The
+ * press reaches the map within a few frames, but the zoom animation that ends
+ * the move can stall for seconds on a loaded machine — long enough for the
+ * person's own zoom to look like one of ours and lose them the button.
  */
 export function watchUserMoves(map: TsMapType, onMoved: () => void): () => void {
   const el = map.getContainer()
   let dragging = false
   let gestureUntil = 0
+  let theirs = false
   const mark = () => {
     gestureUntil = Date.now() + 1500
   }
@@ -798,8 +805,15 @@ export function watchUserMoves(map: TsMapType, onMoved: () => void): () => void 
     dragging = false
     mark()
   }
+  const onMoveStart = () => {
+    theirs = dragging || Date.now() < gestureUntil
+  }
   const onMoveEnd = () => {
-    if (dragging || Date.now() < gestureUntil)
+    const began = theirs
+    theirs = false
+    // The gesture window is still consulted here, for a `moveend` that arrived
+    // without a start to judge it by.
+    if (dragging || began || Date.now() < gestureUntil)
       onMoved()
   }
 
@@ -812,6 +826,8 @@ export function watchUserMoves(map: TsMapType, onMoved: () => void): () => void 
   el.addEventListener('keydown', mark, capture)
   map.on('dragstart', onDragStart)
   map.on('dragend', onDragEnd)
+  map.on('movestart', onMoveStart)
+  map.on('zoomstart', onMoveStart)
   map.on('moveend', onMoveEnd)
 
   return () => {
@@ -820,6 +836,8 @@ export function watchUserMoves(map: TsMapType, onMoved: () => void): () => void 
     el.removeEventListener('keydown', mark, capture)
     map.off('dragstart', onDragStart)
     map.off('dragend', onDragEnd)
+    map.off('movestart', onMoveStart)
+    map.off('zoomstart', onMoveStart)
     map.off('moveend', onMoveEnd)
   }
 }
