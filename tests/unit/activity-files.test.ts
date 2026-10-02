@@ -58,8 +58,8 @@ describe('portable activity files', () => {
 
   it('exports a standards-shaped GPX track', () => {
     const output = trackToGpx('A <safe> route', [
-      { lat: 37.77, lng: -122.42, time: Date.UTC(2026, 7, 12), altitude: 10, accuracy: null },
-      { lat: 37.78, lng: -122.41, time: null, altitude: null, accuracy: null },
+      { lat: 37.77, lng: -122.42, time: Date.UTC(2026, 7, 12), altitude: 10, accuracy: null, heartRate: null },
+      { lat: 37.78, lng: -122.41, time: null, altitude: null, accuracy: null, heartRate: null },
     ])
     expect(output).toContain('creator="Wildloop"')
     expect(output).toContain('<trkpt lat="37.77" lon="-122.42">')

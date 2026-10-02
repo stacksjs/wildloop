@@ -35,6 +35,9 @@ interface ApiActivity {
   pace: string | null
   elevationGain: number
   calories: number | null
+  /** Beats per minute, when an imported file carried a reading (#1010). */
+  heartRateAvg?: number | null
+  heartRateMax?: number | null
   kudosCount: number
   splits?: Array<{ mile: number, pace: string, elev: number }>
   notes?: string | null
