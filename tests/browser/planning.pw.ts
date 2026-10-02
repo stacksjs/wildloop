@@ -301,14 +301,27 @@ test.describe('on a phone, with one finger', () => {
         lng: w[leg].lng + (w[leg + 1].lng - w[leg].lng) * f,
       })
       // Both kinds of handle: the waypoints, and the "+" halfway along each
-      // leg. Each has a 44px touch target and its own gesture, so a point
-      // within reach of one is not a point on the bare line.
+      // leg. Each has its own gesture, so a point within reach of one is not a
+      // point on the bare line.
+      //
+      // Measured against the icons themselves, not a radius around where their
+      // centres project to. A press 30px from a centre sits only 7px outside a
+      // 44px icon's box, and a touch is not delivered where it is aimed — the
+      // browser snaps it to a nearby interactive element. So the press landed
+      // on the handle, `_onLineDown` never ran, the hold never armed, and the
+      // pull inserted nothing. It picked such a point on 3 runs in 10.
       const legs = Array.from({ length: w.length - 1 }, (_, leg) => leg)
-      const handles = [...w.map(screen), ...legs.map(leg => at(leg, 0.5))]
+      const icons = Array.from(document.querySelectorAll('.tsmap-marker-icon')).map(icon => icon.getBoundingClientRect())
+      const clearOfHandles = (p: { x: number, y: number }): boolean =>
+        icons.every((box) => {
+          const dx = Math.max(box.left - p.x, 0, p.x - box.right)
+          const dy = Math.max(box.top - p.y, 0, p.y - box.bottom)
+          return Math.hypot(dx, dy) > 16
+        })
       const holds = (p: { x: number, y: number }): boolean =>
         p.x > rect.left + 8 && p.x < rect.right - 8
         && p.y > rect.top + 8 && p.y < rect.bottom - 8
-        && handles.every(h => Math.hypot(h.x - p.x, h.y - p.y) > 30)
+        && clearOfHandles(p)
       const candidates = legs.flatMap(leg => [0.25, 0.75, 0.15, 0.85, 0.35, 0.65].map(f => at(leg, f)))
       const onLine = candidates.find(holds) ?? candidates[0]
       const inMap = (p: { x: number, y: number }): boolean =>
