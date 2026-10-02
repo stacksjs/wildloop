@@ -173,7 +173,9 @@ describe.skipIf(!qa)('heading structure', () => {
       // `{{ listHeading() }}`, hidden, with no rendered heading at all.
       expect(h1s[0], `${route} h1 is rendered`).not.toContain('{{')
     }
-  })
+    // A render per static route, none of them cached. Measured at 5.9s on a
+    // CI runner against the 5s default — slow by design, not flaky.
+  }, 30_000)
 
   // This one was skipped for a long time on a premise that turned out to be
   // wrong: that a per-record heading could not be served because
@@ -269,7 +271,8 @@ describe.skipIf(!qa)('landmarks and controls', () => {
       const { page } = await serve(route)
       expect(await page.getByRole('main').count(), `${route} main landmark`).toBeGreaterThan(0)
     }
-  })
+    // One uncached render per static route; see the note on the h1 sweep.
+  }, 30_000)
 
   it('gives every link an accessible name', async () => {
     for (const route of ROUTES) {
@@ -471,7 +474,9 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
       const robots = document.querySelector('meta[name="robots"]')?.getAttribute('content') ?? ''
       expect(robots, `${path} is noindex`).toContain('noindex')
     }
-  })
+    // Three uncached renders, each a server script that reads its params, so
+    // this wants more than the 5s default on CI hardware. Slow by design.
+  }, 30_000)
 
 })
 
