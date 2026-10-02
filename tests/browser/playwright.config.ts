@@ -3,7 +3,13 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testMatch: '*.pw.ts',
   workers: 1,
-  retries: 0,
+  // One retry, so a test that fails and then passes is reported as flaky
+  // rather than failing the run. Across five full runs a different test failed
+  // each time and passed on its own afterwards, which hid two real bugs in the
+  // noise; a flaky label names the one-offs while a repeatable failure still
+  // fails. Traces are kept from the failed attempt, which is what there was to
+  // diagnose from.
+  retries: 1,
   timeout: 90_000,
   expect: { timeout: 15_000 },
   reporter: 'list',
