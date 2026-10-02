@@ -114,8 +114,40 @@ describe('wl store actions replace state instead of mutating it', () => {
     wl.hydrateAuthenticatedUser({ id: me.id, name: me.name, email: 'me@wildloop.test' })
   })
 
+  /*
+   * `trails` starts empty, as `clubs`, `notifications` and `conquests` already
+   * did — c59694f5 stopped seeding demo trails because a fixture under a real
+   * catalog id produces UI that lies. So these tests hydrate their own trail
+   * first, the way every other test here does.
+   *
+   * They used to read `wl.trails()[0]` from the seed. When it went, this one
+   * failed on an empty array while `setTrailRating` kept passing — not
+   * because it was sound, but because the test above it happened to insert
+   * trail 9001 first. Seeding per test removes the order dependency too.
+   */
+  const trailFixture = (over: Partial<{ id: number, name: string }> = {}) => ({
+    id: 4242,
+    name: 'Fixture Trail',
+    location: 'Marin, CA',
+    difficulty: 'moderate' as const,
+    distance: 5.4,
+    elevation: 900,
+    estimatedTime: '2h 10m',
+    rating: 4.1,
+    reviewCount: 3,
+    description: 'A trail that exists only in this test.',
+    lat: 37.8,
+    lng: -122.5,
+    image: null,
+    tags: [],
+    conditions: 'dry',
+    ...over,
+  })
+
   it('upsertTrailFromApi, for a new trail and a known one', () => {
-    const known = wl.trails()[0]
+    const known = trailFixture()
+    wl.hydrateTrailsFromApi([known], {})
+
     expectReplaced(['trails'], () => wl.upsertTrailFromApi({ ...known, id: 9001, name: 'New Trail' }))
     expect(wl.trails().find((t: { id: number }) => t.id === 9001)?.name).toBe('New Trail')
 
@@ -124,9 +156,11 @@ describe('wl store actions replace state instead of mutating it', () => {
   })
 
   it('setTrailRating', () => {
-    const id = wl.trails()[0].id
-    expectReplaced(['trails'], () => wl.setTrailRating(id, 4.6, 12))
-    expect(wl.trails()[0]).toMatchObject({ rating: 4.6, reviewCount: 12 })
+    const trail = trailFixture({ id: 4243 })
+    wl.hydrateTrailsFromApi([trail], {})
+
+    expectReplaced(['trails'], () => wl.setTrailRating(trail.id, 4.6, 12))
+    expect(wl.trails().find((t: { id: number }) => t.id === trail.id)).toMatchObject({ rating: 4.6, reviewCount: 12 })
   })
 
   it('hydrateAuthenticatedUser, for a known user and a new one', () => {
