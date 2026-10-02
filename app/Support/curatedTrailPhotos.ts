@@ -32,6 +32,19 @@ export const CURATED_TRAIL_PHOTOS = [
     licenseUrl: 'https://creativecommons.org/licenses/by/2.0/',
   },
   {
+    // Checked against the file page and the photograph itself: a cut path on
+    // the mountainside in the upper Smokies, which is the walk rather than the
+    // view from it. Found by `buddy trails:photo-coverage --search` (#1006).
+    names: ['Alum Cave Trail to Mount LeConte', 'Alum Cave Trail'],
+    state: 'TN',
+    lat: 35.628,
+    lng: -83.451,
+    file: 'Alum Cave Trail 1.jpg',
+    credit: 'Andrew Heneen',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+  },
+  {
     names: ['Dipsea Trail'],
     state: 'CA',
     lat: 37.8916,

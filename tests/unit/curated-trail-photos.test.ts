@@ -2,12 +2,30 @@ import { describe, expect, it } from 'bun:test'
 import { applyCuratedTrailPhoto, CURATED_TRAIL_PHOTOS } from '../../app/Support/curatedTrailPhotos'
 
 describe('reviewed trail photo seed', () => {
-  it('has explicit credit and license for every photo', () => {
-    expect(CURATED_TRAIL_PHOTOS).toHaveLength(3)
+  /*
+   * The invariant is per photo, not a count. Pinning the length to three meant
+   * adding a reviewed photograph failed this test, which is the one thing the
+   * list exists to make easy (#1006).
+   */
+  it('has explicit credit and a reusable license for every photo', () => {
+    expect(CURATED_TRAIL_PHOTOS.length).toBeGreaterThan(0)
+
     for (const photo of CURATED_TRAIL_PHOTOS) {
-      expect(photo.credit.length).toBeGreaterThan(0)
-      expect(photo.license).toBe('CC BY 2.0')
-      expect(photo.licenseUrl).toBe('https://creativecommons.org/licenses/by/2.0/')
+      expect(photo.credit.length, photo.file).toBeGreaterThan(0)
+      // Attribution licenses only. A photo whose terms we cannot state is one
+      // we cannot publish beside a credit line.
+      expect(photo.license, photo.file).toMatch(/^CC BY(-SA)? \d/)
+      expect(photo.licenseUrl, photo.file).toMatch(/^https:\/\/creativecommons\.org\/licenses\//)
+    }
+  })
+
+  it('names every trail it claims a photo for', () => {
+    for (const photo of CURATED_TRAIL_PHOTOS) {
+      expect(photo.names.length, photo.file).toBeGreaterThan(0)
+      expect(photo.file.length, 'file').toBeGreaterThan(0)
+      // A coordinate is what stops a namesake trail elsewhere inheriting it.
+      expect(Number.isFinite(photo.lat), photo.file).toBe(true)
+      expect(Number.isFinite(photo.lng), photo.file).toBe(true)
     }
   })
 
