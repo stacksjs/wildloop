@@ -289,6 +289,35 @@ export default defineModel({
       validation: { rule: schema.enum(reviewStates).required() },
       factory: (): typeof reviewStates[number] => 'none',
     },
+
+    /*
+     * Heart rate, as a summary of what an imported file carried (#1010).
+     *
+     * Nullable with no default, matching the migration: most activities have
+     * no reading and never will, and a zero would read as a stopped heart.
+     * `ActivityStoreAction` writes both on every create, so leaving them
+     * undeclared here failed the whole insert — the columns existed in the
+     * table and the model did not know them.
+     */
+    heart_rate_avg: {
+      order: 21,
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.number().min(20).max(250),
+      },
+      factory: () => null,
+    },
+
+    heart_rate_max: {
+      order: 21,
+      fillable: true,
+      nullable: true,
+      validation: {
+        rule: schema.number().min(20).max(250),
+      },
+      factory: () => null,
+    },
   },
 
   dashboard: {
