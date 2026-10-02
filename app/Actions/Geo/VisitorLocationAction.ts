@@ -3,6 +3,7 @@
 // and a signed-in one.
 
 import { visitorCountry, visitorLocation } from '../../Helpers/visitorCountry'
+import { visitorLabel } from '../../Support/visitorPlace'
 
 /**
  * GET /api/geo/here — where this request appears to be coming from.
@@ -44,7 +45,7 @@ export default new Action({
       city: city ?? null,
       region: region ?? null,
       country: country ?? null,
-      label: [city, region].filter(Boolean).join(', ') || country || null,
+      label: visitorLabel(city, region, country),
     })
   },
 })

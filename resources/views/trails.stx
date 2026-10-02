@@ -374,6 +374,16 @@
   const urlSort = state('')
   /** The radius the API actually answered at, which may be wider than asked. */
   const nearRadius = state(0)
+  /**
+   * Where "near me" looked, and how wide, when it found nothing.
+   *
+   * The catalog covers four countries. A visitor outside them gets a correct
+   * location, an empty answer at every radius up to 300 miles, and then a
+   * silent fall back to the whole catalog — which reads as the feature not
+   * working rather than as there being nothing there (#1005). Recorded so the
+   * page can say which it was.
+   */
+  const nearbyMiss = state<{ label: string, radius: number } | null>(null)
 
   // Results come from the API, not from filtering the store. The store holds a
   // couple of hundred featured trails; the catalog holds tens of thousands, and
@@ -725,10 +735,18 @@
       // a visitor whose edge or device location is outside it on an empty
       // result: a location-only empty answer becomes a global browse instead.
       if (shouldFallbackToCatalog(query, res)) {
+        // Said out loud below rather than only acted on. `res.radius` is how
+        // wide the API got before giving up, which is the number worth
+        // showing: "nothing within 25 miles" invites a retry that will fail
+        // the same way.
+        nearbyMiss.set({ label: nearbyLabel() || placeLabel(), radius: res.radius ?? query.radius ?? 25 })
         res = await queryTrails({ ...query, sort: 'featured', lat: undefined, lng: undefined, radius: undefined })
         near = null
         useNearMe.set(false)
         placeOrigin.set(null)
+      }
+      else if (near) {
+        nearbyMiss.set(null)
       }
 
       // A slower earlier request must not overwrite a newer result.
@@ -1257,7 +1275,14 @@
         <!-- Naming the country matters most when nobody picked it: the list is
              scoped to wherever the request came from, and "the whole catalog"
              was the page describing a scope it did not have. -->
-        <span :if="!placeActive() && !nearMeActive() && !nearbyBusy()">{{ countryInView() ? 'Showing trails in ' + countryName(countryInView()) : 'Showing the whole catalog' }}</span>
+        <!-- Near me was tried and there was nothing there. Said plainly, with
+             where it looked and how wide, so a visitor outside the catalog's
+             four countries knows the feature worked and the answer was empty
+             — not that the page quietly ignored them (#1005). -->
+        <span :if="!placeActive() && !nearMeActive() && !nearbyBusy() && nearbyMiss()" class="text-slate-500 dark:text-slate-400">
+          {{ 'No trails within ' + nearbyMiss().radius + ' mi of ' + nearbyMiss().label + ' — showing the whole catalog' }}
+        </span>
+        <span :if="!placeActive() && !nearMeActive() && !nearbyBusy() && !nearbyMiss()">{{ countryInView() ? 'Showing trails in ' + countryName(countryInView()) : 'Showing the whole catalog' }}</span>
       </span>
 
       <div class="ml-auto flex flex-wrap items-center gap-2">
