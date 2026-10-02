@@ -66,6 +66,8 @@ declare global {
   const formatClock: typeof autoImports.formatClock
   const STANDARD_YARD_MILES: typeof autoImports.STANDARD_YARD_MILES
   const STANDARD_YARD_MINUTES: typeof autoImports.STANDARD_YARD_MINUTES
+  const estimateCalories: typeof autoImports.estimateCalories
+  const REFERENCE_WEIGHT_KG: typeof autoImports.REFERENCE_WEIGHT_KG
   const shapeChallenge: typeof autoImports.shapeChallenge
   const computeConquestRecord: typeof autoImports.computeConquestRecord
   const computeCounterFixes: typeof autoImports.computeCounterFixes
@@ -214,6 +216,9 @@ declare global {
   const activeDanger: typeof autoImports.activeDanger
   const TRAIL_CONDITIONS: typeof autoImports.TRAIL_CONDITIONS
   const TRAIL_CONDITION_IDS: typeof autoImports.TRAIL_CONDITION_IDS
+  const difficultyIsEstimated: typeof autoImports.difficultyIsEstimated
+  const trailDifficultyLabel: typeof autoImports.trailDifficultyLabel
+  const difficultyTitle: typeof autoImports.difficultyTitle
   const normalizeTagKey: typeof autoImports.normalizeTagKey
   const readTags: typeof autoImports.readTags
   const featureFromTag: typeof autoImports.featureFromTag
