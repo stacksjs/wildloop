@@ -24,7 +24,10 @@ async function signUp(page: Page) {
   await page.locator('#terms').check()
   const registered = page.waitForResponse(r => r.url().endsWith('/api/register') && r.request().method() === 'POST')
   await page.getByRole('button', { name: 'Create Account', exact: true }).click()
-  expect((await registered).ok()).toBeTruthy()
+  // Says what the server answered, not just that it was unhappy: a bare
+  // `.ok()` left a failure here with nothing to diagnose it from.
+  const response = await registered
+  expect(response.ok(), `POST /api/register -> ${response.status()}: ${await response.text().catch(() => '<unreadable>')}`).toBeTruthy()
   await expect(page).not.toHaveURL(/\/register/)
 }
 
