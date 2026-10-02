@@ -185,7 +185,7 @@
           <dl class="mt-6 grid grid-cols-3 divide-x divide-slate-100 rounded-2xl bg-slate-50 py-3 text-center dark:divide-slate-700 dark:bg-slate-900/60">
             <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.totalTime }}</dd><dt class="metric-label mt-0.5">Total time</dt></div>
             <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.avgPace }}</dd><dt class="metric-label mt-0.5">Avg pace</dt></div>
-            <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.totalCalories.toLocaleString() }}</dd><dt class="metric-label mt-0.5">Calories</dt></div>
+            <div class="px-2"><dd class="font-semibold tabular-nums text-slate-900 dark:text-white">{{ userStats.totalCalories.toLocaleString() }}</dd><dt class="metric-label mt-0.5">Calories (est.)</dt></div>
           </dl>
         </section>
       </div>

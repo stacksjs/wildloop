@@ -26,6 +26,8 @@ export interface TrainingActivity {
   moving_time?: string | null
   splits?: Array<{ pace?: string | null }> | null
   created_at?: string | null
+  /** The per-activity estimate, so the total agrees with what each card shows. */
+  calories?: number | null
 }
 
 export interface TrainingStats {
@@ -185,9 +187,17 @@ export function computeTrainingStats(
     longestStreak: longestStreak(days),
     totalTime: `${Math.floor(totalSeconds / 3600)}h ${String(Math.round((totalSeconds % 3600) / 60)).padStart(2, '0')}m`,
     avgPace: totalDistance > 0 && totalSeconds > 0 ? paceLabel(totalSeconds / totalDistance) : '—',
-    // Roughly 100 kcal a mile plus 50 per 100ft climbed. A ballpark, and
-    // labelled as an estimate wherever it is shown.
-    totalCalories: Math.round(totalDistance * 100 + totalElevation * 0.5),
+    /*
+     * Summed from the activities rather than recomputed from the totals.
+     *
+     * This was `totalDistance * 100 + totalElevation * 0.5` — a fifth formula,
+     * disagreeing with the four others the app used to carry (#1011), and its
+     * own comment claimed it was "labelled as an estimate wherever it is
+     * shown" while the stats page printed a bare "Calories". Adding up the
+     * per-activity figures means the total cannot drift from the numbers the
+     * cards show, which is the property that actually matters here.
+     */
+    totalCalories: Math.round(mine.reduce((sum, a) => sum + (a.calories ?? 0), 0)),
     weeklyDistance: round(thisWeek.reduce((sum, a) => sum + (a.distance ?? 0), 0)),
     weeklyElevation: Math.round(thisWeek.reduce((sum, a) => sum + (a.elevation_gain ?? 0), 0)),
     weeklyActivities: thisWeek.length,

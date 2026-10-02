@@ -41,6 +41,7 @@ import {
 import { withLocationRequestTimeout } from '../assets/scripts/location-request'
 import { saveFinishedRecording } from '../assets/scripts/finished-recording'
 import { installRecordingNavigationGuard } from '../assets/scripts/recording-navigation'
+import { estimateCalories } from '../functions/calories'
 
 type ActivityType = 'Trail Run' | 'Hike' | 'Walk' | 'Bike'
 type RecordMode = 'idle' | 'simulated' | 'manual'
@@ -793,7 +794,12 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
         moving_time: payload.moving_time,
         pace: payload.pace ?? '--',
         elevation_gain: payload.elevation,
-        calories: Math.round(elapsed() / 60 * 10),
+        calories: estimateCalories({
+          activityType: payload.activity_type,
+          distanceMiles: payload.distance,
+          movingTime: payload.moving_time ?? payload.duration,
+          elevationGainFeet: payload.elevation,
+        }),
         heartRateAvg: null,
         heartRateMax: null,
         cadence: null,

@@ -13,6 +13,7 @@ import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { avatarOf } from '../../Support/avatars'
 import { parseTrackSamples } from '../../../resources/functions/activity-integrity'
 import { elevationProfile } from '../../../resources/functions/elevation-profile'
+import { estimateCalories } from '../../../resources/functions/calories'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
   if (!raw)
@@ -116,6 +117,15 @@ export default new Action({
           pace: a.pace,
           elevation: a.elevation,
           splits: parseSplits(a.splits),
+          // Computed here as well as in the index, from the same inputs, so the
+          // detail page no longer renders whatever the feed happened to leave
+          // in the store for this activity (#1011).
+          calories: estimateCalories({
+            activityType: a.activity_type,
+            distanceMiles: a.distance,
+            movingTime: a.moving_time ?? a.duration,
+            elevationGainFeet: a.elevation,
+          }),
           elevationProfile: profile,
           kudosCount: a.kudos_count ?? 0,
           notes: a.notes,

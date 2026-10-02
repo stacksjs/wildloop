@@ -14,6 +14,7 @@ import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { avatarOf } from '../../Support/avatars'
+import { estimateCalories } from '../../../resources/functions/calories'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
   if (!raw)
@@ -207,7 +208,12 @@ export default new Action({
           pace: a.pace,
           elevationGain: a.elevation ?? 0,
           splits: parseSplits(a.splits),
-          calories: Math.round((a.distance ?? 0) * 95),
+          calories: estimateCalories({
+            activityType: a.activity_type,
+            distanceMiles: a.distance,
+            movingTime: a.moving_time ?? a.duration,
+            elevationGainFeet: a.elevation,
+          }),
           kudosCount: a.kudos_count ?? 0,
           route: activityRoutePreview(a, previewContext),
           notes: a.notes,

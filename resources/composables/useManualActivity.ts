@@ -2,6 +2,7 @@ import { state } from 'stx'
 import { createActivity } from '../assets/scripts/game-api'
 import { paceString, parseDurationToSeconds } from '../functions/duration'
 import { loadActivityVisibilityDefault } from '../assets/scripts/privacy-defaults'
+import { estimateCalories } from '../functions/calories'
 
 /**
  * Manual activity entry (#955) - log a run/hike after the fact with no GPS
@@ -139,7 +140,12 @@ export function useManualActivity(wl: ManualStoreLike | null) {
       moving_time: duration,
       pace,
       elevation_gain: elevation,
-      calories: Math.round(seconds / 60 * 10),
+      calories: estimateCalories({
+        activityType: mType(),
+        distanceMiles: distance,
+        movingTime: seconds,
+        elevationGainFeet: elevation,
+      }),
       heartRateAvg: null,
       heartRateMax: null,
       cadence: null,

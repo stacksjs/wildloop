@@ -1,6 +1,7 @@
 import { state } from 'stx'
 import { createActivity } from '../assets/scripts/game-api'
 import { importedTrackGeoJson, parseActivityFile } from '../functions/activity-files'
+import { estimateCalories } from '../functions/calories'
 
 interface ImportStoreLike {
   currentUserId: () => number
@@ -61,7 +62,12 @@ export function useActivityImport(wl: ImportStoreLike | null) {
         moving_time: duration,
         pace: '--',
         elevation_gain: parsed.elevationGainFeet,
-        calories: 0,
+        calories: estimateCalories({
+          activityType: 'Trail Run',
+          distanceMiles: parsed.distanceMiles,
+          movingTime: duration,
+          elevationGainFeet: parsed.elevationGainFeet,
+        }),
         heartRateAvg: null,
         heartRateMax: null,
         cadence: null,
