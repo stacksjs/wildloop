@@ -472,6 +472,7 @@ describe.skipIf(!qa)('a dynamic route renders its subject', () => {
       expect(robots, `${path} is noindex`).toContain('noindex')
     }
   })
+
 })
 
 describe.skipIf(!qa)('a detail page names its own record, and withholds a private one', () => {
@@ -601,19 +602,24 @@ describe.skipIf(!qa)('a detail page names its own record, and withholds a privat
      * be a different decision about what to disclose than the one these pages
      * already make.
      */
-    for (const route of [
-      '/club/999999999',
-      '/activity/999999999',
-      '/event/999999999',
-      '/athlete/999999999',
-      '/effort/999999999',
-      '/territory/999999999',
-    ]) {
+    const routes: Array<[route: string, noun: string]> = [
+      ['/club/999999999', 'Club'],
+      ['/activity/999999999', 'Activity'],
+      ['/event/999999999', 'Event'],
+      ['/athlete/999999999', 'Athlete'],
+      ['/effort/999999999', 'Attempt'],
+      ['/territory/999999999', 'Territory'],
+    ]
+
+    for (const [route, noun] of routes) {
       const { document, page } = await serve(route, 404)
       const h1s = await page.getByRole('heading', { level: 1 }).allTextContents()
 
       expect(h1s.length, `${route} h1 count, found ${JSON.stringify(h1s)}`).toBe(1)
       expect(h1s[0], `${route} says it was not found`).toMatch(/not found/i)
+      // And about the right record. An effort calls itself an attempt, and a
+      // page denying the wrong noun is still denying the wrong thing.
+      expect(h1s[0], `${route} names what was not found`).toContain(noun)
       expect(String(document.body.innerText ?? ''), `${route} renders no expression`).not.toContain('{{')
       expect(meta(document, 'meta[name="robots"]'), `${route} must be noindex`).toContain('noindex')
     }
