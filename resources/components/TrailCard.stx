@@ -1,5 +1,6 @@
 <script server>
 import { defineProps, withDefaults } from 'stx'
+import { difficultyLabel, difficultyTitle } from '../functions/trail-difficulty'
 
 type Difficulty = 'easy' | 'moderate' | 'hard'
 
@@ -48,6 +49,15 @@ const time = getValue(trail, 'estimatedTime', getValue(trail, 'time', '0m'))
 const image = getValue(trail, 'image', 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&h=600&fit=crop')
 const tagsRaw = getValue(trail, 'tags', '')
 const tags = typeof tagsRaw === 'string' ? (tagsRaw ? tagsRaw.split(',') : []) : (tagsRaw || [])
+
+/*
+ * The badge says which kind of grade it is (#1004). Three quarters of the
+ * catalog has no measured ascent, so the grade there is distance alone — a
+ * tilde rather than a blank, because a catalog with no difficulty on it helps
+ * nobody, and the title carries the sentence for a reader who needs it.
+ */
+const gradeLabel = difficultyLabel(difficulty, elevation)
+const gradeTitle = difficultyTitle(difficulty, elevation)
 </script>
 
 <template>
@@ -56,8 +66,8 @@ const tags = typeof tagsRaw === 'string' ? (tagsRaw ? tagsRaw.split(',') : []) :
     <div class="overflow-hidden relative h-48">
       <Image src="{{ image }}" alt="{{ name }}" width="800" height="600" sizes="(max-width: 768px) 100vw, 33vw" placeholder="blur" class="object-cover h-full w-full trail-image" />
       <div class="absolute left-4 top-4">
-        <span class="px-3 py-1 capitalize font-semibold text-xs rounded-full {{ getDifficultyClass(difficulty) }}">
-          {{ difficulty }}
+        <span class="px-3 py-1 capitalize font-semibold text-xs rounded-full {{ getDifficultyClass(difficulty) }}" title="{{ gradeTitle }}">
+          {{ gradeLabel }}
         </span>
       </div>
       <button class="absolute right-4 top-4 p-2 bg-white/90 hover:bg-white rounded-full shadow-md backdrop-blur-sm transition">

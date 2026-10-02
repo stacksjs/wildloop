@@ -252,11 +252,13 @@ function normalizeTrail(
 
   const park = primary.UNITNAME?.trim() || 'National Park Service'
 
-  // This layer carries no elevation either, so ascent stays 0 rather than
-  // being invented — see the same note in the Forest Service source.
-  const ascent = 0
+  // This layer carries no elevation either, so ascent stays unknown rather
+  // than being invented — see the same note in the Forest Service source.
+  // Null, not 0: 0 is a measured flat, and grading a mountain as though
+  // somebody had measured it flat is how Mist Trail became easy (#1004).
+  const ascent = null
   const surface = normalizeSurface(primary.TRLSURFACE)
-  const difficulty = deriveDifficulty(stats.distanceMiles, ascent)
+  const { difficulty } = deriveDifficulty(stats.distanceMiles, ascent)
   const accessible = /accessible|ada|wheelchair/i.test(`${primary.ACCESSNOTES ?? ''} ${primary.TRLCLASS ?? ''}`)
 
   const sourceId = `nps/${key}`
@@ -294,7 +296,11 @@ function normalizeTrail(
     managedBy: park,
 
     distance: stats.distanceMiles,
-    elevation: ascent,
+    // The column is NOT NULL and 0 is what it has always held for these
+    // sources. `ascent` is null only to tell the grader that nobody measured;
+    // the stored number does not change, and `elevation_checked_at` remains
+    // the field that says whether the backfill has looked at this row.
+    elevation: ascent ?? 0,
     elevationHigh: 0,
     difficulty,
     routeType: deriveRouteType(stats.closed, true),

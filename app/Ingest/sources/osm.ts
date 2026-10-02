@@ -285,7 +285,7 @@ export function normalizeElement(element: OverpassElement): NormalizedTrail | nu
     name,
     location: `${state.name}`,
     description: tags.description
-      ?? `${name} is a ${describeDistance(stats.distanceMiles, state.country)} ${deriveDifficulty(stats.distanceMiles, ascent)} trail in ${state.name}. Mapped by the OpenStreetMap community.`,
+      ?? `${name} is a ${describeDistance(stats.distanceMiles, state.country)} ${deriveDifficulty(stats.distanceMiles, ascent).difficulty} trail in ${state.name}. Mapped by the OpenStreetMap community.`,
 
     latitude: stats.centroid.lat,
     longitude: stats.centroid.lng,
@@ -301,7 +301,7 @@ export function normalizeElement(element: OverpassElement): NormalizedTrail | nu
     distance: stats.distanceMiles,
     elevation: ascent,
     elevationHigh: parseElevationHighFeet(tags),
-    difficulty: deriveDifficulty(stats.distanceMiles, ascent),
+    difficulty: deriveDifficulty(stats.distanceMiles, ascent).difficulty,
     routeType: deriveRouteType(stats.closed, true),
     surface,
     estimatedTime: estimateTime(stats.distanceMiles, ascent),

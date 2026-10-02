@@ -1,6 +1,7 @@
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
+import { difficultyIsEstimated } from '../../../resources/functions/trail-difficulty'
 
 const DIFFICULTIES = new Set(['easy', 'moderate', 'hard'])
 const ROUTE_TYPES = new Set(['loop', 'out-and-back', 'point-to-point', 'network'])
@@ -113,6 +114,18 @@ export default new Action({
         // The map layer reads `lat`/`lng`; the column names are the long form.
         lat: row.latitude,
         lng: row.longitude,
+        /*
+         * Whether the grade beside this row is a measurement or distance
+         * alone (#1004). Derived from the stored elevation rather than a
+         * column of its own, so it corrects itself the moment the elevation
+         * backfill reaches a trail.
+         *
+         * Data, not presentation: the badge's text is built in
+         * `trail-data.ts`, which is an allow-list and drops anything it does
+         * not name. Both come from the same function in
+         * `resources/functions/trail-difficulty.ts`.
+         */
+        difficultyEstimated: difficultyIsEstimated(row.elevation),
       }))
 
       return response.json({

@@ -288,12 +288,13 @@ function normalizeTrail(
 
   const forestName = forestNames.get(forest) ?? 'National Forest System'
 
-  // EDW publishes no elevation on this layer. Reporting 0 keeps the number
-  // honest; difficulty then falls back to distance and trail class alone.
-  const ascent = 0
+  // EDW publishes no elevation on this layer. Null rather than 0, which would
+  // claim a measured flat; difficulty then falls back to distance and trail
+  // class alone, and says so (#1004).
+  const ascent = null
   const surface = normalizeSurface(primary.trail_surface)
 
-  let difficulty = deriveDifficulty(stats.distanceMiles, ascent)
+  let { difficulty } = deriveDifficulty(stats.distanceMiles, ascent)
   const floor = difficultyFloor(primary.trail_class)
   if (floor && DIFFICULTY_ORDER[floor] > DIFFICULTY_ORDER[difficulty])
     difficulty = floor
@@ -340,7 +341,11 @@ function normalizeTrail(
     managedBy: forestName,
 
     distance: stats.distanceMiles,
-    elevation: ascent,
+    // The column is NOT NULL and 0 is what it has always held for these
+    // sources. `ascent` is null only to tell the grader that nobody measured;
+    // the stored number does not change, and `elevation_checked_at` remains
+    // the field that says whether the backfill has looked at this row.
+    elevation: ascent ?? 0,
     elevationHigh: 0,
     difficulty,
     routeType: deriveRouteType(stats.closed, true),

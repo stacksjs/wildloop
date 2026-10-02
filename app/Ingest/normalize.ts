@@ -194,16 +194,38 @@ export function encodeRouteGeometry(parts: Coordinate[][], maxPoints = MAX_GEOME
  *
  * The thresholds follow the shape of Naismith-adjusted effort: distance sets
  * the floor, sustained climb per mile raises it.
+ *
+ * `ascentFeet` is nullable, and the distinction is the point (#1004). Null
+ * means nobody has measured the climb; zero means somebody measured it and it
+ * is flat. Those were the same value for most of the catalog's life — the NPS
+ * and Forest Service layers publish no elevation, and OSM rarely tags it — so
+ * every grade was distance alone wearing a measurement's clothes. Mist Trail
+ * in Yosemite, 2.67 miles and a thousand feet up to Vernal Fall, is served
+ * `easy`.
+ *
+ * So the grade still comes back, because a catalog of blanks helps nobody, but
+ * it says which kind it is. A caller that cannot show the difference should
+ * show nothing rather than pass `estimated` off as measured.
  */
-export function deriveDifficulty(distanceMiles: number, ascentFeet: number): TrailDifficulty {
-  const feetPerMile = distanceMiles > 0 ? ascentFeet / distanceMiles : 0
+export interface TrailGrade {
+  difficulty: TrailDifficulty
+  /** True when no ascent was known, so distance alone decided this. */
+  estimated: boolean
+}
 
-  if (distanceMiles > 8 || ascentFeet > 2000 || feetPerMile > 600)
-    return 'hard'
-  if (distanceMiles > 3 || ascentFeet > 700 || feetPerMile > 300)
-    return 'moderate'
+export function deriveDifficulty(distanceMiles: number, ascentFeet: number | null): TrailGrade {
+  const measured = typeof ascentFeet === 'number' && Number.isFinite(ascentFeet)
+  const ascent = measured ? ascentFeet : 0
+  const feetPerMile = distanceMiles > 0 ? ascent / distanceMiles : 0
 
-  return 'easy'
+  const difficulty: TrailDifficulty
+    = distanceMiles > 8 || ascent > 2000 || feetPerMile > 600
+      ? 'hard'
+      : distanceMiles > 3 || ascent > 700 || feetPerMile > 300
+        ? 'moderate'
+        : 'easy'
+
+  return { difficulty, estimated: !measured }
 }
 
 /**

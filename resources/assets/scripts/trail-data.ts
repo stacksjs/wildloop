@@ -4,6 +4,7 @@
 
 import { decodeRouteParts, primaryRoutePart } from '../../functions/trail-geometry'
 import { displayTrailTime } from '../../functions/trail-time'
+import { difficultyIsEstimated, difficultyLabel } from '../../functions/trail-difficulty'
 
 export type LatLng = [number, number]
 
@@ -12,6 +13,10 @@ export interface UiTrail {
   name: string
   location: string
   difficulty: 'easy' | 'moderate' | 'hard'
+  /** The grade as the badge should show it — tilde-prefixed when estimated. */
+  difficultyLabel: string
+  /** True when no ascent is on record, so distance alone decided the grade. */
+  difficultyEstimated: boolean
   /** Miles. Stored in miles too - see the note on `normalizeTrailRow`. */
   distance: number
   /** Feet of ascent. */
@@ -118,6 +123,14 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     name: String(row.name ?? 'Unnamed trail'),
     location: String(row.location ?? ''),
     difficulty: diff,
+    /*
+     * Computed here rather than read off the API row, because this object is
+     * an allow-list: a field the API adds and this does not name is dropped
+     * before it reaches a template. That is what made the badge render blank
+     * on the first attempt at #1004.
+     */
+    difficultyLabel: difficultyLabel(diff, elevationFeet),
+    difficultyEstimated: difficultyIsEstimated(elevationFeet),
     distance: Math.round(distanceMiles * 10) / 10,
     elevation: Math.round(elevationFeet),
     // Re-formatted rather than passed through: rows ingested before the day
