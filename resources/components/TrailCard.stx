@@ -1,6 +1,6 @@
 <script server>
 import { defineProps, withDefaults } from 'stx'
-import { difficultyLabel, difficultyTitle } from '../functions/trail-difficulty'
+import { difficultyTitle, trailDifficultyLabel } from '../functions/trail-difficulty'
 
 type Difficulty = 'easy' | 'moderate' | 'hard'
 
@@ -56,7 +56,7 @@ const tags = typeof tagsRaw === 'string' ? (tagsRaw ? tagsRaw.split(',') : []) :
  * tilde rather than a blank, because a catalog with no difficulty on it helps
  * nobody, and the title carries the sentence for a reader who needs it.
  */
-const gradeLabel = difficultyLabel(difficulty, elevation)
+const gradeLabel = trailDifficultyLabel(difficulty, elevation)
 const gradeTitle = difficultyTitle(difficulty, elevation)
 </script>
 

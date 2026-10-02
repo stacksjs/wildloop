@@ -40,7 +40,7 @@ export function difficultyIsEstimated(elevationFeet: unknown): boolean {
  * long form goes in `difficultyTitle` for a tooltip and a screen reader —
  * a bare `~` announced on its own says nothing.
  */
-export function difficultyLabel(difficulty: unknown, elevationFeet: unknown): string {
+export function trailDifficultyLabel(difficulty: unknown, elevationFeet: unknown): string {
   const grade = String(difficulty ?? '').trim()
   if (!grade)
     return ''

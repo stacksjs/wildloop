@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { normalizeTrailsPayload } from '../../resources/assets/scripts/trail-data'
 import {
   difficultyIsEstimated,
-  difficultyLabel,
   difficultyTitle,
+  trailDifficultyLabel,
 } from '../../resources/functions/trail-difficulty'
 
 /**
@@ -38,13 +38,13 @@ describe('difficultyIsEstimated', () => {
   })
 })
 
-describe('difficultyLabel', () => {
+describe('trailDifficultyLabel', () => {
   it('marks an estimated grade with a tilde', () => {
-    expect(difficultyLabel('moderate', 0)).toBe('~moderate')
+    expect(trailDifficultyLabel('moderate', 0)).toBe('~moderate')
   })
 
   it('leaves a measured grade alone', () => {
-    expect(difficultyLabel('hard', 3200)).toBe('hard')
+    expect(trailDifficultyLabel('hard', 3200)).toBe('hard')
   })
 
   /*
@@ -52,9 +52,9 @@ describe('difficultyLabel', () => {
    * render as a badge saying nothing at all.
    */
   it('returns nothing for a trail with no grade', () => {
-    expect(difficultyLabel('', 0)).toBe('')
-    expect(difficultyLabel(null, 0)).toBe('')
-    expect(difficultyLabel(undefined, 500)).toBe('')
+    expect(trailDifficultyLabel('', 0)).toBe('')
+    expect(trailDifficultyLabel(null, 0)).toBe('')
+    expect(trailDifficultyLabel(undefined, 500)).toBe('')
   })
 })
 
@@ -86,7 +86,7 @@ describe('the label and the mark agree', () => {
   it('tildes exactly the grades it calls estimated', () => {
     for (const elevation of [0, -1, null, 1, 700, 5000, Number.NaN]) {
       const estimated = difficultyIsEstimated(elevation)
-      expect(difficultyLabel('moderate', elevation).startsWith('~'), String(elevation)).toBe(estimated)
+      expect(trailDifficultyLabel('moderate', elevation).startsWith('~'), String(elevation)).toBe(estimated)
       expect(difficultyTitle('moderate', elevation) !== '', String(elevation)).toBe(estimated)
     }
   })

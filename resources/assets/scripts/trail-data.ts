@@ -4,7 +4,7 @@
 
 import { decodeRouteParts, primaryRoutePart } from '../../functions/trail-geometry'
 import { displayTrailTime } from '../../functions/trail-time'
-import { difficultyIsEstimated, difficultyLabel } from '../../functions/trail-difficulty'
+import { difficultyIsEstimated, trailDifficultyLabel } from '../../functions/trail-difficulty'
 
 export type LatLng = [number, number]
 
@@ -129,7 +129,7 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
      * before it reaches a template. That is what made the badge render blank
      * on the first attempt at #1004.
      */
-    difficultyLabel: difficultyLabel(diff, elevationFeet),
+    difficultyLabel: trailDifficultyLabel(diff, elevationFeet),
     difficultyEstimated: difficultyIsEstimated(elevationFeet),
     distance: Math.round(distanceMiles * 10) / 10,
     elevation: Math.round(elevationFeet),
