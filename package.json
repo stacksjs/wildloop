@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "@bughq/stacks": "^0.2.2",
-    "@iconify-json/lucide": "^1.2.137",
+    "@iconify-json/lucide": "^1.2.139",
     "@loghq/stacks": "^0.2.6",
-    "@stacksjs/mobile": "^0.75.28",
+    "@stacksjs/mobile": "^0.75.41",
     "@ts-analytics/tracking": "^0.1.17",
-    "bun-query-builder": "0.3.3",
+    "bun-query-builder": "0.3.4",
     "stacks": "^0.74.70",
-    "ts-health": "^0.1.0",
+    "ts-health": "^0.1.1",
     "ts-maps": "^0.3.15",
     "ts-qr-codes": "^0.1.8",
     "ts-web-scraper": "^0.1.10"
