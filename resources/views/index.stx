@@ -92,6 +92,7 @@
   /** The shelf's route lines, by trail id, from the same answer as the trails. */
   const featuredRoutes = state({})
   const topTrails = state([])
+  const topTrailsHeading = state('Top trails')
 
   const trailCount = derived(() => coverage().total)
   const regionCount = derived(() => coverage().states.length || 102)
@@ -438,8 +439,17 @@
         if (value.total > 0)
           coverage.set(value)
       })
-      void queryTrails({ sort: 'rating', limit: 14 })
-        .then(result => topTrails.set(result.trails))
+      // Around the visitor when the page knows where that is — the same fix
+      // the shelf above opened on, already resolved and remembered, so this
+      // costs no second lookup. The national list is for somebody nowhere.
+      void resolveNearby()
+        .then(place => queryTrails(place
+          ? { lat: place.lat, lng: place.lng, radius: 60, sort: 'popular', limit: 14 }
+          : { sort: 'rating', limit: 14 })
+          .then((result) => {
+            topTrails.set(result.trails)
+            topTrailsHeading.set(place ? `Top trails near ${place.source === 'gps' ? 'you' : place.label}` : 'Top trails')
+          }))
         .catch(() => {})
     }, 600)
   })
@@ -939,7 +949,7 @@
         </div>
 
         <div>
-          <h3 class="directory-heading">Top trails</h3>
+          <h3 class="directory-heading">{{ topTrailsHeading() }}</h3>
           <div class="directory-columns">
             <template :for="trail in topTrails">
               <StxLink x-to="'/trail/' + trail.id" class="directory-link">{{ trail.name }}</StxLink>
@@ -952,7 +962,7 @@
               <div class="h-3 w-2/5 rounded bg-current/10"></div>
             </div>
           </div>
-          <StxLink to="/trails?sort=rating" class="directory-more">Show more</StxLink>
+          <StxLink to="/trails?sort=popular" class="directory-more">Show more</StxLink>
         </div>
 
         <div>
