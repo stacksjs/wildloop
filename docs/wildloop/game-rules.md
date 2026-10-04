@@ -2,7 +2,7 @@
 
 ## Eligible activities
 
-Only a live `web_gps` activity recorded in `capture` mode can score. The server requires at least 20 ordered samples, at least two minutes and 100 metres, recent completion, timestamps on every sample, and device accuracy of 75 metres or better on at least 80% of samples.
+Only a live GPS activity (`web_gps` from the browser recorder, `native_gps` from the app) recorded in `capture` mode can score. The server requires at least 20 ordered samples, at least two minutes and 100 metres, recent completion, timestamps on every sample, and device accuracy of 75 metres or better on at least 80% of samples.
 
 Manual activities, route previews/simulations, imported files, Garmin summary-only webhooks, and free runs are deliberately non-scoring. They remain useful activity records.
 
@@ -44,7 +44,11 @@ Evidence is stored on the activity (`anomaly_score`, `integrity_flags`, `track_f
 
 ## Claims
 
-A new claim must form a loop whose endpoints are within 50 metres. It must enclose between 1,000 and 5,000,000 square metres, avoid existing active/contested territory, and avoid the athlete's protected home zone. Claim creation, history, XP, and holding counters commit in one serializable transaction.
+A new claim must form a loop whose endpoints are within 50 metres. It must enclose between 1,000 and 5,000,000 square metres, avoid existing active/contested territory, and avoid the athlete's protected home zone (measured to the outline's edges, not only its vertices). Claim creation, history, XP, and holding counters commit in one serializable transaction.
+
+"Enclose" is the non-zero winding rule: the ground the loop goes around at least once. Two laps of a park claim the park once, and both lobes of a figure of eight count. Containment checks (overlap, home zone, battles) use the same rule.
+
+A claim is named after the nearest town in the gazetteer ("Silver Lake Loop", "Silver Lake Loop 2"). A refused claim says why, and the recorder shows that reason when the run fought no battle.
 
 ## Battles
 
@@ -55,7 +59,13 @@ An eligible route intersecting another athlete's territory creates one of these 
 - `contested`: an intersection or sliver too small to capture.
 - `defended`: the owner traverses contested territory.
 
-A focus target restricts processing to the selected territory. Every persisted battle is exposed by the battle feed, which clients refresh every 15 seconds.
+A focus target restricts processing to the selected territory. Land an attacker would win that reaches into their own protected home zone is not handed over: the attack stands as `contested`.
+
+Every persisted battle is exposed by the battle feed, which clients refresh every 15 seconds. A split is one battle on the feed (the `split` and `conquered` history rows are folded together), and each row carries its territory's centre so clients can show the battles near a player.
+
+## Where the game is shown
+
+The territory map and the record screen open on the player's own area: the remembered or edge-guessed location from `useNearby`, never a permission prompt. The map API answers only the bounding box it is asked for, `GET /api/territories/leaderboard` ranks the holders inside a box when given one, and `GET /api/territories/{id}` serves one territory with the same outline privacy as the map.
 
 ## Decay and ranks
 
