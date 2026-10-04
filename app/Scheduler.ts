@@ -29,6 +29,17 @@ export default function () {
     .onOneServer()
     .withName('wildloop-territory-decay')
 
+  // A checked, compressed copy of the database every night, seven kept, and
+  // off the box when DB_SNAPSHOT_RESTIC_ENV names a restic repository
+  // (app/Support/databaseSnapshot.ts). Before the 04:10 repairs, so the copy
+  // is of the database they found.
+  schedule.command('./buddy db:snapshot --keep 7')
+    .at('03:20')
+    .setTimeZone('UTC')
+    .withoutOverlapping(60)
+    .onOneServer()
+    .withName('wildloop-db-snapshot')
+
   schedule.command('./buddy counters:recompute')
     .at('04:10')
     .setTimeZone('UTC')

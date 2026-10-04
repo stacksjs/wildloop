@@ -56,6 +56,10 @@ export default {
     file: 'PruneTrailViews',
     enabled: true,
   },
+  'db:snapshot': {
+    file: 'SnapshotDatabase',
+    enabled: true,
+  },
   'territory:ranks': {
     file: 'ComputeTerritoryRanks',
     enabled: true,
