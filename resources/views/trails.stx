@@ -1235,7 +1235,7 @@
             </div>
             </div>
           </StxLink>
-          <button type="button" @click="onToggleSave(entry.trailId)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" x-aria-label="'Remove ' + entry.trail.name + ' from saved trails'">
+          <button type="button" @click="onToggleSave(entry.trailId, entry.trail.name)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" x-aria-label="'Remove ' + entry.trail.name + ' from saved trails'">
             <i class="i-lucide-heart h-[18px] w-[18px] fill-current" aria-hidden="true"></i>
           </button>
         </div>
@@ -1664,7 +1664,7 @@
                        on the svg it renders, so an outline was the only state it
                        could ever show. -->
                   <button
-                    @click.stop.prevent="onToggleSave(trail.id)"
+                    @click.stop.prevent="onToggleSave(trail.id, trail.name)"
                     x-class="wl.isTrailSaved(trail.id) ? 'text-rose-500' : 'text-slate-700 hover:text-rose-500 dark:text-slate-200'"
                     class="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:scale-105 active:scale-95 sm:h-9 sm:w-9 dark:bg-slate-900/85"
                     x-aria-label="wl.isTrailSaved(trail.id) ? 'Remove from saved trails' : 'Save this trail'">

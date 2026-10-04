@@ -2,6 +2,7 @@ import { onDestroy, onMount } from 'stx'
 import { deepLinks, device, isNativeMobile, onMobileReady, pushNotifications, secureStorage } from '@stacksjs/mobile'
 import { apiFetch, beforeSignOut, readyToken } from '../assets/scripts/auth'
 import { donateSiriPhrases, onAppShortcut, registerAppShortcuts } from './useNativeShortcuts'
+import { clearTrailSpotlight, trailSpotlightRouteFor } from './useTrailSpotlight'
 import { returnToServerFromBundledCopy } from '../functions/native-remote'
 
 const PUSH_ENABLED_KEY = 'wildloop_push_enabled'
@@ -104,6 +105,11 @@ export async function disableNativePushNotifications(): Promise<boolean> {
 // to run before the token is revoked: unregistering needs the session.
 beforeSignOut(() => disableNativePushNotifications())
 
+// It also takes their trails out of the device's Spotlight index: the next
+// person to pick up the phone should not find somebody else's saved trails by
+// searching the home screen.
+beforeSignOut(() => clearTrailSpotlight())
+
 async function syncOptedInNativePushNotifications(): Promise<void> {
   if (await secureStorage.get(PUSH_ENABLED_KEY).catch(() => null) !== 'true') return
   await enableNativePushNotifications().catch(() => false)
@@ -128,10 +134,12 @@ export function useNativeServices(): void {
       })
 
       // A tapped shortcut is a route, and `navigate` is the same trip a deep
-      // link takes — the two paths cannot diverge.
+      // link takes — the two paths cannot diverge. A tapped Spotlight entry
+      // for a trail arrives the same way, carrying the slot it was donated
+      // under, which only the trail index can read back.
       removeShortcut = onAppShortcut((route) => {
         if (typeof location !== 'undefined') location.assign(route)
-      })
+      }, trailSpotlightRouteFor)
 
       // The home-screen menu is set per launch rather than per install: the
       // list can change with a release, and the Siri donations expire.

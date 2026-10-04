@@ -361,7 +361,7 @@
               </div>
             </div>
           </StxLink>
-          <button type="button" @click="onToggleSave(trail.id)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" x-aria-label="'Remove ' + trail.name + ' from saved trails'">
+          <button type="button" @click="onToggleSave(trail.id, trail.name)" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-100 active:scale-95 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20" x-aria-label="'Remove ' + trail.name + ' from saved trails'">
             <i class="i-lucide-heart h-[18px] w-[18px] fill-current" aria-hidden="true"></i>
           </button>
         </div>
