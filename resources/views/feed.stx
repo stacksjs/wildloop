@@ -242,10 +242,17 @@
     const place = await resolveNearby().catch(() => null)
     try {
       const res = await queryTrails(place
-        ? { lat: place.lat, lng: place.lng, radius: 25, sort: 'rating', limit: 4 }
+        // Ranked by how good and how close each trail is, and steered by the
+        // kind of trail this athlete already does, less the ones they know.
+        // "Top rated" with almost nothing rated was the longest rows nearby.
+        ? { lat: place.lat, lng: place.lng, radius: 25, sort: 'recommended', limit: 4 }
         : { sort: 'featured', limit: 4 })
       nearbyFeedTrails.set(res.trails.slice(0, 4))
-      nearbyFeedLabel.set(place ? (place.source === 'gps' ? 'Trails near you' : `Trails near ${place.label}`) : 'Trails to explore')
+      nearbyFeedLabel.set(!place
+        ? 'Trails to explore'
+        : res.personalized
+          ? 'Trails you may like'
+          : place.source === 'gps' ? 'Trails near you' : `Trails near ${place.label}`)
     }
     catch {
       nearbyFeedTrails.set([])

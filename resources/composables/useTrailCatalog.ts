@@ -63,6 +63,12 @@ export interface TrailQueryResult {
    * it guessed from the request. Null when the answer spans the whole catalog.
    */
   country: string | null
+  /**
+   * For `sort: 'recommended'` only: true when the list was steered by what
+   * the signed-in athlete saved and did, false when it is best match because
+   * there was nobody or nothing to steer by. What a shelf calls itself.
+   */
+  personalized?: boolean
 }
 
 /**
@@ -268,5 +274,6 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
     hasMore: Boolean(payload?.meta?.hasMore),
     country: typeof country === 'string' && country ? country : null,
     ...(Number.isFinite(radius) && radius > 0 ? { radius } : {}),
+    ...(typeof payload?.meta?.personalized === 'boolean' ? { personalized: payload.meta.personalized } : {}),
   }
 }

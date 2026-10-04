@@ -309,14 +309,16 @@
     navigate(term ? `/trails?q=${encodeURIComponent(term)}` : '/trails')
   }
 
-  async function loadFeatured(query, label) {
+  async function loadFeatured(query, label, personalLabel = label) {
     featuredLoading.set(true)
     try {
       const result = await queryTrails({ sort: 'featured', limit: 4, ...query })
       // Lines first: the tiles read them as they render.
       featuredRoutes.set(result.geometryById ?? {})
       featured.set(result.trails)
-      featuredLabel.set(label)
+      // Named for what the API actually did: only a list it steered by this
+      // athlete's own trails gets to say "you may like".
+      featuredLabel.set(result.personalized ? personalLabel : label)
     }
     catch {
       // The homepage is not the place to shout about a catalog hiccup. An
@@ -357,11 +359,13 @@
   /** Load the shelf for a place, however that place was arrived at. */
   function loadFeaturedNear(place) {
     return loadFeatured(
-      // Best match ranks how good a trail is against how far away it is. It
-      // used to ask for "top rated", which with almost nothing rated was the
-      // longest routes in an 80-mile box.
-      { lat: place.lat, lng: place.lng, radius: 40, sort: 'featured' },
+      // Ranked around the visitor by how good and how close each trail is,
+      // and for a signed-in athlete by the kind of trail they already do,
+      // less the ones they know. It used to ask for "top rated", which with
+      // almost nothing rated was the longest routes in an 80-mile box.
+      { lat: place.lat, lng: place.lng, radius: 40, sort: 'recommended' },
       place.source === 'gps' ? 'Local favorites near you' : `Local favorites near ${place.label}`,
+      place.source === 'gps' ? 'Trails you may like near you' : `Trails you may like near ${place.label}`,
     )
   }
 
