@@ -45,6 +45,7 @@
     "app/Support/approvedTrailPhotos.ts",
     "app/Support/trailPhotoQueue.ts",
     "app/Support/trailPhotoReview.ts",
+    "resources/assets/scripts/trail-photos-api.ts",
     "resources/assets/scripts/auth.ts",
     "resources/assets/scripts/game-api.ts",
     "resources/assets/scripts/offline-trails.ts",

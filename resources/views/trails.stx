@@ -1638,7 +1638,9 @@
                      same reason the trail page says it under the hero. -->
                 <span :if="cardPhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Illustrative</span>
                 <span :if="trail.coverScope === 'area'" class="absolute bottom-3 right-3 rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">Area photo</span>
-                <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}</span>
+                <!-- A licensed photo carries its licence wherever it is shown;
+                     the trail page adds the link to the file itself. -->
+                <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/65 px-2 py-0.5 text-[10px] font-medium text-white/85 backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}<a :if="trail.coverLicense && trail.coverLicenseUrl" x-href="trail.coverLicenseUrl" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ ' · ' + trail.coverLicense }}</a></span>
 
                 <!-- What this trail is, in one word, where a photo has room for
                      it. Only ever from a tag the catalog actually carries. -->

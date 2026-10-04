@@ -579,7 +579,9 @@
               </div>
               <span :if="tilePhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Illustrative</span>
               <span :if="trail.coverScope === 'area'" class="absolute bottom-3 right-3 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Area photo</span>
-              <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit }}</span>
+              <!-- The tile is one link, so the licence is named here and
+                   linked on the trail page it opens. -->
+              <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit + (trail.coverLicense ? ' · ' + trail.coverLicense : '') }}</span>
             </div>
             <h3 class="mt-3 truncate font-semibold transition group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{{ trail.name }}</h3>
             <p class="mt-0.5 truncate text-sm text-current/55">{{ trail.location || trail.managedBy || '—' }}</p>

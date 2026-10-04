@@ -153,6 +153,27 @@ db.query(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`)
   .run(QA_ADMIN.name, QA_ADMIN.email, await Bun.password.hash(QA_ADMIN.password, { algorithm: 'bcrypt', cost: 4 }))
 db.run(`INSERT INTO user_roles (user_id, role_id)
   SELECT (SELECT id FROM users WHERE email = '${QA_ADMIN.email}'), (SELECT id FROM roles WHERE name = 'admin' AND guard_name = 'web')`)
+// Photo candidates waiting for review (#1006), from a recorded-shape Commons
+// geosearch rather than the network: tests/browser/fixtures holds the
+// answer, and the same parsing and licence rules the nightly job uses write
+// the rows. Two trails near Sedona, more than 300 miles from every other
+// seed, with no cover of their own, so approving one visibly changes what the
+// trail serves. The fixture carries a non-commercial file the queue must
+// refuse and a tree it must not offer at all.
+const photoTrail = db.query(`INSERT INTO trails
+  (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude, source, source_id)
+  VALUES (?, 'Coconino National Forest, AZ', 'AZ', 'Arizona', 'US', ?, 0, 'moderate', ?, ?, 'osm', ?) RETURNING id`)
+const { candidatesFrom } = await import('../app/Support/trailPhotoCandidates')
+const { storeCandidates } = await import('../app/Support/trailPhotoQueue')
+const commons = JSON.parse(await readFile('tests/browser/fixtures/commons-geosearch-sedona.json', 'utf8'))
+const seedSql = async (strings: TemplateStringsArray, ...values: unknown[]) => db.query(strings.join('?')).all(...(values as any[])) as any[]
+for (const [name, distance, latitude, longitude, sourceId, priority] of [
+  ['Cathedral Rock Trail', 1.2, 34.8256, -111.7880, 'qa/cathedral-rock', 3],
+  ['Devils Bridge Trail', 4.2, 34.8946, -111.8120, 'qa/devils-bridge', 2],
+] as const) {
+  const { id } = photoTrail.get(name, distance, latitude, longitude, sourceId) as { id: number }
+  await storeCandidates(id, candidatesFrom(commons, name), priority, seedSql)
+}
 // Every trail above went in by plain INSERT, and the search index is
 // external-content FTS5, which does not see writes to its table — production
 // keeps it in step from the ingest (app/Ingest/ingest.ts). Without this every

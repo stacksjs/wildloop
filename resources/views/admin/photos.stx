@@ -1,0 +1,219 @@
+@extends('layouts/default')
+
+@section('title', 'Trail photos - Wildloop')
+
+@section('content')
+<script server>
+  // Admin only, and never a search result. See admin.stx for why the meta
+  // tag is needed on top of robots.txt.
+  useSeoMeta({
+    title: 'Trail photos — Wildloop',
+    description: 'Wildloop administration.',
+    robots: 'noindex, nofollow',
+  })
+</script>
+
+<script client>
+  import { isSignedIn } from '../../assets/scripts/auth'
+  import { fetchPhotoQueue, reviewTrailPhoto } from '../../assets/scripts/trail-photos-api'
+  import { routeShapeFor } from '../../composables/useRouteShape'
+
+  /*
+   * The review queue for trail photos (#1006).
+   *
+   * Every candidate here is a Wikimedia Commons file whose title names the
+   * trail and which was taken within a few kilometres of its start — which
+   * is why it is here, and also all that is known. Approving says "this is
+   * the trail", and the photo goes on every card and the trail page with its
+   * author and licence. Nothing is approved without a click on this page.
+   */
+  useHead({ title: 'Trail photos — Wildloop' })
+
+  const loading = state(true)
+  const loadError = state('')
+  const forbidden = state(false)
+  const queue = state([])
+  const pendingTrails = state(0)
+  const pendingCandidates = state(0)
+  const busy = state(0)
+  const busyDecision = state('')
+  const decisionError = state('')
+  const notice = state('')
+
+  async function loadQueue() {
+    loading.set(true)
+    loadError.set('')
+    const result = await fetchPhotoQueue(20)
+    loading.set(false)
+    if (!result.ok) {
+      forbidden.set(result.status === 401 || result.status === 403)
+      loadError.set(result.status === 403 ? 'Only administrators can review trail photos.' : result.error || 'The photo queue could not be loaded.')
+      return
+    }
+    queue.set(result.trails)
+    pendingTrails.set(result.pendingTrails)
+    pendingCandidates.set(result.pendingCandidates)
+  }
+
+  async function decide(trail, candidate, decision) {
+    if (busy()) return
+    busy.set(candidate.id)
+    busyDecision.set(decision)
+    decisionError.set('')
+    notice.set('')
+    const result = await reviewTrailPhoto(candidate.id, decision)
+    busy.set(0)
+    busyDecision.set('')
+    if (!result.ok) {
+      decisionError.set(result.error || 'That decision could not be saved. Nothing changed.')
+      return
+    }
+    notice.set(decision === 'approve'
+      ? `${trail.name} now shows “${candidate.title}” by ${candidate.credit}.`
+      : `Rejected “${candidate.title}” for ${trail.name}.`)
+    await loadQueue()
+  }
+
+  const NO_LINE = { points: '', startX: 0, startY: 0, endX: 0, endY: 0, loop: true }
+  const lineShapes = new Map()
+
+  /** The trail drawn small, so a photo can be held against where it runs. */
+  function trailLine(trail) {
+    const cached = lineShapes.get(trail.id)
+    if (cached) return cached
+    const shape = routeShapeFor(trail.line, 160, 120, 14) ?? NO_LINE
+    lineShapes.set(trail.id, shape)
+    return shape
+  }
+
+  function mapLink(trail) {
+    const lat = Number(trail.lat).toFixed(5)
+    const lng = Number(trail.lng).toFixed(5)
+    return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=14/${lat}/${lng}`
+  }
+
+  function trailFacts(trail) {
+    const parts = []
+    if (trail.location) parts.push(trail.location)
+    if (trail.distance > 0) parts.push(`${Math.round(trail.distance * 10) / 10} mi`)
+    parts.push(trail.priority >= 1 ? 'opened by visitors' : 'top ranked near a city')
+    return parts.join(' · ')
+  }
+
+  function matchedLabel(candidate) {
+    return candidate.matched.length ? `Title names: ${candidate.matched.join(', ')}` : ''
+  }
+
+  function buttonLabel(candidate, decision, idle) {
+    return busy() === candidate.id && busyDecision() === decision ? 'Saving…' : idle
+  }
+
+  onMount(() => {
+    if (!isSignedIn()) {
+      navigate('/login')
+      return
+    }
+    void loadQueue()
+  })
+</script>
+
+<div class="min-h-full bg-slate-50/70 dark:bg-slate-950">
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <header class="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <StxLink to="/admin" class="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400">
+          <i class="i-lucide-arrow-left h-4 w-4" aria-hidden="true"></i> Admin
+        </StxLink>
+        <h1 class="font-display text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl dark:text-white">Trail photos</h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+          Wikimedia Commons photos whose titles name a trail and that were taken near its start. Approve one only when it shows the trail itself — it replaces the illustrative photo on every card, credited to its author under its licence.
+        </p>
+      </div>
+      <p :if="!loading() && !loadError()" class="text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+        {{ pendingCandidates() }} {{ pendingCandidates() === 1 ? 'photo' : 'photos' }} for {{ pendingTrails() }} {{ pendingTrails() === 1 ? 'trail' : 'trails' }}
+      </p>
+    </header>
+
+    <div :if="decisionError()" role="alert" class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{{ decisionError() }}</div>
+    <div :if="notice()" role="status" aria-live="polite" class="mb-5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+      <i class="i-lucide-circle-check mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>
+      <span>{{ notice() }}</span>
+    </div>
+
+    <div :if="loading()" class="grid min-h-48 place-items-center text-center" aria-label="Loading the photo queue">
+      <i class="i-lucide-loader-circle h-6 w-6 animate-spin text-emerald-600" aria-hidden="true"></i>
+    </div>
+
+    <div :if="!loading() && loadError()" role="alert" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+      <p class="font-semibold">{{ forbidden() ? 'Not available' : 'The photo queue could not be loaded' }}</p>
+      <p class="mt-1 text-sm">{{ loadError() }}</p>
+      <button :if="!forbidden()" type="button" @click="loadQueue()" class="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-red-300 px-4 text-sm font-semibold transition hover:bg-red-100 dark:border-red-800 dark:hover:bg-red-900/40">Try again</button>
+    </div>
+
+    <div :if="!loading() && !loadError() && queue().length === 0" class="grid min-h-48 place-items-center rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center dark:border-slate-800 dark:bg-slate-900">
+      <div>
+        <span class="mx-auto grid h-11 w-11 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"><i class="i-lucide-check h-5 w-5" aria-hidden="true"></i></span>
+        <p class="mt-3 font-semibold text-slate-900 dark:text-white">Queue clear</p>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">The nightly search adds more as it reaches further down the list.</p>
+      </div>
+    </div>
+
+    <ul :if="!loading() && !loadError() && queue().length > 0" class="space-y-6">
+      <li :for="trail in queue()" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center dark:border-slate-800">
+          <div class="relative h-24 w-32 shrink-0 overflow-hidden rounded-xl bg-emerald-50 dark:bg-emerald-950/30" aria-hidden="true">
+            <svg :if="trailLine(trail).points !== ''" viewBox="0 0 160 120" class="absolute inset-0 h-full w-full">
+              <polyline x-points="trailLine(trail).points" class="pq-casing" />
+              <polyline x-points="trailLine(trail).points" class="pq-line" />
+              <circle x-cx="trailLine(trail).startX" x-cy="trailLine(trail).startY" r="4" class="pq-start" />
+            </svg>
+            <i :if="trailLine(trail).points === ''" class="i-lucide-map-pin absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-emerald-600"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <a x-href="'/trail/' + trail.id" target="_blank" rel="noopener" class="font-display text-lg font-bold text-slate-950 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-400">{{ trail.name }}</a>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ trailFacts(trail) }}</p>
+            <a x-href="mapLink(trail)" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300">
+              <i class="i-lucide-map h-3.5 w-3.5" aria-hidden="true"></i> Map of the trail head
+            </a>
+          </div>
+        </div>
+
+        <ul class="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
+          <li :for="candidate in trail.candidates" class="flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+            <a x-href="candidate.pageUrl" target="_blank" rel="noopener noreferrer" class="block aspect-[4/3] bg-slate-100 dark:bg-slate-800">
+              <Image x-src="candidate.url" x-alt="candidate.title" width="480" height="360" sizes="(max-width: 640px) 100vw, 33vw" loading="lazy" class="h-full w-full object-cover" />
+            </a>
+            <div class="flex flex-1 flex-col gap-1 p-3 text-xs text-slate-600 dark:text-slate-300">
+              <a x-href="candidate.pageUrl" target="_blank" rel="noopener noreferrer" class="line-clamp-2 font-semibold text-slate-900 hover:text-emerald-700 dark:text-white">{{ candidate.title }}</a>
+              <p class="truncate">{{ 'By ' + candidate.credit }}</p>
+              <a x-href="candidate.licenseUrl" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ candidate.license }}</a>
+              <p :if="matchedLabel(candidate) !== ''" class="text-slate-400 dark:text-slate-500">{{ matchedLabel(candidate) }}</p>
+              <div class="mt-auto grid grid-cols-2 gap-2 pt-2">
+                <button type="button" @click="decide(trail, candidate, 'reject')" x-disabled="busy() !== 0" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40">{{ buttonLabel(candidate, 'reject', 'Reject') }}</button>
+                <button type="button" @click="decide(trail, candidate, 'approve')" x-disabled="busy() !== 0" class="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{{ buttonLabel(candidate, 'approve', 'Approve') }}</button>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<style>
+  .pq-casing,
+  .pq-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .pq-casing { stroke: #fff; stroke-width: 6; }
+  .pq-line { stroke: #059669; stroke-width: 3; }
+  .pq-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
+
+  .dark .pq-casing { stroke: #0b1411; }
+  .dark .pq-line { stroke: #34d399; }
+  .dark .pq-start { stroke: #0b1411; }
+</style>
+@endsection

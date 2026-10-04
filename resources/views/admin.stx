@@ -207,6 +207,9 @@
         <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
           Review record claims, watch the catalog, and find the accounts that need attention.
         </p>
+        <StxLink to="/admin/photos" class="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          <i class="i-lucide-image h-4 w-4" aria-hidden="true"></i> Review trail photos
+        </StxLink>
       </div>
       <div :if="viewer" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <Image :if="accountPhoto(viewer())" x-src="accountPhoto(viewer())" x-alt="viewerName()" width="36" height="36" sizes="36px" loading="lazy" class="h-9 w-9 shrink-0 rounded-full object-cover" />

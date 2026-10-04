@@ -642,6 +642,11 @@ route.group({ middleware: 'auth' }, () => {
     // lets the team believe something is being checked.
     route.get('/admin/integrity-queue', 'Actions/Admin/IntegrityQueueAction').middleware('role:admin')
     route.post('/admin/integrity-review/{id}', 'Actions/Admin/IntegrityReviewAction').middleware('role:admin')
+    // Trail photos from Wikimedia Commons (#1006). The nightly job only
+    // queues candidates; a photo becomes a cover when a person approves it
+    // here. Both actions re-check the role like the queues above.
+    route.get('/admin/trail-photos', 'Actions/Admin/TrailPhotoQueueAction').middleware('role:admin')
+    route.post('/admin/trail-photos/{id}/review', 'Actions/Admin/TrailPhotoReviewAction').middleware('role:admin')
     route.get('/custom-routes', 'Actions/Route/CustomRouteIndexAction')
     route.post('/custom-routes', 'Actions/Route/CustomRouteStoreAction')
     route.patch('/custom-routes/{id}', 'Actions/Route/CustomRouteUpdateAction')

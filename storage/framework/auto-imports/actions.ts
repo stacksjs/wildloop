@@ -21,6 +21,8 @@ export const actions = {
   'Actions/Admin/AdminOverviewAction': '../../../app/Actions/Admin/AdminOverviewAction.ts',
   'Actions/Admin/IntegrityQueueAction': '../../../app/Actions/Admin/IntegrityQueueAction.ts',
   'Actions/Admin/IntegrityReviewAction': '../../../app/Actions/Admin/IntegrityReviewAction.ts',
+  'Actions/Admin/TrailPhotoQueueAction': '../../../app/Actions/Admin/TrailPhotoQueueAction.ts',
+  'Actions/Admin/TrailPhotoReviewAction': '../../../app/Actions/Admin/TrailPhotoReviewAction.ts',
   'Actions/Auth/AccountDestroyAction': '../../../app/Actions/Auth/AccountDestroyAction.ts',
   'Actions/Auth/AppleCallbackAction': '../../../app/Actions/Auth/AppleCallbackAction.ts',
   'Actions/Auth/AppleRedirectAction': '../../../app/Actions/Auth/AppleRedirectAction.ts',

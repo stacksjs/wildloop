@@ -1,0 +1,148 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "pages": {
+      "9100001": {
+        "pageid": 9100001,
+        "ns": 6,
+        "title": "File:Cathedral Rock from Oak Creek Crossing.jpg",
+        "index": 9100001,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_from_Oak_Creek_Crossing.jpg/1280px-Cathedral_Rock_from_Oak_Creek_Crossing.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 853,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_from_Oak_Creek_Crossing.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_from_Oak_Creek_Crossing.jpg",
+            "extmetadata": {
+              "LicenseShortName": {
+                "value": "CC BY-SA 4.0",
+                "source": "commons-desc-page"
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-sa/4.0",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "<a href=\"//commons.wikimedia.org/wiki/User:QA_Hiker\" title=\"User:QA Hiker\">QA Hiker</a>",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9100002": {
+        "pageid": 9100002,
+        "ns": 6,
+        "title": "File:Cathedral Rock at sunset, Sedona.jpg",
+        "index": 9100002,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_at_sunset%2C_Sedona.jpg/1280px-Cathedral_Rock_at_sunset%2C_Sedona.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 853,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_at_sunset%2C_Sedona.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_at_sunset%2C_Sedona.jpg",
+            "extmetadata": {
+              "LicenseShortName": {
+                "value": "CC BY-NC-SA 2.0",
+                "source": "commons-desc-page"
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-nc-sa/2.0",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "QA Night Photographer",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9100003": {
+        "pageid": 9100003,
+        "ns": 6,
+        "title": "File:Cathedral Rock trailhead sign.jpg",
+        "index": 9100003,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_trailhead_sign.jpg/1280px-Cathedral_Rock_trailhead_sign.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 853,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_trailhead_sign.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_trailhead_sign.jpg",
+            "extmetadata": {
+              "LicenseShortName": {
+                "value": "Public domain",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "U.S. Forest Service",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9100004": {
+        "pageid": 9100004,
+        "ns": 6,
+        "title": "File:Devils Bridge, Sedona, Arizona.jpg",
+        "index": 9100004,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Devils_Bridge%2C_Sedona%2C_Arizona.jpg/1280px-Devils_Bridge%2C_Sedona%2C_Arizona.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 853,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Devils_Bridge%2C_Sedona%2C_Arizona.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Devils_Bridge%2C_Sedona%2C_Arizona.jpg",
+            "extmetadata": {
+              "LicenseShortName": {
+                "value": "CC0",
+                "source": "commons-desc-page"
+              },
+              "LicenseUrl": {
+                "value": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "QA Walker",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9100005": {
+        "pageid": 9100005,
+        "ns": 6,
+        "title": "File:Pinus edulis in Coconino National Forest.jpg",
+        "index": 9100005,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Pinus_edulis_in_Coconino_National_Forest.jpg/1280px-Pinus_edulis_in_Coconino_National_Forest.jpg",
+            "thumbwidth": 1280,
+            "thumbheight": 853,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Pinus_edulis_in_Coconino_National_Forest.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Pinus_edulis_in_Coconino_National_Forest.jpg",
+            "extmetadata": {
+              "LicenseShortName": {
+                "value": "CC BY 4.0",
+                "source": "commons-desc-page"
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by/4.0",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "QA Botanist",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
