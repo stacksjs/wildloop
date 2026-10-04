@@ -142,6 +142,24 @@ export const tsCloud: TsCloudConfig = {
       domain: 'wildloop.org',
       start: './buddy serve',
       port: 3049,
+      /*
+       * Memory, declared rather than left to defaults and hand-made drop-ins.
+       *
+       * The box is shared with about thirty other apps on 15.6 GB of RAM, and
+       * until now this site carried three layers of limits nobody could see
+       * from the repo: the deploy default (1951M), a hand-written zz-memory
+       * drop-in (2G) and `systemctl set-property` overrides. They disagreed,
+       * and systemd applies drop-ins in filename order, so what a unit got
+       * depended on which file sorted last. Declared here, the deploy writes
+       * both limits into one drop-in and the hand-made ones can go.
+       *
+       * MemoryHigh is where the kernel starts reclaiming this service alone
+       * and MemoryMax is where it is killed and restarted inside its own
+       * cgroup instead of the OOM killer choosing a neighbour.
+       * Serving runs at about 550M.
+       */
+      memoryHigh: '2G',
+      memoryMax: '3G',
       // The release ships without dependencies, so nothing resolves until
       // install runs here.
       //
@@ -263,6 +281,24 @@ export const tsCloud: TsCloudConfig = {
       deploy: 'server',
       start: './buddy serve:api',
       port: 3050,
+      /*
+       * Memory, declared rather than left to defaults and hand-made drop-ins.
+       *
+       * The box is shared with about thirty other apps on 15.6 GB of RAM, and
+       * until now this site carried three layers of limits nobody could see
+       * from the repo: the deploy default (1951M), a hand-written zz-memory
+       * drop-in (2G) and `systemctl set-property` overrides. They disagreed,
+       * and systemd applies drop-ins in filename order, so what a unit got
+       * depended on which file sorted last. Declared here, the deploy writes
+       * both limits into one drop-in and the hand-made ones can go.
+       *
+       * MemoryHigh is where the kernel starts reclaiming this service alone
+       * and MemoryMax is where it is killed and restarted inside its own
+       * cgroup instead of the OOM killer choosing a neighbour.
+       * The API runs at about 720M.
+       */
+      memoryHigh: '2G',
+      memoryMax: '3G',
       preStart: [
         LINK_ENV_KEYS,
         INSTALL_DEPS,
@@ -303,6 +339,26 @@ export const tsCloud: TsCloudConfig = {
       deploy: 'server',
       start: 'bun storage/framework/runtime/production/ingest.js',
       port: 3051,
+      /*
+       * Memory, declared rather than left to defaults and hand-made drop-ins.
+       *
+       * The box is shared with about thirty other apps on 15.6 GB of RAM, and
+       * until now this site carried three layers of limits nobody could see
+       * from the repo: the deploy default (1951M), a hand-written zz-memory
+       * drop-in (2G) and `systemctl set-property` overrides. They disagreed,
+       * and systemd applies drop-ins in filename order, so what a unit got
+       * depended on which file sorted last. Declared here, the deploy writes
+       * both limits into one drop-in and the hand-made ones can go.
+       *
+       * MemoryHigh is where the kernel starts reclaiming this service alone
+       * and MemoryMax is where it is killed and restarted inside its own
+       * cgroup instead of the OOM killer choosing a neighbour.
+       * The worker idles under 100M. Its soft limit used to sit ABOVE its hard
+       * one (1951M against 1.5G), so it could only ever be killed, never
+       * throttled first.
+       */
+      memoryHigh: '1G',
+      memoryMax: '1536M',
       /*
        * Stop the old worker before starting the new one.
        *
