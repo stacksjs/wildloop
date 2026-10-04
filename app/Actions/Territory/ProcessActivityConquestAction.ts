@@ -5,6 +5,7 @@ import { classifyBattleOutcome } from '../../../resources/functions/territory-ba
 import { recomputeTerritoryRanks } from './ComputeTerritoryRanksAction'
 import { runTerritoryDecaySweep } from './DecayTerritoriesAction'
 import { splitPieceName } from '../../Support/territoryNames'
+import UserPrivacySetting from '../../Models/UserPrivacySetting'
 
 const MIN_TERRITORY_SIZE = 1000
 
@@ -72,6 +73,10 @@ export default new Action({
         console.error('Decay sweep before conquest failed:', error))
 
       const actor = await User.find(userId)
+      const attackerPrivacy = await UserPrivacySetting.where('user_id', '=', userId).first().catch(() => null)
+      const attackerHome: HomeZone | null = attackerPrivacy?.exclude_home_from_game && attackerPrivacy.home_lat != null && attackerPrivacy.home_lng != null
+        ? { lat: Number(attackerPrivacy.home_lat), lng: Number(attackerPrivacy.home_lng), radius: Number(attackerPrivacy.home_radius_meters ?? 500) }
+        : null
       const actorName = actor?.name ?? 'A rival runner'
       const routeBounds = parseBoundingBox(getBoundingBox(routeCoordinates))
       let candidates: any[]
@@ -173,11 +178,19 @@ export default new Action({
             const keep = pieces[0]
             const captured = pieces[1]
 
-            const kind: BattleResult['kind'] = classifyBattleOutcome(
+            let kind: BattleResult['kind'] = classifyBattleOutcome(
               territory.area_size || 0,
               pieces.map((piece: any) => piece.area),
               MIN_TERRITORY_SIZE,
             )
+
+            // The attacker's protected home zone holds for land they win as
+            // it does for land they claim: no territory of theirs is drawn
+            // there, so the attack stands as a contest.
+            const inHomeZone = (kind === 'split' && reachesHome(attackerHome, captured.polygon))
+              || (kind === 'takeover' && reachesHome(attackerHome, livePolygon))
+            if (inHomeZone)
+              kind = 'contested'
 
             // A territory already under attack does not emit duplicate contest
             // events, but the activity is still marked resolved for idempotency.
@@ -193,7 +206,9 @@ export default new Action({
                 activity_id: activityId,
                 event_type: 'contested',
                 area_at_event: territory.area_size,
-                notes: 'Attack intersected the territory without a valid split',
+                notes: inHomeZone
+                  ? 'Attack reached the protected home zone of the attacker, so no land changed hands'
+                  : 'Attack intersected the territory without a valid split',
                 created_at: now,
               })
               return { ...base, kind, xp: 0, previousOwner }
@@ -398,6 +413,19 @@ export default new Action({
     }
   },
 })
+
+interface HomeZone {
+  lat: number
+  lng: number
+  radius: number
+}
+
+/** Whether land would sit in, or reach into, a protected home zone. */
+function reachesHome(home: HomeZone | null, polygon: Array<{ lat: number, lng: number }> | undefined): boolean {
+  if (!home || !polygon?.length)
+    return false
+  return pointInPolygon(home, polygon) || distanceToRingMeters(home, polygon) <= home.radius
+}
 
 function skipped(territory: any): BattleResult {
   return {
