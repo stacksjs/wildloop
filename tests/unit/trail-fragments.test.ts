@@ -1,6 +1,7 @@
 import type { FragmentCandidate } from '../../app/Support/trailFragments'
 import { describe, expect, it } from 'bun:test'
-import { fragmentClusters, groupKey, normalizeName, summarise } from '../../app/Support/trailFragments'
+import { clusterRuns } from '../../app/Ingest/sources/arcgis'
+import { compareCanonical, FOLD_RADIUS_MILES, foldPieces, fragmentClusters, groupKey, isPinned, normalizeName, summarise } from '../../app/Support/trailFragments'
 
 /**
  * Deciding which catalog rows are pieces of one trail.
@@ -147,6 +148,28 @@ describe('fragmentClusters', () => {
       expect(cluster.members[0].id).toBe(whole.id)
     })
 
+    /*
+     * The Park Service draws and names the trails it manages; an OSM way is a
+     * stretch between two junctions, and can be longer only because it runs
+     * on past where the park's trail ends.
+     */
+    it('is the park\'s own record over a longer OpenStreetMap way', () => {
+      nextId = 1
+      const way = trail('Ridge Trail', line(40.0, -105.0), { distance: 6, source: 'osm' })
+      const park = trail('Ridge Trail', line(40.006, -105.0), { distance: 4, source: 'nps' })
+
+      expect(fragmentClusters([way, park])[0].canonical.id).toBe(park.id)
+    })
+
+    it('is the one people reviewed, between two otherwise alike', () => {
+      nextId = 1
+      const plain = trail('Ridge Trail', line(40.0, -105.0), { distance: 2 })
+      const reviewed = trail('Ridge Trail', line(40.006, -105.0), { distance: 2, reviewCount: 2 })
+
+      expect(fragmentClusters([plain, reviewed])[0].canonical.id).toBe(reviewed.id)
+      expect(compareCanonical(reviewed, plain)).toBeLessThan(0)
+    })
+
     it('is the same row every run, so a merge can be repeated', () => {
       nextId = 1
       const a = trail('Ridge Trail', line(40.0, -105.0), { distance: 5 })
@@ -176,5 +199,156 @@ describe('summarise', () => {
 
   it('counts nothing when there is nothing to merge', () => {
     expect(summarise([])).toEqual({ clusters: 0, absorbed: 0, canonical: 0 })
+  })
+})
+
+describe('isPinned', () => {
+  it('pins what people made and what was typed in by hand, and nothing else', () => {
+    nextId = 1
+    expect(isPinned(trail('A Trail', line(40, -105), { reviewCount: 1 }))).toBe(true)
+    expect(isPinned(trail('A Trail', line(40, -105), { photos: 3 }))).toBe(true)
+    expect(isPinned(trail('A Trail', line(40, -105), { source: 'manual' }))).toBe(true)
+    expect(isPinned(trail('A Trail', line(40, -105), { source: 'nps', distance: 40 }))).toBe(false)
+  })
+})
+
+/** A straight run north from (lat, lng) about `miles` long, in two points. */
+function stretch(lat: number, lng: number, miles: number): { lat: number, lng: number }[] {
+  return [{ lat, lng }, { lat: lat + miles / 69, lng }]
+}
+
+describe('foldPieces', () => {
+  it('folds the short pieces of a trail into the whole of it', () => {
+    nextId = 1
+    const whole = trail('Mesa Trail', stretch(40.0, -105.25, 2), { distance: 2 })
+    const below = trail('Mesa Trail', stretch(40.0 - 0.4 / 69, -105.25, 0.4), { distance: 0.4 })
+    const above = trail('Mesa Trail', stretch(40.0 + 2 / 69, -105.25, 0.3), { distance: 0.3 })
+
+    const folds = foldPieces([below, whole, above])
+    expect([...folds.entries()].sort()).toEqual([[below.id, whole.id], [above.id, whole.id]])
+  })
+
+  /*
+   * The rule that matters most, at the level that writes. Each of these is a
+   * plausible merge by name, and each would hide a real trail.
+   */
+  describe('never folds two trails that only share a name', () => {
+    it('in different parks', () => {
+      nextId = 1
+      const boulder = [trail('Red Trail', stretch(40.0, -105.25, 0.3)), trail('Red Trail', stretch(40.0 + 0.3 / 69, -105.25, 0.3))]
+      const bend = [trail('Red Trail', stretch(44.0, -121.3, 0.3)), trail('Red Trail', stretch(44.0 + 0.3 / 69, -121.3, 0.3))]
+
+      const folds = foldPieces([boulder[0], bend[0], boulder[1], bend[1]])
+      // Each park's two pieces become one trail; no piece crosses parks.
+      expect(folds.size).toBe(2)
+      for (const [piece, partOf] of folds) {
+        const sameSide = boulder.some(t => t.id === piece) === boulder.some(t => t.id === partOf)
+        expect(sameSide).toBe(true)
+      }
+    })
+
+    it('a stone\'s throw apart but not touching', () => {
+      nextId = 1
+      // Two "Loop Trail"s in neighbouring parks, ends 2 km apart.
+      const a = trail('Loop Trail', stretch(40.0, -105.0, 1))
+      const b = trail('Loop Trail', stretch(40.0 + 1 / 69 + 0.018, -105.0, 1))
+
+      expect(foldPieces([a, b]).size).toBe(0)
+    })
+
+    it('either side of a border, even where the lines meet', () => {
+      nextId = 1
+      const german = trail('Grenzweg', stretch(47.5, 11.0, 0.5), { country: 'DE' })
+      const austrian = trail('Grenzweg', stretch(47.5 + 0.5 / 69, 11.0, 0.5), { country: 'AT' })
+
+      expect(foldPieces([german, austrian]).size).toBe(0)
+    })
+
+    it('with no line to place them by', () => {
+      nextId = 1
+      expect(foldPieces([trail('Ridge Trail', stretch(40, -105, 1)), trail('Ridge Trail', [])]).size).toBe(0)
+    })
+  })
+
+  it('never folds a row people reviewed or photographed, or one typed in by hand', () => {
+    nextId = 1
+    const whole = trail('Mesa Trail', stretch(40.0, -105.25, 2), { distance: 2, source: 'nps' })
+    const reviewed = trail('Mesa Trail', stretch(40.0 + 2 / 69, -105.25, 0.3), { distance: 0.3, reviewCount: 1 })
+    const photographed = trail('Mesa Trail', stretch(40.0 + 2.3 / 69, -105.25, 0.3), { distance: 0.3, photos: 1 })
+    const manual = trail('Mesa Trail', stretch(40.0 - 0.3 / 69, -105.25, 0.3), { distance: 0.3, source: 'manual' })
+    const plain = trail('Mesa Trail', stretch(40.0 - 0.6 / 69, -105.25, 0.3), { distance: 0.3 })
+
+    const folds = foldPieces([whole, reviewed, photographed, manual, plain])
+    // The pinned rows stay listed beside the park's trail, and the plain
+    // piece folds into the park's trail.
+    expect([...folds.entries()]).toEqual([[plain.id, whole.id]])
+  })
+
+  /*
+   * Near me finds a trail by where it starts. Folding the fourth five-mile
+   * section of a long trail into the first would take the trail off the list
+   * of somebody standing at the fourth.
+   */
+  it(`keeps a long trail's stretches more than ${FOLD_RADIUS_MILES} miles apart, and folds the pieces around them`, () => {
+    nextId = 1
+    const stretches = Array.from({ length: 4 }, (_, i) => trail('Colorado Trail', stretch(39.0 + (i * 5) / 69, -105.5, 5), { distance: 5 }))
+    const stub = trail('Colorado Trail', stretch(39.0 - 0.3 / 69, -105.5, 0.3), { distance: 0.3 })
+
+    const folds = foldPieces([...stretches, stub])
+    expect([...folds.entries()]).toEqual([[stub.id, stretches[0].id]])
+    expect(fragmentClusters([...stretches, stub])[0].members).toHaveLength(5)
+  })
+
+  it('points every piece at a listed row, never at another piece', () => {
+    nextId = 1
+    const pieces = Array.from({ length: 12 }, (_, i) => trail('Connector Trail', stretch(40.0 + (i * 0.3) / 69, -105.0, 0.3), { distance: 0.3 + (i % 3) * 0.01 }))
+
+    const folds = foldPieces(pieces)
+    expect(folds.size).toBeGreaterThan(0)
+    for (const partOf of folds.values()) expect(folds.has(partOf)).toBe(false)
+  })
+
+  it('decides the same whatever order the rows arrive in', () => {
+    nextId = 1
+    const rows = Array.from({ length: 8 }, (_, i) => trail('Ridge Trail', stretch(40.0 + (i * 0.4) / 69, -105.0, 0.4), { distance: 0.4 }))
+
+    const forward = [...foldPieces(rows).entries()].sort()
+    const backward = [...foldPieces([...rows].reverse()).entries()].sort()
+    expect(backward).toEqual(forward)
+  })
+})
+
+/*
+ * Before clustering, rows are split into the sets whose endpoints could ever
+ * meet, so a common name is not compared with itself across a whole country.
+ * That is only safe if it never changes the answer: checked here against
+ * `clusterRuns` comparing every row, on a name as common as "Waldweg".
+ */
+describe('a common name', () => {
+  it('clusters exactly as comparing every row does', () => {
+    nextId = 1
+    let seed = 7
+    const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    const rows: FragmentCandidate[] = []
+    for (let chain = 0; chain < 40; chain++) {
+      // Chains scattered over a few kilometres, so some pass close by others.
+      let lat = 47.4 + random() * 0.08
+      let lng = 11.0 + random() * 0.08
+      for (let piece = 0; piece < 1 + Math.floor(random() * 5); piece++) {
+        const next = { lat: lat + (random() - 0.5) * 0.006, lng: lng + (random() - 0.5) * 0.006 }
+        rows.push(trail('Waldweg', [{ lat, lng }, next], { country: 'DE', distance: 0.3 }))
+        lat = next.lat
+        lng = next.lng
+      }
+    }
+
+    const sets = (clusters: number[][]) => clusters.map(ids => [...ids].sort((a, b) => a - b).join(',')).sort()
+    const everyRow = clusterRuns(rows.map(member => ({ run: member.geometry, member })))
+      .filter(cluster => cluster.members.length > 1)
+      .map(cluster => cluster.members.map(member => member.id))
+    const split = fragmentClusters(rows).map(cluster => cluster.members.map(member => member.id))
+
+    expect(everyRow.length).toBeGreaterThan(5)
+    expect(sets(split)).toEqual(sets(everyRow))
   })
 })

@@ -136,7 +136,7 @@ export function pathsToSegments(paths: number[][][] | undefined): Coordinate[][]
  * apart than `ROUTE_SNAP_METERS` stays a separate part of the route (see
  * resources/functions/trail-geometry.ts).
  */
-const MAX_JOIN_GAP_METERS = 1000
+export const MAX_JOIN_GAP_METERS = 1000
 
 export interface RunCluster<T> {
   /** Where the historical chained route started; orders clusters, and so `#n` ids. */
