@@ -19,6 +19,7 @@
 import type { NormalizedTrail, TrailSource } from './types'
 import { db } from '@stacksjs/orm'
 import { getSource, sources } from './sources'
+import { foldWrittenNames } from '../Support/trailFolding'
 import { isSettled, locateTrail } from '../Support/trailLocationRepair'
 import { inWriteTransaction } from '../Support/writeTransaction'
 
@@ -444,6 +445,13 @@ export async function writeTrails(trails: NormalizedTrail[]): Promise<{ imported
         imported++
     }
   }
+
+  // Decide which of these rows are pieces of another trail (#1002), now
+  // rather than on the next nightly pass: a re-sync rewrites rows, and a new
+  // shard can bring the other half of a trail already here. Once per shard,
+  // after every batch is in, so a name split across batches is decided once
+  // and whole; after the writes, so its reads hold no lock.
+  await foldWrittenNames(trails.map(trail => trail.name))
 
   return { imported, updated }
 }

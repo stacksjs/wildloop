@@ -124,6 +124,37 @@ export default function () {
     .withoutOverlapping(120)
     .onOneServer()
     .withName('wildloop-trail-locations')
+
+  /*
+   * Way fragments folded into the trails they are pieces of, a slice a night
+   * (#1002).
+   *
+   * The catalog is OpenStreetMap ways, so one trail is often several rows:
+   * 35% of 8,368 production rows around Los Angeles, Boulder and Garmisch are
+   * a same-named piece of a row they join. This records them in
+   * `trail_parts`, which the catalog, search and the sitemap leave out.
+   *
+   * It walks the names shared by more than one row, carrying on from where
+   * the last night stopped (`trail_fold_progress`) and starting again from
+   * the first name when it reaches the last, so it never finishes for good:
+   * the ingest folds what it writes, and each pass puts right whatever that
+   * missed. The slice is in names. On a laptop, a 600,000-row copy built from
+   * production rows — pessimistic, since every name in it is 72 times
+   * commoner than in production — took 24s for its first whole pass, 5,069
+   * names writing 212,124 pieces, and 2.4s per 2,000 names once there was
+   * nothing left to change. Allow the box several times that and 25,000
+   * names is a few minutes a night.
+   *
+   * 10:40 UTC, an hour after the location slice and still the small hours
+   * across the US (03:40 Pacific). Both rebuild the place suggestions at the
+   * end, and an hour keeps the two rebuilds from overlapping.
+   */
+  schedule.command('./buddy trails:fold-fragments --limit 25000')
+    .at('10:40')
+    .setTimeZone('UTC')
+    .withoutOverlapping(60)
+    .onOneServer()
+    .withName('wildloop-trail-fragments')
 }
 
 process.on('SIGINT', () => {

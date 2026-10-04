@@ -48,6 +48,10 @@ export default {
     file: 'RepairTrailLocations',
     enabled: true,
   },
+  'trails:fold-fragments': {
+    file: 'FoldTrailFragments',
+    enabled: true,
+  },
   'trails:requeue': {
     file: 'RequeueTrailShards',
     enabled: true,
