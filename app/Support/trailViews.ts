@@ -60,6 +60,9 @@ export const DAILY_VIEW_CAP = 500
 /** Days of views ranking reads. */
 export const RANKED_VIEW_DAYS = 30
 
+/** Days of views kept at all. Ranking reads 30, the rest is for looking back. */
+export const KEPT_VIEW_DAYS = 120
+
 export type ViewVerdict =
   | { counted: true }
   | { counted: false, reason: 'bot' | 'prefetch' | 'cross-site' | 'repeat' }
@@ -236,4 +239,52 @@ export async function countTrailView(trailId: number, day: string = viewDay(), s
   catch (error) {
     log.warn(`[trails] could not count a view of trail ${trailId}: ${error instanceof Error ? error.message : error}`)
   }
+}
+
+export interface PruneReport {
+  removed: number
+  /** True when the night stopped at its batch limit with old rows left. */
+  more: boolean
+}
+
+/**
+ * Remove view days older than anything is kept for, a batch at a time.
+ *
+ * Bounded so the nightly run takes the write lock in short turns and stops
+ * after `maxBatches`; whatever is left goes the next night. Keyed on the day
+ * index, so each batch reads only what it removes.
+ */
+export async function pruneTrailViews(
+  options: { keepDays?: number, batch?: number, maxBatches?: number, at?: Date } = {},
+  sql: SqlTag = ormSql,
+): Promise<PruneReport> {
+  const whole = (value: number | undefined, fallback: number) => Math.max(1, Math.floor(Number(value) || fallback))
+  const before = firstViewDay(whole(options.keepDays, KEPT_VIEW_DAYS), options.at)
+  const batch = whole(options.batch, 5000)
+  const maxBatches = whole(options.maxBatches, 50)
+
+  // Counted before each delete rather than read off the delete, whose result
+  // says nothing about how many rows it touched.
+  const oldDays = async (): Promise<number> => {
+    const [row] = await sql`
+      SELECT COUNT(*) AS n FROM (SELECT 1 FROM trail_view_days WHERE day < ${before} LIMIT ${batch})
+    `
+    return Number(row?.n) || 0
+  }
+
+  let removed = 0
+  for (let round = 0; round < maxBatches; round++) {
+    const found = await oldDays()
+    if (found === 0)
+      return { removed, more: false }
+    await sql`
+      DELETE FROM trail_view_days
+      WHERE (trail_id, day) IN (
+        SELECT trail_id, day FROM trail_view_days WHERE day < ${before} LIMIT ${batch}
+      )
+    `
+    removed += found
+  }
+
+  return { removed, more: await oldDays() > 0 }
 }

@@ -48,6 +48,10 @@ export default {
     file: 'RequeueTrailShards',
     enabled: true,
   },
+  'trails:prune-views': {
+    file: 'PruneTrailViews',
+    enabled: true,
+  },
   'territory:ranks': {
     file: 'ComputeTerritoryRanks',
     enabled: true,

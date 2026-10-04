@@ -9,6 +9,7 @@ import {
   isLikelyBot,
   isPrefetch,
   judgeView,
+  pruneTrailViews,
   RecentViews,
   viewDay,
 } from '../../app/Support/trailViews'
@@ -218,5 +219,31 @@ describe('the daily count', () => {
       throw new Error('database is locked')
     }
     await expect(countTrailView(1, '2026-10-04', broken)).resolves.toBeUndefined()
+  })
+
+  it('prunes days past the window, a bounded batch at a time', async () => {
+    const db = viewsDatabase()
+    const at = new Date('2026-10-04T04:40:00Z')
+    const insert = db.query('INSERT INTO trail_view_days (trail_id, day, views) VALUES (?, ?, 3)')
+    for (let daysAgo = 0; daysAgo < 200; daysAgo++) {
+      insert.run(1, viewDay(new Date(at.getTime() - daysAgo * 86_400_000)))
+      insert.run(2, viewDay(new Date(at.getTime() - daysAgo * 86_400_000)))
+    }
+
+    // 80 days on each of two trails are past 120 days: 160 rows. Two
+    // batches of 50 is not enough, and says so.
+    const first = await pruneTrailViews({ keepDays: 120, batch: 50, maxBatches: 2, at }, sqlite(db))
+    expect(first).toEqual({ removed: 100, more: true })
+
+    const rest = await pruneTrailViews({ keepDays: 120, batch: 50, maxBatches: 10, at }, sqlite(db))
+    expect(rest).toEqual({ removed: 60, more: false })
+
+    const left = db.query('SELECT COUNT(*) AS n, MIN(day) AS oldest FROM trail_view_days').get() as { n: number, oldest: string }
+    expect(left).toEqual({ n: 240, oldest: firstViewDay(120, at) })
+
+    // Nothing left to do costs one count.
+    const sql = sqlite(db)
+    expect(await pruneTrailViews({ keepDays: 120, at }, sql)).toEqual({ removed: 0, more: false })
+    expect(sql.statements).toBe(1)
   })
 })

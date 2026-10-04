@@ -36,6 +36,15 @@ export default function () {
     .onOneServer()
     .withName('wildloop-counter-repair')
 
+  // Trail page views older than ranking or anybody reads (trailViews.ts).
+  // Bounded per night, so a backlog drains over several.
+  schedule.command('./buddy trails:prune-views')
+    .at('04:40')
+    .setTimeZone('UTC')
+    .withoutOverlapping(30)
+    .onOneServer()
+    .withName('wildloop-trail-view-prune')
+
   /*
    * Elevation gain for the catalog, a slice a night (#1003).
    *
