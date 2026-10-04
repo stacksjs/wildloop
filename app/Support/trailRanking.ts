@@ -43,6 +43,9 @@ export const RANK_COLUMNS = [
   'national_trail',
   'latitude',
   'longitude',
+  // Read by `tasteFit` only.
+  'difficulty',
+  'route_type',
 ] as const
 
 export interface RankableTrail {
@@ -56,6 +59,8 @@ export interface RankableTrail {
   national_trail?: unknown
   latitude?: number | null
   longitude?: number | null
+  difficulty?: string | null
+  route_type?: string | null
 }
 
 /** What Wildloop's own athletes have done with a trail. */
@@ -79,8 +84,10 @@ export interface Origin {
  * - `rating`: reviews first, best match after that.
  * - `nearest`: closest first, whatever it is — with fragments and junk still
  *   kept out of the way, since "closest" never means "closest unnamed spur".
+ * - `recommended`: best match, weighted toward the kind of trail somebody
+ *   already likes (`tasteFit`). Without a taste to go on it is best match.
  */
-export type RankMode = 'best' | 'popular' | 'rating' | 'nearest'
+export type RankMode = 'best' | 'popular' | 'rating' | 'nearest' | 'recommended'
 
 export interface RankedTrail<T extends RankableTrail = RankableTrail> {
   trail: T
@@ -293,6 +300,82 @@ export function trailAppeal(trail: RankableTrail, activity?: TrailActivity): num
 }
 
 /**
+ * The kind of trail somebody likes, from the trails they saved or did.
+ *
+ * Deliberately small: how long, how hard, and whether they come back to where
+ * they started. Those three are what a trail app's "you may like" is mostly
+ * made of, they are on every catalog row, and they can be read off a handful
+ * of trails without pretending to know more than that.
+ */
+export interface TasteProfile {
+  /** How many trails the profile was read from. */
+  basis: number
+  /** Median length, miles. */
+  medianMiles: number
+  /** Share of each grade, 0–1. */
+  difficulty: Record<string, number>
+  /** Share of loops among the trails whose route type is known, or null. */
+  loopShare: number | null
+}
+
+/** Fewer trails than this say too little about a taste to steer by it. */
+const MIN_TASTE_BASIS = 2
+
+export function tasteProfile(trails: Pick<RankableTrail, 'distance' | 'difficulty' | 'route_type'>[]): TasteProfile | null {
+  const lengths = trails
+    .map(trail => Number(trail.distance))
+    .filter(miles => Number.isFinite(miles) && miles > 0)
+    .sort((a, b) => a - b)
+
+  if (lengths.length < MIN_TASTE_BASIS)
+    return null
+
+  const middle = Math.floor(lengths.length / 2)
+  const medianMiles = lengths.length % 2 ? lengths[middle] : (lengths[middle - 1] + lengths[middle]) / 2
+
+  const difficulty: Record<string, number> = {}
+  const graded = trails.filter(trail => trail.difficulty)
+  for (const trail of graded)
+    difficulty[String(trail.difficulty)] = (difficulty[String(trail.difficulty)] ?? 0) + 1 / graded.length
+
+  const routed = trails.filter(trail => trail.route_type)
+  const loopShare = routed.length > 0
+    ? routed.filter(trail => trail.route_type === 'loop').length / routed.length
+    : null
+
+  return { basis: lengths.length, medianMiles, difficulty, loopShare }
+}
+
+/**
+ * How well a trail suits a taste, as a multiplier around 1.
+ *
+ * Length is compared in ratios, not miles: 3 miles against a taste for 6 is
+ * as far off as 12 is. Grades nobody has done yet are discounted, never
+ * excluded — the first moderate hike is how somebody stops only doing easy
+ * ones. Every factor is bounded, so a taste steers the list without being
+ * able to empty it of the trails that are simply better.
+ */
+export function tasteFit(trail: RankableTrail, taste: TasteProfile | null): number {
+  if (!taste)
+    return 1
+
+  const miles = Number(trail.distance)
+  // 1 at the median, about 0.6 at double or half, never below 0.35.
+  const lengthFit = Number.isFinite(miles) && miles > 0
+    ? Math.max(0.35, Math.exp(-(Math.log(miles / taste.medianMiles) ** 2) / (2 * 0.6 ** 2)))
+    : 0.5
+
+  const grade = String(trail.difficulty ?? '')
+  const gradeFit = 0.6 + 0.8 * (taste.difficulty[grade] ?? 0)
+
+  const loopFit = taste.loopShare === null || !trail.route_type
+    ? 1
+    : trail.route_type === 'loop' ? 0.85 + 0.3 * taste.loopShare : 1.15 - 0.3 * taste.loopShare
+
+  return lengthFit * gradeFit * loopFit
+}
+
+/**
  * The name two rows must share to be the same trail.
  *
  * A parenthetical is a note about the trail, not its name: "Eagle Rock Fire
@@ -336,6 +419,7 @@ export function rankTrails<T extends RankableTrail>(
   radiusMiles: number,
   mode: RankMode = 'best',
   activity: Map<number, TrailActivity> = new Map(),
+  taste: TasteProfile | null = null,
 ): RankedTrail<T>[] {
   const candidates: (RankedTrail<T> & { appeal: number })[] = []
 
@@ -363,6 +447,9 @@ export function rankTrails<T extends RankableTrail>(
         break
       case 'rating':
         score = (Number(trail.review_count) > 0 ? ratingAppeal(trail.rating, trail.review_count) * 1000 : 0) + appeal * near
+        break
+      case 'recommended':
+        score = appeal * near * tasteFit(trail, taste)
         break
       default:
         score = appeal * near

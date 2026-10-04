@@ -1,7 +1,11 @@
+// Auth is imported explicitly: it is not in the API server bundle's
+// auto-imports (see EventIndexAction).
+import { Auth } from '@stacksjs/auth'
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { trailEngagement } from '../../Support/trailEngagement'
+import { athleteTaste } from '../../Support/trailTaste'
 import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
 import type { RankMode } from '../../Support/trailRanking'
 import { difficultyIsEstimated } from '../../../resources/functions/trail-difficulty'
@@ -9,7 +13,7 @@ import { difficultyIsEstimated } from '../../../resources/functions/trail-diffic
 const DIFFICULTIES = new Set(['easy', 'moderate', 'hard'])
 const ROUTE_TYPES = new Set(['loop', 'out-and-back', 'point-to-point', 'network'])
 const SOURCES = new Set(['osm', 'usfs', 'nps', 'manual'])
-const SORTS = new Set(['featured', 'popular', 'nearest', 'distance', 'longest', 'rating', 'name'])
+const SORTS = new Set(['featured', 'recommended', 'popular', 'nearest', 'distance', 'longest', 'rating', 'name'])
 
 /** Degrees of latitude per mile. Longitude is narrowed by cos(lat) at use. */
 const DEGREES_PER_MILE = 1 / 69
@@ -67,7 +71,7 @@ export default new Action({
       // give the UI an honest "N trails match" without fetching all of them.
       const rankMode = origin ? rankModeFor(request) : null
 
-      const fetchPage = async (skipInferredCountry: boolean, radius?: number): Promise<{ rows: any[], total: number }> => {
+      const fetchPage = async (skipInferredCountry: boolean, radius?: number): Promise<{ rows: any[], total: number, personalized?: boolean }> => {
         if (origin && rankMode)
           return fetchRankedPage(request, origin, radius ?? requestedRadius(request), rankMode, page)
 
@@ -79,7 +83,7 @@ export default new Action({
         return { rows, total }
       }
 
-      let { rows, total } = await fetchPage(false)
+      let { rows, total, personalized } = await fetchPage(false)
       let radius = origin ? requestedRadius(request) : null
       // What the answer was actually scoped to. The page shows this as the
       // selected country chip: a list filtered to the US while "Everywhere"
@@ -104,6 +108,7 @@ export default new Action({
           radius = wider
           rows = attempt.rows
           total = attempt.total
+          personalized = attempt.personalized
           if (total >= MIN_NEARBY_RESULTS)
             break
         }
@@ -166,6 +171,10 @@ export default new Action({
           // Present only for a "near me" query, and only ever the radius the
           // answer was actually computed at.
           ...(radius !== null ? { radius } : {}),
+          // Present only for "you may like": whether the list was steered by
+          // what this athlete saved and did, or is best match because there
+          // is nothing to steer by yet. The page names the shelf from it.
+          ...(personalized !== undefined ? { personalized } : {}),
         },
       })
     }
@@ -199,6 +208,8 @@ function rankModeFor(request: { get: (key: string) => any }): RankMode | null {
       return 'rating'
     case 'nearest':
       return 'nearest'
+    case 'recommended':
+      return 'recommended'
     default:
       return null
   }
@@ -218,8 +229,15 @@ async function fetchRankedPage(
   radius: number,
   mode: RankMode,
   page: { limit: number, offset: number },
-): Promise<{ rows: any[], total: number }> {
-  const candidates = await applyFilters(Trail.query(), request, false, radius)
+): Promise<{ rows: any[], total: number, personalized?: boolean }> {
+  // "You may like" is for the signed-in athlete's next trail: steered by the
+  // kind they already like, and without the ones they already know. Anybody
+  // else, or anybody with nothing saved or done yet, gets best match.
+  const taste = mode === 'recommended'
+    ? await athleteTaste((await Auth.user().catch(() => null))?.id)
+    : null
+
+  const found = await applyFilters(Trail.query(), request, false, radius)
     .select(...RANK_COLUMNS)
     // Only decides anything when the box holds more than the cap: then the
     // rows scored are the day hikes and the rated ones.
@@ -228,9 +246,10 @@ async function fetchRankedPage(
     .orderBy('id', 'asc')
     .limit(RANK_CANDIDATE_CAP)
     .get() as any[]
+  const candidates = taste?.known.size ? found.filter(row => !taste.known.has(Number(row.id))) : found
 
   const engagement = await trailEngagement(candidates.map(row => Number(row.id)))
-  const ranked = rankTrails(candidates, origin, radius, mode, engagement)
+  const ranked = rankTrails(candidates, origin, radius, mode, engagement, taste?.profile ?? null)
 
   const ids = ranked.slice(page.offset, page.offset + page.limit).map(entry => Number(entry.trail.id))
   const full = ids.length > 0 ? ((await Trail.whereIn('id', ids).get()) ?? []) as any[] : []
@@ -239,11 +258,11 @@ async function fetchRankedPage(
 
   // At the cap the ranked length is a floor, not a count; the box's own
   // count is the honest upper figure.
-  const total = candidates.length >= RANK_CANDIDATE_CAP
+  const total = found.length >= RANK_CANDIDATE_CAP
     ? await applyFilters(Trail.query(), request, false, radius).count()
     : ranked.length
 
-  return { rows, total }
+  return { rows, total, ...(mode === 'recommended' ? { personalized: Boolean(taste?.profile) } : {}) }
 }
 
 /**

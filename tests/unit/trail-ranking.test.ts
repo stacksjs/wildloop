@@ -8,6 +8,8 @@ import {
   rankTrails,
   ratingAppeal,
   sameTrailKey,
+  tasteFit,
+  tasteProfile,
 } from '../../app/Support/trailRanking'
 
 /**
@@ -210,5 +212,57 @@ describe('one trail, one row', () => {
     const here = trail('Red Trail', 34.06, -118.5)
     const there = trail('Red Trail', 34.2, -118.2)
     expect(rankTrails([here, there], SANTA_MONICA, 25)).toHaveLength(2)
+  })
+})
+
+describe('trails you may like', () => {
+  // Somebody who does 5- to 7-mile moderate loops.
+  const done = [
+    { distance: 5.2, difficulty: 'moderate', route_type: 'loop' },
+    { distance: 6.1, difficulty: 'moderate', route_type: 'loop' },
+    { distance: 7.0, difficulty: 'hard', route_type: 'loop' },
+    { distance: 5.8, difficulty: 'moderate', route_type: 'out-and-back' },
+  ]
+
+  it('reads a taste from a few trails, and refuses to from one', () => {
+    const taste = tasteProfile(done)
+    expect(taste?.medianMiles).toBeCloseTo(5.95)
+    expect(taste?.difficulty.moderate).toBeCloseTo(0.75)
+    expect(taste?.loopShare).toBeCloseTo(0.75)
+    expect(tasteProfile(done.slice(0, 1))).toBeNull()
+    expect(tasteProfile([])).toBeNull()
+  })
+
+  it('fits the kind of trail somebody already does', () => {
+    const taste = tasteProfile(done)
+    const like = { id: 1, distance: 6, difficulty: 'moderate', route_type: 'loop' }
+    const shortEasy = { id: 2, distance: 1.2, difficulty: 'easy', route_type: 'out-and-back' }
+    expect(tasteFit(like, taste)).toBeGreaterThan(1)
+    expect(tasteFit(shortEasy, taste)).toBeLessThan(0.5)
+  })
+
+  it('discounts the unfamiliar without ruling it out', () => {
+    const taste = tasteProfile(done)
+    const easy = tasteFit({ id: 1, distance: 6, difficulty: 'easy', route_type: 'loop' }, taste)
+    expect(easy).toBeGreaterThan(0)
+    expect(easy).toBeLessThan(tasteFit({ id: 2, distance: 6, difficulty: 'moderate', route_type: 'loop' }, taste))
+  })
+
+  it('is best match for somebody with no taste yet', () => {
+    expect(tasteFit({ id: 1, distance: 1, difficulty: 'easy' }, null)).toBe(1)
+    const a = trail('Hastain Trail', 34.06, -118.5, { distance: 1.2, difficulty: 'easy' })
+    const b = trail('Temescal Ridge Trail', 34.06, -118.5, { distance: 5.4, difficulty: 'moderate' })
+    expect(rankTrails([a, b], SANTA_MONICA, 25, 'recommended').map(r => r.trail.id))
+      .toEqual(rankTrails([a, b], SANTA_MONICA, 25, 'best').map(r => r.trail.id))
+  })
+
+  it('steers the list toward that taste', () => {
+    const taste = tasteProfile(done)
+    // Best match prefers the short canyon walk; somebody who does six-mile
+    // moderate loops is shown the ridge first.
+    const canyon = trail('Rustic Canyon Trail', 34.06, -118.5, { distance: 2.5, difficulty: 'easy', route_type: 'out-and-back' })
+    const ridge = trail('Garapito Ridge Loop', 34.08, -118.55, { distance: 6.3, difficulty: 'moderate', route_type: 'loop', source: 'osm', location: 'California' })
+    expect(rankTrails([canyon, ridge], SANTA_MONICA, 25, 'best')[0].trail).toBe(canyon)
+    expect(rankTrails([canyon, ridge], SANTA_MONICA, 25, 'recommended', new Map(), taste)[0].trail).toBe(ridge)
   })
 })

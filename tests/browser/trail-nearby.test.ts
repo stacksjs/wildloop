@@ -11,7 +11,7 @@
  * 300 miles from every other seed, so no other suite's trails can reach in.
  */
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { API, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
+import { API, APP, csrfToken, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
 
 // These boot the isolated QA app, so the ordinary `bun test` run skips them.
 // CI runs them in the browser job, where the servers belong: RECORDING_QA=1.
@@ -95,5 +95,69 @@ describe.skipIf(!qa)('trails near me', () => {
     expect(names(longest)[0]).toBe('Walker Ranch Loop')
     // Unranked, so the catalog's rows come back as rows.
     expect(names(longest).filter(name => name === 'Royal Arch Trail')).toHaveLength(2)
+  })
+})
+
+/** Send a JSON body with the CSRF double-submit the API asks for. */
+async function send(path: string, method: string, body?: unknown, token?: string): Promise<Response> {
+  const csrf = await csrfToken(API)
+  return await fetch(`${API}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Origin': APP,
+      'X-CSRF-Token': csrf,
+      'Cookie': `X-CSRF-Token=${encodeURIComponent(csrf)}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+/*
+ * Last in the file on purpose: saving a trail is a popularity signal, and the
+ * ranking assertions above are about the catalog before anybody has.
+ */
+describe.skipIf(!qa)('trails you may like', () => {
+  it('is best match, and says so, for somebody signed out', async () => {
+    const forYou = await trails(`${HOME}&sort=recommended&limit=10`)
+    const best = await trails(`${HOME}&limit=10`)
+
+    expect(forYou.meta.personalized).toBe(false)
+    expect(names(forYou)).toEqual(names(best))
+    // Nothing to say on any other list.
+    expect(best.meta.personalized).toBeUndefined()
+  })
+
+  it('leaves out what the athlete knows, and says it was steered', async () => {
+    const account = {
+      name: 'Nearby QA',
+      email: `nearby-${crypto.randomUUID()}@example.test`,
+      password: `Local-QA-${crypto.randomUUID()}`,
+    }
+    expect((await send('/register', 'POST', account)).status).toBe(200)
+    const session = await (await send('/login', 'POST', { email: account.email, password: account.password })).json()
+    const bearer = session.token
+
+    const near = await trails(`${HOME}&limit=10`)
+    const id = (name: string) => near.trails.find((t: any) => t.name === name).id
+    const walked = [id('Walker Ranch Loop'), id('Mesa Trail')]
+    expect((await send(`/trails/${walked[0]}/save`, 'PUT', {}, bearer)).status).toBe(200)
+    expect((await send(`/trails/${walked[1]}/done`, 'PUT', {}, bearer)).status).toBe(200)
+
+    try {
+      const response = await fetch(`${API}/trails?${HOME}&sort=recommended&limit=10`, { headers: { Authorization: `Bearer ${bearer}` } })
+      expect(response.status).toBe(200)
+      const forYou = await response.json()
+
+      expect(forYou.meta.personalized).toBe(true)
+      expect(names(forYou)).not.toContain('Walker Ranch Loop')
+      expect(names(forYou)).not.toContain('Mesa Trail')
+      expect(names(forYou)[0]).toBe('Royal Arch Trail')
+    }
+    finally {
+      await send(`/trails/${walked[0]}/save`, 'DELETE', undefined, bearer)
+      await send(`/trails/${walked[1]}/done`, 'DELETE', undefined, bearer)
+    }
   })
 })
