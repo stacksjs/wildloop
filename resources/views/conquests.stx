@@ -32,15 +32,58 @@
   const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
   const currentUserId = derived(() => wl?.currentUserId())
 
+  // The battle feed is everyone's; this page is the player's own record. "All"
+  // used to list every battle in the game under "Your conquests", each
+  // labelled as though the player had been on one side of it.
+  const mine = derived(() => {
+    if (!wl) return []
+    const uid = wl.currentUserId()
+    if (!uid) return []
+    return wl.conquests().filter((c: any) => c.attacker_id === uid || c.defender_id === uid)
+  })
+
   const filtered = derived(() => {
     if (!wl) return []
     const f = filter()
     const uid = wl.currentUserId()
-    if (f === 'all') return wl.conquests()
-    if (f === 'attacks') return wl.conquests().filter((c: any) => c.attacker_id === uid)
-    if (f === 'defenses') return wl.conquests().filter((c: any) => c.defender_id === uid)
-    return wl.conquests().filter((c: any) => c.defender_id === uid && c.status === 'conquered')
+    if (f === 'all') return mine()
+    if (f === 'attacks') return mine().filter((c: any) => c.attacker_id === uid)
+    if (f === 'defenses') return mine().filter((c: any) => c.defender_id === uid)
+    return mine().filter((c: any) => c.defender_id === uid && c.status === 'conquered')
   })
+
+  /*
+   * What happened, from the player's side. Every attack used to read "You
+   * conquered", including one that only contested the land and one the owner
+   * ran off; every defence read "attacked", including the ones that were lost.
+   */
+  function isMyAttack(conquest: any): boolean {
+    return !!wl && conquest.attacker_id === wl.currentUserId()
+  }
+
+  function battleLine(conquest: any): string {
+    if (isMyAttack(conquest)) {
+      if (conquest.status === 'conquered') return 'You took ground from ' + conquest.defenderName + ' at'
+      if (conquest.status === 'active') return 'You are contesting'
+      return conquest.defenderName + ' held you off at'
+    }
+    if (conquest.status === 'conquered') return conquest.attackerName + ' took ground from you at'
+    if (conquest.status === 'active') return conquest.attackerName + ' is attacking'
+    return 'You held off ' + conquest.attackerName + ' at'
+  }
+
+  function battleBadge(conquest: any): string {
+    if (isMyAttack(conquest))
+      return conquest.status === 'conquered' ? 'Conquered' : conquest.status === 'active' ? 'Contesting' : 'Repelled'
+    return conquest.status === 'conquered' ? 'Lost' : conquest.status === 'active' ? 'Under attack' : 'Defended'
+  }
+
+  /** Green when the player came out ahead, red when they did not, orange while it is open. */
+  function battleTone(conquest: any): string {
+    const won = isMyAttack(conquest) ? conquest.status === 'conquered' : conquest.status === 'defended'
+    if (conquest.status === 'active') return 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300'
+    return won ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'
+  }
 
   function photoOf(avatar: string | null | undefined): string {
     return avatarUrl(avatar ?? null)
@@ -110,11 +153,11 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div class="mb-1 flex flex-wrap items-center gap-2">
-                  <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" x-class="conquest.attacker_id === currentUserId ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : conquest.status === 'defended' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'">{{ conquest.attacker_id === currentUserId ? 'Attack' : conquest.status === 'defended' ? 'Defended' : 'Conquered' }}</span>
+                  <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" x-class="battleTone(conquest)">{{ battleBadge(conquest) }}</span>
                   <span class="text-xs text-slate-500 dark:text-slate-400">{{ wl.timeAgo(conquest.created_at) }}</span>
                 </div>
                 <p class="font-semibold leading-snug text-slate-900 dark:text-white">
-                  <span>{{ conquest.attacker_id === currentUserId ? 'You conquered' : conquest.attackerName + ' attacked' }}</span>
+                  <span>{{ battleLine(conquest) }}</span>
                   <StxLink x-to="'/territory/' + conquest.territory_id" class="text-emerald-700 hover:underline dark:text-emerald-400">{{ ' ' + conquest.territoryName }}</StxLink>
                 </p>
                 <p :if="conquest.description" class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ conquest.description }}</p>
@@ -127,8 +170,8 @@
           <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
             <Icon name="flame" size="30" class="text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">No conquests yet</h3>
-          <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Find a territory on the map and run through it.</p>
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ signedIn ? 'No battles yet' : 'Sign in to see your battles' }}</h3>
+          <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Run a closed loop to claim ground of your own, or run straight across someone else's territory to take part of it.</p>
           <StxLink to="/territories" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Find territories</StxLink>
         </div>
       </div>
