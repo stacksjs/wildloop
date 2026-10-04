@@ -135,7 +135,7 @@
   import { parsePhotoList, trailGallery, type GalleryContribution } from '../../functions/trail-photos'
   import { difficultyLabel, difficultyTallyText } from '../../functions/review-form'
   import { requireAuth } from '../../composables/useAuthGate'
-  import { fetchCompletedTrails, fetchTrailSegments, setTrailDone } from '../../assets/scripts/game-api'
+  import { fetchCompletedTrails, fetchTrailSegments, recordTrailView, setTrailDone } from '../../assets/scripts/game-api'
   import { isSignedIn } from '../../assets/scripts/auth'
   import { completedLabel } from '../../functions/my-trails'
   import { activeDanger, conditionReports } from '../../functions/trail-conditions'
@@ -697,6 +697,8 @@
       loadingTrail.set(false)
     }
     void loadTrail()
+    // One view toward the trail's popularity, once per visit to the page.
+    recordTrailView(trailId())
     void loadDone()
     void loadCommunityPhotos()
     void isTrailOffline(trailId()).then(value => downloaded.set(value))

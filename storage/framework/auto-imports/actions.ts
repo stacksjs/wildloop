@@ -116,6 +116,7 @@ export const actions = {
   'Actions/Trail/TrailReviewersAction': '../../../app/Actions/Trail/TrailReviewersAction.ts',
   'Actions/Trail/TrailShowAction': '../../../app/Actions/Trail/TrailShowAction.ts',
   'Actions/Trail/TrailStatsAction': '../../../app/Actions/Trail/TrailStatsAction.ts',
+  'Actions/Trail/TrailViewStoreAction': '../../../app/Actions/Trail/TrailViewStoreAction.ts',
   'Actions/TrailPhoto/TrailPhotoDestroyAction': '../../../app/Actions/TrailPhoto/TrailPhotoDestroyAction.ts',
   'Actions/TrailPhoto/TrailPhotoFileAction': '../../../app/Actions/TrailPhoto/TrailPhotoFileAction.ts',
   'Actions/TrailPhoto/TrailPhotoIndexAction': '../../../app/Actions/TrailPhoto/TrailPhotoIndexAction.ts',

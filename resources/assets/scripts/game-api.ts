@@ -575,6 +575,18 @@ export async function fetchTrailSegments(trailId: number): Promise<TrailSegment[
 }
 
 /**
+ * Say this trail page was opened: one view toward the trail's popularity
+ * (app/Support/trailViews.ts). Sent without the session or any cookie, so
+ * the count never learns who looked. Nothing waits on it and a failure costs
+ * one view; `keepalive` lets it land when somebody leaves straight away.
+ */
+export function recordTrailView(trailId: number): void {
+  if (!Number.isInteger(trailId) || trailId <= 0)
+    return
+  void fetch(`/api/trails/${trailId}/view`, { method: 'POST', credentials: 'omit', keepalive: true }).catch(() => {})
+}
+
+/**
  * Upload one photo to a trail. The server re-encodes it, which drops its GPS
  * position, and answers with the stored photo's id and URLs.
  */

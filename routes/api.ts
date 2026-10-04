@@ -423,6 +423,13 @@ route.get('/trails/stats', 'Actions/Trail/TrailStatsAction')
 // other fixed segments, before `/trails/{id}`, so it is not read as an id.
 route.get('/trails/reviewers', 'Actions/Trail/TrailReviewersAction')
 route.get('/trails/{id}', 'Actions/Trail/TrailShowAction')
+// The trail page saying it was looked at: popularity for ranking, counted
+// once per visitor and never per person (app/Support/trailViews.ts). Public,
+// since most people reading a trail are signed out. Nobody opens 120 trail
+// pages a minute.
+route.group({ middleware: 'throttle:120,1' }, () => {
+  route.post('/trails/{id}/view', 'Actions/Trail/TrailViewStoreAction')
+})
 route.get('/trails/{id}/reviews', 'Actions/Trail/TrailReviewIndexAction')
 route.get('/trails/{id}/segments', 'Actions/Segment/SegmentIndexAction')
 route.post('/segments', 'Actions/Segment/SegmentStoreAction')
