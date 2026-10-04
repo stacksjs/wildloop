@@ -201,3 +201,24 @@ export function integrityFlagsJson(
 
   return flags.length > 0 ? JSON.stringify(flags) : null
 }
+
+/**
+ * The integrity verdict, for the athlete who recorded the activity and
+ * nobody else.
+ *
+ * A refused track is saved to the athlete's log, and the log has to say why it
+ * did not count — otherwise a run missing from the board reads as a bug. That
+ * is a judgement about the athlete's recording, though, and not for a feed to
+ * show anybody else.
+ */
+export function ownIntegrity(
+  activity: { user_id?: unknown, integrity_status?: unknown, integrity_reason?: unknown },
+  viewerId: number | null,
+): { integrityStatus?: string, integrityReason?: string | null } {
+  if (viewerId === null || Number(activity.user_id) !== Number(viewerId))
+    return {}
+  return {
+    integrityStatus: typeof activity.integrity_status === 'string' ? activity.integrity_status : 'unverified',
+    integrityReason: typeof activity.integrity_reason === 'string' ? activity.integrity_reason : null,
+  }
+}

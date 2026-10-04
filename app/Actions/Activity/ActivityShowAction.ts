@@ -11,6 +11,7 @@ import { db } from '@stacksjs/orm'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
 import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { avatarOf } from '../../Support/avatars'
+import { ownIntegrity } from '../../Support/activityIntegrityCheck'
 import { parseTrackSamples } from '../../../resources/functions/activity-integrity'
 import { elevationProfile } from '../../../resources/functions/elevation-profile'
 import { estimateCalories } from '../../../resources/functions/calories'
@@ -135,6 +136,7 @@ export default new Action({
           visibility: a.visibility ?? 'public',
           completedAt: a.completed_at,
           createdAt: a.created_at,
+          ...ownIntegrity(a, viewerId),
           route,
           comments,
           photos,

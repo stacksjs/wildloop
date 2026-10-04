@@ -14,6 +14,7 @@ import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { avatarOf } from '../../Support/avatars'
+import { ownIntegrity } from '../../Support/activityIntegrityCheck'
 import { estimateCalories } from '../../../resources/functions/calories'
 
 function parseSplits(raw: string | null): Array<{ mile: number, pace: string, elev: number }> {
@@ -230,6 +231,7 @@ export default new Action({
           visibility: a.visibility ?? 'public',
           completedAt: a.completed_at,
           createdAt: a.created_at,
+          ...ownIntegrity(a, viewerId),
           photo: firstPhoto.has(a.id)
             ? toActivityPhotoPayload(firstPhoto.get(a.id), viewerId === null ? null : Number(viewerId))
             : null,

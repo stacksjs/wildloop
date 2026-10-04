@@ -906,12 +906,20 @@ export async function persistRunAndProcess(
   }
 }
 
-/** Explain a completed recording without treating an integrity exclusion as a failed save. */
+/**
+ * Explain a completed recording without treating an integrity exclusion as a
+ * failed save.
+ *
+ * That includes a track the server refused on physics — a car's speed, a
+ * clock running backwards. It is saved to the athlete's log all the same, so
+ * the message says so first: it used to come back as a 422, and the athlete
+ * was told their run was not accepted when only its score was.
+ */
 export function runSaveMessage(result: RunResult): string {
   if (!result.activityId)
     return result.error || 'Activity could not be saved'
   if (result.captureIneligible)
-    return `Activity saved, but territory capture did not count: ${result.integrityReason || 'Route telemetry was not eligible'}`
+    return `Saved to your log, but it can't capture territory: ${result.integrityReason || 'Route telemetry was not eligible'}`
   const refusal = claimRefusal(result)
   return refusal ? `Activity saved. ${refusal}` : 'Activity saved'
 }

@@ -201,6 +201,13 @@
    * route and the photos when the page opens.
    */
   const activityProfile = state<{ points: Array<{ mi: number, ft: number }>, minFt: number, maxFt: number, miles: number } | null>(null)
+  /**
+   * Why this run does not count, when the integrity checks refused its
+   * track. The detail endpoint sends it to the athlete who recorded it and
+   * nobody else: the run is in their log, and without this a run missing
+   * from every board reads as a bug.
+   */
+  const refusedReason = state<string | null>(null)
 
   /*
    * Drawing a segment out of this run (#959).
@@ -497,6 +504,8 @@
       photos.set(detail.photos)
     else if (activity()?.comments)
       comments.set(activity().comments)
+    if (detail && detail.integrityStatus === 'rejected')
+      refusedReason.set(detail.integrityReason || 'The GPS track failed the integrity checks')
     // The API is authoritative for GPS-lock + notes (persisted store copies
     // from before #954 don't carry them).
     if (detail && wl && typeof detail.hasGps === 'boolean')
@@ -730,6 +739,10 @@
            and printing it again underneath reads as a rendering bug. -->
       <p :if="activity.notes && !editing && activity.notes.trim() !== activity.title" class="mt-3 max-w-[65ch] text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ activity.notes }}</p>
       <p :if="editorError && !editing" class="mt-2 text-sm text-red-500">{{ editorError }}</p>
+      <p :if="refusedReason" role="status" class="mt-3 flex max-w-[65ch] items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+        <i class="i-lucide-shield-alert mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>
+        <span>In your log, but it can't capture territory or count on leaderboards: {{ refusedReason }}</span>
+      </p>
 
       <!-- Owner edit panel (#954) -->
       <div :if="editing" class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-3">

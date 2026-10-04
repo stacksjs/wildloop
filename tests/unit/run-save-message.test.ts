@@ -11,7 +11,15 @@ describe('run save feedback', () => {
       activityId: 42,
       captureIneligible: true,
       integrityReason: 'GPS accuracy was too low for territory capture',
-    })).toBe('Activity saved, but territory capture did not count: GPS accuracy was too low for territory capture')
+    })).toBe('Saved to your log, but it can\'t capture territory: GPS accuracy was too low for territory capture')
+  })
+
+  it('says a track refused on physics is in the log, and why it does not count', () => {
+    expect(runSaveMessage({
+      activityId: 42,
+      captureIneligible: true,
+      integrityReason: 'Track contains an implausible trail run speed',
+    })).toBe('Saved to your log, but it can\'t capture territory: Track contains an implausible trail run speed')
   })
 
   it('says why a capture run drew no territory', () => {
