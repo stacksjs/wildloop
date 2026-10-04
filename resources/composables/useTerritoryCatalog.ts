@@ -3,8 +3,9 @@ import { apiFetch } from '../assets/scripts/auth'
 
 /**
  * Hydrate the `wl` store's territories from the live API
- * (`GET /api/territories/map`), mirroring useTrailCatalog for trails. Falls back
- * silently to seed data when the API is empty/unreachable.
+ * (`GET /api/territories/map`), mirroring useTrailCatalog for trails. The store
+ * starts empty: an empty answer is shown as one, and an unreachable API sets
+ * `territoryError` rather than leaving demo land on the map.
  */
 
 interface TerritoryStoreLike {
@@ -72,6 +73,7 @@ export async function loadTerritories(
       throw new Error(`Territories API returned ${res.status}`)
     const payload = await res.json()
     const features: MapFeature[] = Array.isArray(payload?.features) ? payload.features : []
+    territoryError.set(null)
 
     // An empty answer is an answer. This used to `return false` here, which
     // left the store's built-in demo territories on screen — so a player with

@@ -256,28 +256,6 @@
     { id: 16, user_id: 4, userName: 'Emily Rodriguez', trail_id: 12, trail_name: 'Wildflower Meadow Trail', title: 'Flower Power Ride', activityType: 'Bike', distance: 11.6, duration: '48:30', moving_time: '45:00', pace: '15.5 mph', elevation_gain: 1100, calories: 580, heartRateAvg: 140, heartRateMax: 168, cadence: 85, splits: [], kudos_count: 17, comments: [], created_at: ago(7, 3) },
   ]
 
-  const seedTerritories: Territory[] = [
-    { id: 1, name: 'Cascade Ridge Zone', user_id: 1, areaSize: 45000, conquestCount: 3, defendCount: 5, totalRunners: 12, status: 'active', claimedAt: ago(14), lat: 37.74, lng: -119.56 },
-    { id: 2, name: 'Riverside Flats', user_id: 2, areaSize: 28000, conquestCount: 1, defendCount: 2, totalRunners: 8, status: 'active', claimedAt: ago(21), lat: 35.65, lng: -83.51 },
-    { id: 3, name: 'Desert Crown', user_id: 3, areaSize: 72000, conquestCount: 6, defendCount: 8, totalRunners: 22, status: 'contested', claimedAt: ago(7), lat: 33.87, lng: -115.90 },
-    { id: 4, name: 'Redwood Sanctuary', user_id: 1, areaSize: 35000, conquestCount: 2, defendCount: 4, totalRunners: 15, status: 'active', claimedAt: ago(30), lat: 37.90, lng: -122.58 },
-    { id: 5, name: 'Thunder Mesa', user_id: 5, areaSize: 58000, conquestCount: 9, defendCount: 3, totalRunners: 28, status: 'contested', claimedAt: ago(3), lat: 34.87, lng: -111.76 },
-    { id: 6, name: 'Bluff Runner\'s Edge', user_id: 3, areaSize: 41000, conquestCount: 4, defendCount: 6, totalRunners: 18, status: 'active', claimedAt: ago(10), lat: 36.27, lng: -121.81 },
-    { id: 7, name: 'Pine Valley North', user_id: 4, areaSize: 22000, conquestCount: 1, defendCount: 1, totalRunners: 6, status: 'active', claimedAt: ago(28), lat: 32.94, lng: -116.56 },
-    { id: 8, name: 'Summit Kingdom', user_id: 5, areaSize: 95000, conquestCount: 12, defendCount: 7, totalRunners: 35, status: 'contested', claimedAt: ago(5), lat: 40.34, lng: -105.68 },
-    { id: 9, name: 'Lakeshore Domain', user_id: 6, areaSize: 31000, conquestCount: 2, defendCount: 3, totalRunners: 10, status: 'active', claimedAt: ago(18), lat: 48.53, lng: -113.98 },
-    { id: 10, name: 'Meadow Empire', user_id: 1, areaSize: 48000, conquestCount: 5, defendCount: 6, totalRunners: 20, status: 'active', claimedAt: ago(12), lat: 46.79, lng: -121.74 },
-  ]
-
-  const seedChallenges: Challenge[] = [
-    { id: 1, challenger_id: 1, challengerName: 'You', challenged_id: 3, challengedName: 'Marcus Johnson', territory_id: 3, territoryName: 'Desert Crown', status: 'active', areaAtStake: 72000, deadline: new Date(now + 3 * 86400000).toISOString(), created_at: ago(1) },
-    { id: 2, challenger_id: 5, challengerName: 'Jake Thompson', challenged_id: 1, challengedName: 'You', territory_id: 1, territoryName: 'Cascade Ridge Zone', status: 'pending', areaAtStake: 45000, deadline: new Date(now + 5 * 86400000).toISOString(), created_at: ago(0, 6) },
-    { id: 3, challenger_id: 3, challengerName: 'Marcus Johnson', challenged_id: 5, challengedName: 'Jake Thompson', territory_id: 5, territoryName: 'Thunder Mesa', status: 'active', areaAtStake: 58000, deadline: new Date(now + 2 * 86400000).toISOString(), created_at: ago(2) },
-    { id: 4, challenger_id: 1, challengerName: 'You', challenged_id: 6, challengedName: 'Aisha Patel', territory_id: 9, territoryName: 'Lakeshore Domain', status: 'completed', winner_id: 1, areaAtStake: 31000, deadline: ago(2), created_at: ago(8) },
-    { id: 5, challenger_id: 2, challengerName: 'Sarah Chen', challenged_id: 1, challengedName: 'You', territory_id: 4, territoryName: 'Redwood Sanctuary', status: 'completed', winner_id: 1, areaAtStake: 35000, deadline: ago(5), created_at: ago(12) },
-    { id: 6, challenger_id: 7, challengerName: 'Ryan O\'Brien', challenged_id: 3, challengedName: 'Marcus Johnson', territory_id: 6, territoryName: 'Bluff Runner\'s Edge', status: 'completed', winner_id: 3, areaAtStake: 41000, deadline: ago(8), created_at: ago(15) },
-  ]
-
   const seedReviews: Review[] = [
     { id: 1, trail_id: 3, user_id: 1, userName: 'You', rating: 5, text: 'Absolutely stunning! The waterfall was roaring.', conditions: 'Wet but manageable', created_at: ago(0, 3) },
     { id: 2, trail_id: 3, user_id: 2, userName: 'Sarah Chen', rating: 5, text: 'Magical place. Go early to beat the crowds.', conditions: 'Perfect', created_at: ago(5) },
@@ -372,21 +350,6 @@
     uniqueRivalsBeaten: 4,
   }
 
-  // GPS route polylines and territory polygons for Leaflet
-
-  const territoryPolygons: Record<number, [number, number][]> = {
-    1: [[37.735,-119.570],[37.740,-119.558],[37.745,-119.555],[37.748,-119.562],[37.746,-119.572],[37.742,-119.578],[37.738,-119.576],[37.735,-119.570]],
-    2: [[35.645,-83.515],[35.650,-83.505],[35.655,-83.500],[35.660,-83.505],[35.658,-83.515],[35.652,-83.520],[35.645,-83.515]],
-    3: [[33.868,-115.910],[33.875,-115.900],[33.882,-115.895],[33.885,-115.902],[33.882,-115.912],[33.876,-115.916],[33.870,-115.914],[33.868,-115.910]],
-    4: [[37.892,-122.588],[37.898,-122.578],[37.903,-122.575],[37.905,-122.582],[37.902,-122.590],[37.897,-122.592],[37.892,-122.588]],
-    5: [[34.864,-111.768],[34.870,-111.758],[34.878,-111.754],[34.882,-111.760],[34.880,-111.770],[34.874,-111.775],[34.868,-111.772],[34.864,-111.768]],
-    6: [[36.265,-121.815],[36.272,-121.805],[36.278,-121.800],[36.282,-121.808],[36.280,-121.816],[36.274,-121.820],[36.268,-121.818],[36.265,-121.815]],
-    7: [[32.930,-116.565],[32.935,-116.558],[32.940,-116.555],[32.942,-116.562],[32.940,-116.570],[32.935,-116.572],[32.930,-116.565]],
-    8: [[40.338,-105.692],[40.345,-105.682],[40.352,-105.678],[40.355,-105.685],[40.352,-105.695],[40.346,-105.698],[40.340,-105.696],[40.338,-105.692]],
-    9: [[48.524,-113.982],[48.530,-113.972],[48.536,-113.968],[48.538,-113.975],[48.536,-113.984],[48.530,-113.988],[48.524,-113.982]],
-    10: [[46.780,-121.742],[46.788,-121.732],[46.794,-121.728],[46.796,-121.735],[46.794,-121.744],[46.788,-121.748],[46.782,-121.746],[46.780,-121.742]],
-  }
-
   // ===== Store =====
   // defineStore is idempotent - returns existing store on re-navigation
   const wlStore = defineStore('wl', {
@@ -422,12 +385,20 @@
        */
       apiTrailIds: [] as number[],
       activities: seedActivities,
-      territories: seedTerritories,
+      // Only the API fills these. The demo territories that seeded them sat
+      // under ids 1-10, which are real territory ids, and stayed on screen
+      // whenever the map loaded late or not at all: the record screen offered
+      // "Cascade Ridge Zone" as a target, sent its id to the server as the
+      // focus of a run, and a detail page showed Yosemite under a real
+      // territory's URL.
+      territories: [] as Territory[],
       // Battles come only from /api/territories/battles. The demo list that
       // used to seed this had three "active" battles in it, so the feed said
       // turf was being taken right now whether or not anything was.
       conquests: [] as Conquest[],
-      challenges: seedChallenges,
+      // Only the API fills this, for the same reason: a player with no
+      // challenges was shown six between demo athletes, some naming them.
+      challenges: [] as Challenge[],
       reviews: seedReviews,
       // Club discovery is backed by /api/clubs. Starting empty prevents SSR
       // from emitting links to demo-only ids before live hydration completes.
@@ -451,7 +422,7 @@
        * be a straight line across whatever lies between them.
        */
       trailRouteParts: {} as Record<number, [number, number][][]>,
-      territoryPolygons,
+      territoryPolygons: {} as Record<number, [number, number][]>,
       /** GPS samples inside enemy polygons this session (territory id → count). */
       captureSamples: {} as Record<number, number>,
       sessionXp: 0,
@@ -727,8 +698,8 @@
       },
       /** Replace challenges with live API data (#965). */
       hydrateChallenges(list: Challenge[]) {
-        if (list.length)
-          this.challenges = list
+        // An empty answer is an answer: no challenges.
+        this.challenges = list
       },
       /** Insert or replace a challenge (create/respond outcome, #965). */
       upsertChallenge(challenge: Challenge) {
@@ -821,8 +792,8 @@
         return this.conquests.filter((c: Conquest) => c.status === 'active')
       },
       /**
-       * Interval-game capture: each GPS hit inside enemy polygon adds progress.
-       * Returns 0-100; at 100 the caller should invoke conquerTerritory.
+       * Live capture meter: each GPS hit inside an enemy polygon adds progress.
+       * Returns 0-100. Visual only: the server decides every battle.
        */
       applyCaptureSample(territoryId: number, samplesNeeded = 10): number {
         const prev = this.captureSamples[territoryId] ?? 0
@@ -833,72 +804,6 @@
       resetCaptureSamples(): void {
         this.captureSamples = {}
         this.sessionXp = 0
-      },
-      conquerTerritory(territoryId: number, runDistance: number): boolean {
-        const territory = this.territories.find((t: Territory) => t.id === territoryId)
-        if (!territory || territory.user_id === this.currentUserId)
-          return false
-
-        const attacker = this.users.find((u: User) => u.id === this.currentUserId)
-        const defender = this.users.find((u: User) => u.id === territory.user_id)
-        if (!attacker)
-          return false
-
-        const prevOwner = defender?.name ?? 'Unknown'
-        this.territories = this.territories.map((t: Territory) => t.id === territoryId
-          ? { ...t, user_id: this.currentUserId, conquestCount: t.conquestCount + 1, status: 'active', claimedAt: new Date().toISOString() }
-          : t)
-
-        const nextId = Math.max(0, ...this.conquests.map((c: Conquest) => c.id)) + 1
-        this.conquests = [{
-          id: nextId,
-          territory_id: territoryId,
-          territoryName: territory.name,
-          attacker_id: attacker.id,
-          attackerName: attacker.name,
-          defender_id: defender?.id ?? 0,
-          defenderName: prevOwner,
-          status: 'conquered',
-          areaCaptured: territory.areaSize,
-          runDistance,
-          description: `Captured ${territory.name} after a ${runDistance.toFixed(1)} mi run through enemy turf.`,
-          created_at: new Date().toISOString(),
-        }, ...this.conquests]
-
-        const stats = this.conquestStats
-        if (stats.user_id === this.currentUserId) {
-          const totalConquests = stats.totalConquests + 1
-          this.conquestStats = {
-            ...stats,
-            totalConquests,
-            totalAreaConquered: stats.totalAreaConquered + territory.areaSize,
-            powerRating: stats.powerRating + 75,
-            winRate: Math.min(100, Math.round((totalConquests / (totalConquests + stats.territoriesLost + 1)) * 100)),
-          }
-        }
-
-        // Achievement progress is engine-owned (#982): the backend evaluates
-        // unlocks after claim/conquest and the profile re-hydrates from
-        // /api/users/{id}/achievements - no client-side bookkeeping here.
-
-        const nextN = Math.max(0, ...this.notifications.map((n: Notification) => n.id)) + 1
-        this.notifications = [{
-          id: nextN,
-          type: 'conquest_win',
-          title: 'Territory Captured!',
-          message: `You took ${territory.name} from ${prevOwner}`,
-          link: `/territory/${territoryId}`,
-          read: false,
-          created_at: new Date().toISOString(),
-        }, ...this.notifications]
-
-        const { [territoryId]: _removed, ...rest } = this.captureSamples
-        this.captureSamples = rest
-        return true
-      },
-      addSessionXp(amount: number): number {
-        this.sessionXp += amount
-        return this.sessionXp
       },
     },
 
@@ -914,7 +819,9 @@
     // already orphans every snapshot written under the old name. The shape is
     // unchanged, so the suffix stays at v4 and the key drops the now-redundant
     // store-id segment rather than reading `wildloop-wl-`.
-    persist: { key: 'wildloop-v5' },
+    //          v6 - no demo territories, polygons or challenges; a snapshot
+    //               would otherwise keep showing them as real.
+    persist: { key: 'wildloop-v6' },
   })
 </script>
 

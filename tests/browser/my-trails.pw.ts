@@ -14,7 +14,7 @@ import { expect, test, type Page } from '@playwright/test'
  */
 
 const origin = 'http://127.0.0.1:4322'
-const STORE_KEY = 'wildloop-v5'
+const STORE_KEY = 'wildloop-v6'
 
 async function signUp(page: Page) {
   const password = `Local-QA-${crypto.randomUUID()}`

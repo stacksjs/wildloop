@@ -187,6 +187,7 @@ describe('wl store actions replace state instead of mutating it', () => {
   })
 
   it('upsertChallenge, for a known challenge', () => {
+    wl.hydrateChallenges([{ id: 77, challenger_id: 1, challengerName: 'A', challenged_id: 2, challengedName: 'B', territory_id: 5, territoryName: 'Zone', status: 'pending', areaAtStake: 5000, deadline: new Date().toISOString(), created_at: new Date().toISOString() }])
     const known = wl.challenges()[0]
     expectReplaced(['challenges'], () => wl.upsertChallenge({ ...known, title: 'Renamed challenge' }))
     expect(wl.challenges()[0].title).toBe('Renamed challenge')
@@ -210,18 +211,19 @@ describe('wl store actions replace state instead of mutating it', () => {
     expect(wl.notifications()[0].read).toBe(true)
   })
 
-  it('conquerTerritory', () => {
-    const me = wl.currentUserId()
-    const target = wl.territories().find((t: { user_id: number }) => t.user_id !== me)
-    const stats = wl.conquestStats()
-    expect(stats.user_id).toBe(me)
+  it('starts with no demo territories or challenges', () => {
+    // Demo land under real territory ids was shown, and targeted, as real.
+    bootStore()
+    expect(wl.territories()).toEqual([])
+    expect(wl.territoryPolygons()).toEqual({})
+    expect(wl.challenges()).toEqual([])
+  })
 
-    expectReplaced(['territories', 'conquests', 'conquestStats', 'notifications'], () => {
-      expect(wl.conquerTerritory(target.id, 3.2)).toBe(true)
-    })
-    expect(wl.territories().find((t: { id: number }) => t.id === target.id)).toMatchObject({ user_id: me, conquestCount: target.conquestCount + 1 })
-    expect(wl.conquests()[0].territory_id).toBe(target.id)
-    expect(wl.conquestStats().totalConquests).toBe(stats.totalConquests + 1)
-    expect(wl.notifications()[0].type).toBe('conquest_win')
+  it('hydrateTerritoriesFromApi', () => {
+    const territory = { id: 31, name: 'Griffith Loop', user_id: 7, areaSize: 42_000, conquestCount: 0, defendCount: 0, totalRunners: 0, status: 'active', claimedAt: new Date().toISOString(), lat: 34.13, lng: -118.3 }
+    expectReplaced(['territories', 'territoryPolygons', 'users'], () =>
+      wl.hydrateTerritoriesFromApi([territory], { 31: [[34.13, -118.3], [34.131, -118.3], [34.131, -118.299]] }, [{ id: 7, name: 'Owner', email: '', avatar: null, joinedAt: '' }]))
+    expect(wl.findTerritory(31)?.name).toBe('Griffith Loop')
+    expect(wl.findUser(7)?.name).toBe('Owner')
   })
 })

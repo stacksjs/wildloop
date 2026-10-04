@@ -75,8 +75,6 @@ interface TrailStore {
   findTrail: (id: number) => Trail | undefined
   applyCaptureSample: (id: number, samplesNeeded?: number) => number
   resetCaptureSamples: () => void
-  conquerTerritory: (id: number, distance: number) => boolean
-  addSessionXp: (amount: number) => number
   addActivity: (activity: Record<string, unknown>) => void
   hydrateTerritoriesFromApi: (
     territories: unknown[],
@@ -1017,6 +1015,11 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       refs.mapHandle = await createTrailMap(mapElId, { scrollWheelZoom: true })
       if (!refs.mapHandle) return
       refs.map = refs.mapHandle.map
+
+      // The store starts with no territories, and the app-wide load may not
+      // have answered yet: draw what the server holds, not an empty board.
+      if (!store.territories().length)
+        await loadTerritories(store)
 
       const uid = store.currentUserId()
       const polys = store.territoryPolygons()

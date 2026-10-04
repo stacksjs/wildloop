@@ -208,6 +208,10 @@ export function useTerritoryExplorer(wl: TerritoryStore | null) {
       }
     }
 
+    // The store starts with no territories, and the app-wide load may not have
+    // answered yet; drawing before it did left the map empty until a pan.
+    if (!wl.territories().length)
+      await loadTerritories(wl)
     await drawTerritories(true)
 
     const routes = wl.trailRoutes()
