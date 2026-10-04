@@ -19,6 +19,7 @@
 import type { NormalizedTrail, TrailSource } from './types'
 import { db } from '@stacksjs/orm'
 import { getSource, sources } from './sources'
+import { isSettled, locateTrail } from '../Support/trailLocationRepair'
 import { inWriteTransaction } from '../Support/writeTransaction'
 
 /** Rows per upsert statement. Large enough to amortise, small enough for SQLite's parameter cap. */
@@ -48,6 +49,7 @@ const RESYNC_AFTER_MS = 30 * 24 * 3600 * 1000
 const MERGE_COLUMNS = [
   'name',
   'location',
+  'location_checked_at',
   'description',
   'distance',
   'elevation',
@@ -357,6 +359,13 @@ export async function writeTrails(trails: NormalizedTrail[]): Promise<{ imported
 
     const ids = batch.map(trail => `'${trail.sourceId.replace(/'/g, '\'\'')}'`).join(',')
 
+    // Name each trail after its park or nearest town where its source gave
+    // only the region — every OSM trail. Before the transaction, so the
+    // lookups do not hold the write lock. A location written here is
+    // stamped as asked, and a re-sync asks again, so a trail whose line
+    // moved is renamed with it.
+    const located = await locateTrails(batch)
+
     // Read, retract, upsert and re-add as one transaction. Apart, an FTS
     // 'rebuild' from another process (TrailSeeder does one) could commit
     // between the retract and the re-add: it re-indexes the old terms the
@@ -384,7 +393,8 @@ export async function writeTrails(trails: NormalizedTrail[]): Promise<{ imported
         synced_at: now,
 
         name: trail.name,
-        location: trail.location,
+        location: located.get(trail.sourceId)?.location ?? trail.location,
+        location_checked_at: located.get(trail.sourceId)?.checkedAt ?? null,
         description: trail.description,
 
         latitude: trail.latitude,
@@ -436,6 +446,33 @@ export async function writeTrails(trails: NormalizedTrail[]): Promise<{ imported
   }
 
   return { imported, updated }
+}
+
+/**
+ * The location each trail should be written with, and whether that answer
+ * settles the question (see `trails:repair-locations`).
+ *
+ * Never throws: a trail named "California" for another month is a far better
+ * outcome than a shard that fails over a place name.
+ */
+async function locateTrails(trails: NormalizedTrail[]): Promise<Map<string, { location: string, checkedAt: string | null }>> {
+  const located = new Map<string, { location: string, checkedAt: string | null }>()
+  const now = new Date().toISOString()
+
+  for (const trail of trails) {
+    try {
+      const outcome = await locateTrail(trail)
+      located.set(trail.sourceId, {
+        location: outcome.status === 'better' ? outcome.decision.location : trail.location,
+        checkedAt: isSettled(outcome) ? now : null,
+      })
+    }
+    catch (error) {
+      console.warn(`[ingest] naming ${trail.sourceId} failed: ${error instanceof Error ? error.message : error}`)
+    }
+  }
+
+  return located
 }
 
 /**

@@ -427,6 +427,24 @@ export default defineModel({
       factory: () => null,
     },
 
+    /**
+     * When the trail was last asked for a better place name than its region.
+     *
+     * OpenStreetMap records no place for a trail, so most of the catalog read
+     * "California". The ingest and `trails:repair-locations` name a trail
+     * after its park or nearest town, and some have neither near enough;
+     * this separates "asked, and nothing better" from "never asked", so the
+     * backfill finishes instead of asking those again every night.
+     */
+    locationCheckedAt: {
+      order: 35,
+      fillable: true,
+      validation: {
+        rule: schema.string(),
+      },
+      factory: () => null,
+    },
+
     /** Comma-separated normalized uses: hiking, running, bike, horse, ski, atv, motorcycle. */
     allowedUses: {
       order: 30,
