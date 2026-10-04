@@ -154,7 +154,7 @@
               <Icon name="trophy" size="18" class="text-amber-500" />
               Territory leaders
             </h3>
-            <span class="text-xs text-slate-400">by area</span>
+            <span class="text-xs text-slate-400">on this map</span>
           </div>
           <ol class="space-y-1">
             <template :for="entry in rankedLeaderboard">
@@ -169,7 +169,7 @@
             </template>
           </ol>
           <div :if="rankedLeaderboard().length === 0" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            No territory leaders yet. Claim a zone to get on the board.
+            Nobody holds land on this part of the map yet. Run a closed loop here to lead it.
           </div>
         </section>
       </aside>

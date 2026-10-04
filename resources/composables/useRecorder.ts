@@ -29,7 +29,9 @@ import {
 } from '../functions/splits'
 import { type DistanceAnchor, emptyAnchor, step as stepDistance } from '../functions/recording-distance'
 import { type ElevationAnchor, emptyElevation, stepElevation } from '../functions/recording-elevation'
-import { loadTerritories } from './useTerritoryCatalog'
+import { loadTerritories, type TerritoryViewport } from './useTerritoryCatalog'
+import { resolveNearby } from './useNearby'
+import { mapBoundsAround } from '../functions/map-area'
 import { loadActivityVisibilityDefault } from '../assets/scripts/privacy-defaults'
 import {
   isRecordingCheckpointStale,
@@ -93,6 +95,10 @@ const ENEMY = '#f59e0b'
 const CAPTURING = '#a855f7'
 const SIM_ROUTE = '#0ea5e9'
 const CAPTURE_SAMPLES_NEEDED = 10
+/** How far around the athlete to load territories, in kilometres. */
+const NEARBY_LOAD_KM = 15
+/** Margin around a finished run when reloading the land it changed. */
+const RUN_PADDING_DEG = 0.02
 
 function fmtDuration(secs: number): string {
   const h = Math.floor(secs / 3600)
@@ -367,16 +373,6 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       weight: targetTerritoryId() === territoryId ? 4 : 2,
       dashArray: progress > 0 && progress < 100 ? '6 4' : undefined,
     })
-  }
-
-  // Repaint existing territory layers to match current store ownership (after a
-  // backend re-hydration). New/split territories appear on the next full map
-  // load (the territories page); here we reflect ownership flips of what's drawn.
-  function repaintTerritories() {
-    if (!wl) return
-    const uid = wl.currentUserId()
-    for (const t of wl.territories())
-      paintTerritory(t.id, t.user_id === uid)
   }
 
   function recordingSnapshot() {
@@ -686,6 +682,8 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
         refs.startedAtMs = Date.now()
         addRoutePoint(startLat, startLng, startAltM, accuracy)
         refs.map!.setView([startLat, startLng], 17)
+        // The map was loaded around a guess; this is where the run is.
+        void refreshTerritories(mapBoundsAround({ lat: startLat, lng: startLng }, NEARBY_LOAD_KM))
         startTicker()
         void keepAwake.enable().catch(() => undefined)
         void startNativeLiveActivity()
@@ -767,10 +765,20 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
         if (refs.toastTimer) clearTimeout(refs.toastTimer)
         refs.toastTimer = setTimeout(() => conquestToast.set(null), 3600)
       }
-      // Re-hydrate territories from the backend so the map reflects the real
-      // claim/conquest outcome (single source of truth), then repaint.
-      if ((result.claim && result.claim.success) || (result.conquest && (result.conquest.conqueredCount ?? 0) > 0)) {
-        await loadTerritories(wl).then(repaintTerritories).catch(() => undefined)
+      // Re-hydrate the territories around the run from the backend, so the map
+      // shows the real claim/conquest outcome (single source of truth),
+      // including land that did not exist when it was first drawn.
+      const conquest = result.conquest
+      const changedLand = (result.claim && result.claim.success)
+        || (conquest && ((conquest.conqueredCount ?? 0) > 0 || (conquest.contested?.length ?? 0) > 0 || (conquest.defended?.length ?? 0) > 0))
+      if (changedLand && refs.routeCoords.length) {
+        const route = polygonBounds(refs.routeCoords)
+        await refreshTerritories({
+          minLat: route.minLat - RUN_PADDING_DEG,
+          minLng: route.minLng - RUN_PADDING_DEG,
+          maxLat: route.maxLat + RUN_PADDING_DEG,
+          maxLng: route.maxLng + RUN_PADDING_DEG,
+        })
       }
       if (result.queued) {
         saveStatus.set('queued')
@@ -1008,6 +1016,54 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
     }
   }
 
+  /**
+   * Draw the store's territories, replacing whatever was drawn before.
+   *
+   * Called after every load, because a load replaces the store with the land
+   * around a new place: the first GPS fix, or the run just saved, whose claim
+   * or split did not exist when the map was first drawn.
+   */
+  async function drawTerritoryLayers(): Promise<void> {
+    const store = wl
+    const map = refs.map
+    if (!store || !map) return
+    for (const layer of Object.values(refs.territoryLayers))
+      map.removeLayer(layer)
+    refs.territoryLayers = {}
+    refs.territoryBounds = {}
+
+    const uid = store.currentUserId()
+    const polys = store.territoryPolygons()
+    for (const t of store.territories()) {
+      const poly = polys[t.id]
+      if (!poly) continue
+      const mine = t.user_id === uid
+      const color = mine ? YOURS : ENEMY
+      const layer = await drawTerritoryPolygon(map, poly, {
+        color,
+        fillOpacity: mine ? 0.45 : 0.15,
+        weight: targetTerritoryId() === t.id ? 4 : 2,
+        popupHtml: `<b>${t.name}</b><br>${mine ? 'Your turf' : 'Enemy turf. Run through to capture'}<br>${formatTerritoryArea(t.areaSize)}`,
+        onClick: () => {
+          if (!mine && !recording())
+            targetTerritoryId.set(t.id)
+        },
+      })
+      if (!layer)
+        continue
+
+      refs.territoryLayers[t.id] = layer
+      refs.territoryBounds[t.id] = polygonBounds(poly)
+    }
+  }
+
+  /** Reload and redraw the territories inside a box. */
+  async function refreshTerritories(viewport: TerritoryViewport): Promise<void> {
+    if (!wl) return
+    if (await loadTerritories(wl, viewport).catch(() => false))
+      await drawTerritoryLayers()
+  }
+
   async function initRecordMap() {
     try {
       const store = wl ?? useStore('wl')
@@ -1016,36 +1072,24 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       if (!refs.mapHandle) return
       refs.map = refs.mapHandle.map
 
-      // The store starts with no territories, and the app-wide load may not
-      // have answered yet: draw what the server holds, not an empty board.
-      if (!store.territories().length)
+      /*
+       * The territories around the athlete, not the first few hundred anywhere.
+       *
+       * The store starts empty and the app-wide load is not local, so the
+       * ground around the remembered or edge-guessed location is loaded first.
+       * It never prompts; the first GPS fix of a run reloads around where the
+       * athlete actually is.
+       */
+      const place = await resolveNearby().catch(() => null)
+      if (place)
+        await loadTerritories(store, mapBoundsAround(place, NEARBY_LOAD_KM))
+      else if (!store.territories().length)
         await loadTerritories(store)
+      await drawTerritoryLayers()
 
       const uid = store.currentUserId()
       const polys = store.territoryPolygons()
       const trailBounds: LatLng[] = []
-
-      for (const t of store.territories()) {
-        const poly = polys[t.id]
-        if (!poly) continue
-        const mine = t.user_id === uid
-        const color = mine ? YOURS : ENEMY
-        const layer = await drawTerritoryPolygon(refs.map, poly, {
-          color,
-          fillOpacity: mine ? 0.45 : 0.15,
-          weight: targetTerritoryId() === t.id ? 4 : 2,
-          popupHtml: `<b>${t.name}</b><br>${mine ? 'Your turf' : 'Enemy turf. Run through to capture'}<br>${formatTerritoryArea(t.areaSize)}`,
-          onClick: () => {
-            if (!mine && !recording())
-              targetTerritoryId.set(t.id)
-          },
-        })
-        if (!layer)
-          continue
-
-        refs.territoryLayers[t.id] = layer
-        refs.territoryBounds[t.id] = polygonBounds(poly)
-      }
 
       for (const tr of store.trails()) {
         if (!tr.lat || !tr.lng) continue
@@ -1066,17 +1110,26 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
        * start screen showing nothing anyone could set off from. Holdings are
        * not necessarily near each other either, so fitting all of them is no
        * better than fitting all the trailheads. One territory always frames to
-       * a runnable view: the athlete's biggest, or the biggest in play for
-       * someone who has not claimed any ground yet.
+       * a runnable view: the athlete's biggest nearby. Someone who holds none
+       * there opens on their own neighbourhood, which is where a first loop
+       * will be run, and only without any idea where they are on the biggest
+       * territory in play.
        */
-      const focus = store.territories()
+      const own = store.territories()
+        .filter(t => t.user_id === uid && polys[t.id]?.length)
+        .sort((a, b) => b.areaSize - a.areaSize)[0]
+      const biggest = store.territories()
         .filter(t => polys[t.id]?.length)
-        .sort((a, b) =>
-          Number(b.user_id === uid) - Number(a.user_id === uid)
-          || b.areaSize - a.areaSize)[0]
-      const frame = focus ? polys[focus.id]! : trailBounds
+        .sort((a, b) => b.areaSize - a.areaSize)[0]
+      const around = place ? mapBoundsAround(place, place.source === 'gps' ? 1 : 4) : null
+      const frame: LatLng[] = own
+        ? polys[own.id]!
+        : around
+          ? [[around.minLat, around.minLng], [around.maxLat, around.maxLng]]
+          : biggest ? polys[biggest.id]! : trailBounds
       if (frame.length) refs.mapHandle.fitPoints(frame, [40, 40])
-      else refs.map.setView([37.7749, -122.4194], 5)
+      // Nothing known at all: the whole country, rather than one demo city.
+      else refs.map.setView([39.5, -98.35], 4)
 
       await recoverRecording()
       recoveryReady.set(true)

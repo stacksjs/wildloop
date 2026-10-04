@@ -5,6 +5,8 @@ import {
   territoryAppearance,
   type TerritorySnapshot,
 } from '../functions/territory-style'
+import { mapBoundsAround } from '../functions/map-area'
+import { resolveNearby } from './useNearby'
 import { loadTerritories, type TerritoryViewport } from './useTerritoryCatalog'
 import {
   createTrailMap,
@@ -32,6 +34,11 @@ interface TerritoryStore {
   ) => void
 }
 
+/** How far around the player to load territories before the first draw. */
+const NEARBY_LOAD_KM = 15
+/** How much of that to frame: a neighbourhood, where a claim is a shape. */
+const NEARBY_FRAME_KM = 4
+
 export function useTerritoryExplorer(wl: TerritoryStore | null) {
   let territoryMap: TrailMapHandle | null = null
   let viewportTimer: ReturnType<typeof setTimeout> | null = null
@@ -48,17 +55,27 @@ export function useTerritoryExplorer(wl: TerritoryStore | null) {
     return wl.territories().filter(t => t.status === 'contested')
   })
 
+  /*
+   * Who holds the land on this map, from the territories it has loaded.
+   *
+   * The store holds what the map is showing, so this is the board for the
+   * area in view. It used to start from every user the store knew, demo
+   * athletes included, so a player with no land nearby was shown a top ten
+   * of strangers each holding "0 zones".
+   */
   const leaderboard = derived(() => {
     if (!wl) return []
-    return wl.users().map((u) => {
-      const owned = wl.territories().filter(t => t.user_id === u.id)
-      return {
-        user_id: u.id,
-        userName: u.name,
-        totalTerritoriesOwned: owned.length,
-        totalAreaOwned: owned.reduce((sum, t) => sum + t.areaSize, 0),
-      }
-    }).sort((a, b) => b.totalAreaOwned - a.totalAreaOwned).slice(0, 10)
+    const held = new Map<number, { count: number, area: number }>()
+    for (const t of wl.territories()) {
+      const current = held.get(t.user_id) ?? { count: 0, area: 0 }
+      held.set(t.user_id, { count: current.count + 1, area: current.area + (t.areaSize || 0) })
+    }
+    return [...held.entries()].map(([userId, holding]) => ({
+      user_id: userId,
+      userName: wl.users().find(u => u.id === userId)?.name ?? 'Athlete',
+      totalTerritoriesOwned: holding.count,
+      totalAreaOwned: holding.area,
+    })).sort((a, b) => b.totalAreaOwned - a.totalAreaOwned || a.user_id - b.user_id).slice(0, 10)
   })
 
   const rankedLeaderboard = derived(() =>
@@ -208,9 +225,18 @@ export function useTerritoryExplorer(wl: TerritoryStore | null) {
       }
     }
 
-    // The store starts with no territories, and the app-wide load may not have
-    // answered yet; drawing before it did left the map empty until a pan.
-    if (!wl.territories().length)
+    /*
+     * Start where the player is.
+     *
+     * The store starts with no territories, and the app-wide load asks for the
+     * first few hundred anywhere. For someone in Los Angeles that is a map of
+     * Utah, or of nothing, so the ground around them is loaded first: the
+     * remembered or edge-guessed location, which never prompts.
+     */
+    const place = await resolveNearby().catch(() => null)
+    if (place)
+      await loadTerritories(wl, mapBoundsAround(place, NEARBY_LOAD_KM))
+    else if (!wl.territories().length)
       await loadTerritories(wl)
     await drawTerritories(true)
 
@@ -240,10 +266,16 @@ export function useTerritoryExplorer(wl: TerritoryStore | null) {
      * The trailheads span four time zones, so framing everything on the map put
      * this screen at continental zoom — where a territory a few hundred metres
      * across is a dot, and "your territory map" showed the player none of their
-     * own. Their holdings come first, every territory in view second, and the
-     * trail network only if the game has not started yet.
+     * own. Their holdings come first, then the neighbourhood they are in, then
+     * every territory loaded, and the trail network only if the game has not
+     * started anywhere.
      */
-    const frame = ownBounds.length ? ownBounds : bounds.length ? bounds : trailBounds
+    const nearbyFrame: LatLng[] = []
+    if (place) {
+      const box = mapBoundsAround(place, place.source === 'gps' ? NEARBY_FRAME_KM / 2 : NEARBY_FRAME_KM)
+      nearbyFrame.push([box.minLat, box.minLng], [box.maxLat, box.maxLng])
+    }
+    const frame = ownBounds.length ? ownBounds : nearbyFrame.length ? nearbyFrame : bounds.length ? bounds : trailBounds
     if (frame.length)
       territoryMap.fitPoints(frame, [40, 40])
 
