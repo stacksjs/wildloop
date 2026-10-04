@@ -1,6 +1,7 @@
 import { onMount, state } from 'stx'
 import { createClub, fetchClubs, toggleClubMembership } from '../assets/scripts/game-api'
 import { requireAuth } from './useAuthGate'
+import { indexInSpotlight, removeFromSpotlight, syncSpotlight } from './useSpotlightIndex'
 
 /**
  * Clubs (#964): hydrate the club list from the API, toggle membership
@@ -41,8 +42,17 @@ export function useClubs(wl: ClubStoreLike | null) {
       return
     clubsStarted = true
     const clubs = await fetchClubs()
-    if (clubs)
+    if (clubs) {
       wl.hydrateClubs(clubs)
+
+      // The athlete's own clubs, offered to iOS Spotlight so searching a crew
+      // by name from the home screen opens it. Only the ones they belong to:
+      // the directory is everybody's, and a device index is theirs. A no-op
+      // everywhere but a native build — see useSpotlightIndex.
+      void syncSpotlight('club', clubs
+        .filter(club => isMember(club))
+        .map(club => ({ id: club.id, name: club.name })))
+    }
   })
 
   function isMember(club: any): boolean {
@@ -69,10 +79,19 @@ export function useClubs(wl: ClubStoreLike | null) {
     const nextCount = prevCount + (was ? -1 : 1)
     wl.applyClubMembership(club.id, !was, nextCount) // optimistic
     const res = await toggleClubMembership(club.id)
-    if (res && res.success)
+    if (res && res.success) {
       wl.applyClubMembership(club.id, !!res.joined, res.memberCount ?? nextCount)
-    else
+
+      // Follow the membership on the device too: a club you are in is worth
+      // finding from the home screen, and one you left is not.
+      if (res.joined)
+        void indexInSpotlight('club', { id: club.id, name: club2.name })
+      else
+        void removeFromSpotlight('club', club.id)
+    }
+    else {
       wl.applyClubMembership(club.id, was, prevCount) // rollback to original
+    }
   }
 
   function openCreate() {

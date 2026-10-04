@@ -130,6 +130,7 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { avatarUrl } from '../../functions/avatars'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
+  import { indexInSpotlight } from '../../composables/useSpotlightIndex'
 
   useHead({ title: 'Club - Wildloop' })
 
@@ -302,6 +303,15 @@
       description: `${seoBlurb ? `${seoBlurb} ` : ''}${seoName} is a ${String(seoClub.type ?? 'running').toLowerCase()} club on Wildloop with ${seoMembers}.`.slice(0, 200),
       canonical: `/club/${seoClub.id}`,
     })
+  })
+
+  // Offer the club to iOS Spotlight, so searching the crew's name from the
+  // home screen opens it rather than only finding the app. Donating the same
+  // club twice costs nothing, and off a native host this does nothing at all.
+  effect(() => {
+    const current = club()
+    if (current?.id)
+      void indexInSpotlight('club', { id: Number(current.id), name: current.name })
   })
 </script>
 
