@@ -100,6 +100,8 @@ export { countryLabel, trailBreadcrumbs, trailFaq, exploreNearLinks, ratingSumma
 export type { PageTrail, Crumb, FaqEntry, LinkGroup, RatingSummary } from '../../../resources/functions/trail-page'
 export { parsePhotoList, trailGallery } from '../../../resources/functions/trail-photos'
 export type { GalleryPhoto, GalleryTrail, GalleryReview, GalleryContribution } from '../../../resources/functions/trail-photos'
+export { trailSpotlightAction, trailSpotlightSlot, trailSpotlightActions, trailSpotlightTitle, placeTrail, removeTrail, trailSpotlightRoute, readSpotlightEntries, TRAIL_SPOTLIGHT_SLOTS } from '../../../resources/functions/trail-spotlight'
+export type { TrailSpotlightEntry, SpotlightTrail, TrailPlacement } from '../../../resources/functions/trail-spotlight'
 export { formatTrailTime, parseTrailTime, displayTrailTime } from '../../../resources/functions/trail-time'
 export { durationSeconds, computeTrainingStats } from '../../../resources/functions/training-stats'
 export type { TrainingActivity, TrainingStats } from '../../../resources/functions/training-stats'
