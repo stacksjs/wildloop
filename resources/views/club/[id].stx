@@ -130,7 +130,7 @@
   import { readRouteParam } from '../../composables/useRouteParam'
   import { avatarUrl } from '../../functions/avatars'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
-  import { indexInSpotlight } from '../../composables/useSpotlightIndex'
+  import { indexInSpotlight, removeFromSpotlight } from '../../composables/useSpotlightIndex'
 
   useHead({ title: 'Club - Wildloop' })
 
@@ -305,13 +305,23 @@
     })
   })
 
-  // Offer the club to iOS Spotlight, so searching the crew's name from the
-  // home screen opens it rather than only finding the app. Donating the same
-  // club twice costs nothing, and off a native host this does nothing at all.
+  // Keep the device's search index on whatever this page knows about the
+  // membership, in both directions.
+  //
+  // Gated on being a member rather than on having opened the page, because
+  // joining and leaving re-render this view: an index that followed the visit
+  // would donate a club back the moment somebody left it, with the page still
+  // open and the Leave button still under their thumb. A no-op off a native
+  // host — see useSpotlightIndex.
   effect(() => {
     const current = club()
-    if (current?.id)
+    if (!current?.id)
+      return
+
+    if (current.isMember)
       void indexInSpotlight('club', { id: Number(current.id), name: current.name })
+    else
+      void removeFromSpotlight('club', Number(current.id))
   })
 </script>
 
