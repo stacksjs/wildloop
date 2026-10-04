@@ -100,6 +100,22 @@ for (const [name, latitude, longitude, sourceId] of [
   ['Shevlin Creek Trail', 44.0950, -121.3600, 'qa/shevlin-creek'],
 ] as const)
   viewedTrail.run(name, latitude, longitude, sourceId)
+// One trail drawn as three rows, the way OpenStreetMap delivers most of the
+// catalog: the park's record and two short ways continuing it, sharing its
+// name and its endpoints. Plus the same name in Maine, a different trail that
+// must stay one. On the Blue Ridge Parkway near Asheville, more than 300 miles
+// from every other seed, so no near-me search reaches in or out. The fold
+// below records the two ways as pieces of the park's trail (#1002).
+const pieceTrail = db.query(`INSERT INTO trails
+  (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude, geometry, source, source_id)
+  VALUES ('Craggy Gardens Trail', ?, ?, ?, 'US', ?, 0, 'easy', ?, ?, ?, ?, ?)`)
+for (const [location, state, stateName, distance, line, source, sourceId] of [
+  ['Blue Ridge Parkway, NC', 'NC', 'North Carolina', 1.6, [[35.6990, -82.3800], [35.7100, -82.3800], [35.7220, -82.3800]], 'nps', 'qa/craggy-gardens'],
+  ['North Carolina', 'NC', 'North Carolina', 0.3, [[35.7220, -82.3800], [35.7260, -82.3790]], 'osm', 'qa/craggy-gardens-way-north'],
+  ['North Carolina', 'NC', 'North Carolina', 0.2, [[35.6960, -82.3805], [35.6990, -82.3800]], 'osm', 'qa/craggy-gardens-way-south'],
+  ['Maine', 'ME', 'Maine', 0.5, [[44.3500, -68.2200], [44.3570, -68.2200]], 'osm', 'qa/craggy-gardens-maine'],
+] as const)
+  pieceTrail.run(location, state, stateName, distance, line[0][0], line[0][1], JSON.stringify(line), source, sourceId)
 // One record of each kind the detail pages render, in a public and a withheld
 // variant, so the suite can assert both halves of each page's server block:
 // that a public record reaches the HTML, and that a private one does not.
@@ -180,6 +196,12 @@ for (const [name, distance, latitude, longitude, sourceId, priority] of [
 // text search on the QA stack matched nothing.
 db.run(`INSERT INTO trails_fts(trails_fts) VALUES ('rebuild')`)
 db.close()
+// Fold way fragments with the nightly command itself, so the suite sees what
+// production would after a pass (tests/browser/trail-fragments.test.ts). Only
+// the Craggy Gardens rows carry a line, so nothing else is touched. It writes
+// trail_parts and the place suggestions, never the search index above.
+const fold = Bun.spawn(['./buddy', 'trails:fold-fragments'], { env, stdout: 'inherit', stderr: 'inherit' })
+if (await fold.exited !== 0) throw new Error('Folding the QA way fragments failed')
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).
 // localhost avoids the dashboard's custom-domain certificate/proxy setup.

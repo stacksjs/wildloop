@@ -6,6 +6,7 @@ import { visitorCountry } from '../../Helpers/visitorCountry'
 import { listGeometry } from '../../Support/listGeometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { trailEngagement } from '../../Support/trailEngagement'
+import { NOT_FOLDED_SQL } from '../../Support/trailFragments'
 import { athleteTaste } from '../../Support/trailTaste'
 import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
 import type { RankMode } from '../../Support/trailRanking'
@@ -83,7 +84,7 @@ export default new Action({
           .limit(page.limit)
           .offset(page.offset)
           .get()
-        const total = await applyFilters(Trail.query(), request, skipInferredCountry, radius).count()
+        const total = await countListed(request, skipInferredCountry, radius)
         return { rows, total }
       }
 
@@ -323,6 +324,64 @@ export function resolveCountry(
 }
 
 /**
+ * Request parameters that never narrow which trails match: paging, the order,
+ * and the country itself.
+ */
+const UNNARROWING_PARAMS = new Set(['country', 'sort', 'limit', 'offset', 'page', 'perPage', 'per_page'])
+
+/**
+ * Whether a request asks for the catalog by country and nothing else.
+ *
+ * Read from the query string rather than from the filters below, and as an
+ * allow-list: any parameter not known to leave the matches alone — including
+ * one a later filter adds — takes the general count, which is always right.
+ */
+function filtersByCountryOnly(request: { get: (key: string) => any, url?: string }): boolean {
+  if (!request.url)
+    return false
+  try {
+    for (const [key, value] of new URL(String(request.url), 'http://localhost').searchParams) {
+      if (value.trim() !== '' && !UNNARROWING_PARAMS.has(key))
+        return false
+    }
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+/**
+ * How many trails a list holds, for its "N trails" and its paging.
+ *
+ * The catalog opens on the whole of one country, or of everywhere, and that
+ * count is covered by a country index. Leaving pieces out with `NOT_FOLDED_SQL`
+ * costs a lookup per row counted, and here every row is counted: on a
+ * 600,000-row copy, 6 ms became 89 ms for one country and 7 ms became 242 ms
+ * for everywhere. So that one shape is answered as the covered count less
+ * the pieces in it — `trail_parts` keeps each piece's country for this — in
+ * 10 ms and 5 ms, and every other filter takes the general count, whose
+ * lookups are a small part of what it already reads.
+ */
+async function countListed(
+  request: { get: (key: string) => any, url?: string },
+  skipInferredCountry: boolean,
+  radiusOverride?: number,
+): Promise<number> {
+  if (radiusOverride !== undefined || !filtersByCountryOnly(request))
+    return Number(await applyFilters(Trail.query(), request, skipInferredCountry, radiusOverride).count())
+
+  const country = resolveCountry(request, skipInferredCountry)
+  const [rows, pieces] = await Promise.all([
+    country ? Trail.query().where('country', country).count() : Trail.query().count(),
+    (country
+      ? db.sql`SELECT COUNT(*) AS n FROM trail_parts WHERE country = ${country}`
+      : db.sql`SELECT COUNT(*) AS n FROM trail_parts`).execute() as Promise<Array<{ n: number }>>,
+  ])
+  return Math.max(0, Number(rows) - Number(pieces?.[0]?.n ?? 0))
+}
+
+/**
  * Apply every query-string filter to a builder.
  *
  * Shared by the page query and the count query so the two can never disagree
@@ -335,6 +394,12 @@ function applyFilters(
   /** Overrides `?radius=` — set when a "near me" search has widened. */
   radiusOverride?: number,
 ): any {
+  // A row that is a piece of another trail is not a trail of its own: the
+  // catalog, the map and the counts list the trail it is part of instead
+  // (#1002, app/Support/trailFragments.ts). A primary-key lookup per row read,
+  // which leaves every plan below on the index it chose before.
+  query = query.whereRaw(NOT_FOLDED_SQL)
+
   const search = readSearch(request)
   if (search) {
     // Matched through the FTS index rather than three `LIKE '%term%'`

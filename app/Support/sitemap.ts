@@ -30,6 +30,8 @@
  *   /sitemap-trails-{page}.xml → /api/sitemap-trails-{page}.xml one chunk of trail pages, 1-based
  */
 
+import { NOT_FOLDED_SQL } from './trailFragments'
+
 const SITE_URL = 'https://wildloop.org'
 
 /** Comfortably under the protocol's 50,000, with room for the file to grow. */
@@ -83,8 +85,13 @@ function xmlResponse(body: string): Response {
   })
 }
 
+/**
+ * Trail pages worth a crawler's time: not the pieces of other trails, whose
+ * pages are permanent redirects to the trail they are part of (#1002). A
+ * sitemap that lists a redirect is one a search console reports as broken.
+ */
 async function trailCount(): Promise<number> {
-  const total = await Trail.query().count().catch(() => 0)
+  const total = await Trail.query().whereRaw(NOT_FOLDED_SQL).count().catch(() => 0)
   return Number(total) || 0
 }
 
@@ -158,7 +165,11 @@ export async function sitemapTrails(page: unknown): Promise<Response> {
   const requested = Number(page)
   const index = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 1
 
+  // Only the columns written below: the rows carry their stored lines, and a
+  // chunk is 25,000 of them.
   const rows = await Trail.query()
+    .select('id', 'updated_at', 'created_at', 'national_trail')
+    .whereRaw(NOT_FOLDED_SQL)
     .orderBy('id', 'asc')
     .limit(TRAILS_PER_CHUNK)
     .offset((index - 1) * TRAILS_PER_CHUNK)

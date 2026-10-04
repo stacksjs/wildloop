@@ -117,6 +117,7 @@ async function catalog(): Promise<Database> {
   expect(fts).toBeTruthy()
   db.run(fts!)
   await applyMigration(db, 'database/migrations/0000000156-create-search-places.sql')
+  await applyMigration(db, 'database/migrations/0000000190-create-trail-parts.sql')
 
   const insert = db.prepare('INSERT INTO trails (id, name, location, state, state_name, country, rating, review_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
   const rows: [number, string, string, string, string, string, number, number][] = [
@@ -226,6 +227,26 @@ describe('suggestion queries', () => {
     database = await catalog()
     expect(places(database, 'co').length).toBeLessThanOrEqual(MAX_PLACES)
     expect(trails(database, 'tr').length).toBeLessThanOrEqual(MAX_TRAILS)
+  })
+
+  /*
+   * A piece of another trail (#1002) only redirects to that trail, so it is
+   * never offered, and the trail it is part of is offered in its place. The
+   * place counts say how many trails the catalog lists there.
+   */
+  it('leaves out a piece of another trail, in suggestions and in counts', async () => {
+    database = await catalog()
+    // The region-only copy of Lower Yosemite Fall is a piece of the park's.
+    database.run(`INSERT INTO trail_parts (trail_id, part_of, country, folded_at) VALUES (9, 10, 'US', '2026-10-04')`)
+    database.run(`INSERT INTO trail_parts (trail_id, part_of, country, folded_at) VALUES (2, 1, 'US', '2026-10-04')`)
+    for (const statement of REBUILD_SEARCH_PLACES_SQL)
+      database.run(statement)
+
+    expect(trails(database, 'lower yos').map(t => t.id)).toEqual([10])
+    expect(trails(database, 'sky pond')).toEqual([])
+    const count = (label: string) => (database!.query('SELECT trail_count FROM search_places WHERE label = ?').get(label) as any)?.trail_count
+    expect(count('Estes Park, CO')).toBe(1)
+    expect(count('California')).toBe(1)
   })
 
   it('runs hostile input as plain words and finds nothing, rather than failing', async () => {

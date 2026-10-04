@@ -10,6 +10,9 @@
  * Cached in-process: the counts change on the order of minutes as shards
  * complete, and every catalog page view would otherwise aggregate the whole
  * table.
+ *
+ * Counted as the catalog lists them: a row that is a piece of another trail
+ * (`trail_parts`, #1002) is part of that trail's count, not one of its own.
  */
 
 const CACHE_TTL_MS = 60_000
@@ -51,6 +54,7 @@ export default new Action({
           AVG(latitude) AS lat, AVG(longitude) AS lng
         FROM trails
         WHERE state IS NOT NULL AND state != ''
+          AND id NOT IN (SELECT trail_id FROM trail_parts)
         GROUP BY country, state, state_name
         ORDER BY count DESC
       `.execute() as Array<{ code: string, name: string, country: string, count: number, lat: number | null, lng: number | null }>
@@ -59,6 +63,7 @@ export default new Action({
         SELECT country AS code, COUNT(*) AS count
         FROM trails
         WHERE country IS NOT NULL AND country != ''
+          AND id NOT IN (SELECT trail_id FROM trail_parts)
         GROUP BY country
         ORDER BY count DESC
       `.execute() as Array<{ code: string, count: number }>
@@ -66,6 +71,7 @@ export default new Action({
       const sourceRows = await db.sql`
         SELECT source, COUNT(*) AS count
         FROM trails
+        WHERE id NOT IN (SELECT trail_id FROM trail_parts)
         GROUP BY source
         ORDER BY count DESC
       `.execute() as Array<{ source: string, count: number }>

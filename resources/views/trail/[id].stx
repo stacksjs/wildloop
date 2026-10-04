@@ -51,6 +51,41 @@
    */
   const ssrTrailMissing = !ssrTrailLookupFailed && ssrTrail === null
 
+  /*
+   * A piece of another trail answers with a permanent redirect to it (#1002).
+   *
+   * The catalog is imported from OpenStreetMap, where one trail often arrives
+   * as several rows, and `trails:fold-fragments` records which rows are pieces
+   * of which in `trail_parts`. The catalog stops listing a piece, but its row
+   * stays — saved trails, activities and reviews point at it — and so does its
+   * URL: shared links, bookmarks and the search engines that indexed it all
+   * land on the trail it is part of. A 301 rather than the same page under two
+   * URLs, so a crawler moves the old URL's standing to the trail instead of
+   * splitting it, and the stx router follows it to the new address too.
+   *
+   * Through `Trail`, which is in scope here, rather than a lookup of its own:
+   * the subquery only answers with a row that still exists, so a piece of a
+   * trail that has gone renders as itself.
+   */
+  let ssrPartOf = 0
+  if (ssrTrail) {
+    try {
+      const ssrHost = await Trail.query()
+        .select('id')
+        .whereRaw('id = (SELECT part_of FROM trail_parts WHERE trail_id = ?)', ssrTrailId as any)
+        .first()
+      ssrPartOf = Number((ssrHost as any)?.id ?? 0)
+    }
+    catch {
+      // No answer is no redirect: the piece still renders as itself.
+      ssrPartOf = 0
+    }
+  }
+  if (ssrPartOf > 0 && ssrPartOf !== ssrTrailId) {
+    setResponseStatus(301)
+    setResponseHeader('Location', `/trail/${ssrPartOf}`)
+  }
+
   // A 404 body under a 200 tells a crawler, a cache and an uptime check that the
   // URL is a real page. `notFound()` records the status; it does not stop the
   // render, so the markup below still explains itself.

@@ -99,11 +99,18 @@ export function placeSuggestionsSql(match: string): string {
  * (an agency's copy and OpenStreetMap's) and buildSuggestions collapses those.
  * Among equals, a row with a specific location sorts ahead of one that only
  * names its region, so the copy that survives is the more useful one.
+ *
+ * A piece of another trail is never suggested (#1002): its page only
+ * redirects to the trail it is part of, which is suggested in its place. Left
+ * out inside the candidate window, so the pieces of a common name cannot use
+ * up the window before the trails are reached.
  */
 export function trailSuggestionsSql(nameMatch: string): string {
   return `SELECT id, name, location, state FROM trails
     WHERE id IN (
-      SELECT rowid FROM trails_fts WHERE trails_fts MATCH ${sqlString(nameMatch)} LIMIT ${TRAIL_CANDIDATES}
+      SELECT rowid FROM trails_fts WHERE trails_fts MATCH ${sqlString(nameMatch)}
+        AND rowid NOT IN (SELECT trail_id FROM trail_parts)
+      LIMIT ${TRAIL_CANDIDATES}
     )
     ORDER BY review_count DESC, rating DESC,
       (coalesce(location, '') = coalesce(state_name, '')) ASC, name
@@ -117,6 +124,9 @@ export function trailSuggestionsSql(nameMatch: string): string {
  * records and a town for records that carry one. A location that is only the
  * region name (how OSM records every trail) is left to the region row instead
  * of appearing twice.
+ *
+ * Counted without the pieces of other trails, so "Boulder, CO · 212 trails"
+ * says how many the catalog will list there, not how many rows it holds.
  */
 export const REBUILD_SEARCH_PLACES_SQL: string[] = [
   'DELETE FROM search_places',
@@ -125,11 +135,13 @@ export const REBUILD_SEARCH_PLACES_SQL: string[] = [
     FROM trails
     WHERE trim(coalesce(location, '')) <> ''
       AND lower(trim(location)) <> lower(trim(coalesce(state_name, '')))
+      AND id NOT IN (SELECT trail_id FROM trail_parts)
     GROUP BY trim(location), coalesce(state, ''), coalesce(country, '')`,
   `INSERT INTO search_places (kind, label, state, state_name, country, trail_count)
     SELECT 'region', max(trim(state_name)), state, max(trim(state_name)), coalesce(country, ''), count(*)
     FROM trails
     WHERE trim(coalesce(state_name, '')) <> '' AND trim(coalesce(state, '')) <> ''
+      AND id NOT IN (SELECT trail_id FROM trail_parts)
     GROUP BY state, coalesce(country, '')`,
   'INSERT INTO search_places_fts(search_places_fts) VALUES (\'rebuild\')',
 ]
