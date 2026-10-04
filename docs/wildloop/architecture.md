@@ -28,3 +28,23 @@ the integration-status endpoint. Garmin Connect and COROS use `ts-watches`;
 Apple Health exports and portable FIT decoding use `ts-health`. The registry
 distinguishes available file/device adapters from credentialed OAuth or native
 bridges so the UI never claims an integration that cannot complete.
+
+## Device search index
+
+`config/spotlight.ts` is the registry of what a device may index: one entry per
+kind of content, with the number of slots it may claim, the route a tapped
+entry opens, and the noun that names a record with no name of its own.
+
+Everything downstream derives from it. `resources/functions/spotlight.ts` turns
+a kind into slot identifiers, assigns records to slots, evicts the oldest when
+a kind fills up, and reads a tapped action back to a route;
+`resources/composables/useSpotlightIndex.ts` stores that assignment and makes
+the bridge calls; `scripts/generate-ios-shortcuts.ts` declares each slot's
+activity type in the generated `Info.plist`, without which iOS keeps a tapped
+entry to itself.
+
+Adding a kind is an entry in the config and a call from the page that owns it —
+`indexInSpotlight(kind, record)` for one record, `syncSpotlight(kind, records)`
+for a list that is the athlete's own, `removeFromSpotlight(kind, id)` when it
+stops being theirs. Index what is theirs rather than what they looked at
+wherever the page re-renders on that change, or the removal fights the visit.

@@ -22,6 +22,34 @@
  * from this. See resources/functions/spotlight.ts for the engine and
  * resources/composables/useSpotlightIndex.ts for the calls a page makes.
  */
+
+/**
+ * The shape the engine reads.
+ *
+ * Declared here rather than imported, so the file that gets edited is the file
+ * that gets checked — the engine imports this config, and importing its types
+ * back would be a cycle. The engine validates these values again at runtime
+ * (`readSpotlightKinds`), which is what catches a kind this build cannot
+ * carry; the types below are what catches a typo while it is being written.
+ */
+interface SpotlightSettings {
+  /** Index content on the device at all. */
+  enabled: boolean
+  kinds: Record<string, {
+    /**
+     * How many of this kind the device holds at once: 1 to 64.
+     *
+     * A budget, not a guess. Every slot is one line in the generated
+     * Info.plist and one possible donation at launch.
+     */
+    slots: number
+    /** Where a tapped entry opens. Starts with "/" and carries ":id". */
+    route: string
+    /** Names an entry whose record arrived without a name of its own. */
+    noun: string
+  }>
+}
+
 export default {
   /**
    * Index content on the device at all.
@@ -68,4 +96,4 @@ export default {
       noun: 'Event',
     },
   },
-}
+} satisfies SpotlightSettings

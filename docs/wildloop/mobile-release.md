@@ -48,11 +48,15 @@ entitlement. A development entitlement is valid for local testing only.
 
 ## Spotlight and Siri entries
 
-The app's shortcuts and its trails are both donated as `NSUserActivity`
-objects through Craft's `siri` bridge, and `buddy build:ios` declares their
-activity types in the generated `Info.plist`
-(`scripts/generate-ios-shortcuts.ts`). Neither half is observable from a
-simulator build's project files, so both need a device run:
+The app's shortcuts and its own content — trails, clubs, events — are donated
+as `NSUserActivity` objects through Craft's `siri` bridge, and `buddy
+build:ios` declares their activity types in the generated `Info.plist`
+(`scripts/generate-ios-shortcuts.ts`). What gets indexed, how many of each, and
+where a tapped entry opens is `config/spotlight.ts`; adding a kind is an entry
+there and nothing else.
+
+Neither the donations nor the declarations are observable from a simulator
+build's project files, so both need a device run:
 
 - Search the app name from the home screen. The Top Hit row shows Favorites,
   Trails Near Me and View Stats, and each opens the screen it names.
@@ -60,12 +64,15 @@ simulator build's project files, so both need a device run:
   appear under Wildloop, and tapping it must open that trail rather than
   wherever the app was last — an entry whose activity type is not declared
   does the latter.
-- With more saved trails than `TRAIL_SPOTLIGHT_SLOTS`
-  (`resources/functions/trail-spotlight.ts`), confirm the most recently saved
-  are the ones Spotlight finds. The index is a fixed set of slots, and the
-  oldest donation is what makes room.
-- Sign out, then search again. None of the previous athlete's trails may
-  still be findable.
+- Join a club and enter an event, then search each by name. Both must appear
+  and open their own page. Leave the club and withdraw from the event: both
+  must stop being findable, including while their page is still open.
+- With more saved trails than the `trail` kind's `slots`, confirm the most
+  recently saved are the ones Spotlight finds. Each kind is a fixed set of
+  slots, and the oldest donation is what makes room — the same holds for clubs
+  and events against their own budgets.
+- Sign out, then search again. None of the previous athlete's trails, clubs or
+  events may still be findable.
 
 ## Current external gates
 
@@ -79,8 +86,9 @@ simulator build's project files, so both need a device run:
 - A current iPhone 17 Pro Simulator build has passed navigation, offline
   fallback, and custom deep-link journeys. This is useful device evidence, but
   it is not a substitute for a signed physical-device archive.
-- Craft exposes no CoreSpotlight API at the pinned revision, so a trail is
-  indexed as a donated activity under one of a fixed number of slots rather
+- Craft exposes no CoreSpotlight API at the pinned revision, so a record is
+  indexed as a donated activity under one of its kind's fixed slots rather
   than as a searchable item of its own. iOS hands a tapped activity back only
-  for a type the `Info.plist` declares, and a type per trail id cannot be
-  declared, so raising the slot count is the only way to widen the index.
+  for a type the `Info.plist` declares, and a type per record id cannot be
+  declared, so raising a kind's `slots` in `config/spotlight.ts` is the only
+  way to widen its index.
