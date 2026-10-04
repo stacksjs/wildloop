@@ -1,7 +1,8 @@
 import type { EventDetail, LiveBoard } from '../assets/scripts/events-api'
-import { derived, onDestroy, onMount, state } from 'stx'
+import { derived, effect, onDestroy, onMount, state } from 'stx'
 import { fetchEvent, fetchLiveBoard, reportLap, setEventStatus, toggleEventEntry } from '../assets/scripts/events-api'
 import { formatClock } from '../functions/backyard'
+import { indexInSpotlight, removeFromSpotlight } from './useSpotlightIndex'
 
 /**
  * Watching one event.
@@ -168,11 +169,32 @@ export function useLiveEvent(eventId: number | null) {
       me.set({ ...me(), yardsCompleted: result.yardsCompleted ?? me().yardsCompleted })
   }
 
+  /**
+   * Keep the device's search index on whatever this page knows about the
+   * entry, in both directions.
+   *
+   * Gated on being entered rather than on having opened the event, because
+   * entering and withdrawing both reload it: an index that followed the visit
+   * would donate an event back the moment somebody withdrew, with the page
+   * still open. A no-op off a native host — see useSpotlightIndex.
+   */
+  let stopIndex: (() => void) | null = null
+
   onMount(() => {
     void load().then(schedulePoll)
     // Depending on a signal inside an interval is what makes the countdown
     // re-render; the value itself is only a heartbeat.
     tickTimer = setInterval(() => tick.set(tick() + 1), 1000)
+    stopIndex = effect(() => {
+      const current = event()
+      if (!current?.id)
+        return
+
+      if (me().entered)
+        void indexInSpotlight('event', { id: current.id, name: current.name })
+      else
+        void removeFromSpotlight('event', current.id)
+    })
   })
 
   onDestroy(() => {
@@ -181,6 +203,7 @@ export function useLiveEvent(eventId: number | null) {
       clearTimeout(pollTimer)
     if (tickTimer)
       clearInterval(tickTimer)
+    stopIndex?.()
   })
 
   const countdown = derived(() => {

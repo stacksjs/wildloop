@@ -3,6 +3,7 @@ import { derived, onDestroy, onMount, state } from 'stx'
 import { createEvent, fetchEvents } from '../assets/scripts/events-api'
 import { STANDARD_YARD_MILES, STANDARD_YARD_MINUTES } from '../functions/backyard'
 import { locatePrecisely, locating, nearby, nearbyError, resolveNearby } from './useNearby'
+import { syncSpotlight } from './useSpotlightIndex'
 
 /**
  * The events directory.
@@ -197,6 +198,7 @@ export function useEvents() {
   })
 
   let timer: ReturnType<typeof setInterval> | null = null
+  let indexedEntries = false
 
   async function load() {
     const result = await fetchEvents({ type: typeFilter(), status: statusFilter(), limit: DIRECTORY_LIMIT })
@@ -208,6 +210,17 @@ export function useEvents() {
     loadError.set(null)
     events.set(result)
     loading.set(false)
+
+    // The events the athlete entered, offered to iOS Spotlight so searching a
+    // race by name from the home screen opens it. Once, not on every refresh:
+    // this list reloads every 30 seconds, and entering an event from its own
+    // page indexes it there. A no-op everywhere but a native build.
+    if (!indexedEntries) {
+      indexedEntries = true
+      void syncSpotlight('event', result
+        .filter(entry => entry.isEntered)
+        .map(entry => ({ id: entry.id, name: entry.name })))
+    }
   }
 
   function applyFilter(next: { type?: EventType | 'all', status?: 'all' | 'live' | 'scheduled' | 'finished' }) {
