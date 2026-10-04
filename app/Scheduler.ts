@@ -155,6 +155,31 @@ export default function () {
     .withoutOverlapping(60)
     .onOneServer()
     .withName('wildloop-trail-fragments')
+
+  /*
+   * How much of each route relation is walked along streets, for the ones
+   * written before the ingest measured it.
+   *
+   * A route relation says nothing about what it is walked on, so the
+   * Hollywood Walk of Fame — every member a sidewalk — ranked as a 3-mile
+   * loop near downtown Los Angeles. Ranking demotes a route that is mostly
+   * street once `trail_street_shares` says so, and this fills that in from
+   * the members' tags on Overpass.
+   *
+   * Resumable on the table itself: it asks only about relations with no row,
+   * and every relation asked about gets one, so once the catalog is measured
+   * it costs one query a night. 3,000 relations is 20 requests, ten minutes
+   * at the two a minute Overpass is asked for, so the 14,000 relations
+   * `trails:repair-distances` counted are done in five nights.
+   *
+   * 11:40 UTC, an hour after the fragment slice (04:40 Pacific).
+   */
+  schedule.command('./buddy trails:measure-streets --limit 3000')
+    .at('11:40')
+    .setTimeZone('UTC')
+    .withoutOverlapping(60)
+    .onOneServer()
+    .withName('wildloop-trail-streets')
 }
 
 process.on('SIGINT', () => {

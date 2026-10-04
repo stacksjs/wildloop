@@ -9,8 +9,10 @@ import {
   rankTrails,
   ratingAppeal,
   sameTrailKey,
+  streetAppeal,
   tasteFit,
   tasteProfile,
+  trailAppeal,
   viewSignal,
 } from '../../app/Support/trailRanking'
 
@@ -347,5 +349,95 @@ describe('what was typed', () => {
     const canyon = trail('Temescal Canyon Trail', 34.06, -118.52, { distance: 1.9 })
     expect(rankTrails([ridge, canyon], SANTA_MONICA, 25)[0].trail).toBe(ridge)
     expect(rankTrails([ridge, canyon], SANTA_MONICA, 25, 'best', new Map(), null, 'temescal canyon')[0].trail).toBe(canyon)
+  })
+})
+
+describe('streets are not trails', () => {
+  /*
+   * GET /api/trails?lat=34.05&lng=-118.25 on production, October 2026: the
+   * Hollywood Walk of Fame — a 3-mile loop of sidewalks — came sixth, ahead
+   * of all but two of Griffith Park's trails. These are those rows, as the
+   * catalog has them. How a street share is measured, and the routes it was
+   * checked against: tests/unit/street-share.test.ts.
+   */
+  const DOWNTOWN_LA = { lat: 34.05, lng: -118.25 }
+  const osm = (name: string, location: string, distance: number, lat: number, lng: number, extra: Record<string, unknown> = {}) =>
+    trail(name, lat, lng, { source: 'osm', location, distance, ...extra })
+  const nps = (name: string, distance: number, lat: number, lng: number) => trail(name, lat, lng, { distance })
+  const usfs = (name: string, distance: number, lat: number, lng: number) =>
+    trail(name, lat, lng, { source: 'usfs', location: 'Angeles National Forest, CA', distance })
+
+  const walkOfFame = osm('Hollywood Walk of Fame', 'Hollywood, CA', 3.01, 34.101425, -118.332756, { street_share: 1 })
+  const griffithPark = [
+    osm('Fern Canyon Trail', 'Atwater Village, CA', 1.03, 34.127721, -118.285288),
+    osm('Mount Hollywood Trail', 'Hollywood, CA', 1.04, 34.126577, -118.30197),
+    osm('Brush Canyon Trail', 'Hollywood, CA', 1.13, 34.129951, -118.308361),
+    osm('Mulholland Trail', 'Universal City, CA', 1.2, 34.133536, -118.310845),
+    osm('Riverside Trail', 'Atwater Village, CA', 1.2, 34.122744, -118.292318),
+  ]
+  // A lit, paved greenway along the LA River: a way, so never measured, and
+  // judged a walk rather than a street (see street-share.test.ts).
+  const paseoDelRio = osm('Paseo del Rio', 'Atwater Village, CA', 1.77, 34.101282, -118.241423)
+  const rioHondo = osm('Rio Hondo River Trail', 'Montebello, CA', 2.92, 33.996924, -118.106646)
+  // A crosswalk on the way to the trailhead: 2% street.
+  const flintCanyon = osm('Flint Canyon Trail', 'La Cañada Flintridge, CA', 2.04, 34.192452, -118.190527, { street_share: 0.024 })
+  const nearby = [
+    ...griffithPark,
+    paseoDelRio,
+    rioHondo,
+    flintCanyon,
+    nps('Dearing Mountain Trail', 1.96, 34.124765, -118.390779),
+    nps('Rustic Canyon Trail', 2.53, 34.065087, -118.511377),
+    nps('Hastain Trail', 1.03, 34.108413, -118.412609),
+    usfs('San Gabriel Peak', 2.17, 34.248445, -118.102976),
+    usfs('Sunset Ridge', 2.25, 34.217973, -118.135594),
+  ]
+
+  const names = (ranked: { trail: { name: string } }[]) => ranked.map(entry => entry.trail.name)
+
+  it('ranked the Walk of Fame among the first trails while nothing said it was a street', () => {
+    const unmeasured = { ...walkOfFame, street_share: null }
+    expect(names(rankTrails([unmeasured, ...nearby], DOWNTOWN_LA, 25)).indexOf('Hollywood Walk of Fame')).toBeLessThan(6)
+  })
+
+  it('puts it behind every trail near downtown once it is measured', () => {
+    expect(names(rankTrails([walkOfFame, ...nearby], DOWNTOWN_LA, 25)).at(-1)).toBe('Hollywood Walk of Fame')
+  })
+
+  it('lists it after every real trail under closest, though only three are nearer', () => {
+    const unmeasured = names(rankTrails([{ ...walkOfFame, street_share: null }, ...nearby], DOWNTOWN_LA, 25, 'nearest'))
+    expect(unmeasured.indexOf('Hollywood Walk of Fame')).toBe(3)
+    expect(names(rankTrails([walkOfFame, ...nearby], DOWNTOWN_LA, 25, 'nearest')).at(-1)).toBe('Hollywood Walk of Fame')
+  })
+
+  it('keeps Griffith Park, the river paths and a canyon reached by a street where they were', () => {
+    const without = names(rankTrails(nearby, DOWNTOWN_LA, 25))
+    const withIt = names(rankTrails([walkOfFame, ...nearby], DOWNTOWN_LA, 25))
+    expect(withIt.slice(0, -1)).toEqual(without)
+    expect(trailAppeal(flintCanyon)).toBe(trailAppeal({ ...flintCanyon, street_share: null }))
+    for (const kept of [...griffithPark, paseoDelRio, rioHondo])
+      expect(trailAppeal(kept), kept.name).toBeGreaterThanOrEqual(0.9)
+  })
+
+  it('still answers somebody who searches for it by name', () => {
+    const [found] = rankTrails([walkOfFame], DOWNTOWN_LA, 25, 'best', new Map(), null, 'walk of fame')
+    expect(found.trail).toBe(walkOfFame)
+  })
+
+  it('costs nothing below a quarter street, a tenth from three quarters, and a line between', () => {
+    expect(streetAppeal(null)).toBe(1)
+    expect(streetAppeal(undefined)).toBe(1)
+    expect(streetAppeal(0)).toBe(1)
+    expect(streetAppeal(0.25)).toBe(1)
+    expect(streetAppeal(0.5)).toBeCloseTo(0.55)
+    expect(streetAppeal(0.75)).toBeCloseTo(0.1)
+    expect(streetAppeal(1)).toBeCloseTo(0.1)
+    expect(streetAppeal(0.4)).toBeGreaterThan(streetAppeal(0.6))
+  })
+
+  it('does not let use lift a street walk level with an ordinary trail', () => {
+    const busy = new Map([[walkOfFame.id, { saves: 200, completions: 100, photos: 50, views: 900, viewDays: 30 }]])
+    const mountHollywood = griffithPark[1]
+    expect(trailAppeal(walkOfFame, busy.get(walkOfFame.id))).toBeLessThan(trailAppeal(mountHollywood))
   })
 })

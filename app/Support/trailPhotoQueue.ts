@@ -253,7 +253,8 @@ export async function metroTrailPicks(
   const dLat = radius * DEGREES_PER_MILE
   const dLng = dLat / Math.max(0.2, Math.cos((metro.lat * Math.PI) / 180))
   const rows = await sql`
-    SELECT id, name, location, source, distance, rating, review_count, national_trail, latitude, longitude, difficulty, route_type
+    SELECT id, name, location, source, distance, rating, review_count, national_trail, latitude, longitude, difficulty, route_type,
+      (SELECT share FROM trail_street_shares WHERE trail_id = trails.id) AS street_share
     FROM trails
     WHERE latitude BETWEEN ${metro.lat - dLat} AND ${metro.lat + dLat}
       AND longitude BETWEEN ${metro.lng - dLng} AND ${metro.lng + dLng}

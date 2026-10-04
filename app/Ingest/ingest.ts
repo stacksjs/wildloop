@@ -21,6 +21,7 @@ import { db } from '@stacksjs/orm'
 import { getSource, sources } from './sources'
 import { foldWrittenNames } from '../Support/trailFolding'
 import { isSettled, locateTrail } from '../Support/trailLocationRepair'
+import { recordStreetShares } from '../Support/trailStreetShares'
 import { inWriteTransaction } from '../Support/writeTransaction'
 
 /** Rows per upsert statement. Large enough to amortise, small enough for SQLite's parameter cap. */
@@ -434,6 +435,9 @@ export async function writeTrails(trails: NormalizedTrail[]): Promise<{ imported
 
       await db.upsert('trails', rows, ['source', 'source_id'], MERGE_COLUMNS)
       await addToSearchIndex(batch[0].source, batch.map(trail => trail.sourceId))
+      // After the upsert, which is what gives a new route the id its share
+      // is kept under.
+      await recordStreetShares(batch[0].source, batch, now)
 
       return seen
     })

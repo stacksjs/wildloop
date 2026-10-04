@@ -21,6 +21,8 @@
  * name ending in "Falls" or "Peak" is somewhere people set out for; "Edison
  * Road" and "4N35" are how the map gets from one of those to another; a
  * "Proposed" or "-UNMAINTAINED-" trail is one nobody should be sent down.
+ * And a route walked mostly along sidewalks — the Hollywood Walk of Fame,
+ * which once ranked sixth near downtown — is a street, whatever it is called.
  *
  * Proximity decays smoothly with distance rather than cutting off, so a
  * famous trail ten miles away can still beat a fire road at the end of the
@@ -62,6 +64,12 @@ export interface RankableTrail {
   longitude?: number | null
   difficulty?: string | null
   route_type?: string | null
+  /**
+   * The share of the route on streets and sidewalks, 0–1, where it was
+   * measured (`trail_street_shares`). Not a trails column: the caller reads
+   * it beside the rows, as it does engagement.
+   */
+  street_share?: number | null
 }
 
 /** What Wildloop's own athletes have done with a trail. */
@@ -247,6 +255,39 @@ export function lengthAppeal(miles: number | null | undefined): number {
   return 0.12
 }
 
+/**
+ * Below this share of streets, a route is a trail that crosses a few: Park
+ * to Playa is 6% sidewalks and crosswalks on its way from Baldwin Hills to
+ * the beach.
+ */
+const STREET_TOLERATED = 0.25
+
+/** From this share up, a route is a street walk: the Walk of Fame is 100%. */
+const STREET_WALK = 0.75
+
+/** What a street walk keeps of its appeal. */
+const STREET_WALK_APPEAL = 0.1
+
+/**
+ * How much walking along streets costs a route, as a multiplier
+ * (app/Support/streetShare.ts measures the share).
+ *
+ * Nothing below `STREET_TOLERATED`, a tenth at `STREET_WALK` and above, and
+ * a straight line between. A tenth puts a street walk under `WORTH_A_TRIP`,
+ * so "closest" lists it behind every real trail, and it would take tens of
+ * thousands of saves to draw level with an ordinary trail beside it. Never
+ * the whole way to zero: a city walk somebody searches for by name is still
+ * the answer to that search.
+ */
+export function streetAppeal(share: number | null | undefined): number {
+  const s = Number(share)
+  if (!Number.isFinite(s) || s <= STREET_TOLERATED)
+    return 1
+  if (s >= STREET_WALK)
+    return STREET_WALK_APPEAL
+  return 1 - (1 - STREET_WALK_APPEAL) * (s - STREET_TOLERATED) / (STREET_WALK - STREET_TOLERATED)
+}
+
 const SOURCE_APPEAL: Record<string, number> = {
   // Hand-entered: every one was put there by a person on purpose.
   manual: 1.25,
@@ -325,6 +366,7 @@ export function trailAppeal(trail: RankableTrail, activity?: TrailActivity): num
 
   return nameAppeal(trail.name)
     * lengthAppeal(trail.distance)
+    * streetAppeal(trail.street_share)
     * source
     * place
     * national

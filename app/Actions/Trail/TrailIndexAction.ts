@@ -7,6 +7,7 @@ import { listGeometry } from '../../Support/listGeometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { trailEngagement } from '../../Support/trailEngagement'
 import { NOT_FOLDED_SQL } from '../../Support/trailFragments'
+import { trailStreetShares } from '../../Support/trailStreetShares'
 import { athleteTaste } from '../../Support/trailTaste'
 import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
 import type { RankMode } from '../../Support/trailRanking'
@@ -273,9 +274,14 @@ async function fetchRankedPage(
     .orderBy('id', 'asc')
     .limit(RANK_CANDIDATE_CAP)
     .get() as any[]
-  const candidates = taste?.known.size ? found.filter(row => !taste.known.has(Number(row.id))) : found
+  const unknown = taste?.known.size ? found.filter(row => !taste.known.has(Number(row.id))) : found
 
-  const engagement = await trailEngagement(candidates.map(row => Number(row.id)))
+  // How much of each route is sidewalk, read beside the rows like
+  // engagement: it is kept off the trails table (migration 0000000198).
+  const candidateIds = unknown.map(row => Number(row.id))
+  const [engagement, streets] = await Promise.all([trailEngagement(candidateIds), trailStreetShares(candidateIds)])
+  const candidates = unknown.map(row => ({ ...row, street_share: streets.get(Number(row.id)) ?? null }))
+
   const ranked = rankTrails(candidates, origin, radius, mode, engagement, taste?.profile ?? null, readSearch(request))
 
   const ids = ranked.slice(page.offset, page.offset + page.limit).map(entry => Number(entry.trail.id))

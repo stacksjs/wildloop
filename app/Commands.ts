@@ -52,6 +52,10 @@ export default {
     file: 'FoldTrailFragments',
     enabled: true,
   },
+  'trails:measure-streets': {
+    file: 'MeasureTrailStreets',
+    enabled: true,
+  },
   'trails:requeue': {
     file: 'RequeueTrailShards',
     enabled: true,

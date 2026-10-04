@@ -75,8 +75,10 @@ for (const [name, location, state, stateName, country, distance, latitude, longi
 // another suite searches near can reach them: the nearest other seed is more
 // than 300 miles away, the widest a near-me search ever goes. Shaped like the
 // catalog around Los Angeles: a destination, a scenic walk, pieces of one
-// trail from two sources, a fire road at the end of the street, and a trail
-// nobody should be sent down.
+// trail from two sources, a fire road at the end of the street, a trail
+// nobody should be sent down, and a walking tour of downtown sidewalks shaped
+// like the Hollywood Walk of Fame: a 2-mile route whose every member is a
+// sidewalk, which would otherwise rank among the first.
 const nearbyTrail = db.query(`INSERT INTO trails
   (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude, source, source_id)
   VALUES (?, ?, 'CO', 'Colorado', 'US', ?, 0, 'easy', ?, ?, ?, ?)`)
@@ -87,8 +89,12 @@ for (const [name, location, distance, latitude, longitude, source, sourceId] of 
   ['Flagstaff Road', 'Boulder Mountain Parks, CO', 2.2, 39.9998, -105.2801, 'osm', 'qa/flagstaff-road'],
   ['Proposed Gregory Spur', 'Colorado', 1.2, 39.9999, -105.2800, 'osm', 'qa/proposed'],
   ['Walker Ranch Loop', 'Boulder County Open Space, CO', 7.6, 39.9520, -105.3380, 'osm', 'qa/walker-ranch'],
+  ['Mapleton Hill Walking Tour', 'Boulder, CO', 2.4, 40.0213, -105.2860, 'osm', 'qa/mapleton-walking-tour'],
 ] as const)
   nearbyTrail.run(name, location, distance, latitude, longitude, source, sourceId)
+// What the ingest would have measured from its members (app/Support/streetShare.ts).
+db.run(`INSERT INTO trail_street_shares (trail_id, share, measured_at)
+  SELECT id, 1, '2026-10-04T00:00:00.000Z' FROM trails WHERE source_id = 'qa/mapleton-walking-tour'`)
 // Two trails nobody else looks at, for counting page views. Bend, Oregon, more
 // than 600 miles from every other seed, so views here move no other suite's
 // rankings. Alike in every way that ranking reads but distance: Tumalo is the

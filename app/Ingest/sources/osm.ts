@@ -33,6 +33,7 @@ import {
   pickImage,
 } from '../normalize'
 import { resolveRegion } from '../regions'
+import { streetShare } from '../../Support/streetShare'
 import { lineLengthMeters, routePartsFromSegments } from '../../../resources/functions/trail-geometry'
 
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter'
@@ -68,8 +69,11 @@ export interface OverpassElement {
   id: number
   tags?: Record<string, string>
   geometry?: Array<{ lat: number, lon: number }>
-  members?: Array<{ geometry?: Array<{ lat: number, lon: number }> }>
+  members?: Array<{ type?: string, ref?: number, geometry?: Array<{ lat: number, lon: number }> }>
 }
+
+/** The tags of the ways relations are built from, by way id. */
+export type MemberTags = Map<number, Record<string, string>>
 
 interface OverpassResponse {
   elements?: OverpassElement[]
@@ -102,12 +106,24 @@ const client = new TrailHttpClient({
 })
 
 /**
+ * After a set's relations are written out, the tags of the ways they are
+ * built from — tags alone, because the geometry already came with the
+ * relation. The ways answering here have no geometry, which is what tells
+ * them apart from the trails in the same response.
+ */
+const MEMBER_TAGS = 'way(r);out tags;'
+
+/**
  * What counts as a trail.
  *
  * `footway` is filtered to exclude sidewalks and crossings — without that,
  * every city block in the country arrives as a "trail". `track` is limited to
  * grades 1-3, which excludes rutted logging spurs. Route relations pick up the
  * long-distance trails whose ways are individually unnamed.
+ *
+ * A relation's own tags never say what it is walked on, so the tags of its
+ * member ways follow, tags only (see app/Support/streetShare.ts and
+ * `MEMBER_TAGS`).
  */
 function buildQuery(south: number, west: number, north: number, east: number): string {
   const bbox = `${south},${west},${north},${east}`
@@ -122,6 +138,7 @@ function buildQuery(south: number, west: number, north: number, east: number): s
     'relation["route"~"^(hiking|foot)$"]["name"];',
     ');',
     'out body geom;',
+    MEMBER_TAGS,
   ].join('')
 }
 
@@ -251,7 +268,26 @@ function deriveDisplayTags(tags: Record<string, string>, surface: string, closed
   return encodeTags(display)
 }
 
-export function normalizeElement(element: OverpassElement): NormalizedTrail | null {
+/**
+ * How much of a relation is walked along streets, from its members' tags.
+ *
+ * Undefined for a way, which was asked for by its own tags and is a path or a
+ * footway by construction, and for a relation fetched without its members'
+ * tags. Null for a relation none of whose members' tags came back.
+ */
+export function relationStreetShare(element: OverpassElement, memberTags?: MemberTags): number | null | undefined {
+  if (element.type !== 'relation' || !memberTags)
+    return undefined
+
+  return streetShare((element.members ?? [])
+    .filter(member => member.type === 'way' && member.geometry && member.geometry.length > 1)
+    .map(member => ({
+      tags: memberTags.get(Number(member.ref)),
+      meters: lineLengthMeters(member.geometry!.map(point => ({ lat: point.lat, lng: point.lon }))),
+    })))
+}
+
+export function normalizeElement(element: OverpassElement, memberTags?: MemberTags): NormalizedTrail | null {
   const tags = element.tags ?? {}
 
   const name = extractName(tags)
@@ -314,7 +350,37 @@ export function normalizeElement(element: OverpassElement): NormalizedTrail | nu
 
     image: pickImage(sourceId),
     tags: deriveDisplayTags(tags, surface, stats.closed),
+
+    streetShare: relationStreetShare(element, memberTags),
   }
+}
+
+/**
+ * Normalize an Overpass response: the trails in it, and how many candidates
+ * it held.
+ *
+ * Ways that came back with tags and no geometry are the members of the
+ * relations around them (`MEMBER_TAGS`), not candidates: they are read for
+ * their tags and not counted as seen. A trail way that is also a member
+ * comes back twice, once whole and once as tags, and is a candidate once.
+ */
+export function normalizeElements(elements: OverpassElement[]): SourceFetchResult {
+  const memberTags: MemberTags = new Map()
+  for (const element of elements) {
+    if (element.type === 'way' && element.tags)
+      memberTags.set(element.id, element.tags)
+  }
+
+  const candidates = elements.filter(element => element.geometry || element.members)
+  const trails: NormalizedTrail[] = []
+
+  for (const element of candidates) {
+    const trail = normalizeElement(element, memberTags)
+    if (trail)
+      trails.push(trail)
+  }
+
+  return { trails, seen: candidates.length }
 }
 
 export const osmSource: TrailSourceAdapter = {
@@ -369,16 +435,7 @@ export const osmSource: TrailSourceAdapter = {
     if (response.remark && /timed out|out of memory/i.test(response.remark))
       throw new Error(`Overpass: ${response.remark}`)
 
-    const elements = response.elements ?? []
-    const trails: NormalizedTrail[] = []
-
-    for (const element of elements) {
-      const trail = normalizeElement(element)
-      if (trail)
-        trails.push(trail)
-    }
-
-    return { trails, seen: elements.length }
+    return normalizeElements(response.elements ?? [])
   },
 }
 
@@ -402,7 +459,7 @@ export async function fetchRelationsByIds(ids: number[]): Promise<SourceFetchRes
   if (ids.length === 0)
     return { trails: [], seen: 0 }
 
-  const query = `[out:json][timeout:280];relation(id:${ids.join(',')});out body geom;`
+  const query = `[out:json][timeout:280];relation(id:${ids.join(',')});out body geom;${MEMBER_TAGS}`
 
   const response = await client.json<OverpassResponse>(OVERPASS_ENDPOINT, {
     method: 'POST',
@@ -414,16 +471,7 @@ export async function fetchRelationsByIds(ids: number[]): Promise<SourceFetchRes
   if (response.remark && /timed out|out of memory/i.test(response.remark))
     throw new Error(`Overpass: ${response.remark}`)
 
-  const elements = response.elements ?? []
-  const trails: NormalizedTrail[] = []
-
-  for (const element of elements) {
-    const trail = normalizeElement(element)
-    if (trail)
-      trails.push(trail)
-  }
-
-  return { trails, seen: elements.length }
+  return normalizeElements(response.elements ?? [])
 }
 
 function tileTouchesLand(tile: { south: number, west: number, north: number, east: number }): boolean {

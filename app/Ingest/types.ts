@@ -70,6 +70,14 @@ export interface NormalizedTrail {
   // Presentation
   image: string
   tags: string
+
+  /**
+   * The share of the route's length on streets and sidewalks, 0–1 (see
+   * app/Support/streetShare.ts). Measured for OSM relations only: undefined
+   * where nothing was measured, which leaves any stored share as it is, and
+   * null where the relation's members gave nothing to measure.
+   */
+  streetShare?: number | null
 }
 
 /** What one shard of work produced, for the checkpoint row and the CLI. */

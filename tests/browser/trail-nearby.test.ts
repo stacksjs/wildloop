@@ -7,7 +7,7 @@
  * away, nowhere on the first screen. The order is now appeal against
  * distance (app/Support/trailRanking.ts); this asks the real endpoint.
  *
- * `scripts/start-recording-qa.ts` seeds six rows around Boulder, more than
+ * `scripts/start-recording-qa.ts` seeds seven rows around Boulder, more than
  * 300 miles from every other seed, so no other suite's trails can reach in.
  */
 import { beforeAll, describe, expect, it } from 'bun:test'
@@ -41,7 +41,18 @@ describe.skipIf(!qa)('trails near me', () => {
     expect(names(near)[0]).toBe('Royal Arch Trail')
     // Closer, and still behind every real trail.
     expect(names(near).indexOf('Flagstaff Road')).toBeGreaterThan(names(near).indexOf('Mesa Trail'))
-    expect(names(near).at(-1)).toBe('Proposed Gregory Spur')
+    expect(names(near).slice(-2)).toEqual(['Proposed Gregory Spur', 'Mapleton Hill Walking Tour'])
+  })
+
+  it('puts a walk along sidewalks behind every trail, and still finds it by name', async () => {
+    // A 2-mile loop a mile and a half away, which on its name and length
+    // alone would open the list — the Hollywood Walk of Fame did, near
+    // downtown Los Angeles. Its street share comes from trail_street_shares.
+    const near = await trails(`${HOME}&limit=10`)
+    expect(names(near).at(-1)).toBe('Mapleton Hill Walking Tour')
+
+    const searched = await trails(`${HOME}&q=mapleton&limit=5`)
+    expect(names(searched)).toEqual(['Mapleton Hill Walking Tour'])
   })
 
   it('lists one trail once, keeping the whole trail rather than a piece of it', async () => {
@@ -50,7 +61,7 @@ describe.skipIf(!qa)('trails near me', () => {
     expect(names(near).filter(name => name === 'Royal Arch Trail')).toHaveLength(1)
     expect(near.trails.find((t: any) => t.name === 'Royal Arch Trail').distance).toBe(3.4)
     // The total counts trails, not catalog rows, so "N trails" is true.
-    expect(near.meta.total).toBe(5)
+    expect(near.meta.total).toBe(6)
   })
 
   it('says how far each trail is from where the list was asked about', async () => {
@@ -68,10 +79,11 @@ describe.skipIf(!qa)('trails near me', () => {
     const closest = await trails(`${HOME}&sort=nearest&limit=10`)
 
     // The fire road is a real path and genuinely closest. The proposed spur
-    // is closer still, and is not a trail anybody should be sent down.
+    // is closer still, and is not a trail anybody should be sent down; the
+    // sidewalk tour is nearer than two real trails, and not a trail either.
     expect(names(closest)[0]).toBe('Flagstaff Road')
-    expect(names(closest).at(-1)).toBe('Proposed Gregory Spur')
-    const miles = closest.trails.slice(0, -1).map((t: any) => t.milesAway)
+    expect(names(closest).slice(-2)).toEqual(['Proposed Gregory Spur', 'Mapleton Hill Walking Tour'])
+    const miles = closest.trails.slice(0, -2).map((t: any) => t.milesAway)
     expect(miles).toEqual([...miles].sort((a, b) => a - b))
   })
 
