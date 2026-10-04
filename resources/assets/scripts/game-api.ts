@@ -116,6 +116,10 @@ export function routeToGeoJson(
     type: 'LineString',
     coordinates: points.map(([lat, lng]) => [lng, lat]),
     properties: {
+      // Said out loud, so a stored track is never again ambiguous about it:
+      // runs uploaded before this field existed sent feet (migration
+      // 0000000183 converted them).
+      altitudeUnit: 'm',
       samples: points.map((_, index) => {
         const feet = samples[index]?.eleFt
         return {
