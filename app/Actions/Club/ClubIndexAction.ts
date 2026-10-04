@@ -1,6 +1,7 @@
 // Auth is imported explicitly: it is NOT in the API server bundle's auto-imports,
 // so `Auth.user()` threw "Auth.user is not a function" at runtime in production
-// while type-checking clean against the declarations. Everything else here is
+// while type-checking clean against the declarations. `db` is imported the way
+// the other raw-SQL actions import it; the models and response helpers are
 // auto-imported as usual.
 //
 // GET /api/clubs - list clubs with derived member counts and this-week stats
@@ -9,7 +10,10 @@
 // from members' activities in the last 7 days (real data, not stored fiction).
 // `?q=` narrows it to clubs whose name or location contains the text.
 
+import type { MembershipRow, WeekActivityRow, WeekTotalRow } from '../../Support/clubWeeklyStats'
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
+import { clubMembershipSql, clubWeekStragglersSql, clubWeekTotalsSql, tallyClubWeeks, weekCutoff } from '../../Support/clubWeeklyStats'
 import { placeOfText } from '../../Support/placeText'
 import { matchesText, textQuery } from '../../Support/textQuery'
 
@@ -29,51 +33,30 @@ export default new Action({
       if (query && clubs.length === 0)
         return response.json({ success: true, clubs: [], meta: paginate([], readPageParams(request, { defaultLimit: 200, maxLimit: 200 })).meta })
 
-      const memberships = (await ClubMember.all()) ?? []
-      // Only count activities the viewer is allowed to see (#957) so private
-      // member mileage never feeds a public club's weekly numbers.
-      const viewerFollowing = sessionUser !== null
-        ? new Set(((await Follow.where('follower_id', '=', sessionUser).get()) ?? []).map((f: any) => f.following_id))
-        : new Set<number>()
-      const activities = ((await Activity.all()) ?? []).filter((a: any) => canViewActivity(a, sessionUser, viewerFollowing))
+      // Counts and this week's totals come from grouped SQL (see
+      // clubWeeklyStats): the list used to load every membership and every
+      // activity ever recorded to do this in memory. Only activities the
+      // viewer may see are counted (#957), so private member mileage never
+      // feeds a public club's weekly numbers.
+      const since = weekCutoff()
+      const [membershipRows, totalRows, stragglerRows] = await Promise.all([
+        db.sql`${db.unsafe(clubMembershipSql(sessionUser))}`.execute(),
+        db.sql`${db.unsafe(clubWeekTotalsSql(sessionUser, since))}`.execute(),
+        db.sql`${db.unsafe(clubWeekStragglersSql(sessionUser))}`.execute(),
+      ]) as [MembershipRow[], WeekTotalRow[], WeekActivityRow[]]
 
-      const membersByClub = new Map<number, number[]>()
-      for (const m of memberships) {
-        const list = membersByClub.get(m.club_id) ?? []
-        list.push(m.user_id)
-        membersByClub.set(m.club_id, list)
-      }
-
-      // Per-user activity totals over the trailing 7 days.
-      const weekAgoMs = Date.now() - 7 * 86400000
-      const userWeekly = new Map<number, { dist: number, count: number }>()
-      for (const a of activities) {
-        const when = a.completed_at ? Date.parse(a.completed_at) : Number.NaN
-        if (!Number.isFinite(when) || when < weekAgoMs)
-          continue
-        const w = userWeekly.get(a.user_id) ?? { dist: 0, count: 0 }
-        w.dist += a.distance ?? 0
-        w.count += 1
-        userWeekly.set(a.user_id, w)
-      }
+      const membershipByClub = new Map((membershipRows ?? []).map(row => [Number(row.club_id), row]))
+      const weekByClub = tallyClubWeeks(totalRows, stragglerRows, since)
 
       const result = clubs
-        .filter((c: any) => !c.is_private || (sessionUser !== null && (membersByClub.get(c.id) ?? []).includes(sessionUser)))
+        .filter((c: any) => !c.is_private || !!membershipByClub.get(c.id)?.is_member)
         .map((c: any) => {
-          const members = membersByClub.get(c.id) ?? []
+          const membership = membershipByClub.get(c.id)
+          const week = weekByClub.get(c.id)
           // Where the club says it is, as the town's centre: what the page
           // needs to put the crews near a visitor first. Derived from the
           // public location text, so it says nothing that text does not.
           const place = placeOfText(c.location)
-          let dist = 0
-          let count = 0
-          for (const uid of members) {
-            const w = userWeekly.get(uid)
-            if (w) {
-              dist += w.dist
-              count += w.count
-            }
-          }
           return {
             id: c.id,
             name: c.name,
@@ -88,10 +71,10 @@ export default new Action({
             creatorId: c.creator_id,
             // Note: the raw member-id roster is intentionally NOT exposed on the
             // public listing; memberCount + isMember drive the UI.
-            memberCount: members.length,
-            isMember: sessionUser !== null && members.includes(sessionUser),
-            weeklyDistance: Math.round(dist),
-            activitiesThisWeek: count,
+            memberCount: Number(membership?.members) || 0,
+            isMember: !!membership?.is_member,
+            weeklyDistance: Math.round(week?.distance ?? 0),
+            activitiesThisWeek: week?.activities ?? 0,
             createdAt: c.created_at,
           }
         })
