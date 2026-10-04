@@ -136,6 +136,22 @@ export function regionBbox(code: string): [number, number, number, number] | nul
   return regions.find(region => region.code === code)?.bbox ?? null
 }
 
+/**
+ * One region's polygon, by code, or `null` for a code the catalog does not
+ * cover. Case-insensitive, since `co` and `de-by` are what people type.
+ */
+export function regionPolygon(code: string): RegionPolygon | null {
+  const wanted = String(code ?? '').trim().toUpperCase()
+  if (!wanted)
+    return null
+  return regions.find(region => region.code === wanted) ?? null
+}
+
+/** Whether a point lies in this region, with any enclave cut out of it. */
+export function regionContains(region: RegionPolygon, lat: number, lng: number): boolean {
+  return contains(region, lat, lng)
+}
+
 /** Every country code with regions loaded. */
 export function coveredCountries(): string[] {
   return [...new Set(regions.map(region => region.country))].sort()

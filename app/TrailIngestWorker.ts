@@ -10,6 +10,11 @@
  * port for a `start` site, but mostly because a multi-day background job with
  * no way to ask "how far along are you?" is a job nobody trusts — and reading
  * the checkpoint table over ssh is a poor substitute for `curl`.
+ *
+ * Nothing here takes requests to do work. Asking for a region again goes
+ * through `POST /api/maintenance/reingest-region` (app/Ingest/reingest.ts),
+ * which only writes that region's shards back to `pending` — this loop finds
+ * them the way it finds any pending shard, within one idle sleep at most.
  */
 
 import process from 'node:process'

@@ -542,6 +542,15 @@ route.group({ middleware: 'auth' }, () => {
     route.post('/achievements/evaluate', 'Actions/Achievement/EvaluateAchievementsAction')
   })
 
+  // Ask the trail ingest worker to fetch one region again (#976). It only
+  // queues shards and returns, so the cost of a call is the worker's time
+  // afterwards, not this request's: ten an hour is more than an operator
+  // needs and too few to walk the catalog with a script. Each call is capped
+  // in tiles and skips anything fetched in the last day on top of this.
+  route.group({ middleware: 'throttle:10,1h' }, () => {
+    route.post('/maintenance/reingest-region', 'Actions/Maintenance/ReingestRegionAction').middleware('role:admin')
+  })
+
   // Interactive writes
   route.group({ middleware: 'throttle:60,1' }, () => {
     // Activities

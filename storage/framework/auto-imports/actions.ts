@@ -61,6 +61,7 @@ export const actions = {
   'Actions/Geo/VisitorLocationAction': '../../../app/Actions/Geo/VisitorLocationAction.ts',
   'Actions/Integration/IntegrationStatusAction': '../../../app/Actions/Integration/IntegrationStatusAction.ts',
   'Actions/Maintenance/RecomputeCountersAction': '../../../app/Actions/Maintenance/RecomputeCountersAction.ts',
+  'Actions/Maintenance/ReingestRegionAction': '../../../app/Actions/Maintenance/ReingestRegionAction.ts',
   'Actions/Notification/RegisterPushTokenAction': '../../../app/Actions/Notification/RegisterPushTokenAction.ts',
   'Actions/Notification/UnregisterPushTokenAction': '../../../app/Actions/Notification/UnregisterPushTokenAction.ts',
   'Actions/Plan/TripPlanDestroyAction': '../../../app/Actions/Plan/TripPlanDestroyAction.ts',
