@@ -23,8 +23,9 @@ import { existsSync } from 'node:fs'
 import { readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
+import { readSpotlightKinds, spotlightActions } from '@stacksjs/mobile'
 import { APP_SHORTCUTS, appShortcutDeepLink } from '../resources/functions/app-shortcuts'
-import { spotlightActions } from '../resources/functions/spotlight'
+import spotlight from '../config/spotlight'
 
 /**
  * The iOS version these types need.
@@ -179,9 +180,17 @@ ${entries.join('\n')}
  *
  * So everything that donates has to be declared here: the app's own shortcuts,
  * by their ids, and every slot of every content kind in config/spotlight.ts.
+ *
+ * The framework writes this same entry from `config/mobile.ts` as of
+ * @stacksjs/actions 0.75.56 (`writeIosActivityTypes`), and this can go when
+ * the app's framework set moves off 0.74.x — until then the installed build
+ * action knows nothing about it, and dropping this would leave every donated
+ * entry undeclared. The slot names come from @stacksjs/mobile either way, so
+ * the two cannot disagree about what to declare.
  */
 export function donatedActivityTypes(bundleId: string): string[] {
-  return [...APP_SHORTCUTS.map(shortcut => shortcut.id), ...spotlightActions()]
+  const kinds = readSpotlightKinds(spotlight.kinds).kinds
+  return [...APP_SHORTCUTS.map(shortcut => shortcut.id), ...spotlightActions(kinds)]
     .map(action => `${bundleId}.${action}`)
 }
 

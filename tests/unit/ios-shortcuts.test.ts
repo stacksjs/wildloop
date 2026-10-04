@@ -16,7 +16,10 @@ import {
   writeIosShortcuts,
 } from '../../scripts/generate-ios-shortcuts'
 import { APP_SHORTCUTS } from '../../resources/functions/app-shortcuts'
-import { SPOTLIGHT_KINDS, spotlightActions } from '../../resources/functions/spotlight'
+import { readSpotlightKinds, spotlightActions } from '@stacksjs/mobile'
+import spotlightConfig from '../../config/spotlight'
+
+const SPOTLIGHT_KINDS = readSpotlightKinds(spotlightConfig.kinds).kinds
 
 /** The shape Craft's template emits: nested dicts, root dict last. */
 const CRAFT_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
@@ -222,7 +225,7 @@ describe('the activity types a tapped entry needs declared', () => {
 
     for (const shortcut of APP_SHORTCUTS)
       expect(types).toContain(`org.wildloop.app.${shortcut.id}`)
-    for (const action of spotlightActions())
+    for (const action of spotlightActions(SPOTLIGHT_KINDS))
       expect(types).toContain(`org.wildloop.app.${action}`)
 
     const slots = SPOTLIGHT_KINDS.reduce((sum, kind) => sum + kind.slots, 0)
