@@ -2,8 +2,8 @@
  * A plain `?q=` filter for the small directories (clubs, events).
  *
  * These tables hold hundreds of rows, not the trail catalog's hundreds of
- * thousands, and their index actions already load every row to work out
- * visibility. A case-insensitive substring match over the loaded rows is all
+ * thousands, and their index actions already read every row they might list
+ * to order it. A case-insensitive substring match over the loaded rows is all
  * the Search screen needs from them; there is no search index behind it.
  */
 
