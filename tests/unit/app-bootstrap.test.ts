@@ -24,16 +24,21 @@ describe('route-aware app bootstrap', () => {
   })
 
   it('loads recording and territory dependencies on their route groups', () => {
+    // The territory map and the record screen load the land around the
+    // player themselves; the app-wide load must not race them with the
+    // first 500 territories anywhere.
     expect(dataNeedsForPath('/record')).toMatchObject({
       activities: true,
-      territories: true,
+      territories: false,
       trails: true,
     })
     expect(dataNeedsForPath('/territories')).toMatchObject({
       battles: true,
-      territories: true,
+      territories: false,
       trails: false,
     })
+    expect(dataNeedsForPath('/territory/12').territories).toBe(false)
+    expect(dataNeedsForPath('/challenges').territories).toBe(true)
   })
 
   it('loads social data for feed and athlete pages', () => {

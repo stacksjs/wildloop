@@ -92,7 +92,11 @@ export function dataNeedsForPath(pathname: string): AppDataNeeds {
     // The feed carries the "turf is being taken right now" banner.
     battles: isPath(pathname, ['/battles', '/challenges', '/conquests', '/feed', '/territories', '/territory']),
     follows: isPath(pathname, ['/athlete', '/athletes', '/feed', '/profile']),
-    territories: isPath(pathname, ['/battles', '/challenges', '/conquests', '/leaderboard', '/record', '/territories', '/territory']),
+    // Not the territory map, the record screen or a territory's page: each
+    // loads the land it shows itself, around the player or by id. The
+    // app-wide load is the first 500 anywhere, and when it answered second
+    // it replaced the player's neighbourhood with somewhere else.
+    territories: isPath(pathname, ['/battles', '/challenges', '/conquests', '/leaderboard']),
     trails: isPath(pathname, ['/record', '/routes', '/trail', '/trails']),
   }
 }
