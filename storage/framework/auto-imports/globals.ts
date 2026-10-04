@@ -72,6 +72,7 @@ declare global {
   const shapeChallenge: typeof autoImports.shapeChallenge
   const computeConquestRecord: typeof autoImports.computeConquestRecord
   const computeCounterFixes: typeof autoImports.computeCounterFixes
+  const computeTerritoryStatsFixes: typeof autoImports.computeTerritoryStatsFixes
   const territoryFreshnessMs: typeof autoImports.territoryFreshnessMs
   const computeTerritoryDecay: typeof autoImports.computeTerritoryDecay
   const DECAY_STALE_DAYS: typeof autoImports.DECAY_STALE_DAYS

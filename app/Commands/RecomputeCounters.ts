@@ -1,63 +1,43 @@
 import type { CLI } from '@stacksjs/types'
 import process from 'node:process'
 import { intro, log, outro } from '@stacksjs/cli'
-import { defineModel } from '@stacksjs/orm'
 import { ExitCode } from '@stacksjs/types'
-import ActivityDefinition from '../Models/Activity'
-import KudosDefinition from '../Models/Kudos'
-import ReviewDefinition from '../Models/Review'
-import TrailDefinition from '../Models/Trail'
-import { computeCounterFixes } from '../../resources/functions/counters'
-
-const Activity = defineModel(ActivityDefinition as any)
-const Kudos = defineModel(KudosDefinition as any)
-const Trail = defineModel(TrailDefinition as any)
-const Review = defineModel(ReviewDefinition as any)
+import { repairCounters } from '../Support/counterRepair'
 
 /**
  * `buddy counters:recompute` - rebuild every denormalized counter from its
- * source-of-truth rows (#973): activities.kudos_count from kudos, and
- * trails.rating/review_count from trail reviews.
+ * source-of-truth rows (#973): activities.kudos_count from kudos,
+ * trails.rating/review_count from trail reviews, and each player's territory
+ * holdings from the territories they hold. Rows for players who no longer
+ * exist are removed.
  *
- * Write paths keep these in sync per-row (KudosToggleAction,
- * TrailReviewStoreAction); this command is the cron-able drift repair and the
- * on-demand CLI entry point. The math is shared with RecomputeCountersAction
- * via resources/functions/counters.ts.
+ * Write paths keep these in sync per-row; this command is the 04:10 drift
+ * repair and the on-demand CLI entry point. The work is shared with
+ * RecomputeCountersAction via app/Support/counterRepair.ts.
  */
 export default function (cli: CLI) {
   cli
-    .command('counters:recompute', 'Recompute denormalized counters (kudos_count, trail rating/review_count)')
+    .command('counters:recompute', 'Recompute denormalized counters (kudos, trail ratings, territory holdings)')
     .option('--dry-run', 'Preview without writing to database', { default: false })
     .alias('recompute:counters')
     .action(async (options: { dryRun: boolean }) => {
       const perf = await intro('buddy counters:recompute')
 
-      const activities = ((await Activity.all()) ?? []) as any[]
-      const kudos = ((await Kudos.all()) ?? []) as any[]
-      const trails = ((await Trail.all()) ?? []) as any[]
-      const reviews = ((await Review.all()) ?? []) as any[]
+      const report = await repairCounters({ dryRun: options.dryRun, log: line => console.log(line) })
+      const changed = report.activitiesFixed + report.trailsFixed + report.territoryStatsFixed
+        + report.territoryStatsRemoved + report.territoryStatsCreated + report.segmentsFixed
 
-      const fixes = computeCounterFixes({ activities, kudos, trails, reviews })
-
-      if (!fixes.activityFixes.length && !fixes.trailFixes.length) {
-        log.info(`All counters already in sync (${activities.length} activities, ${trails.length} trails).`)
+      if (changed === 0) {
+        log.info(`All counters already in sync (${report.activitiesTotal} activities, ${report.trailsTotal} rated trails).`)
         await outro('Done', { startTime: perf, useSeconds: true })
         process.exit(ExitCode.Success)
       }
 
-      for (const f of fixes.activityFixes) {
-        console.log(`  activity ${f.id}: kudos_count → ${f.kudos_count}${options.dryRun ? ' (dry run)' : ''}`)
-        if (!options.dryRun)
-          await Activity.forceUpdate(f.id, { kudos_count: f.kudos_count })
-      }
-      for (const f of fixes.trailFixes) {
-        console.log(`  trail ${f.id}: rating → ${f.rating}, review_count → ${f.review_count}${options.dryRun ? ' (dry run)' : ''}`)
-        if (!options.dryRun)
-          await Trail.forceUpdate(f.id, { rating: f.rating, review_count: f.review_count })
-      }
-
       await outro(
-        `Fixed ${fixes.activityFixes.length} activity counter(s), ${fixes.trailFixes.length} trail counter(s)${options.dryRun ? ' (dry run - nothing written)' : ''}`,
+        `Fixed ${report.activitiesFixed} activity, ${report.trailsFixed} trail and ${report.territoryStatsFixed} territory counter(s); `
+        + `removed ${report.territoryStatsRemoved} and created ${report.territoryStatsCreated} territory stats row(s); `
+        + `fixed the climb on ${report.segmentsFixed} segment(s)`
+        + `${options.dryRun ? ' (dry run - nothing written)' : ''}`,
         { startTime: perf, useSeconds: true },
       )
       process.exit(ExitCode.Success)
