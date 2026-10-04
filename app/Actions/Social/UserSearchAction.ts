@@ -10,11 +10,7 @@
 
 import { Auth } from '@stacksjs/auth'
 import { avatarOf } from '../../Support/avatars'
-import { placeOfText } from '../../Support/placeText'
-import { milesBetween } from '../../Support/trailRanking'
-
-/** Within this of the visitor, an athlete counts as near them. */
-const NEAR_MILES = 60
+import { livesNear, readOrigin } from '../../Support/athletesNear'
 
 export default new Action({
   name: 'User Search',
@@ -53,17 +49,8 @@ export default new Action({
       // coarse fix the catalog opens on). Athletes whose public profile town
       // is near it come first. Only a yes/no goes back: nobody's coordinates
       // or distance from the viewer leave the server.
-      const lat = Number(request.get('lat'))
-      const lng = Number(request.get('lng'))
-      const from = q.length < 2 && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
-        ? { lat, lng }
-        : null
-      const isNear = (u: any): boolean => {
-        if (!from)
-          return false
-        const town = placeOfText(u.location)
-        return town !== null && milesBetween(from, town.lat, town.lng) <= NEAR_MILES
-      }
+      const from = q.length < 2 ? readOrigin(request) : null
+      const isNear = (u: any): boolean => from !== null && livesNear(u.location, from)
 
       const athletes = visibleUsers
         .map((u: any) => ({

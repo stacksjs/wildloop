@@ -1,4 +1,5 @@
 import { Auth } from '@stacksjs/auth'
+import { livesNear, readOrigin } from '../../Support/athletesNear'
 import { avatarOf } from '../../Support/avatars'
 
 const PERIOD_DAYS: Record<string, number | null> = { weekly: 7, monthly: 30, alltime: null }
@@ -11,7 +12,11 @@ export default new Action({
   async handle(request) {
     const period = PERIOD_DAYS[request.get<string>('period') ?? 'weekly'] === undefined ? 'weekly' : request.get<string>('period') ?? 'weekly'
     const metric = METRICS.includes(request.get<string>('metric')) ? request.get<string>('metric') : 'distance'
-    const scope = request.get<string>('scope') === 'following' ? 'following' : 'global'
+    const askedScope = request.get<string>('scope')
+    // `local`: the public board, among athletes whose profile town is within
+    // 60 miles of `?lat=&lng=`. Without a place to be local to it is global.
+    const origin = askedScope === 'local' ? readOrigin(request) : null
+    const scope = askedScope === 'following' ? 'following' : origin ? 'local' : 'global'
     const viewerId = (await Auth.user().catch(() => null))?.id ?? null
     const blockedIds = await blockedUserIdsFor(viewerId)
     const following = viewerId
@@ -22,12 +27,23 @@ export default new Action({
     const days = PERIOD_DAYS[period]
     const cutoff = days ? Date.now() - days * 86400000 : 0
     let query = Activity.query()
-    if (scope === 'global')
+    if (scope === 'local' && origin) {
+      const locals = (((await User.query().whereNotNull('location').get()) ?? []) as any[])
+        .filter(user => livesNear(user.location, origin))
+        .map(user => Number(user.id))
+      if (locals.length === 0)
+        return response.json({ success: true, period, metric, scope, leaderboard: [] })
+      query = query.where('visibility', '=', 'public').whereIn('user_id', locals)
+    }
+    else if (scope === 'global') {
       query = query.where('visibility', '=', 'public')
-    else if (following.size)
+    }
+    else if (following.size) {
       query = query.whereIn('user_id', [...following])
-    else
+    }
+    else {
       return response.json({ success: true, period, metric, scope, leaderboard: [] })
+    }
     if (days)
       query = query.where('completed_at', '>=', new Date(cutoff).toISOString())
     let activities = (await query.get()) ?? []

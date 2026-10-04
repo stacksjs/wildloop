@@ -34,6 +34,7 @@
 <script client>
   import { apiFetch } from '../assets/scripts/auth'
   import { avatarUrl } from '../functions/avatars'
+  import { resolveNearby } from '../composables/useNearby'
   useHead({ title: 'Leaderboard — Wildloop' })
 
   interface LeaderEntry {
@@ -47,13 +48,25 @@
 
   const period = state<'weekly' | 'monthly' | 'alltime'>('weekly')
   const metric = state<'distance' | 'elevation' | 'activities'>('distance')
-  const scope = state<'global' | 'following'>('global')
+  const scope = state<'global' | 'following' | 'local'>('global')
+  /**
+   * Where the visitor is, as the trail catalog already resolved it — a
+   * remembered fix or the edge's city-level guess, never a prompt. Until it is
+   * known there is no "near you" to offer.
+   */
+  const area = state<{ lat: number, lng: number, label: string } | null>(null)
+  const areaLabel = derived(() => area()?.label ?? '')
   const leaders = state<LeaderEntry[]>([])
   const loading = state(true)
 
   async function loadLeaderboard() {
     loading.set(true)
     const query = new URLSearchParams({ period: period(), metric: metric(), scope: scope() })
+    const here = area()
+    if (scope() === 'local' && here) {
+      query.set('lat', String(Math.round(here.lat * 100) / 100))
+      query.set('lng', String(Math.round(here.lng * 100) / 100))
+    }
     const res = await apiFetch(`/api/activities/leaderboard?${query}`, {
     }).catch(() => null)
     const payload = await res?.json().catch(() => null)
@@ -62,6 +75,7 @@
   }
 
   onMount(() => {
+    void resolveNearby().then(place => area.set(place)).catch(() => {})
     const stop = effect(() => {
       period()
       metric()
@@ -126,10 +140,11 @@
     <header class="mb-6 flex items-start justify-between gap-4">
       <div class="min-w-0">
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Leaderboard</h1>
-        <p class="mt-1 text-slate-600 dark:text-slate-400">{{ 'Who ' + metricLabel() + ' ' + periodLabel() + '.' }}</p>
+        <p class="mt-1 text-slate-600 dark:text-slate-400">{{ 'Who ' + metricLabel() + (scope === 'local' ? ' near ' + areaLabel() : '') + ' ' + periodLabel() + '.' }}</p>
       </div>
       <div class="mt-1 flex shrink-0 rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Scope">
         <button @click="scope.set('global')" x-class="scope === 'global' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Global</button>
+        <button :if="areaLabel() !== ''" @click="scope.set('local')" x-class="scope === 'local' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Near you</button>
         <button @click="scope.set('following')" x-class="scope === 'following' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Following</button>
       </div>
     </header>
@@ -233,7 +248,7 @@
         <Icon name="award" size="30" class="text-emerald-600 dark:text-emerald-400" />
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">No rankings yet</h3>
-      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ scope === 'following' ? 'Nobody you follow has logged anything ' + periodLabel() + '. Try the global board.' : 'Nothing logged ' + periodLabel() + ' yet. Record an activity to open the board.' }}</p>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ scope === 'following' ? 'Nobody you follow has logged anything ' + periodLabel() + '. Try the global board.' : scope === 'local' ? 'Nobody near ' + areaLabel() + ' has posted ' + periodLabel() + ' yet. Put your town on your profile and your runs count here.' : 'Nothing logged ' + periodLabel() + ' yet. Record an activity to open the board.' }}</p>
       <StxLink to="/record" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
         <Icon name="play" size="16" />
         Record an activity
