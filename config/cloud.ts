@@ -160,6 +160,19 @@ export const tsCloud: TsCloudConfig = {
        */
       memoryHigh: '2G',
       memoryMax: '3G',
+      /*
+       * The scheduler, declared rather than attached for us, only so its
+       * memory can be said here. The deploy attaches `scheduler: true` to the
+       * site that migrates — this one — when app/Scheduler.ts declares work,
+       * and leaves a site that says `scheduler` itself alone; so this is the
+       * same single `wildloop-main-scheduler` unit, not a second scheduler.
+       *
+       * Its nightly jobs (counters, elevation and location repair, pruning)
+       * run as children inside its cgroup, so the ceiling is for all of them.
+       * Until now it was whatever `systemctl set-property` last said on the
+       * box — 3G/4G, for a counters job that had stopped needing it.
+       */
+      scheduler: { memoryHigh: '2G', memoryMax: '3G' },
       // The release ships without dependencies, so nothing resolves until
       // install runs here.
       //
