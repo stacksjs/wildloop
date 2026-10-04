@@ -37,6 +37,9 @@ export default {
     'adelino',
     'glenn',
     'no-reply',
+    // Where the support page, the privacy policy and the terms send people,
+    // and the App Store listing's contact address.
+    'support',
   ],
 
   url: envVars.APP_URL || 'https://wildloop.org',
