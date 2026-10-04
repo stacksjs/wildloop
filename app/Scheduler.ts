@@ -1,5 +1,6 @@
 import process from 'node:process'
-import { schedule } from '@stacksjs/scheduler'
+import { Schedule, schedule } from '@stacksjs/scheduler'
+import { pingHeartbeat } from './Support/schedulerHeartbeat'
 
 /**
  * **Scheduler**
@@ -9,6 +10,20 @@ import { schedule } from '@stacksjs/scheduler'
  * questions, feel free to reach out via Discord or GitHub Discussions.
  */
 export default function () {
+  /**
+   * The heartbeat StatusHQ watches (see app/Support/schedulerHeartbeat.ts).
+   * A callback rather than a command: it runs inside this process, so a ping
+   * means this scheduler is alive, and it costs no `./buddy` start every five
+   * minutes. Without SCHEDULER_HEARTBEAT_URL (locally, in QA) it is not
+   * scheduled at all.
+   */
+  const heartbeatUrl = process.env.SCHEDULER_HEARTBEAT_URL
+  if (heartbeatUrl) {
+    new Schedule(async () => { await pingHeartbeat(heartbeatUrl) })
+      .everyFiveMinutes()
+      .withName('wildloop-heartbeat')
+  }
+
   schedule.command('./buddy territory:ranks')
     .hourly()
     .withoutOverlapping(30)
