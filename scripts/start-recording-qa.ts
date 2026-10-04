@@ -4,6 +4,7 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildGazetteerFile } from 'ts-maps/gazetteer'
+import { QA_PORTS } from '../tests/browser/qa-ports'
 
 const directory = await mkdtemp(join(tmpdir(), 'wildloop-browser-qa-'))
 
@@ -14,10 +15,11 @@ buildGazetteerFile(gazetteer, { cities: await readFile('tests/browser/fixtures/g
 const env = {
   ...process.env,
   APP_ENV: 'local',
-  APP_URL: 'http://127.0.0.1:4320',
-  PORT: '4320',
-  PORT_API: '4321',
-  PORT_BACKEND: '4321',
+  APP_URL: `http://127.0.0.1:${QA_PORTS.app}`,
+  PORT: String(QA_PORTS.app),
+  PORT_API: String(QA_PORTS.api),
+  PORT_BACKEND: String(QA_PORTS.api),
+  PORT_DOCS: String(QA_PORTS.docs),
   STACKS_NO_NATIVE: '1',
   DB_CONNECTION: 'sqlite',
   DB_DATABASE_PATH: join(directory, 'qa.sqlite'),
@@ -135,7 +137,7 @@ const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: '
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).
 // localhost avoids the dashboard's custom-domain certificate/proxy setup.
 const dashboard = Bun.spawn(['bun', '--no-env-file', 'node_modules/@stacksjs/actions/dist/dev/dashboard.js'], {
-  env: { ...env, APP_URL: 'localhost:4320', PORT_ADMIN: '4332', STACKS_DEV_SERVER: '1' },
+  env: { ...env, APP_URL: `localhost:${QA_PORTS.app}`, PORT_ADMIN: String(QA_PORTS.dashboard), STACKS_DEV_SERVER: '1' },
   stdout: 'inherit',
   stderr: 'inherit',
 })

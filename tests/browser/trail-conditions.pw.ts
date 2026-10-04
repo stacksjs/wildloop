@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * Conditions people report on a trail — the weather and hazards as well as
@@ -9,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test'
  * catalog has Torrey Pines Loop.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 
 async function signUp(page: Page) {
   const password = `Local-QA-${crypto.randomUUID()}`

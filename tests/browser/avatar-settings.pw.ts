@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * A profile photo chosen in Settings shows up in the header straight away,
@@ -12,7 +13,7 @@ import { join } from 'node:path'
  * it back only while it is the account's current photo.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 const photo = readFileSync(join(import.meta.dirname, '..', '..', 'public', 'images', 'marketing', 'wildloop-ridge-runner.jpg'))
 
 // Desktop, so the header shows its account button rather than the tab bar.

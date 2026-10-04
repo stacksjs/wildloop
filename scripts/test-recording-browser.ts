@@ -1,9 +1,10 @@
 /** Local-only, isolated-origin browser tests. No production accounts or data. */
 import process from 'node:process'
+import { QA_PORTS } from '../tests/browser/qa-ports'
 
 const server = Bun.serve({
   hostname: '127.0.0.1',
-  port: Number(process.env.RECORDING_TEST_PORT || 4319),
+  port: Number(process.env.RECORDING_TEST_PORT || QA_PORTS.recorder),
   async fetch(request) {
     const pathname = new URL(request.url).pathname
     if (pathname === '/api/activities' && request.method === 'POST') {

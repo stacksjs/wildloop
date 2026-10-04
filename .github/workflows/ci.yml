@@ -205,7 +205,11 @@ jobs:
           done
           echo "QA servers answering app actions within 1 s after $((SECONDS - start)) s"
           status=0
-          bun test tests/browser || status=$?
+          # --timeout: these suites share one rate-limit budget, and the
+          # harness waits out a 429 once (tests/browser/qa-servers.ts). Only the
+          # flag sets a timeout for every file; setDefaultTimeout from a shared
+          # module reaches only the first file that imports it.
+          bun test --timeout 75000 tests/browser || status=$?
           kill -- -"$qa" 2> /dev/null || true
           if [ "$status" -ne 0 ]; then
             echo "::group::QA server output"

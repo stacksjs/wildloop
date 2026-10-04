@@ -12,8 +12,9 @@
  * Never point this at a real server: it registers accounts and writes runs.
  */
 import { strict as assert } from 'node:assert'
+import { QA_PORTS } from '../tests/browser/qa-ports'
 
-const base = process.env.QA_API ?? 'http://127.0.0.1:4321/api'
+const base = process.env.QA_API ?? `http://127.0.0.1:${QA_PORTS.api}/api`
 assert(/^http:\/\/(?:127\.0\.0\.1|localhost)[:/]/.test(base), 'The game QA only runs against a local QA server')
 
 const bootstrap = await fetch(`${base}/activities`)
@@ -22,7 +23,7 @@ const csrfCookie = cookies.find(cookie => cookie.startsWith('X-CSRF-Token='))
 assert(csrfCookie, 'QA server did not provide the CSRF cookie')
 const headers = {
   'Content-Type': 'application/json',
-  'Origin': 'http://127.0.0.1:4320',
+  'Origin': `http://127.0.0.1:${QA_PORTS.app}`,
   'Cookie': cookies.join('; '),
   'X-CSRF-Token': decodeURIComponent(csrfCookie.slice('X-CSRF-Token='.length)),
 }

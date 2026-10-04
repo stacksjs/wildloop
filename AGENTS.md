@@ -97,6 +97,35 @@ Add your own with `app/Skills/<name>/SKILL.md`, then re-run `buddy setup:ai`.
 
 ---
 
+## Working beside another session
+
+More than one agent (or an agent and a person) often works on this repo at
+once. Sharing one checkout goes wrong in ways that look like bugs:
+
+- **Use your own git worktree.** In a shared checkout the QA stack restarts
+  whenever someone else saves a file, so their edits fail your tests;
+  `git add -A` or a push sweeps up their unfinished work; and two
+  `buddy migrate` runs race for the same lock.
+- **Give your QA stack its own ports.** Every QA port derives from
+  `QA_PORT_BASE` (default 4320, see `tests/browser/qa-ports.ts`). A second
+  stack beside the first: `QA_PORT_BASE=5320 bun run test:qa`. Without it the
+  second run finds the first one's servers "already up" and tests somebody
+  else's code.
+- **Migrations are numbered by hand.** Two sessions adding migrations pick the
+  same next number; check `origin/main` before naming one, and renumber on
+  rebase if needed.
+- **`buddy migrate` writes migrations** from model drift. Use
+  `./buddy migrate --no-generate` locally, and delete any untracked generated
+  migration you did not mean to write.
+
+## Running the QA suites
+
+`bun run test:qa` runs the HTTP suites in `tests/browser/*.test.ts` against an
+isolated QA stack on a throwaway database. It passes `--timeout 75000`
+because the suites share one rate-limit budget and the harness waits out a
+429 once; a bare `bun test tests/browser` uses Bun's 5s default and fails
+whichever test has to wait.
+
 ## Before finishing
 
 - Lint: `bunx --bun pickier .` (fix with `--fix`)

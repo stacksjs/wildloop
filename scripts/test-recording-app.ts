@@ -1,8 +1,10 @@
 /** Local-only proxy for testing the real recorder with controlled GPS and outages. */
-const upstream = 'http://127.0.0.1:4320'
+import { QA_PORTS } from '../tests/browser/qa-ports'
+
+const upstream = `http://127.0.0.1:${QA_PORTS.app}`
 const server = Bun.serve({
   hostname: '127.0.0.1',
-  port: 4322,
+  port: QA_PORTS.proxy,
   async fetch(request) {
     const url = new URL(request.url)
     if (url.pathname === '/__qa/device.js') {

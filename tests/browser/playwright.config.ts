@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 export default defineConfig({
   testMatch: '*.pw.ts',
@@ -17,18 +18,18 @@ export default defineConfig({
   webServer: [{
     command: 'bun scripts/test-recording-browser.ts',
     cwd: '../..',
-    url: 'http://127.0.0.1:4319',
+    url: `http://127.0.0.1:${QA_PORTS.recorder}`,
     reuseExistingServer: false,
   }, {
     command: 'bun scripts/start-recording-qa.ts',
     cwd: '../..',
-    url: 'http://127.0.0.1:4321/api/health',
+    url: `http://127.0.0.1:${QA_PORTS.api}/api/health`,
     reuseExistingServer: process.env.RECORDING_QA_REUSE === '1',
     timeout: 180_000,
   }, {
     command: 'bun scripts/test-recording-app.ts',
     cwd: '../..',
-    url: 'http://127.0.0.1:4322',
+    url: `http://127.0.0.1:${QA_PORTS.proxy}`,
     reuseExistingServer: process.env.RECORDING_QA_REUSE === '1',
     timeout: 180_000,
   }],

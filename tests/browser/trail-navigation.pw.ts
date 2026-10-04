@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * Opening a trail from its card, without a page load in between.
@@ -15,7 +16,7 @@ import { expect, test } from '@playwright/test'
  * so the featured list is emptied here to put the page on that path.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 
 test('a trail opened from its card renders, even when the store has not loaded it', async ({ page }) => {
   await page.route('**/api/trails?limit=200&sort=featured', route => route.fulfill({ json: { success: true, trails: [] } }))

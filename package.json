@@ -103,6 +103,7 @@
     "test:e2e:android": "bun scripts/run-mobile-e2e.ts android",
     "test:e2e:ios": "bun scripts/run-mobile-e2e.ts ios",
     "test:e2e:ios:signed": "MOBILE_E2E_SIGNED_IN=true bun scripts/run-mobile-e2e.ts ios",
+    "test:qa": "RECORDING_QA=1 bun test --timeout 75000 tests/browser",
     "test:ui": "./buddy test:ui",
     "test:coverage": "./buddy test:coverage",
     "test:types": "./buddy test:types",

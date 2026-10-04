@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * "Search this area": moving the map offers to search what it now shows, and
@@ -8,7 +9,7 @@ import { expect, test } from '@playwright/test'
  * catalog has four trails on Santa Barbara Island.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 
 test('moving the map offers to search there, and the search keeps the view', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })

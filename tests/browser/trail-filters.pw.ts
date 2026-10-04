@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * Where to look, as dropdowns in the filter row: country, then a region
@@ -12,7 +13,7 @@ import { expect, test } from '@playwright/test'
  * ground at the API.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 
 test('pick a country, then a region inside it, and come back out', async ({ page }) => {
   await page.goto(`${origin}/trails?country=all`)

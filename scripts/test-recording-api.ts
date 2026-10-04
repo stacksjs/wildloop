@@ -1,14 +1,15 @@
 /** Run only against the isolated QA app (temporary SQLite, MAIL_MAILER=log). */
 import { strict as assert } from 'node:assert'
+import { QA_PORTS } from '../tests/browser/qa-ports'
 
-const base = 'http://127.0.0.1:4321/api'
+const base = `http://127.0.0.1:${QA_PORTS.api}/api`
 const bootstrap = await fetch(`${base}/activities`)
 const cookies = bootstrap.headers.getSetCookie().map(cookie => cookie.split(';')[0])
 const csrfCookie = cookies.find(cookie => cookie.startsWith('X-CSRF-Token='))
 assert(csrfCookie, 'QA server did not provide the CSRF cookie')
 const headers = {
   'Content-Type': 'application/json',
-  Origin: 'http://127.0.0.1:4320',
+  Origin: `http://127.0.0.1:${QA_PORTS.app}`,
   Cookie: cookies.join('; '),
   'X-CSRF-Token': decodeURIComponent(csrfCookie.slice('X-CSRF-Token='.length)),
 }

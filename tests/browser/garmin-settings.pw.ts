@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * The Garmin card on Settings shows exactly one state, and the one the server
@@ -17,7 +18,7 @@ import { expect, test, type Page } from '@playwright/test'
  * states are the status endpoint answering as it would once Garmin approves.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 
 async function signUp(page: Page) {
   const password = `Local-QA-${crypto.randomUUID()}`

@@ -2,8 +2,9 @@
  * The isolated QA app for tests that talk to a real server without a browser.
  *
  * `scripts/start-recording-qa.ts` migrates a throwaway SQLite database, seeds
- * the fixture trails and starts the app (4320), its API (4321) and the
- * dashboard (4332). Never the developer's database.
+ * the fixture trails and starts the app, its API and the dashboard on the
+ * ports in qa-ports.ts (4320, 4321 and 4332 by default). Never the
+ * developer's database.
  *
  * One set of servers for the whole run, not one per file: `bun test` runs
  * every file in this process, and a file that tore its servers down at the
@@ -12,11 +13,11 @@
  * goes.
  */
 import type { Subprocess } from 'bun'
-import { setDefaultTimeout } from 'bun:test'
+import { QA_PORTS } from './qa-ports'
 
-export const APP = 'http://127.0.0.1:4320'
-export const API = 'http://127.0.0.1:4321/api'
-export const DASHBOARD = 'http://127.0.0.1:4332/api'
+export const APP = `http://127.0.0.1:${QA_PORTS.app}`
+export const API = `http://127.0.0.1:${QA_PORTS.api}/api`
+export const DASHBOARD = `http://127.0.0.1:${QA_PORTS.dashboard}/api`
 export const READY_TIMEOUT_MS = 180_000
 
 /*
@@ -30,6 +31,11 @@ export const READY_TIMEOUT_MS = 180_000
  * first. So a request to these servers that is answered 429 waits out the
  * `Retry-After` and is sent once more, the way avatar-lifecycle always did
  * for its own routes. A second 429 is returned as it is, and fails loudly.
+ *
+ * A wait can outlast Bun's 5s default test timeout, so run these suites with
+ * `--timeout 75000` (`bun run test:qa`, and CI). It has to be the flag:
+ * `setDefaultTimeout` called from this module reaches only the first test
+ * file that imports it, because the module is evaluated once per process.
  *
  * Wrapped on the global once, because every test file imports its own copy
  * of this module. Nothing in these suites asserts a 429.
@@ -51,10 +57,6 @@ if (!wrapped.__wildloopQaFetch) {
     return await send(input as any, init)
   }) as typeof fetch
 }
-
-// Long enough for a test to wait out a rate limit once. These are integration
-// tests against real servers, not units.
-setDefaultTimeout(75_000)
 
 interface SharedServers {
   /** Ours to stop, or null when we found somebody else's already running. */

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * Planning a trip somewhere else: find a town, see its trails, plan one for
@@ -10,7 +11,7 @@ import { expect, test, type Page } from '@playwright/test'
  * nothing here touches real accounts or downloads GeoNames.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 const TORREY_PINES = { lat: 32.9209, lng: -117.2528 }
 
 async function signUp(page: Page) {

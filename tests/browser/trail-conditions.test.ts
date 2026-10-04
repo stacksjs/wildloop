@@ -11,13 +11,13 @@
  * never the developer's.
  */
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { API, csrfToken, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
+import { API, APP, csrfToken, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
 
 // These boot the isolated QA app, so the ordinary `bun test` run skips them.
 // CI runs them in the browser job, where the servers belong: RECORDING_QA=1.
 const qa = process.env.RECORDING_QA === '1'
 
-const ORIGIN = 'http://127.0.0.1:4320'
+const ORIGIN = APP
 const DAY_MS = 86_400_000
 const day = (agoInDays: number) => new Date(Date.now() - agoInDays * DAY_MS).toISOString().slice(0, 10)
 

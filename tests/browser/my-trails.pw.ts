@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * Your trails: the ones you saved and the ones you have done, on the Trails
@@ -13,7 +14,7 @@ import { expect, test, type Page } from '@playwright/test'
  * database whose one trail is Torrey Pines Loop.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 const STORE_KEY = 'wildloop-v6'
 
 async function signUp(page: Page) {

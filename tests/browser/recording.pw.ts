@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 let pageErrors: string[] = []
 test.beforeEach(async ({ page }) => {
   pageErrors = []

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * The feed, laid out the way a trail app's feed is: you on the left, the
@@ -9,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test'
  * test logs its own activity on a seeded trail so there is a post to read.
  */
 
-const origin = 'http://127.0.0.1:4322'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
 
 async function signUp(page: Page, name: string) {
   const password = `Local-QA-${crypto.randomUUID()}`

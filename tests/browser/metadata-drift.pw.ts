@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { QA_PORTS } from './qa-ports'
 
 /**
  * The served metadata and the metadata the page sets for itself, compared.
@@ -18,8 +19,8 @@ import { expect, test } from '@playwright/test'
  * exists in this shape.
  */
 
-const origin = 'http://127.0.0.1:4322'
-const API = 'http://127.0.0.1:4321/api'
+const origin = `http://127.0.0.1:${QA_PORTS.proxy}`
+const API = `http://127.0.0.1:${QA_PORTS.api}/api`
 
 interface Meta {
   title: string
