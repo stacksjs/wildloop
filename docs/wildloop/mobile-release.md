@@ -46,6 +46,27 @@ For iOS, produce a signed archive with a distribution provisioning profile and
 inspect its entitlements. The archive must contain a production APNs
 entitlement. A development entitlement is valid for local testing only.
 
+## Spotlight and Siri entries
+
+The app's shortcuts and its trails are both donated as `NSUserActivity`
+objects through Craft's `siri` bridge, and `buddy build:ios` declares their
+activity types in the generated `Info.plist`
+(`scripts/generate-ios-shortcuts.ts`). Neither half is observable from a
+simulator build's project files, so both need a device run:
+
+- Search the app name from the home screen. The Top Hit row shows Favorites,
+  Trails Near Me and View Stats, and each opens the screen it names.
+- Open a trail, then search its name from the home screen. The trail must
+  appear under Wildloop, and tapping it must open that trail rather than
+  wherever the app was last — an entry whose activity type is not declared
+  does the latter.
+- With more saved trails than `TRAIL_SPOTLIGHT_SLOTS`
+  (`resources/functions/trail-spotlight.ts`), confirm the most recently saved
+  are the ones Spotlight finds. The index is a fixed set of slots, and the
+  oldest donation is what makes room.
+- Sign out, then search again. None of the previous athlete's trails may
+  still be findable.
+
 ## Current external gates
 
 - Craft v0.0.91 selects the APNs entitlement from the build configuration:
@@ -58,3 +79,8 @@ entitlement. A development entitlement is valid for local testing only.
 - A current iPhone 17 Pro Simulator build has passed navigation, offline
   fallback, and custom deep-link journeys. This is useful device evidence, but
   it is not a substitute for a signed physical-device archive.
+- Craft exposes no CoreSpotlight API at the pinned revision, so a trail is
+  indexed as a donated activity under one of a fixed number of slots rather
+  than as a searchable item of its own. iOS hands a tapped activity back only
+  for a type the `Info.plist` declares, and a type per trail id cannot be
+  declared, so raising the slot count is the only way to widen the index.
