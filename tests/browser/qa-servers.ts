@@ -12,11 +12,49 @@
  * goes.
  */
 import type { Subprocess } from 'bun'
+import { setDefaultTimeout } from 'bun:test'
 
 export const APP = 'http://127.0.0.1:4320'
 export const API = 'http://127.0.0.1:4321/api'
 export const DASHBOARD = 'http://127.0.0.1:4332/api'
 export const READY_TIMEOUT_MS = 180_000
+
+/*
+ * One rate-limit budget, many suites.
+ *
+ * Every suite here talks to the same servers from the same address, so they
+ * share each throttle group's budget — 60 interactive requests a minute for
+ * everything signed in. Which suite runs out depends only on the order the
+ * files happen to run in, and the 429 it gets looks nothing like the
+ * assertion it breaks: login-session failing because privacy-settings ran
+ * first. So a request to these servers that is answered 429 waits out the
+ * `Retry-After` and is sent once more, the way avatar-lifecycle always did
+ * for its own routes. A second 429 is returned as it is, and fails loudly.
+ *
+ * Wrapped on the global once, because every test file imports its own copy
+ * of this module. Nothing in these suites asserts a 429.
+ */
+const QA_ORIGINS = [new URL(APP).origin, new URL(API).origin, new URL(DASHBOARD).origin]
+const wrapped = globalThis as typeof globalThis & { __wildloopQaFetch?: boolean }
+if (!wrapped.__wildloopQaFetch) {
+  wrapped.__wildloopQaFetch = true
+  const send = globalThis.fetch.bind(globalThis)
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const ours = QA_ORIGINS.some(origin => url.startsWith(origin))
+    const response = await send(input as any, init)
+    if (!ours || response.status !== 429)
+      return response
+    const retryAfter = Number(response.headers.get('Retry-After')
+      ?? (await response.clone().json().catch(() => ({}))).retryAfter ?? 1)
+    await Bun.sleep(Math.min(Math.max(Number.isFinite(retryAfter) ? retryAfter : 1, 1), 60) * 1000 + 500)
+    return await send(input as any, init)
+  }) as typeof fetch
+}
+
+// Long enough for a test to wait out a rate limit once. These are integration
+// tests against real servers, not units.
+setDefaultTimeout(75_000)
 
 interface SharedServers {
   /** Ours to stop, or null when we found somebody else's already running. */
