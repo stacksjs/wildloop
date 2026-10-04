@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite'
 import { describe, expect, it } from 'bun:test'
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
@@ -43,6 +43,10 @@ describe('database snapshots', () => {
       expect(kept[0]).toStartWith('stacks-2026-10-02')
       // Nothing else left behind: no partial copy, no -shm or -wal.
       expect(kept.every(file => /^stacks-.*\.sqlite\.(?:zst|gz)$/.test(file))).toBe(true)
+      // Every account's email and password hash: the owner's alone.
+      expect(statSync(out).mode & 0o777).toBe(0o700)
+      for (const file of kept)
+        expect(statSync(join(out, file)).mode & 0o777).toBe(0o600)
     }
     finally {
       if (previous === undefined)

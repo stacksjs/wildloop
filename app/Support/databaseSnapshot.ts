@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 
@@ -65,7 +65,10 @@ export function snapshotDatabase(options: { keep?: number, directory?: string, a
     throw new Error('sqlite3 is not installed')
 
   const directory = resolve(options.directory || process.env.DB_SNAPSHOT_DIR || join(dirname(source), 'snapshots'))
-  mkdirSync(directory, { recursive: true })
+  // A snapshot is every account's email and password hash: readable by the
+  // owner alone, whatever the umask, and the directory listing too.
+  mkdirSync(directory, { recursive: true, mode: 0o700 })
+  chmodSync(directory, 0o700)
 
   const zstd = has('zstd')
   const extension = zstd ? 'zst' : 'gz'
@@ -82,6 +85,7 @@ export function snapshotDatabase(options: { keep?: number, directory?: string, a
 
     const compressed = `${raw}.${extension}`
     run(zstd ? ['zstd', '-q', '-3', '--rm', '-f', raw, '-o', compressed] : ['gzip', '-6', '-f', raw])
+    chmodSync(compressed, 0o600)
     renameSync(compressed, finished)
   }
   finally {
