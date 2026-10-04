@@ -39,6 +39,7 @@
 
 <script client>
   import { useClubs } from '../composables/useClubs'
+  import { resolveNearby } from '../composables/useNearby'
 
 
   const wl = useStore('wl')
@@ -50,13 +51,81 @@
     isMember, onToggleMembership, openCreate, closeCreate, submitCreate,
   } = useClubs(wl)
 
+  /**
+   * Where the visitor is, as the catalog already resolved it: a remembered
+   * fix, or the edge's city-level guess. Never a permission prompt here — a
+   * list of crews is not worth one.
+   */
+  const here = state<{ lat: number, lng: number, label: string } | null>(null)
+
+  onMount(() => {
+    void resolveNearby().then(place => here.set(place)).catch(() => {})
+  })
+
+  /** Miles from the visitor to a club's town, or null when either is unknown. */
+  function milesTo(club: any): number | null {
+    const from = here()
+    const lat = Number(club?.lat)
+    const lng = Number(club?.lng)
+    if (!from || club?.lat == null || !Number.isFinite(lat) || !Number.isFinite(lng))
+      return null
+    const dLat = (lat - from.lat) * 69
+    const dLng = (lng - from.lng) * 69 * Math.cos((from.lat * Math.PI) / 180)
+    return Math.sqrt(dLat * dLat + dLng * dLng)
+  }
+
+  /** Within this, a crew is one somebody could plausibly train with. */
+  const LOCAL_MILES = 60
+
+  function clubAway(club: any): string {
+    const miles = milesTo(club)
+    // Past a few hours' drive the number stops meaning anything a visitor
+    // would act on, and "7,500 mi away" is noise on a card.
+    if (miles === null || miles > 300)
+      return ''
+    return miles < 10 ? 'Near you' : `${Math.round(miles)} mi away`
+  }
+
+  /** The create form, already set to the visitor's town. */
+  function startLocalClub(): void {
+    openCreate()
+    // After: opening resets the form. Behind a sign-in prompt the form is not
+    // open yet, and this simply has nothing to fill.
+    if (createOpen())
+      fLocation.set(here()?.label ?? '')
+  }
+
+  /** Known location, and not one crew within reach of it. */
+  const noCrewNearby = derived(() => {
+    if (!here() || !wl)
+      return false
+    return !wl.clubs().some((club: any) => {
+      const miles = milesTo(club)
+      return miles !== null && miles <= LOCAL_MILES
+    })
+  })
+
   const filtered = derived(() => {
     if (!wl) return []
     const f = filter()
-    if (f === 'all') return wl.clubs()
-    if (f === 'mine') return wl.clubs().filter((c: any) => isMember(c))
-    return wl.clubs().filter((c: any) => c.type === f)
+    const shown = f === 'all'
+      ? wl.clubs()
+      : f === 'mine'
+        ? wl.clubs().filter((c: any) => isMember(c))
+        : wl.clubs().filter((c: any) => c.type === f)
+
+    // Nearest crews first once the page knows where the visitor is: a club is
+    // somewhere you turn up on a Tuesday. Clubs with no place keep the API's
+    // order (biggest first) after every placed one.
+    if (!here())
+      return shown
+    return shown
+      .map((club: any, index: number) => ({ club, index, miles: milesTo(club) }))
+      .sort((a: any, b: any) => (a.miles ?? Infinity) - (b.miles ?? Infinity) || a.index - b.index)
+      .map((entry: any) => entry.club)
   })
+
+  const nearHeading = derived(() => (here() ? `Closest to ${here()?.label ?? 'you'} first.` : ''))
 </script>
 
   <div class="mx-auto max-w-5xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
@@ -65,6 +134,7 @@
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Clubs</h1>
         <p class="mt-1 max-w-[52ch] text-slate-600 dark:text-slate-400">
           <span :if="filtered.length > 0">{{ filtered.length === 1 ? 'One crew' : filtered.length + ' crews' }} training together — join one, or start your own.</span>
+          <span :if="filtered.length > 1 && nearHeading() !== ''" class="text-slate-500 dark:text-slate-400">{{ ' ' + nearHeading() }}</span>
           <span :if="filtered.length === 0">Find a crew to train with, or start your own.</span>
         </p>
       </div>
@@ -82,6 +152,18 @@
       <button @click="filter.set('Running')" x-class="filter === 'Running' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Running</button>
       <button @click="filter.set('Hiking')" x-class="filter === 'Hiking' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Hiking</button>
       <button @click="filter.set('Territory Game')" x-class="filter === 'Territory Game' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Territory</button>
+    </div>
+
+    <!-- Said rather than left to the visitor to work out from a list of
+         other cities: there is nobody here yet, and that is an opening. -->
+    <div :if="noCrewNearby()" class="mb-6 flex flex-col items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-500/20 dark:bg-emerald-500/10">
+      <p class="text-sm text-emerald-900 dark:text-emerald-200">
+        <span class="font-semibold">{{ 'No crew near ' + (here()?.label ?? 'you') + ' yet.' }}</span>
+        Start the first one and the runners around you will find it here.
+      </p>
+      <button @click="startLocalClub()" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+        <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>Start a local club
+      </button>
     </div>
 
     <!-- A grid, not a stack of full-width rows. A directory is scanned, and
@@ -104,6 +186,9 @@
                 <span>{{ club.type }}</span>
                 <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                 <span class="tabular-nums">{{ club.memberCount === 1 ? '1 member' : club.memberCount + ' members' }}</span>
+              </p>
+              <p :if="clubAway(club) !== ''" class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
+                <i class="i-lucide-navigation h-3 w-3" aria-hidden="true"></i>{{ clubAway(club) }}
               </p>
             </div>
           </div>

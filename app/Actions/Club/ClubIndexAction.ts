@@ -10,6 +10,7 @@
 // `?q=` narrows it to clubs whose name or location contains the text.
 
 import { Auth } from '@stacksjs/auth'
+import { placeOfText } from '../../Support/placeText'
 import { matchesText, textQuery } from '../../Support/textQuery'
 
 export default new Action({
@@ -60,6 +61,10 @@ export default new Action({
         .filter((c: any) => !c.is_private || (sessionUser !== null && (membersByClub.get(c.id) ?? []).includes(sessionUser)))
         .map((c: any) => {
           const members = membersByClub.get(c.id) ?? []
+          // Where the club says it is, as the town's centre: what the page
+          // needs to put the crews near a visitor first. Derived from the
+          // public location text, so it says nothing that text does not.
+          const place = placeOfText(c.location)
           let dist = 0
           let count = 0
           for (const uid of members) {
@@ -74,6 +79,8 @@ export default new Action({
             name: c.name,
             description: c.description,
             location: c.location,
+            lat: place ? Math.round(place.lat * 100) / 100 : null,
+            lng: place ? Math.round(place.lng * 100) / 100 : null,
             type: c.club_type,
             isPrivate: !!c.is_private,
             joinPolicy: c.join_policy ?? 'open',
