@@ -94,6 +94,9 @@
     id: number
     territory_id: number
     territoryName: string
+    /** The territory's centre, for "near you". */
+    centerLat?: number | null
+    centerLng?: number | null
     attacker_id: number
     attackerName: string
     attackerAvatar?: string | null

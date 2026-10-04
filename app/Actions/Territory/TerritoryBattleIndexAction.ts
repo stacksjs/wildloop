@@ -82,6 +82,10 @@ export default new Action({
         id: row.id,
         territory_id: row.territory_id,
         territoryName: territory?.name ?? `Territory #${row.territory_id}`,
+        // Where it happened, so a client can show the battles near a player.
+        // The map already publishes each territory's centre.
+        centerLat: territory?.center_lat ?? null,
+        centerLng: territory?.center_lng ?? null,
         attacker_id: attackerId ?? 0,
         attackerName: nameOf(attackerId, 'An attacker'),
         attackerAvatar: attackerId ? avatarOf(userMap.get(attackerId)) : null,

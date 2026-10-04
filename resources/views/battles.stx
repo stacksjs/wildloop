@@ -34,6 +34,8 @@
 <script client>
   import { formatTerritoryArea } from '../functions/territory-style'
   import { avatarUrl } from '../functions/avatars'
+  import { mapBoundsAround, mapBoundsContain, type MapBounds } from '../functions/map-area'
+  import { resolveNearby } from '../composables/useNearby'
 
   useHead({ title: 'Live Battles — Wildloop' })
 
@@ -61,25 +63,66 @@
   const wl = useStore('wl')
   const period = state<'today' | 'week' | 'all'>('today')
 
-  const liveBattles = derived(() => wl ? wl.conquests().filter((c: any) => c.status === 'active') : [])
+  /*
+   * Battles near the player, or everywhere.
+   *
+   * The feed is the whole game, so a player in Los Angeles was shown fights
+   * in Utah and Colorado as "Live battles". With a location (remembered or
+   * guessed from the connection, never prompted for), the page opens on the
+   * ones within reach and offers everywhere as the other half of the switch.
+   */
+  const NEARBY_KM = 40
+  const area = state<MapBounds | null>(null)
+  const areaLabel = state('')
+  const scope = state<'near' | 'all'>('all')
+
+  onMount(async () => {
+    const place = await resolveNearby().catch(() => null)
+    if (!place)
+      return
+    area.set(mapBoundsAround(place, NEARBY_KM))
+    areaLabel.set(place.label)
+    scope.set('near')
+  })
+
+  const inScope = derived(() => {
+    if (!wl) return []
+    const box = area()
+    if (scope() !== 'near' || !box) return wl.conquests()
+    return wl.conquests().filter((b: any) => b.centerLat != null && b.centerLng != null && mapBoundsContain(box, b.centerLat, b.centerLng))
+  })
+
+  const liveBattles = derived(() => inScope().filter((c: any) => c.status === 'active'))
 
   const filteredBattles = derived(() => {
-    if (!wl) return []
     const p = period()
     const now = Date.now()
     if (p === 'today') {
       const start = new Date().setHours(0, 0, 0, 0)
-      return wl.conquests().filter((b: any) => new Date(b.created_at).getTime() >= start)
+      return inScope().filter((b: any) => new Date(b.created_at).getTime() >= start)
     }
     if (p === 'week') {
       const weekAgo = now - 7 * 86400000
-      return wl.conquests().filter((b: any) => new Date(b.created_at).getTime() >= weekAgo)
+      return inScope().filter((b: any) => new Date(b.created_at).getTime() >= weekAgo)
     }
-    return wl.conquests()
+    return inScope()
   })
 
-  const conqueredCount = derived(() => wl ? wl.conquests().filter((b: any) => b.status === 'conquered').length : 0)
-  const defendedCount = derived(() => wl ? wl.conquests().filter((b: any) => b.status === 'defended').length : 0)
+  const conqueredCount = derived(() => inScope().filter((b: any) => b.status === 'conquered').length)
+  const defendedCount = derived(() => inScope().filter((b: any) => b.status === 'defended').length)
+
+  /** A contest still open reads as an attack in progress, not a failed one. */
+  function battleVerb(battle: any): string {
+    if (battle.status === 'conquered') return ' conquered '
+    if (battle.status === 'active') return ' is attacking '
+    return ' failed to conquer '
+  }
+
+  function battleBadge(battle: any): string {
+    if (battle.status === 'conquered') return 'Conquered'
+    if (battle.status === 'active') return 'Contested'
+    return 'Defended'
+  }
 </script>
 
   <div class="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
@@ -149,6 +192,10 @@
     <!-- Period filter -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 class="font-display text-xl font-bold text-slate-900 dark:text-white">Recent battles</h2>
+      <div :if="area" class="flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Where">
+        <button @click="scope.set('near')" :aria-pressed="scope === 'near' ? 'true' : 'false'" x-class="scope === 'near' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 max-w-[12rem] truncate rounded-full px-3.5 text-xs font-semibold transition">{{ 'Near ' + areaLabel }}</button>
+        <button @click="scope.set('all')" :aria-pressed="scope === 'all' ? 'true' : 'false'" x-class="scope === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">Everywhere</button>
+      </div>
       <div class="flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Period">
         <button @click="period.set('today')" x-class="period === 'today' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">Today</button>
         <button @click="period.set('week')" x-class="period === 'week' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">This week</button>
@@ -166,7 +213,7 @@
           <div class="min-w-0 flex-1">
             <p class="text-sm leading-snug text-slate-700 dark:text-slate-300">
               <span class="font-semibold text-slate-900 dark:text-white">{{ battle.attackerName }}</span>
-              <span>{{ battle.status === 'conquered' ? ' conquered ' : ' failed to conquer ' }}</span>
+              <span>{{ battleVerb(battle) }}</span>
               <StxLink x-to="'/territory/' + battle.territory_id" class="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">{{ battle.territoryName }}</StxLink>
               <span> from </span>
               <span class="font-semibold text-slate-900 dark:text-white">{{ battle.defenderName }}</span>
@@ -177,7 +224,7 @@
               <span class="tabular-nums">{{ battleArea(battle.areaCaptured) }}</span>
             </p>
           </div>
-          <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" x-class="battle.status === 'conquered' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'">{{ battle.status === 'conquered' ? 'Conquered' : 'Defended' }}</span>
+          <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" x-class="battle.status === 'conquered' || battle.status === 'active' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'">{{ battleBadge(battle) }}</span>
         </li>
       </template>
     </ol>
@@ -186,9 +233,10 @@
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 dark:bg-slate-800">
         <Icon name="zap" size="30" class="text-slate-400" />
       </div>
-      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">No battles in this period</h3>
-      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">The battlefield is quiet... for now.</p>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ scope === 'near' ? 'No battles near ' + areaLabel + ' in this period' : 'No battles in this period' }}</h3>
+      <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ scope === 'near' ? 'Claim a loop here and you will be the one they come for.' : 'The battlefield is quiet... for now.' }}</p>
       <button :if="period !== 'all'" @click="period.set('all')" class="mt-5 min-h-11 rounded-full px-5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">Show all time</button>
+      <button :if="scope === 'near'" @click="scope.set('all')" class="mt-5 min-h-11 rounded-full px-5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10">Show everywhere</button>
     </div>
   </div>
 @endsection
