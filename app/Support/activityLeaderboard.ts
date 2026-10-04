@@ -25,6 +25,12 @@ import { canonicalStampSql, sqlId } from './clubWeeklyStats'
  * following board counts the viewer and the people they follow: public and
  * followers-only runs, and the viewer's own private ones. Blocks hide an
  * athlete either way round.
+ *
+ * What counts: everything but a track the integrity checks refused. Those are
+ * saved to the athlete's log rather than thrown away, and a car's mileage on a
+ * running board is exactly what the checks are there to stop. The index holds
+ * `integrity_status` too (migration 0000000189), so excluding them still reads
+ * no activity row.
  */
 
 export type BoardScope = 'global' | 'following' | 'local'
@@ -110,6 +116,7 @@ export function boardScopeSql(query: BoardQuery): string | null {
       terms.push(`a.user_id IN (${locals})`)
     }
   }
+  terms.push(`a.integrity_status <> 'rejected'`)
   const blocked = idList(query.blocked)
   if (blocked)
     terms.push(`(a.user_id IS NULL OR a.user_id NOT IN (${blocked}))`)

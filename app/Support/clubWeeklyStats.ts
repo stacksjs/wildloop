@@ -41,6 +41,14 @@ export function canonicalStampSql(column: string): string {
 
 const CANONICAL = canonicalStampSql('a.completed_at')
 
+/**
+ * Which activities a club's week counts: all but a track the integrity checks
+ * refused. A refused track is kept in its athlete's log, and the club feed
+ * still shows it, but its miles are not the club's — the club leaderboard is
+ * a board like any other.
+ */
+const COUNTS = `a.integrity_status <> 'rejected'`
+
 export interface MembershipRow {
   club_id: number
   members: number
@@ -121,6 +129,7 @@ function weekTotalsSql(groupBy: string, clubId: number | undefined, viewer: numb
     ${memberActivitiesSql(clubId)}
     WHERE a.completed_at >= '${cutoff}'
       AND a.completed_at = ${CANONICAL}
+      AND ${COUNTS}
       AND ${visibleToSql(viewer)}
     GROUP BY ${groupBy}
   `.trim()
@@ -131,6 +140,7 @@ function weekStragglersSql(groupBy: string, clubId: number | undefined, viewer: 
     SELECT ${groupBy} AS group_id, a.distance AS distance, a.completed_at AS completed_at
     ${memberActivitiesSql(clubId)}
     WHERE a.completed_at IS NOT ${CANONICAL}
+      AND ${COUNTS}
       AND ${visibleToSql(viewer)}
   `.trim()
 }

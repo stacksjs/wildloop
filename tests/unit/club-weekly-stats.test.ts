@@ -223,6 +223,18 @@ describe('a club\'s week, by viewer', () => {
     }
   })
 
+  it('leaves a track the integrity checks refused out of the club\'s week and its leaderboard', () => {
+    const db = clubDatabase([[1, 1], [1, 2]], [], [
+      ...activities,
+      { user_id: 2, visibility: 'public', distance: 128, completed_at: iso(1), integrity_status: 'rejected' },
+      { user_id: 2, visibility: 'public', distance: 256, completed_at: withOffset(NOW - DAY, 60), integrity_status: 'rejected' },
+      { user_id: 1, visibility: 'public', distance: 512, completed_at: iso(1), integrity_status: 'rejected' },
+    ])
+
+    expect(fromSql(db, null, NOW).get(1)).toEqual({ memberCount: 2, isMember: false, weeklyDistance: 1 + 16, activitiesThisWeek: 2 })
+    expect(membersFromSql(db, 1, null, NOW)).toEqual(new Map([[2, { weeklyDistance: 17, weeklyActivities: 2 }]]))
+  })
+
   it('takes the week from the cutoff to the millisecond', () => {
     const cutoff = NOW - WEEK_MS
     const db = clubDatabase([[1, 1]], [], [

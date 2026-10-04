@@ -12,6 +12,7 @@ import { Database } from 'bun:sqlite'
 const MIGRATIONS = resolve(import.meta.dir, '../../database/migrations')
 const SCHEMA = [
   '0000000008-create-activities-table.sql',
+  '0000000080-add-activity-integrity.sql',
   '0000000013-create-follows-table.sql',
   '0000000018-create-club_members-table.sql',
   '0000000134-create-activities_user_completed_index-index-in-activities.sql',
@@ -29,6 +30,8 @@ export interface ActivityFixture {
   completed_at: string | null
   /** Left to the column default (`CURRENT_TIMESTAMP`) when absent. */
   created_at?: string
+  /** Left to the column default (`unverified`) when absent. */
+  integrity_status?: 'verified' | 'unverified' | 'rejected'
 }
 
 export function clubDatabase(
@@ -48,13 +51,14 @@ export function clubDatabase(
     follow.run(follower, following)
   // A track on every row, as in production: the club SQL must not need it.
   const track = '{"type":"LineString","coordinates":[]}'
-  const activity = db.prepare('INSERT INTO activities (user_id, activity_type, distance, visibility, completed_at, gpx_data) VALUES (?, ?, ?, ?, ?, ?)')
-  const stamped = db.prepare('INSERT INTO activities (user_id, activity_type, distance, visibility, completed_at, gpx_data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+  const activity = db.prepare('INSERT INTO activities (user_id, activity_type, distance, visibility, completed_at, gpx_data, integrity_status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+  const stamped = db.prepare('INSERT INTO activities (user_id, activity_type, distance, visibility, completed_at, gpx_data, integrity_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
   for (const a of activities) {
+    const integrity = a.integrity_status ?? 'unverified'
     if (a.created_at === undefined)
-      activity.run(a.user_id, 'Trail Run', a.distance, a.visibility, a.completed_at, track)
+      activity.run(a.user_id, 'Trail Run', a.distance, a.visibility, a.completed_at, track, integrity)
     else
-      stamped.run(a.user_id, 'Trail Run', a.distance, a.visibility, a.completed_at, track, a.created_at)
+      stamped.run(a.user_id, 'Trail Run', a.distance, a.visibility, a.completed_at, track, integrity, a.created_at)
   }
   return db
 }

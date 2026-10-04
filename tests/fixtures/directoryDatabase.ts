@@ -15,9 +15,11 @@ const SCHEMA = [
   '0000000016-create-users-table.sql',
   '0000000167-alter-users-profile-columns.sql',
   '0000000008-create-activities-table.sql',
+  '0000000080-add-activity-integrity.sql',
   '0000000134-create-activities_user_completed_index-index-in-activities.sql',
   '0000000184-create-activities_odd_completed_index-index-in-activities.sql',
   '0000000188-create-activities_board_index-index-in-activities.sql',
+  '0000000189-alter-activities-board-index-integrity.sql',
   '0000000013-create-follows-table.sql',
   '0000000035-create-follows_follower_following_unique-index-in-follows.sql',
   '0000000017-create-territory_stats-table.sql',
@@ -96,16 +98,19 @@ export interface ActivityRowFixture {
   completed_at: string | null
   /** Left to the column default (`CURRENT_TIMESTAMP`) when absent. */
   created_at?: string
+  /** Left to the column default (`unverified`) when absent. */
+  integrity_status?: 'verified' | 'unverified' | 'rejected'
 }
 
 export function insertActivities(db: Database, activities: ActivityRowFixture[]): void {
-  const insert = db.prepare('INSERT INTO activities (user_id, activity_type, distance, elevation, visibility, completed_at, gpx_data) VALUES (?, ?, ?, ?, ?, ?, ?)')
-  const stamped = db.prepare('INSERT INTO activities (user_id, activity_type, distance, elevation, visibility, completed_at, gpx_data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+  const insert = db.prepare('INSERT INTO activities (user_id, activity_type, distance, elevation, visibility, completed_at, gpx_data, integrity_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+  const stamped = db.prepare('INSERT INTO activities (user_id, activity_type, distance, elevation, visibility, completed_at, gpx_data, integrity_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
   for (const a of activities) {
+    const integrity = a.integrity_status ?? 'unverified'
     if (a.created_at === undefined)
-      insert.run(a.user_id, 'Trail Run', a.distance, a.elevation ?? null, a.visibility, a.completed_at, TRACK)
+      insert.run(a.user_id, 'Trail Run', a.distance, a.elevation ?? null, a.visibility, a.completed_at, TRACK, integrity)
     else
-      stamped.run(a.user_id, 'Trail Run', a.distance, a.elevation ?? null, a.visibility, a.completed_at, TRACK, a.created_at)
+      stamped.run(a.user_id, 'Trail Run', a.distance, a.elevation ?? null, a.visibility, a.completed_at, TRACK, integrity, a.created_at)
   }
 }
 

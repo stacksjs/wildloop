@@ -190,6 +190,21 @@ describe('the board, by hand', () => {
     expect((await fromSql(setup(), ask({ scope: 'local', locals: [3] }))).map(e => e.userId)).toEqual([3])
   })
 
+  it('leaves out a track the integrity checks refused, on every board, however it is stamped', async () => {
+    const db = setup()
+    insertActivities(db, [
+      { user_id: 3, visibility: 'public', distance: 128, elevation: 5000, completed_at: iso(1), integrity_status: 'rejected' },
+      { user_id: 3, visibility: 'public', distance: 256, elevation: 0, completed_at: withOffset(NOW - DAY, 60), integrity_status: 'rejected' },
+      { user_id: 3, visibility: 'public', distance: 512, elevation: 0, completed_at: null, integrity_status: 'rejected' },
+      { user_id: 2, visibility: 'public', distance: 32, elevation: 0, completed_at: iso(1), integrity_status: 'verified' },
+    ])
+
+    expect((await fromSql(db, ask({}))).find(e => e.userId === 3)).toMatchObject({ totalDistance: 3, totalElevation: 900, trailsCompleted: 1 })
+    expect((await fromSql(db, ask({ days: null }))).find(e => e.userId === 3)).toMatchObject({ totalDistance: 3.25, trailsCompleted: 2 })
+    expect((await fromSql(db, ask({ scope: 'following', viewer: 3 })))[0]).toMatchObject({ userId: 3, totalDistance: 3 })
+    expect((await fromSql(db, ask({}))).find(e => e.userId === 2)).toMatchObject({ totalDistance: 1 + 16 + 32 })
+  })
+
   it('hides both sides of a block', async () => {
     const db = setup()
     insertBlocks(db, [[2, 4]])
