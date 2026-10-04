@@ -684,11 +684,21 @@ export interface AthleteSearchResult {
   followerCount: number
   territoriesOwned: number
   totalAreaOwned: number
+  /** Their profile town is near the place the discover list was asked from. */
+  nearYou?: boolean
 }
 
-/** Search athletes by name; empty/short query returns a discover list (#971). */
-export async function searchAthletes(q: string): Promise<AthleteSearchResult[] | null> {
-  const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() })
+/**
+ * Search athletes by name; empty/short query returns a discover list (#971).
+ * Give a discover list a place and the athletes near it come first.
+ */
+export async function searchAthletes(q: string, near?: { lat: number, lng: number } | null): Promise<AthleteSearchResult[] | null> {
+  const params = new URLSearchParams({ q })
+  if (near && Number.isFinite(near.lat) && Number.isFinite(near.lng)) {
+    params.set('lat', String(Math.round(near.lat * 100) / 100))
+    params.set('lng', String(Math.round(near.lng * 100) / 100))
+  }
+  const res = await apiFetch(`/api/users/search?${params}`, { headers: authHeaders() })
   if (!res.ok)
     return null
   const json = await res.json()
