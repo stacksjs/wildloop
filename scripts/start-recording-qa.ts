@@ -67,6 +67,24 @@ for (const [name, location, state, stateName, country, distance, latitude, longi
   ['Nordkette Panorama Trail', 'Innsbruck, Tirol', 'AT-7', 'Tirol', 'AT', 6.5, 47.3126, 11.3803],
 ] as const)
   alpineTrail.run(name, location, state, stateName, country, distance, latitude, longitude)
+// Trails around one point, for ranking "near me". Boulder, so that nothing
+// another suite searches near can reach them: the nearest other seed is more
+// than 300 miles away, the widest a near-me search ever goes. Shaped like the
+// catalog around Los Angeles: a destination, a scenic walk, pieces of one
+// trail from two sources, a fire road at the end of the street, and a trail
+// nobody should be sent down.
+const nearbyTrail = db.query(`INSERT INTO trails
+  (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude, source, source_id)
+  VALUES (?, ?, 'CO', 'Colorado', 'US', ?, 0, 'easy', ?, ?, ?, ?)`)
+for (const [name, location, distance, latitude, longitude, source, sourceId] of [
+  ['Royal Arch Trail', 'Chautauqua Park, CO', 3.4, 39.9890, -105.2830, 'nps', 'qa/royal-arch'],
+  ['Royal Arch Trail', 'Colorado', 0.3, 39.9881, -105.2826, 'osm', 'qa/royal-arch-way'],
+  ['Mesa Trail', 'Colorado', 6.7, 39.9600, -105.2700, 'osm', 'qa/mesa'],
+  ['Flagstaff Road', 'Boulder Mountain Parks, CO', 2.2, 39.9998, -105.2801, 'osm', 'qa/flagstaff-road'],
+  ['Proposed Gregory Spur', 'Colorado', 1.2, 39.9999, -105.2800, 'osm', 'qa/proposed'],
+  ['Walker Ranch Loop', 'Boulder County Open Space, CO', 7.6, 39.9520, -105.3380, 'osm', 'qa/walker-ranch'],
+] as const)
+  nearbyTrail.run(name, location, distance, latitude, longitude, source, sourceId)
 // One record of each kind the detail pages render, in a public and a withheld
 // variant, so the suite can assert both halves of each page's server block:
 // that a public record reaches the HTML, and that a private one does not.

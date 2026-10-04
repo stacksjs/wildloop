@@ -1,12 +1,15 @@
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
+import { trailEngagement } from '../../Support/trailEngagement'
+import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
+import type { RankMode } from '../../Support/trailRanking'
 import { difficultyIsEstimated } from '../../../resources/functions/trail-difficulty'
 
 const DIFFICULTIES = new Set(['easy', 'moderate', 'hard'])
 const ROUTE_TYPES = new Set(['loop', 'out-and-back', 'point-to-point', 'network'])
 const SOURCES = new Set(['osm', 'usfs', 'nps', 'manual'])
-const SORTS = new Set(['featured', 'distance', 'longest', 'rating', 'name'])
+const SORTS = new Set(['featured', 'popular', 'nearest', 'distance', 'longest', 'rating', 'name'])
 
 /** Degrees of latitude per mile. Longitude is narrowed by cos(lat) at use. */
 const DEGREES_PER_MILE = 1 / 69
@@ -25,6 +28,17 @@ const MIN_NEARBY_RESULTS = 12
 
 /** Radii to try, in order, when the requested one is too thin. */
 const WIDER_RADII = [60, 150, MAX_RADIUS]
+
+/**
+ * The most rows a ranked "near me" list scores.
+ *
+ * The densest 25-mile circle in the catalog (Munich) holds about 3,700 trails
+ * and Los Angeles about 2,200, so this is headroom rather than a limit anybody
+ * meets at the default radius. A hand-widened radius can exceed it; the rows
+ * kept are then the day hikes and the rated ones, which is where every
+ * ranked list's first pages come from anyway.
+ */
+const RANK_CANDIDATE_CAP = 6000
 
 /**
  * List trails for the explore map and catalog.
@@ -51,7 +65,12 @@ export default new Action({
       // Built twice: once to count the matches, once to fetch the window.
       // A count over an indexed predicate is cheap, and it is the only way to
       // give the UI an honest "N trails match" without fetching all of them.
-      const fetchPage = async (skipInferredCountry: boolean, radius?: number) => {
+      const rankMode = origin ? rankModeFor(request) : null
+
+      const fetchPage = async (skipInferredCountry: boolean, radius?: number): Promise<{ rows: any[], total: number }> => {
+        if (origin && rankMode)
+          return fetchRankedPage(request, origin, radius ?? requestedRadius(request), rankMode, page)
+
         const rows = await applyOrder(applyFilters(Trail.query(), request, skipInferredCountry, radius), request)
           .limit(page.limit)
           .offset(page.offset)
@@ -114,6 +133,11 @@ export default new Action({
         // The map layer reads `lat`/`lng`; the column names are the long form.
         lat: row.latitude,
         lng: row.longitude,
+        // How far the trail starts from where the list was asked about. Only
+        // on a "near me" answer, where it is what the visitor compares.
+        ...(origin && Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude))
+          ? { milesAway: Math.round(milesBetween(origin, Number(row.latitude), Number(row.longitude)) * 10) / 10 }
+          : {}),
         /*
          * Whether the grade beside this row is a measurement or distance
          * alone (#1004). Derived from the stored elevation rather than a
@@ -156,6 +180,71 @@ export default new Action({
     }
   },
 })
+
+/**
+ * How a "near me" list is ranked, or null for an order SQL can answer alone.
+ *
+ * Best match, popular, top rated and closest all depend on where the visitor
+ * is, which no column knows, so they are ranked in `trailRanking.ts`.
+ * Longest, shortest and A–Z mean the same thing anywhere and stay in SQL.
+ */
+function rankModeFor(request: { get: (key: string) => any }): RankMode | null {
+  const sort = readString(request, 'sort')
+  switch (sort && SORTS.has(sort) ? sort : 'featured') {
+    case 'featured':
+      return 'best'
+    case 'popular':
+      return 'popular'
+    case 'rating':
+      return 'rating'
+    case 'nearest':
+      return 'nearest'
+    default:
+      return null
+  }
+}
+
+/**
+ * One page of a ranked "near me" list.
+ *
+ * Every candidate in the box is scored — a few thousand narrow rows — and only
+ * the page is then fetched in full, so the geometry of 2,000 trails is never
+ * read to show 60 of them. The total is the ranked list's length, which is
+ * smaller than the box's row count: pieces of one trail are folded together.
+ */
+async function fetchRankedPage(
+  request: { get: (key: string) => any },
+  origin: Origin,
+  radius: number,
+  mode: RankMode,
+  page: { limit: number, offset: number },
+): Promise<{ rows: any[], total: number }> {
+  const candidates = await applyFilters(Trail.query(), request, false, radius)
+    .select(...RANK_COLUMNS)
+    // Only decides anything when the box holds more than the cap: then the
+    // rows scored are the day hikes and the rated ones.
+    .orderBy('browse_band', 'asc')
+    .orderBy('rating', 'desc')
+    .orderBy('id', 'asc')
+    .limit(RANK_CANDIDATE_CAP)
+    .get() as any[]
+
+  const engagement = await trailEngagement(candidates.map(row => Number(row.id)))
+  const ranked = rankTrails(candidates, origin, radius, mode, engagement)
+
+  const ids = ranked.slice(page.offset, page.offset + page.limit).map(entry => Number(entry.trail.id))
+  const full = ids.length > 0 ? ((await Trail.whereIn('id', ids).get()) ?? []) as any[] : []
+  const byId = new Map(full.map(row => [Number(row.id), row]))
+  const rows = ids.map(id => byId.get(id)).filter(Boolean)
+
+  // At the cap the ranked length is a floor, not a count; the box's own
+  // count is the honest upper figure.
+  const total = candidates.length >= RANK_CANDIDATE_CAP
+    ? await applyFilters(Trail.query(), request, false, radius).count()
+    : ranked.length
+
+  return { rows, total }
+}
 
 /**
  * The country this request is answered for, or undefined for the whole catalog.
@@ -377,6 +466,10 @@ function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | '
       // out, rather than handing back whatever order the table happens to be
       // in — which is what it does today, at 0% rated.
       return [['rating', 'desc'], ['review_count', 'desc'], [LENGTH_BAND, 'asc'], ['distance', 'desc']]
+    case 'popular':
+      // Without a location there is no "near" to break ties with, so it is
+      // reviews, then rating, then the same day-hike-first order as the default.
+      return [['review_count', 'desc'], ['rating', 'desc'], [LENGTH_BAND, 'asc'], ['distance', 'desc'], ['id', 'asc']]
     case 'name':
       return [['name', 'asc']]
     default:
