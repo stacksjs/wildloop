@@ -130,7 +130,7 @@
   import { routeShapeFor } from '../../composables/useRouteShape'
   import { avatarInitial, avatarTint, avatarUrl } from '../../functions/avatars'
   import { copyLink, shareLink, shareNote } from '../../composables/useShareLink'
-  import { indexTrail } from '../../composables/useTrailSpotlight'
+  import { indexInSpotlight } from '../../composables/useSpotlightIndex'
   import { routeTypeIcon, routeTypeLabel, trailFeatures, trailNotices } from '../../functions/trail-features'
   import { parsePhotoList, trailGallery, type GalleryContribution } from '../../functions/trail-photos'
   import { difficultyLabel, difficultyTallyText } from '../../functions/review-form'
@@ -727,12 +727,12 @@
 
     // Offer the trail to iOS Spotlight, so searching its name from the home
     // screen finds it rather than only finding the app. Donating the same
-    // trail twice costs nothing — see useTrailSpotlight — and off a native
+    // trail twice costs nothing — see useSpotlightIndex — and off a native
     // host this does nothing at all.
     const stopSpotlight = effect(() => {
       const current = trail()
       if (current)
-        void indexTrail({ id: current.id, name: current.name })
+        void indexInSpotlight('trail', { id: current.id, name: current.name })
     })
 
     return () => {

@@ -2,7 +2,7 @@ import { onMount } from 'stx'
 import { initializeAuthSession, isSignedIn } from '../assets/scripts/auth'
 import { fetchSavedTrails, toggleSaveTrail } from '../assets/scripts/game-api'
 import { requireAuth } from './useAuthGate'
-import { indexTrail, syncTrailSpotlight, unindexTrail } from './useTrailSpotlight'
+import { indexInSpotlight, removeFromSpotlight, syncSpotlight } from './useSpotlightIndex'
 
 /**
  * Saved trails (#969): hydrate the current user's bookmarks into the `wl`
@@ -41,7 +41,7 @@ export function useSavedTrails(wl: SavedTrailStoreLike | null) {
       // from the home screen. Newest-saved first, which is the order the API
       // returns and the order the index keeps when there are more saved trails
       // than slots. A no-op everywhere but a native build.
-      void syncTrailSpotlight(payload.savedTrails.map((s: any) => ({
+      void syncSpotlight('trail', payload.savedTrails.map((s: any) => ({
         id: s.trailId,
         name: s.trail?.name,
       })))
@@ -75,9 +75,9 @@ export function useSavedTrails(wl: SavedTrailStoreLike | null) {
       // nothing worth donating — an entry reading "Trail #123" is not what
       // anybody searches for — so that one waits for the next launch's sync.
       if (!res.saved)
-        void unindexTrail(trailId)
+        void removeFromSpotlight('trail', trailId)
       else if (name)
-        void indexTrail({ id: trailId, name })
+        void indexInSpotlight('trail', { id: trailId, name })
     }
     else {
       wl.setTrailSaved(trailId, was) // rollback

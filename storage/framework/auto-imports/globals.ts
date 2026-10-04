@@ -249,15 +249,7 @@ declare global {
   const forecastBar: typeof autoImports.forecastBar
   const parsePhotoList: typeof autoImports.parsePhotoList
   const trailGallery: typeof autoImports.trailGallery
-  const trailSpotlightAction: typeof autoImports.trailSpotlightAction
-  const trailSpotlightSlot: typeof autoImports.trailSpotlightSlot
-  const trailSpotlightActions: typeof autoImports.trailSpotlightActions
-  const trailSpotlightTitle: typeof autoImports.trailSpotlightTitle
-  const placeTrail: typeof autoImports.placeTrail
-  const removeTrail: typeof autoImports.removeTrail
-  const trailSpotlightRoute: typeof autoImports.trailSpotlightRoute
   const readSpotlightEntries: typeof autoImports.readSpotlightEntries
-  const TRAIL_SPOTLIGHT_SLOTS: typeof autoImports.TRAIL_SPOTLIGHT_SLOTS
   const readSpotlightKinds: typeof autoImports.readSpotlightKinds
   const spotlightKind: typeof autoImports.spotlightKind
   const spotlightAction: typeof autoImports.spotlightAction

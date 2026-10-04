@@ -16,7 +16,7 @@ import {
   writeIosShortcuts,
 } from '../../scripts/generate-ios-shortcuts'
 import { APP_SHORTCUTS } from '../../resources/functions/app-shortcuts'
-import { TRAIL_SPOTLIGHT_SLOTS, trailSpotlightActions } from '../../resources/functions/trail-spotlight'
+import { SPOTLIGHT_KINDS, spotlightActions } from '../../resources/functions/spotlight'
 
 /** The shape Craft's template emits: nested dicts, root dict last. */
 const CRAFT_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
@@ -222,10 +222,11 @@ describe('the activity types a tapped entry needs declared', () => {
 
     for (const shortcut of APP_SHORTCUTS)
       expect(types).toContain(`org.wildloop.app.${shortcut.id}`)
-    for (const action of trailSpotlightActions())
+    for (const action of spotlightActions())
       expect(types).toContain(`org.wildloop.app.${action}`)
 
-    expect(types).toHaveLength(APP_SHORTCUTS.length + TRAIL_SPOTLIGHT_SLOTS)
+    const slots = SPOTLIGHT_KINDS.reduce((sum, kind) => sum + kind.slots, 0)
+    expect(types).toHaveLength(APP_SHORTCUTS.length + slots)
     expect(new Set(types).size).toBe(types.length)
   })
 

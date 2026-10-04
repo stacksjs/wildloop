@@ -24,7 +24,7 @@ import { readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { APP_SHORTCUTS, appShortcutDeepLink } from '../resources/functions/app-shortcuts'
-import { trailSpotlightActions } from '../resources/functions/trail-spotlight'
+import { spotlightActions } from '../resources/functions/spotlight'
 
 /**
  * The iOS version these types need.
@@ -177,11 +177,11 @@ ${entries.join('\n')}
  * Info.plist lists that type in `NSUserActivityTypes`. Undeclared, the entry
  * still appears and the tap merely opens the app wherever it was last.
  *
- * So the two donating features both have to be declared here: the app's own
- * shortcuts, by their ids, and the fixed slots trails are indexed into.
+ * So everything that donates has to be declared here: the app's own shortcuts,
+ * by their ids, and every slot of every content kind in config/spotlight.ts.
  */
 export function donatedActivityTypes(bundleId: string): string[] {
-  return [...APP_SHORTCUTS.map(shortcut => shortcut.id), ...trailSpotlightActions()]
+  return [...APP_SHORTCUTS.map(shortcut => shortcut.id), ...spotlightActions()]
     .map(action => `${bundleId}.${action}`)
 }
 
