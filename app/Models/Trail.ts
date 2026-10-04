@@ -66,8 +66,10 @@ export default defineModel({
     // Kept alongside the composite because a region code is often enough on
     // its own, and a leading-column-only lookup cannot use the index above.
     { name: 'trails_state_index', columns: ['state'] },
-    // Bounding-box prefilter for "trails near me" and for the territory engine,
-    // which otherwise full-scans a table that is heading for millions of rows.
+    // Bounding-box prefilter for the territory engine, which otherwise
+    // full-scans a table that is heading for millions of rows. "Near me"
+    // filters on the start point instead, through `trails_lat_lng_index`
+    // (migration 0000000182).
     { name: 'trails_bbox_index', columns: ['min_lat', 'max_lat', 'min_lng', 'max_lng'] },
     // Lets the ingest walk rows that have not been refreshed recently.
     { name: 'trails_synced_at_index', columns: ['synced_at'] },
