@@ -17,6 +17,7 @@ const SCHEMA = [
   '0000000008-create-activities-table.sql',
   '0000000134-create-activities_user_completed_index-index-in-activities.sql',
   '0000000184-create-activities_odd_completed_index-index-in-activities.sql',
+  '0000000188-create-activities_board_index-index-in-activities.sql',
   '0000000013-create-follows-table.sql',
   '0000000035-create-follows_follower_following_unique-index-in-follows.sql',
   '0000000017-create-territory_stats-table.sql',
@@ -43,10 +44,10 @@ function migrate(db: Database, file: string): void {
   }
 }
 
-/** The schema, empty, plus any migrations a test adds on top. */
-export function directoryDatabase(extra: string[] = []): Database {
+/** The schema, empty. */
+export function directoryDatabase(): Database {
   const db = new Database(':memory:')
-  for (const file of [...SCHEMA, ...extra])
+  for (const file of SCHEMA)
     migrate(db, file)
   return db
 }
