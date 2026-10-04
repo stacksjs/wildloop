@@ -1,14 +1,19 @@
 // Auth is imported explicitly: it is NOT in the API server bundle's auto-imports,
 // so `Auth.user()` threw "Auth.user is not a function" at runtime in production
-// while type-checking clean against the declarations. Everything else here is
+// while type-checking clean against the declarations. `db` is imported the way
+// the other raw-SQL actions import it; the models and response helpers are
 // auto-imported as usual.
 //
 // GET /api/clubs/{id} - club detail for the club page (#964): members (with
 // names + roles), a recent activity feed from members, and a weekly-distance
 // leaderboard. Public read; a private club only resolves for its members.
 
+import type { WeekActivityRow, WeekTotalRow } from '../../Support/clubWeeklyStats'
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
 import { avatarOf } from '../../Support/avatars'
+import { recentClubFeed } from '../../Support/clubRecentFeed'
+import { memberWeekStragglersSql, memberWeekTotalsSql, tallyWeeks, weekCutoff } from '../../Support/clubWeeklyStats'
 
 export default new Action({
   name: 'Club Show',
@@ -47,21 +52,21 @@ export default new Action({
         }))
         .sort((a: any, b: any) => (a.role === 'owner' ? -1 : 0) - (b.role === 'owner' ? -1 : 0))
 
-      const allActivities = memberIds.length ? (await Activity.whereIn('user_id', memberIds).get()) ?? [] : []
-
       // Every member-activity-derived value - the feed AND the weekly
       // leaderboard - must respect each activity's visibility (#957): a
       // member's private/followers-only run can't leak through the club to a
-      // viewer who isn't allowed to see it.
-      const viewerFollowing = sessionUser !== null
-        ? new Set(((await Follow.where('follower_id', '=', sessionUser).get()) ?? []).map((f: any) => f.following_id))
-        : new Set<number>()
-      const activities = allActivities.filter((a: any) => canViewActivity(a, sessionUser, viewerFollowing))
-      const sortedActivities = [...activities]
-        .sort((a: any, b: any) =>
-          Date.parse(b.completed_at ?? b.created_at ?? '') - Date.parse(a.completed_at ?? a.created_at ?? ''))
+      // viewer who isn't allowed to see it. Both are read in SQL (see
+      // clubRecentFeed and clubWeeklyStats) rather than by loading every
+      // activity the members have ever recorded.
+      const run = async (sql: string) => (await db.sql`${db.unsafe(sql)}`.execute() as any[]) ?? []
+      const since = weekCutoff()
+      const [feedRows, weekTotals, weekStragglers] = await Promise.all([
+        recentClubFeed(run, clubId, sessionUser),
+        run(memberWeekTotalsSql(clubId, sessionUser, since)) as Promise<WeekTotalRow[]>,
+        run(memberWeekStragglersSql(clubId, sessionUser)) as Promise<WeekActivityRow[]>,
+      ])
 
-      const recentFeed = sortedActivities.slice(0, 10).map((a: any) => ({
+      const recentFeed = feedRows.map((a: any) => ({
         id: a.id,
         userId: a.user_id,
         userName: userName.get(a.user_id) ?? 'Unknown',
@@ -74,24 +79,14 @@ export default new Action({
       }))
 
       // Weekly-distance leaderboard among members.
-      const weekAgoMs = Date.now() - 7 * 86400000
-      const weeklyByUser = new Map<number, { dist: number, count: number }>()
-      for (const a of activities) {
-        const when = a.completed_at ? Date.parse(a.completed_at) : Number.NaN
-        if (!Number.isFinite(when) || when < weekAgoMs)
-          continue
-        const w = weeklyByUser.get(a.user_id) ?? { dist: 0, count: 0 }
-        w.dist += a.distance ?? 0
-        w.count += 1
-        weeklyByUser.set(a.user_id, w)
-      }
+      const weeklyByUser = tallyWeeks(weekTotals, weekStragglers, since)
       const leaderboard = memberIds
         .map((uid: number) => ({
           userId: uid,
           name: userName.get(uid) ?? 'Unknown',
           avatar: userAvatar.get(uid) ?? null,
-          weeklyDistance: Math.round((weeklyByUser.get(uid)?.dist ?? 0) * 10) / 10,
-          weeklyActivities: weeklyByUser.get(uid)?.count ?? 0,
+          weeklyDistance: Math.round((weeklyByUser.get(uid)?.distance ?? 0) * 10) / 10,
+          weeklyActivities: weeklyByUser.get(uid)?.activities ?? 0,
         }))
         .sort((a: any, b: any) => b.weeklyDistance - a.weeklyDistance || a.userId - b.userId)
         .map((row: any, i: number) => ({ ...row, rank: i + 1 }))

@@ -13,7 +13,7 @@
 import type { MembershipRow, WeekActivityRow, WeekTotalRow } from '../../Support/clubWeeklyStats'
 import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
-import { clubMembershipSql, clubWeekStragglersSql, clubWeekTotalsSql, tallyClubWeeks, weekCutoff } from '../../Support/clubWeeklyStats'
+import { clubMembershipSql, clubWeekStragglersSql, clubWeekTotalsSql, tallyWeeks, weekCutoff } from '../../Support/clubWeeklyStats'
 import { placeOfText } from '../../Support/placeText'
 import { matchesText, textQuery } from '../../Support/textQuery'
 
@@ -46,7 +46,7 @@ export default new Action({
       ]) as [MembershipRow[], WeekTotalRow[], WeekActivityRow[]]
 
       const membershipByClub = new Map((membershipRows ?? []).map(row => [Number(row.club_id), row]))
-      const weekByClub = tallyClubWeeks(totalRows, stragglerRows, since)
+      const weekByClub = tallyWeeks(totalRows, stragglerRows, since)
 
       const result = clubs
         .filter((c: any) => !c.is_private || !!membershipByClub.get(c.id)?.is_member)

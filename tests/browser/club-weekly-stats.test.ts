@@ -1,19 +1,21 @@
 /**
- * The clubs list's this-week numbers, through `GET /api/clubs`.
+ * A club's this-week numbers and recent feed, through `GET /api/clubs` and
+ * `GET /api/clubs/{id}`.
  *
- * `weeklyDistance` and `activitiesThisWeek` are counted in SQL now, joined to
- * `club_members` and windowed to the last seven days, rather than by loading
- * every activity ever recorded. What must not change is whose mileage counts
- * for whom (#957): a member's private run never reaches a club's numbers for
- * anyone else, and followers-only runs count only for followers.
+ * The week totals, the leaderboard and the feed are read in SQL now rather
+ * than by loading every activity ever recorded. What must not change is whose
+ * runs count for whom (#957): a member's private run never reaches a club's
+ * numbers or feed for anyone else, and followers-only runs show only to
+ * followers.
  *
  * One runner owns the club and records six activities whose distances are
  * powers of two, so each total names exactly the runs that went into it. Two
  * of them carry a `completed_at` in a shape other than `toISOString()`, which
  * the endpoint judges separately, so that path is exercised too.
  *
- * `tests/unit/club-weekly-stats.test.ts` checks the same SQL against the old
- * in-memory count on mixed data; this is the request a browser makes.
+ * `tests/unit/club-weekly-stats.test.ts` and `club-recent-feed.test.ts` check
+ * the same SQL against the old in-memory code on mixed data; this is the
+ * request a browser makes.
  */
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { API, csrfToken, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
@@ -69,6 +71,23 @@ async function listed(token?: string): Promise<any> {
   return payload.clubs[0]
 }
 
+/** This test's club page as `token`'s owner sees it, or signed out. */
+async function page(token?: string): Promise<any> {
+  const response = await fetch(`${API}/clubs/${clubId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  expect(response.status, await response.clone().text()).toBe(200)
+  const payload = await response.json()
+  expect(payload.success).toBe(true)
+  return payload.club
+}
+
+/** The feed as the distances of its runs, which name them. */
+const feedDistances = (club: any): number[] => club.recentFeed.map((entry: any) => entry.distance)
+
+/** The runner's leaderboard row. */
+const runnerRow = (club: any): any => club.leaderboard.find((row: any) => row.userId === runner.id)
+
 /** The same instant written with a UTC offset, as a hand-made API call might. */
 function withOffset(ms: number, minutes: number): string {
   const local = new Date(ms + minutes * 60_000).toISOString().slice(0, 23)
@@ -78,6 +97,7 @@ function withOffset(ms: number, minutes: number): string {
 let runner = { id: 0, token: '' }
 let fan = { id: 0, token: '' }
 let stranger = { id: 0, token: '' }
+let clubId = 0
 
 beforeAll(async () => {
   if (!qa)
@@ -90,6 +110,7 @@ beforeAll(async () => {
 
   const club = await send('/clubs', 'POST', { name: CLUB_NAME, club_type: 'Running', location: 'Denver, CO' }, runner.token)
   expect(club.status, await club.clone().text()).toBe(201)
+  clubId = Number((await club.json()).club.id)
 
   const follow = await send(`/users/${runner.id}/follow`, 'PUT', {}, fan.token)
   expect(follow.status, await follow.clone().text()).toBe(200)
@@ -137,5 +158,39 @@ describe.skipIf(!qa)('club weekly stats', () => {
 
   it('shows the runner their own private run too', async () => {
     expect(await listed(runner.token)).toMatchObject({ memberCount: 1, isMember: true, weeklyDistance: 1 + 2 + 4 + 16 + 32, activitiesThisWeek: 5 })
+  })
+
+  // Newest first the runs are 1, 2, 16, 4, 32 and then 8, a week and more ago:
+  // the feed is not limited to the week.
+  it('feeds someone signed out only public runs, newest first', async () => {
+    const club = await page()
+
+    expect(feedDistances(club)).toEqual([1, 16, 8])
+    expect(runnerRow(club)).toMatchObject({ weeklyDistance: 17, weeklyActivities: 2, rank: 1 })
+    expect(club).toMatchObject({ memberCount: 1, isMember: false, weeklyDistance: 17, activitiesThisWeek: 2 })
+  })
+
+  it('feeds a signed-in stranger the same', async () => {
+    const club = await page(stranger.token)
+
+    expect(feedDistances(club)).toEqual([1, 16, 8])
+    expect(runnerRow(club)).toMatchObject({ weeklyDistance: 17, weeklyActivities: 2 })
+  })
+
+  it('feeds a follower the followers-only runs too, but never the private one', async () => {
+    const club = await page(fan.token)
+
+    expect(feedDistances(club)).toEqual([1, 2, 16, 32, 8])
+    expect(runnerRow(club)).toMatchObject({ weeklyDistance: 51, weeklyActivities: 4 })
+    expect(club).toMatchObject({ weeklyDistance: 51, activitiesThisWeek: 4 })
+  })
+
+  it('feeds the runner everything of their own', async () => {
+    const club = await page(runner.token)
+
+    expect(feedDistances(club)).toEqual([1, 2, 16, 4, 32, 8])
+    expect(runnerRow(club)).toMatchObject({ weeklyDistance: 55, weeklyActivities: 5 })
+    expect(club).toMatchObject({ isMember: true, weeklyDistance: 55, activitiesThisWeek: 5 })
+    expect(club.recentFeed[0]).toMatchObject({ userId: runner.id, userName: 'Club Week runner', activityType: 'Trail Run', duration: '30:00' })
   })
 })
