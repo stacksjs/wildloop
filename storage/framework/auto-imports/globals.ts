@@ -110,6 +110,9 @@ declare global {
   const formatHealthSummary: typeof autoImports.formatHealthSummary
   const createHealthWorkout: typeof autoImports.createHealthWorkout
   const mapArea: typeof autoImports.mapArea
+  const mapBoundsFromQuery: typeof autoImports.mapBoundsFromQuery
+  const mapBoundsAround: typeof autoImports.mapBoundsAround
+  const mapBoundsContain: typeof autoImports.mapBoundsContain
   const extractMentionQuery: typeof autoImports.extractMentionQuery
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention

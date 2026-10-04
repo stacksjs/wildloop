@@ -8,6 +8,7 @@
 import { Auth } from '@stacksjs/auth'
 
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { mapBoundsFromQuery } from '../../../resources/functions/map-area'
 import { avatarOf } from '../../Support/avatars'
 
 export default new Action({
@@ -16,19 +17,16 @@ export default new Action({
   method: 'GET',
 
   async handle(request) {
-    const minLat = request.get<number>('min_lat')
-    const minLng = request.get<number>('min_lng')
-    const maxLat = request.get<number>('max_lat')
-    const maxLng = request.get<number>('max_lng')
+    const bounds = mapBoundsFromQuery(key => request.get(key))
     const currentUserId = (await Auth.user().catch(() => null))?.id ?? null
     const limit = Math.min(500, Math.max(1, Number(request.get<number>('limit') || 100)))
 
     try {
       // Contested territories are still on the map - they're the interesting
       // ones (under attack). Only future non-live states would be excluded.
-      const hasBounds = [minLat, minLng, maxLat, maxLng].every(value => typeof value === 'number' && Number.isFinite(value))
       let filteredTerritories: any[]
-      if (hasBounds) {
+      if (bounds) {
+        const { minLat, minLng, maxLat, maxLng } = bounds
         // Spatial columns are indexed and applied before LIMIT. Legacy rows
         // without the columns are repaired as they are encountered below.
         const indexed = await Territory.whereIn('status', ['active', 'contested'])
@@ -138,7 +136,7 @@ export default new Action({
         features,
         meta: {
           total: features.length,
-          bounds: minLat !== undefined ? { minLat, minLng, maxLat, maxLng } : null,
+          bounds,
         },
       })
     }
