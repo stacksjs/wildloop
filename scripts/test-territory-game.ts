@@ -29,11 +29,21 @@ const headers = {
 }
 
 async function call(path: string, method = 'GET', body?: unknown, token?: string): Promise<{ status: number, body: any }> {
-  const response = await fetch(`${base}${path}`, {
+  const send = () => fetch(`${base}${path}`, {
     method,
     headers: { ...headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+  let response = await send()
+  // The QA suites share one rate-limit budget, and this runs in its own
+  // process where tests/browser/qa-servers.ts cannot wait out a 429 for it.
+  // A 429 read as data is an empty notification list that fails a check about
+  // something else entirely, so wait out Retry-After once, as the suites do.
+  if (response.status === 429) {
+    const retryAfter = Number(response.headers.get('Retry-After') ?? 1)
+    await Bun.sleep(Math.min(Math.max(Number.isFinite(retryAfter) ? retryAfter : 1, 1), 60) * 1000 + 500)
+    response = await send()
+  }
   return { status: response.status, body: await response.json().catch(() => null) }
 }
 

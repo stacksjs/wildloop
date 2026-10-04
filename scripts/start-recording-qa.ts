@@ -167,12 +167,67 @@ const dashboard = Bun.spawn(['bun', '--no-env-file', 'node_modules/@stacksjs/act
   stdout: 'inherit',
   stderr: 'inherit',
 })
-for (const signal of ['SIGINT', 'SIGTERM'] as const)
+/**
+ * Every process under `pid`, deepest last.
+ *
+ * `buddy dev` starts the API watcher, the docs server and more as children of
+ * its own. Signalling `buddy dev` alone left those running after every test
+ * run, still holding the QA ports: the next run found them "already up",
+ * reused servers with spent rate-limit budgets and stale code, and failed in
+ * ways that had nothing to do with the tests. pgrep is on every Mac and Linux
+ * box this runs on; CI also kills the whole process group itself.
+ */
+function descendants(pid: number): number[] {
+  const children = Bun.spawnSync(['pgrep', '-P', String(pid)]).stdout.toString()
+    .split('\n').map(Number).filter(child => Number.isInteger(child) && child > 0)
+  return children.flatMap(child => [child, ...descendants(child)])
+}
+
+let stopping = false
+function stopAll(signal: NodeJS.Signals = 'SIGTERM'): void {
+  if (stopping)
+    return
+  stopping = true
+  // Found before anything is signalled: once a parent goes, its children are
+  // re-parented and can no longer be found under it.
+  const tree = [...descendants(server.pid), ...descendants(dashboard.pid)]
+  server.kill(signal)
+  dashboard.kill(signal)
+  for (const pid of tree) {
+    try {
+      process.kill(pid, signal)
+    }
+    catch {}
+  }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
   process.on(signal, () => {
-    server.kill(signal)
-    dashboard.kill(signal)
+    stopAll(signal)
+    process.exit(0)
   })
+}
+/*
+ * Go when whatever started us goes.
+ *
+ * `bun test` starts this from tests/browser/qa-servers.ts and does not signal
+ * it on the way out — its exit handlers do not run the way Node's do — so the
+ * whole stack outlived every run. The parent is watched instead: once it is
+ * gone, nothing is left to talk to these servers.
+ */
+const parent = process.ppid
+const watchParent = setInterval(() => {
+  try {
+    process.kill(parent, 0)
+  }
+  catch {
+    clearInterval(watchParent)
+    stopAll()
+    process.exit(0)
+  }
+}, 1000)
+
 const exitCode = await Promise.race([server.exited, dashboard.exited])
-server.kill()
-dashboard.kill()
+clearInterval(watchParent)
+stopAll()
 process.exit(exitCode)

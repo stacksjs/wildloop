@@ -15,11 +15,19 @@ const headers = {
 }
 
 async function request(path: string, method = 'GET', body?: unknown, token?: string) {
-  return fetch(`${base}${path}`, {
+  const send = () => fetch(`${base}${path}`, {
     method,
     headers: { ...headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+  const response = await send()
+  // Shared rate-limit budget across the QA suites, and this script runs in its
+  // own process: wait out a 429 once, as tests/browser/qa-servers.ts does.
+  if (response.status !== 429)
+    return response
+  const retryAfter = Number(response.headers.get('Retry-After') ?? 1)
+  await Bun.sleep(Math.min(Math.max(Number.isFinite(retryAfter) ? retryAfter : 1, 1), 60) * 1000 + 500)
+  return send()
 }
 
 async function account() {
