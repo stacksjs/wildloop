@@ -1,6 +1,7 @@
 import type { SqlTag } from './trailViews'
 import { db } from '@stacksjs/orm'
 import { isStockTrailPhoto } from '../../resources/functions/stock-photos'
+import { creditText } from './commonsCredit'
 import { licenseLink } from './photoLicenses'
 
 /**
@@ -41,7 +42,9 @@ export function applyApprovedTrailPhoto<T extends ApprovedCoverTrail>(trail: T, 
   return {
     ...trail,
     image: photo.url,
-    coverCredit: photo.credit,
+    // Rows approved before credits were cleaned on the way in still carry
+    // "(talk · contribs)"; the cover reads as a name either way.
+    coverCredit: creditText(photo.credit) || photo.credit,
     coverSourceUrl: photo.page_url,
     coverLicense: photo.license,
     coverLicenseUrl: licenseLink(photo.license_url, photo.page_url),

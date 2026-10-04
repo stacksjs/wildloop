@@ -1,6 +1,7 @@
 import type { SqlTag } from './trailViews'
 import { db } from '@stacksjs/orm'
 import { primaryRoutePart } from '../../resources/functions/trail-geometry'
+import { creditText } from './commonsCredit'
 import { licenseLink, licenseVerdict } from './photoLicenses'
 
 /**
@@ -110,7 +111,9 @@ export async function pendingPhotoQueue(options: { limit?: number } = {}, sql: S
       title: String(row.file_title),
       url: String(row.url),
       pageUrl: String(row.page_url),
-      credit: String(row.credit),
+      // Cleaned on read as well as on write, so rows stored before the
+      // credit lost its "(talk · contribs)" read as a name too.
+      credit: creditText(row.credit) || String(row.credit),
       license: String(row.license),
       licenseUrl: licenseLink(row.license_url, row.page_url),
       matched: String(row.matched_words ?? '').split(' ').filter(Boolean),

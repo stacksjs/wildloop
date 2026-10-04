@@ -162,6 +162,17 @@ describe('candidatesFrom', () => {
    * the terms travel with the picture. A file with no licence recorded is one
    * we cannot carry terms for, so it is not a candidate.
    */
+  /*
+   * A Wikipedian's signature carries links to their talk page and
+   * contributions; the credit under a cover is their name (commonsCredit.ts).
+   */
+  it('credits the author by name, without their talk and contributions links', () => {
+    const signed = page('Mist Trail Vernal Fall from the bridge.jpg')
+    signed.imageinfo[0].extmetadata.Artist.value = '<a href="https://en.wikipedia.org/wiki/User:Philm555" class="extiw" title="en:User:Philm555">Phil Mieszkowski</a> (<a href="https://en.wikipedia.org/wiki/User_talk:Philm555" class="extiw" title="en:User talk:Philm555">talk</a><span style="white-space:nowrap"> <span style="font-weight:bold;">·</span></span> <a href="https://en.wikipedia.org/wiki/Special:Contributions/Philm555" class="extiw" title="en:Special:Contributions/Philm555">contribs</a>)'
+    const [found] = candidatesFrom(payload(signed), 'Mist Trail to Vernal Fall')
+    expect(found.credit).toBe('Phil Mieszkowski')
+  })
+
   it('drops a file with no licence recorded', () => {
     const found = candidatesFrom(payload(page('Mist Trail Vernal Fall view.jpg', null)), 'Mist Trail to Vernal Fall')
     expect(found).toEqual([])

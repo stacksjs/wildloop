@@ -1,3 +1,5 @@
+import { creditText } from './commonsCredit'
+
 /**
  * Finding real photographs for the trails people actually open.
  *
@@ -82,7 +84,7 @@ export function titleNamesTrail(title: string, trailName: string): string[] {
   return matched.length >= needed ? matched : []
 }
 
-/** Strips the HTML Commons returns in its `Artist` and licence fields. */
+/** Strips the HTML Commons returns in its licence fields. The author is `creditText`'s. */
 export function plainText(value: unknown): string {
   return String(value ?? '')
     .replace(/<[^>]*>/g, ' ')
@@ -139,7 +141,7 @@ export function candidatesFrom(payload: unknown, trailName: string): PhotoCandid
       title,
       url: String(info?.thumburl ?? info?.url ?? ''),
       pageUrl: String(info?.descriptionurl ?? ''),
-      credit: plainText(meta?.Artist?.value) || 'Unknown',
+      credit: creditText(meta?.Artist?.value) || 'Unknown',
       license,
       licenseUrl: plainText(meta?.LicenseUrl?.value),
       matched,
