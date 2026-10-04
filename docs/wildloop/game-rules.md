@@ -12,6 +12,8 @@ Eligibility is decided server-side from the telemetry. Client distance, duration
 
 The checks divide into three, and the division matters: **what is impossible is refused, what is improbable is flagged, and nothing is refused on a statistic alone.** A legitimate athlete wrongly refused is a worse failure than a cheat getting through, because the athlete is real and is right.
 
+"Refused" means refused **for play**, never refused from the log. Only an upload that is not a track at all is turned away (HTTP 422, nothing saved): gpx_data that is not JSON, has fewer than two coordinates, has coordinates off the globe or that are not numbers, is over 2 MB, or is not a string. Anything else is a recording of something, and the athlete keeps it — see [What a refused track is](#what-a-refused-track-is).
+
 ### Refused — physically impossible
 
 Every fix is a guess with a radius, so "impossible" means impossible **even after each fix is allowed two of its own reported accuracy radii of error** (5 m when the device reports none; altitude gets half as much again, being worse than position). Raw consecutive fixes are never compared as if they were exact: two honest fixes ten metres out in opposite directions, a second apart, would read as a 20 m/s sprint.
@@ -20,17 +22,30 @@ Every fix is a guess with a radius, so "impossible" means impossible **even afte
 - **Sustained pace** faster than a body holds for that long. Checked over every window of five minutes or more against a curve anchored to world records with 25% headroom. A per-sample cap alone permits 11 m/s held for twenty minutes — under the old limit, and a car in traffic.
 - **Acceleration** over 12 m/s², on the least change of speed the fixes' error allows. Several times what a sprinter manages; it is there to catch a track assembled from waypoints, where speed jumps between legs with nothing in between.
 - **Vertical speed** over 6 m/s. Faster than any trail, up or down. Step by step and over ten-second spans, like burst speed.
-- **Non-monotonic or missing timestamps**, two different places at the same moment, coordinates off the globe, and GPS jumps over 2 km in an untimed track.
+- **Non-monotonic timestamps**, two different places at the same moment, and GPS jumps over 2 km in an untimed track.
+- **A duplicate trace.** Two recordings of the same route never agree to five decimal places at every sample, so a fingerprint match is a replay — the athlete's own, or somebody else's.
+- **An overlap with another scoring activity.** Nobody is in two places at once.
+
+Curves differ by activity: a 10 m/s bike ride is an ordinary club pace and refused as a run.
+
+### What a refused track is
+
+A track refused for any of the reasons above is **saved to the athlete's log** as a non-scoring activity. It used to be answered with a 422, and the athlete lost the run along with its score — usually an honest run with a phone that went wrong, or a recorder left running on the drive home.
+
+- It is stored with `capture_eligible = false`, `integrity_status = 'rejected'`, and the reason in `integrity_reason`. The raw track is kept as it was sent, for the athlete's map and for a reviewer.
+- Distance and duration come from its own fixes, as for any live GPS track, never from the phone: the duration is the span of its clock, so a clock running backwards cannot store a negative one. It has no track fingerprint, so it never makes a later track look like its duplicate.
+- It **never** claims or conquers territory (both engines require `capture_eligible`), is never matched against segments (on save, by `segments:backfill`, or when a segment is cut from it), and cannot back a route record (`POST /api/route-efforts` answers 422).
+- It is left out of everything competitive: the activity leaderboards (global, local and following), a club's week and its member leaderboard, achievement progress, and the athlete's personal bests.
+- It stays in what is the athlete's own: their log and feed, the club feed, their profile totals, their training stats, and their miles by month.
+- The recorder says so: "Saved to your log, but it can't capture territory: *reason*". The activity page shows the reason to the athlete who recorded it, and to nobody else. Because it is saved, an offline upload of it leaves the device queue on its first sync instead of waiting for a person; and a retry with the same `upload_id` returns the saved activity rather than a second one.
+
+An activity a reviewer upholds (below) becomes `rejected` in the same way, and loses any segment efforts it had already won.
 
 ### Dropped — GPS glitches
 
 A receiver throws a fix or a few out and recovers: multipath off a cliff, a phone that has not settled at the start, an altitude blip, a fix delivered twice. Those are dropped rather than refusing the run: a fix that cannot be reached from the last good one is a glitch when, within three fixes, the track comes back to somewhere that can. A jump the track never comes back from is not a glitch and is judged as a step.
 
 Dropped fixes are removed from the **stored** track as well as from the checks, and the territory engine reads only the stored track, so a "glitch" can never draw or win ground. A run that needed more than 10% of its fixes dropped is kept in the log but does not capture: the line it would draw is a guess. Dropped fixes are noted for reviewers (`gps_fixes_dropped`, weight 0).
-- **A duplicate trace.** Two recordings of the same route never agree to five decimal places at every sample, so a fingerprint match is a replay — the athlete's own, or somebody else's.
-- **An overlap with another scoring activity.** Nobody is in two places at once.
-
-Curves differ by activity: a 10 m/s bike ride is an ordinary club pace and refused as a run.
 
 ### Flagged — improbable, for a person to decide
 
