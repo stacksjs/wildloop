@@ -249,6 +249,9 @@
   // Only a server that says "no password" switches to typing DELETE. Not
   // knowing yet asks for the password, as every account did before.
   const deleteWithPassword = derived(() => profileAccount()?.hasPassword !== false)
+  // The same answer decides the Password card: an account Google or Apple
+  // made has no current password to type, so it is offered one by email.
+  const ownPassword = derived(() => profileAccount()?.hasPassword !== false)
 
   // The form is filled once, when the account is first known. Filling it on
   // every store change would overwrite what somebody is in the middle of typing.
@@ -687,6 +690,9 @@
       </span>
       <div class="min-w-0 flex-1">
         <h2 class="font-semibold text-slate-900 dark:text-white">Password</h2>
+        <p :if="!ownPassword()" class="mt-1 text-slate-500 text-sm dark:text-slate-400 max-w-[52ch]">You sign in with Google or Apple, so there is no password to change. To sign in with your email too, <StxLink x-to="'/forgot-password'" class="font-medium text-emerald-700 hover:underline dark:text-emerald-300">set a password by email</StxLink>.</p>
+
+        <div :if="ownPassword()">
         <p class="mt-1 text-slate-500 text-sm dark:text-slate-400 max-w-[52ch]">Changing it signs out every other device, and keeps you signed in here.</p>
 
         <div class="grid gap-4 mt-5 sm:grid-cols-2">
@@ -715,6 +721,7 @@
         <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
           Forgotten it? <StxLink x-to="'/forgot-password'" class="font-medium text-emerald-700 hover:underline dark:text-emerald-300">Reset it by email</StxLink> instead.
         </p>
+        </div>
       </div>
     </div>
   </section>
