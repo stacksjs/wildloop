@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { STATE_LIFETIME_MS } from '../../app/Support/socialIdentity'
 import {
+  APPLE_HANDOFF_COOKIE,
+  APPLE_STATE_COOKIE,
+  appleRedirectUri,
   clearCookieHeader,
+  clearCrossSiteCookieHeader,
   cookieValue,
+  crossSiteStateCookieHeader,
   googleRedirectUri,
   HANDOFF_COOKIE,
   handoffCookieHeader,
@@ -261,5 +266,43 @@ describe('the round trip these are used for', () => {
     ].join('; ')
     expect(cookieValue(header, STATE_COOKIE)).toBe(`${'f'.repeat(32)}|1759000000000|login`)
     expect(cookieValue(header, HANDOFF_COOKIE)).toBe('tok=')
+  })
+})
+
+describe('Apple', () => {
+  it('builds its callback from APP_URL the way Google\'s is built', () => {
+    expect(appleRedirectUri({}, { APP_URL: 'https://wildloop.org/' })).toBe('https://wildloop.org/api/auth/apple/callback')
+    expect(appleRedirectUri({ url: 'https://evil.example/x' }, { APP_URL: 'wildloop.org' })).toBe('https://wildloop.org/api/auth/apple/callback')
+  })
+
+  it('leaves Google\'s callback where it was', () => {
+    expect(googleRedirectUri({}, { APP_URL: 'https://wildloop.org' })).toBe(`https://wildloop.org${CALLBACK}`)
+  })
+
+  /*
+   * Apple's callback is a form POSTed from appleid.apple.com: cross-site, and
+   * a Lax cookie is withheld from it. Secure is not optional with None, and
+   * it is set even outside production, because a browser drops a None cookie
+   * that lacks it — and Apple only ever returns to https.
+   */
+  it('keeps its state in a cookie a cross-site POST still carries', () => {
+    const header = crossSiteStateCookieHeader(APPLE_STATE_COOKIE, 'v|1|login')
+    expect(header).toContain('SameSite=None')
+    expect(header).toContain('Secure')
+    expect(header).toContain('HttpOnly')
+    expect(header).toContain(`Max-Age=${STATE_LIFETIME_MS / 1000}`)
+    expect(cookieValue(header.split(';')[0], APPLE_STATE_COOKIE)).toBe('v|1|login')
+  })
+
+  it('clears it with the attributes it was set with', () => {
+    const cleared = clearCrossSiteCookieHeader(APPLE_STATE_COOKIE)
+    expect(cleared).toContain('Max-Age=0')
+    expect(cleared).toContain('SameSite=None')
+    expect(cleared).toContain('Secure')
+    expect(cookieValue(cleared.split(';')[0], APPLE_STATE_COOKIE)).toBeNull()
+  })
+
+  it('names its cookies apart from Google\'s, so neither flow can spend the other\'s', () => {
+    expect(new Set([STATE_COOKIE, HANDOFF_COOKIE, APPLE_STATE_COOKIE, APPLE_HANDOFF_COOKIE]).size).toBe(4)
   })
 })

@@ -32,8 +32,10 @@ export default {
    * a sensible default for a developer tool and the wrong one here.
    *
    * Apple issues a client SECRET as a short-lived ES256 JWT signed with the
-   * key from the developer portal, not a static string, so APPLE_CLIENT_SECRET
-   * has to be minted and rotated rather than pasted once.
+   * key from the developer portal, not a static string. The sign-in Wildloop
+   * actually runs reads `config.auth.social.apple` instead and mints that JWT
+   * itself for each sign-in (app/Support/appleSignIn.ts), so nothing reads
+   * APPLE_CLIENT_SECRET; this block is the framework's provider shape.
    */
   apple: {
     clientId: envVars.APPLE_CLIENT_ID || '',

@@ -457,6 +457,14 @@ route.get('/auth/google/callback', 'Actions/Auth/GoogleCallbackAction')
 // Trades the one-minute hand-off cookie for the session. POST because it
 // spends the cookie, and a GET would be followed by a link prefetch.
 route.post('/auth/google/session', 'Actions/Auth/GoogleSessionAction')
+// Signing in with Apple (#970): the same three steps, with one difference that
+// matters. Apple returns by POSTing a form from appleid.apple.com, so the
+// callback is a POST that cannot carry our CSRF token — the action opts out of
+// that check (`skipCsrf`), and the state cookie stands in for it exactly as it
+// does for Google's GET.
+route.get('/auth/apple/redirect', 'Actions/Auth/AppleRedirectAction')
+route.post('/auth/apple/callback', 'Actions/Auth/AppleCallbackAction')
+route.post('/auth/apple/session', 'Actions/Auth/AppleSessionAction')
 // The route's fastest-known-time board. Public and session-free: a records
 // board is a reference work, and requiring a login to read who holds a route
 // would defeat the point of publishing it.

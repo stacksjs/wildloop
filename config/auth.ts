@@ -76,8 +76,9 @@ export default {
    *
    * Absent credentials disable the feature rather than half-enable it: the
    * buttons stay hidden and the routes refuse, because a sign-in that opens
-   * Google and comes back to an error is worse than one that was never
-   * offered. `configured` is what the pages read.
+   * Google (or Apple) and comes back to an error is worse than one that was
+   * never offered. `configured` is what the pages read. The variables, and
+   * where each comes from, are in docs/wildloop/operations.md.
    */
   social: {
     google: {
@@ -85,6 +86,25 @@ export default {
       clientSecret: envVars.GOOGLE_CLIENT_SECRET || '',
       get configured(): boolean {
         return Boolean(this.clientId && this.clientSecret)
+      },
+    },
+
+    /*
+     * Apple issues no client secret. It issues a private key, and the secret
+     * is a short-lived JWT signed with it, minted for each sign-in (see
+     * app/Support/appleSignIn.ts) — so these are the four things that mint
+     * one, and there is nothing to rotate. All four, or the feature is off.
+     *
+     * APPLE_TEAM_ID is the same team id the iOS build and the associated
+     * domains file already read (config/mobile.ts).
+     */
+    apple: {
+      clientId: envVars.APPLE_CLIENT_ID || '',
+      teamId: envVars.APPLE_TEAM_ID || '',
+      keyId: envVars.APPLE_KEY_ID || '',
+      privateKey: envVars.APPLE_PRIVATE_KEY || '',
+      get configured(): boolean {
+        return Boolean(this.clientId && this.teamId && this.keyId && this.privateKey)
       },
     },
   },
