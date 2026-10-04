@@ -40,6 +40,54 @@ The Garmin webhook secret must be sent in `X-Garmin-Signature` or
 leak into access logs or browser history. Revocation pushes delete stored
 connections immediately.
 
+### Signing in with Google and Apple
+
+Each provider is off until every one of its variables is set: the button is
+absent from `/login` and `/register`, and its routes answer 503 rather than
+sending anybody to a provider that will refuse them. Set them in
+`.env.production` with `buddy env:set NAME=value --env=production` (they are
+encrypted like every other value there), deploy, and the buttons appear.
+
+Google:
+
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — an OAuth client of type
+  "Web application" in Google Cloud Console → APIs & Services → Credentials.
+  Its authorized redirect URI must be exactly
+  `https://wildloop.org/api/auth/google/callback`.
+
+Apple (needs a paid Apple Developer Program membership):
+
+- `APPLE_TEAM_ID` — the ten-character Team ID, shown under Membership details
+  at developer.apple.com/account. The iOS build already reads this variable.
+- `APPLE_CLIENT_ID` — the identifier of a **Services ID** (not the app's
+  bundle id), e.g. `org.wildloop.signin`. Create it under Certificates,
+  Identifiers & Profiles → Identifiers → Services IDs, enable Sign in with
+  Apple on it, and configure it with the primary App ID, the domain
+  `wildloop.org`, and the return URL
+  `https://wildloop.org/api/auth/apple/callback`. Apple accepts only https
+  return URLs on a verified domain, so there is no local Apple sign-in.
+- `APPLE_KEY_ID` — the ten-character Key ID of a key created under Keys with
+  Sign in with Apple enabled (and pointed at the same primary App ID).
+- `APPLE_PRIVATE_KEY` — that key's `.p8` file, which Apple lets you download
+  once. Paste the whole PEM; `\n` escapes, or the base64 body without the
+  `BEGIN`/`END` lines, work too.
+
+There is no Apple client secret to set or rotate. Apple's "secret" is a JWT
+signed with that key, and the server mints a five-minute one for each sign-in
+(`app/Support/appleSignIn.ts`). Revoking the key in the portal is what turns
+Apple sign-in off.
+
+People who choose "Hide My Email" get an address at
+`privaterelay.appleid.com` that forwards to their own. Apple forwards only
+mail from senders registered for the Services ID: add the domain and the
+`MAIL_FROM_ADDRESS` under Certificates, Identifiers & Profiles → Services →
+Sign in with Apple for Email Communication, or password resets and
+notifications to those accounts are silently dropped.
+
+Both providers link a sign-in to an existing account only when the provider
+says it verified the address itself, and create the account only after the
+token exchange succeeds, so an abandoned sign-in leaves nothing behind.
+
 COROS is currently a `ts-watches` device/file adapter and requires no cloud
 credentials. `ts-health` provides Apple Health export parsing and the FIT
 runtime used by portable imports.
