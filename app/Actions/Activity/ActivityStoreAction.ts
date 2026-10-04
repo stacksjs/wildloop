@@ -11,7 +11,7 @@ import { Auth } from '@stacksjs/auth'
 import { parseDurationToSeconds } from '../../../resources/functions/duration'
 
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
-import { durationLabel, evaluateTrackIntegrity, isLiveGpsSource, type RecordingSource } from '../../../resources/functions/activity-integrity'
+import { durationLabel, evaluateTrackIntegrity, isLiveGpsSource, type RecordingSource, withoutFixes } from '../../../resources/functions/activity-integrity'
 import { integrityFlagsJson, verifyAgainstHistory } from '../../Support/activityIntegrityCheck'
 import { recordSegmentEfforts } from '../../Support/segmentEfforts'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
@@ -181,7 +181,12 @@ export default new Action({
         heart_rate_max: heartRateMax ?? null,
         kudos_count: 0,
         notes: request.get<string>('notes') ?? null,
-        gpx_data: (gpxData as string | undefined) ?? null,
+        // Stored without the fixes the integrity check dropped as GPS
+        // glitches. The territory engine reads this column, so a fix judged
+        // not to be where the athlete was never draws or wins ground — which
+        // is what makes forgiving glitches safe rather than a way to stretch
+        // a loop around land nobody ran.
+        gpx_data: typeof gpxData === 'string' ? withoutFixes(gpxData, integrity.droppedFixes) : null,
         splits: splitsJson,
         visibility,
         upload_id: uploadId,

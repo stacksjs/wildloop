@@ -8,7 +8,7 @@ export { parseActivityFile, parseGpxActivity, parseTcxActivity, parseFitActivity
 export type { ImportedTrackSample, ImportedActivityFile } from '../../../resources/functions/activity-files'
 export { checkAgainstHistory } from '../../../resources/functions/activity-history'
 export type { NeighbouringActivity, HistoryCandidate, HistoryFinding } from '../../../resources/functions/activity-history'
-export { isLiveGpsSource, parseTrackSamples, evaluateTrackIntegrity, durationLabel } from '../../../resources/functions/activity-integrity'
+export { isLiveGpsSource, parseTrackSamples, withoutFixes, evaluateTrackIntegrity, durationLabel } from '../../../resources/functions/activity-integrity'
 export type { RecordingSource, TrackSample, TrackIntegrityResult } from '../../../resources/functions/activity-integrity'
 export { activityKind, maxSustainableSpeed, maxBurstSpeed, worstSustainedWindow, MAX_ACCELERATION, MAX_VERTICAL_SPEED } from '../../../resources/functions/activity-physics'
 export type { ActivityKind, SpeedSegment } from '../../../resources/functions/activity-physics'

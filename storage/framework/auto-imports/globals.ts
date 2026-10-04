@@ -29,6 +29,7 @@ declare global {
   const checkAgainstHistory: typeof autoImports.checkAgainstHistory
   const isLiveGpsSource: typeof autoImports.isLiveGpsSource
   const parseTrackSamples: typeof autoImports.parseTrackSamples
+  const withoutFixes: typeof autoImports.withoutFixes
   const evaluateTrackIntegrity: typeof autoImports.evaluateTrackIntegrity
   const durationLabel: typeof autoImports.durationLabel
   const activityKind: typeof autoImports.activityKind

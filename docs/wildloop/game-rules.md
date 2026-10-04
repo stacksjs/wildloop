@@ -14,11 +14,19 @@ The checks divide into three, and the division matters: **what is impossible is 
 
 ### Refused — physically impossible
 
-- **Burst speed** over 14 m/s on foot or 30 m/s on a bike. Faster than any sprinter, and a fast descent respectively.
+Every fix is a guess with a radius, so "impossible" means impossible **even after each fix is allowed two of its own reported accuracy radii of error** (5 m when the device reports none; altitude gets half as much again, being worse than position). Raw consecutive fixes are never compared as if they were exact: two honest fixes ten metres out in opposite directions, a second apart, would read as a 20 m/s sprint.
+
+- **Burst speed** over 14 m/s on foot or 30 m/s on a bike. Faster than any sprinter, and a fast descent respectively. Checked step by step and, because a fix's error is mostly shared with the next one, also end to end over every span of about ten seconds — which is what refuses a car recorded at one fix a second.
 - **Sustained pace** faster than a body holds for that long. Checked over every window of five minutes or more against a curve anchored to world records with 25% headroom. A per-sample cap alone permits 11 m/s held for twenty minutes — under the old limit, and a car in traffic.
-- **Acceleration** over 12 m/s². Several times what a sprinter manages; it is there to catch a track assembled from waypoints, where speed jumps between legs with nothing in between.
-- **Vertical speed** over 6 m/s. Faster than any trail, up or down.
-- **Non-monotonic or missing timestamps**, coordinates off the globe, and GPS jumps over 2 km in an untimed track.
+- **Acceleration** over 12 m/s², on the least change of speed the fixes' error allows. Several times what a sprinter manages; it is there to catch a track assembled from waypoints, where speed jumps between legs with nothing in between.
+- **Vertical speed** over 6 m/s. Faster than any trail, up or down. Step by step and over ten-second spans, like burst speed.
+- **Non-monotonic or missing timestamps**, two different places at the same moment, coordinates off the globe, and GPS jumps over 2 km in an untimed track.
+
+### Dropped — GPS glitches
+
+A receiver throws a fix or a few out and recovers: multipath off a cliff, a phone that has not settled at the start, an altitude blip, a fix delivered twice. Those are dropped rather than refusing the run: a fix that cannot be reached from the last good one is a glitch when, within three fixes, the track comes back to somewhere that can. A jump the track never comes back from is not a glitch and is judged as a step.
+
+Dropped fixes are removed from the **stored** track as well as from the checks, and the territory engine reads only the stored track, so a "glitch" can never draw or win ground. A run that needed more than 10% of its fixes dropped is kept in the log but does not capture: the line it would draw is a guess. Dropped fixes are noted for reviewers (`gps_fixes_dropped`, weight 0).
 - **A duplicate trace.** Two recordings of the same route never agree to five decimal places at every sample, so a fingerprint match is a replay — the athlete's own, or somebody else's.
 - **An overlap with another scoring activity.** Nobody is in two places at once.
 

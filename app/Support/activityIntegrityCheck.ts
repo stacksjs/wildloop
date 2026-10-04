@@ -180,6 +180,16 @@ export function integrityFlagsJson(
       detail: signal.detail,
       weight: signal.weight,
     })),
+    // Not a suspicion — weight 0 — but a reviewer looking at the stored
+    // track should know it is not every fix the phone sent.
+    ...(integrity.droppedFixes.length > 0
+      ? [{
+          kind: 'anomaly' as const,
+          code: 'gps_fixes_dropped',
+          detail: `${integrity.droppedFixes.length} GPS ${integrity.droppedFixes.length === 1 ? 'fix' : 'fixes'} dropped as glitches or duplicates`,
+          weight: 0,
+        }]
+      : []),
     ...findings.map(finding => ({
       kind: 'history' as const,
       code: finding.code,

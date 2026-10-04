@@ -138,8 +138,11 @@ describe('activity integrity', () => {
   })
 
   it('refuses a timestamped teleport', () => {
+    // From fix 10 on the track is in Colorado: a move that persists, not a
+    // glitch the receiver recovered from.
     const raw = JSON.parse(track())
-    raw.coordinates[10] = [-100, 40]
+    for (let i = 10; i < raw.coordinates.length; i++)
+      raw.coordinates[i] = [-100 + i * 0.0001, 40]
     const result = evaluateTrackIntegrity({
       gpxData: JSON.stringify(raw),
       source: 'web_gps',

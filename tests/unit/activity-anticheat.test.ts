@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { detectAnomalies, trackFingerprint } from '../../resources/functions/activity-anomaly'
 import { checkAgainstHistory } from '../../resources/functions/activity-history'
-import { evaluateTrackIntegrity } from '../../resources/functions/activity-integrity'
+import { evaluateTrackIntegrity, withoutFixes } from '../../resources/functions/activity-integrity'
 import {
   activityKind,
   maxSustainableSpeed,
@@ -214,19 +214,35 @@ describe('worstSustainedWindow', () => {
   })
 })
 
+/** Shift every fix from `from` onward, which is a move that persists rather than a glitch. */
+function shifted(raw: string, from: number, metresNorth: number): string {
+  const parsed = JSON.parse(raw)
+  for (let i = from; i < parsed.coordinates.length; i++)
+    parsed.coordinates[i] = [parsed.coordinates[i][0], parsed.coordinates[i][1] + metresNorth / 111320]
+  return JSON.stringify(parsed)
+}
+
 describe('physical impossibility', () => {
-  it('refuses a standing start to full speed between two samples', () => {
-    const parsed = JSON.parse(track({ speed: 3, count: 60 }))
-    // One sample 60 m further on, one second later: 60 m/s from a jog.
-    parsed.coordinates[30] = [parsed.coordinates[29][0], parsed.coordinates[29][1] + 60 / 111320]
-    const result = evaluate(JSON.stringify(parsed))
+  it('refuses a jump the track never comes back from', () => {
+    // Everything from fix 30 on is 500 m further: no error radius explains
+    // it, and the track does not return, so it is not a glitch either.
+    const result = evaluate(shifted(track({ speed: 3, count: 60 }), 30, 500))
     expect(result.status).toBe('rejected')
+  })
+
+  it('accepts a receiver re-locking a few tens of metres over', () => {
+    // A persistent 60 m shift — a phone leaving an urban canyon — is reachable
+    // in the seconds around it once each fix's own error is allowed for.
+    // Cars are caught by sustained pace, not by one step.
+    const result = evaluate(shifted(track({ speed: 3, count: 200 }), 100, 60))
+    expect(result.status).not.toBe('rejected')
   })
 
   it('refuses a climb no trail affords', () => {
     const parsed = JSON.parse(track({ speed: 3, count: 60 }))
-    parsed.properties.samples[30].altitude = 40
-    parsed.properties.samples[31].altitude = 400
+    // 360 m up in a second, and staying up there.
+    for (let i = 31; i < parsed.properties.samples.length; i++)
+      parsed.properties.samples[i].altitude = 400
     const result = evaluate(JSON.stringify(parsed))
     expect(result.status).toBe('rejected')
     expect(result.reason).toContain('altitude')
@@ -240,6 +256,151 @@ describe('physical impossibility', () => {
       sample.altitude = 1200 - index * 2.5
     })
     expect(evaluate(JSON.stringify(parsed)).captureEligible).toBe(true)
+  })
+})
+
+/*
+ * Real receivers, real runs.
+ *
+ * Every fix is a guess with a radius. These are the ways honest tracks used to
+ * be refused outright — and lost from the athlete's log, since a refused track
+ * is a 422 — because the checks compared raw positions as if they were exact.
+ */
+describe('a real receiver', () => {
+  /** A jog where each fix lands somewhere inside its own reported radius. */
+  function noisy(count: number, accuracy: number, seed = 3): string {
+    const parsed = JSON.parse(track({ speed: 3, count, accuracy }))
+    let state = seed
+    const random = (): number => {
+      state = (state * 1664525 + 1013904223) >>> 0
+      return state / 4294967296 - 0.5
+    }
+    parsed.coordinates = parsed.coordinates.map(([lng, lat]: number[]) => [
+      lng + (random() * 2 * accuracy) / (111320 * Math.cos((lat * Math.PI) / 180)),
+      lat + (random() * 2 * accuracy) / 111320,
+    ])
+    parsed.properties.samples.forEach((sample: any) => {
+      sample.altitude = 40 + random() * 2 * accuracy * 1.5
+    })
+    return JSON.stringify(parsed)
+  }
+
+  it('scores a jog under trees, where every fix is fifteen metres out', () => {
+    const result = evaluate(noisy(300, 15))
+    expect(result.status).not.toBe('rejected')
+    expect(result.captureEligible).toBe(true)
+  })
+
+  it('drops one fix thrown off by a cliff, and keeps the run', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    // Reflected signal: one fix 400 m east, confident about it, then back.
+    parsed.coordinates[60] = [parsed.coordinates[60][0] + 400 / 92000, parsed.coordinates[60][1]]
+    const result = evaluate(JSON.stringify(parsed))
+
+    expect(result.status).toBe('verified')
+    expect(result.captureEligible).toBe(true)
+    expect(result.droppedFixes).toEqual([60])
+    expect(result.samples).toHaveLength(199)
+  })
+
+  it('drops a short excursion of several fixes', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    for (const i of [70, 71, 72])
+      parsed.coordinates[i] = [parsed.coordinates[i][0], parsed.coordinates[i][1] + 250 / 111320]
+    const result = evaluate(JSON.stringify(parsed))
+    expect(result.captureEligible).toBe(true)
+    expect(result.droppedFixes).toEqual([70, 71, 72])
+  })
+
+  it('drops a first fix from before the receiver settled', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    parsed.coordinates[0] = [parsed.coordinates[0][0], parsed.coordinates[0][1] - 900 / 111320]
+    const result = evaluate(JSON.stringify(parsed))
+    expect(result.captureEligible).toBe(true)
+    expect(result.droppedFixes).toEqual([0])
+  })
+
+  it('drops the last fixes, gone wrong as the phone went into a pocket', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    parsed.coordinates[199] = [parsed.coordinates[199][0], parsed.coordinates[199][1] + 700 / 111320]
+    const result = evaluate(JSON.stringify(parsed))
+    expect(result.captureEligible).toBe(true)
+    expect(result.droppedFixes).toEqual([199])
+  })
+
+  it('drops an altitude blip without refusing the run', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    parsed.properties.samples[50].altitude = 420
+    const result = evaluate(JSON.stringify(parsed))
+    expect(result.captureEligible).toBe(true)
+    expect(result.droppedFixes).toEqual([50])
+  })
+
+  it('merges a fix delivered twice', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    parsed.coordinates.splice(40, 0, parsed.coordinates[40])
+    parsed.properties.samples.splice(40, 0, { ...parsed.properties.samples[40] })
+    const result = evaluate(JSON.stringify(parsed))
+    expect(result.captureEligible).toBe(true)
+    expect(result.droppedFixes).toEqual([41])
+  })
+
+  it('still refuses two places at the same moment', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    parsed.coordinates.splice(40, 0, [parsed.coordinates[40][0], parsed.coordinates[40][1] + 500 / 111320])
+    parsed.properties.samples.splice(40, 0, { ...parsed.properties.samples[40] })
+    expect(evaluate(JSON.stringify(parsed)).status).toBe('rejected')
+  })
+
+  it('keeps a run with too many glitches in the log, out of the game', () => {
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    // Every eighth fix thrown off: 25 of 200.
+    for (let i = 4; i < 200; i += 8)
+      parsed.coordinates[i] = [parsed.coordinates[i][0], parsed.coordinates[i][1] + 300 / 111320]
+    const result = evaluate(JSON.stringify(parsed))
+    expect(result.valid).toBe(true)
+    expect(result.captureEligible).toBe(false)
+    expect(result.reason).toContain('unsteady')
+  })
+
+  it('still refuses a car hidden as a stream of glitches', () => {
+    // A glitch has to come back. Driving off does not.
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    for (let i = 100; i < 200; i++)
+      parsed.coordinates[i] = [parsed.coordinates[i][0], parsed.coordinates[i][1] + (i - 99) * 30 / 111320]
+    expect(evaluate(JSON.stringify(parsed)).status).toBe('rejected')
+  })
+})
+
+describe('the stored track', () => {
+  it('leaves the dropped fixes out, in the shape it came in', () => {
+    const raw = JSON.stringify({
+      type: 'LineString',
+      coordinates: [[0, 0], [1, 1], [2, 2], [3, 3]],
+      properties: { samples: [{ t: 0 }, { t: 1 }, { t: 2 }, { t: 3 }], source: 'web_gps' },
+    })
+    const stored = JSON.parse(withoutFixes(raw, [1, 3]))
+    expect(stored.coordinates).toEqual([[0, 0], [2, 2]])
+    expect(stored.properties.samples).toEqual([{ t: 0 }, { t: 2 }])
+    expect(stored.properties.source).toBe('web_gps')
+  })
+
+  it('is the submitted track when nothing was dropped', () => {
+    const raw = track({ count: 30 })
+    expect(withoutFixes(raw, [])).toBe(raw)
+  })
+
+  it('never lets a "glitch" spike reach the territory line', () => {
+    // The obvious way to abuse dropping glitches: a confident fix far out to
+    // pull a loop around more ground. It is dropped from the stored track,
+    // which is all the territory engine reads.
+    const parsed = JSON.parse(track({ speed: 3, count: 200 }))
+    const spike = [parsed.coordinates[60][0] + 0.01, parsed.coordinates[60][1]]
+    parsed.coordinates[60] = spike
+    const raw = JSON.stringify(parsed)
+    const stored = JSON.parse(withoutFixes(raw, evaluate(raw).droppedFixes))
+    expect(stored.coordinates).not.toContainEqual(spike)
+    expect(stored.coordinates).toHaveLength(199)
   })
 })
 
