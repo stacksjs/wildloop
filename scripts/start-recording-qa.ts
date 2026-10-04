@@ -132,6 +132,11 @@ qaEffort.run(qaUserId, 'rejected', 1180)
 // — so this one is a naming fixture only.
 db.run(`INSERT INTO territories (name, user_id, polygon_data, center_lat, center_lng, area_size, status, claimed_at)
   VALUES ('Torrey Pines Bluff Territory', ${qaUserId}, '{"type":"Polygon","coordinates":[[[-117.2528,32.9209],[-117.2520,32.9209],[-117.2520,32.9215],[-117.2528,32.9215],[-117.2528,32.9209]]]}', 32.9212, -117.2524, 580000, 'active', '2030-05-01T13:00:00Z')`)
+// Every trail above went in by plain INSERT, and the search index is
+// external-content FTS5, which does not see writes to its table — production
+// keeps it in step from the ingest (app/Ingest/ingest.ts). Without this every
+// text search on the QA stack matched nothing.
+db.run(`INSERT INTO trails_fts(trails_fts) VALUES ('rebuild')`)
 db.close()
 const server = Bun.spawn(['./buddy', 'dev'], { env, stdout: 'inherit', stderr: 'inherit' })
 // Exercise the dashboard's independent route runtime too (stacksjs/stacks#2789).

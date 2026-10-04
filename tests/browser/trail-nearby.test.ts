@@ -90,6 +90,15 @@ describe.skipIf(!qa)('trails near me', () => {
     expect(names(long).sort()).toEqual(['Mesa Trail', 'Walker Ranch Loop'])
   })
 
+  it('finds a searched-for trail however far away it is', async () => {
+    // Nothing called Partnachklamm within 300 miles of Boulder: the search
+    // looks everywhere rather than answering with nothing.
+    const far = await trails(`${HOME}&q=partnachklamm&limit=5`)
+    expect(names(far)).toEqual(['Partnachklamm Loop'])
+    expect(far.meta.radius).toBeUndefined()
+    expect(far.trails[0].milesAway).toBeGreaterThan(4000)
+  })
+
   it('leaves the orders that mean the same anywhere to the catalog', async () => {
     const longest = await trails(`${HOME}&sort=longest&limit=10`)
     expect(names(longest)[0]).toBe('Walker Ranch Loop')

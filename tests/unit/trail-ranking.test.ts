@@ -4,6 +4,7 @@ import {
   lengthAppeal,
   milesBetween,
   nameAppeal,
+  nameMatch,
   proximityWeight,
   rankTrails,
   ratingAppeal,
@@ -264,5 +265,22 @@ describe('trails you may like', () => {
     const ridge = trail('Garapito Ridge Loop', 34.08, -118.55, { distance: 6.3, difficulty: 'moderate', route_type: 'loop', source: 'osm', location: 'California' })
     expect(rankTrails([canyon, ridge], SANTA_MONICA, 25, 'best')[0].trail).toBe(canyon)
     expect(rankTrails([canyon, ridge], SANTA_MONICA, 25, 'recommended', new Map(), taste)[0].trail).toBe(ridge)
+  })
+})
+
+describe('what was typed', () => {
+  it('ranks the name that is the query, then one that starts with it, then one that holds it', () => {
+    expect(nameMatch('Temescal Canyon Trail', 'temescal canyon')).toBe(2)
+    expect(nameMatch('Temescal Canyon Fire Road', 'temescal canyon')).toBe(1.5)
+    expect(nameMatch('Upper Temescal Canyon Loop', 'temescal canyon')).toBe(1.25)
+    expect(nameMatch('Temescal Ridge Trail', 'temescal canyon')).toBe(1)
+    expect(nameMatch('Temescal Ridge Trail', '')).toBe(1)
+  })
+
+  it('puts the trail asked for ahead of a better-looking neighbour', () => {
+    const ridge = trail('Temescal Ridge Trail', 34.06, -118.52, { distance: 5.4 })
+    const canyon = trail('Temescal Canyon Trail', 34.06, -118.52, { distance: 1.9 })
+    expect(rankTrails([ridge, canyon], SANTA_MONICA, 25)[0].trail).toBe(ridge)
+    expect(rankTrails([ridge, canyon], SANTA_MONICA, 25, 'best', new Map(), null, 'temescal canyon')[0].trail).toBe(canyon)
   })
 })

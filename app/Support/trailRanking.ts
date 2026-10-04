@@ -407,6 +407,30 @@ export function sameTrailKey(name: string | null | undefined): string {
 const SAME_TRAIL_MILES = 3
 
 /**
+ * How well a trail's name answers what somebody typed, as a multiplier.
+ *
+ * Search narrows the catalog to rows containing every word, but containing
+ * the words is not the same as being the thing asked for: "runyon" found
+ * Runyon Canyon Road ahead of Runyon Canyon. The name that IS the query wins,
+ * then one that starts with it, then one that holds it as a phrase. Compared
+ * on the same key that folds pieces of a trail together, so "Trail" and
+ * punctuation do not decide anything.
+ */
+export function nameMatch(name: string | null | undefined, query: string | null | undefined): number {
+  const asked = sameTrailKey(query)
+  if (!asked)
+    return 1
+  const named = sameTrailKey(name)
+  if (named === asked)
+    return 2
+  if (named.startsWith(`${asked} `))
+    return 1.5
+  if (` ${named} `.includes(` ${asked} `))
+    return 1.25
+  return 1
+}
+
+/**
  * Rank a candidate set around an origin, best first, one row per trail.
  *
  * Rows without coordinates are dropped: a trail that cannot be placed cannot
@@ -420,6 +444,8 @@ export function rankTrails<T extends RankableTrail>(
   mode: RankMode = 'best',
   activity: Map<number, TrailActivity> = new Map(),
   taste: TasteProfile | null = null,
+  /** What was typed into search, if anything: a closer name match ranks higher. */
+  query: string | null = null,
 ): RankedTrail<T>[] {
   const candidates: (RankedTrail<T> & { appeal: number })[] = []
 
@@ -431,7 +457,7 @@ export function rankTrails<T extends RankableTrail>(
 
     const milesAway = milesBetween(origin, lat, lng)
     const usage = activity.get(Number(trail.id))
-    const appeal = trailAppeal(trail, usage)
+    const appeal = trailAppeal(trail, usage) * nameMatch(trail.name, query)
     const near = proximityWeight(milesAway, radiusMiles)
 
     let score: number

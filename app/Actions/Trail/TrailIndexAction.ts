@@ -33,6 +33,9 @@ const MIN_NEARBY_RESULTS = 12
 /** Radii to try, in order, when the requested one is too thin. */
 const WIDER_RADII = [60, 150, MAX_RADIUS]
 
+/** A radius that is no box at all: a typed search with nothing nearby looks everywhere. */
+const ANYWHERE = Number.POSITIVE_INFINITY
+
 /**
  * The most rows a ranked "near me" list scores.
  *
@@ -111,6 +114,24 @@ export default new Action({
           personalized = attempt.personalized
           if (total >= MIN_NEARBY_RESULTS)
             break
+        }
+
+        /*
+         * A typed search does not end at the edge of the box.
+         *
+         * Browsing near somebody is about what is near them, so 300 miles is
+         * a fine place to stop. A search names a trail, and the trail is
+         * wherever it is: from Los Angeles, "Angels Landing" (370 miles) came
+         * back as nothing at all while the catalog has it. With nothing inside
+         * the widest box, a search looks everywhere — still nearest first —
+         * and says no radius, because none applied.
+         */
+        if (total === 0 && readSearch(request)) {
+          const anywhere = await fetchPage(false, ANYWHERE)
+          rows = anywhere.rows
+          total = anywhere.total
+          personalized = anywhere.personalized
+          radius = null
         }
       }
 
@@ -249,7 +270,7 @@ async function fetchRankedPage(
   const candidates = taste?.known.size ? found.filter(row => !taste.known.has(Number(row.id))) : found
 
   const engagement = await trailEngagement(candidates.map(row => Number(row.id)))
-  const ranked = rankTrails(candidates, origin, radius, mode, engagement, taste?.profile ?? null)
+  const ranked = rankTrails(candidates, origin, radius, mode, engagement, taste?.profile ?? null, readSearch(request))
 
   const ids = ranked.slice(page.offset, page.offset + page.limit).map(entry => Number(entry.trail.id))
   const full = ids.length > 0 ? ((await Trail.whereIn('id', ids).get()) ?? []) as any[] : []
@@ -309,7 +330,7 @@ function applyFilters(
   /** Overrides `?radius=` — set when a "near me" search has widened. */
   radiusOverride?: number,
 ): any {
-  const search = readString(request, 'q') ?? readString(request, 'search')
+  const search = readSearch(request)
   if (search) {
     // Matched through the FTS index rather than three `LIKE '%term%'`
     // predicates. Those could not use an index, so every search scanned the
@@ -401,7 +422,7 @@ function applyFilters(
   const origin = readOrigin(request)
   const radius = radiusOverride ?? requestedRadius(request)
 
-  if (origin) {
+  if (origin && Number.isFinite(radius)) {
     const { lat, lng } = origin
     const latSpan = radius * DEGREES_PER_MILE
     // A degree of longitude shrinks toward the poles; without the cosine the
@@ -568,6 +589,11 @@ function requestedRadius(request: { get: (key: string) => any }): number {
   if (raw === null || !(raw > 0))
     return DEFAULT_RADIUS
   return Math.min(raw, MAX_RADIUS)
+}
+
+/** What was typed into search, under either of the names it arrives by. */
+function readSearch(request: { get: (key: string) => any }): string | null {
+  return readString(request, 'q') ?? readString(request, 'search')
 }
 
 function readString(request: { get: (key: string) => any }, key: string): string | null {
