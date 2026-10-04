@@ -31,6 +31,13 @@ describe('who is a person', () => {
       expect(isLikelyBot(agent)).toBe(false)
   })
 
+  it('does not take a phone whose model ends in "bot" for a crawler', () => {
+    const cubot = 'Mozilla/5.0 (Linux; Android 10; CUBOT X30) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36'
+    expect(isLikelyBot(cubot)).toBe(false)
+    // While the rule that catches it still catches the crawlers it is for.
+    expect(isLikelyBot('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')).toBe(true)
+  })
+
   it('turns away crawlers, previewers and monitors that say what they are', () => {
     for (const agent of [
       'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',

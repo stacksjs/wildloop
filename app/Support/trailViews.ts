@@ -95,8 +95,15 @@ export function isLikelyBot(userAgent: string | null | undefined): boolean {
   const agent = String(userAgent ?? '').trim()
   if (!agent || !agent.startsWith('Mozilla/'))
     return true
-  return BOT_AGENT.test(agent)
+  return BOT_AGENT.test(agent.replace(PHONES_NAMED_BOT, ''))
 }
+
+/**
+ * Phone makers whose model names end in "bot", which `bot\b` would otherwise
+ * read as a crawler: "Android 10; CUBOT X30". Taken out of the string before
+ * matching rather than loosening `bot\b`, which is what catches Googlebot.
+ */
+const PHONES_NAMED_BOT = /\bcubot\b/gi
 
 type HeaderSource = Headers | Record<string, string | undefined> | null | undefined
 
