@@ -24,6 +24,7 @@ import { readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 import { APP_SHORTCUTS, appShortcutDeepLink } from '../resources/functions/app-shortcuts'
+import { trailSpotlightActions } from '../resources/functions/trail-spotlight'
 
 /**
  * The iOS version these types need.
@@ -167,6 +168,61 @@ ${entries.join('\n')}
  * Spotlight and Siri row.
  */
 
+/**
+ * Every activity type the app donates, as iOS has to see them declared.
+ *
+ * `window.craft.siri.register(phrase, action)` builds an NSUserActivity typed
+ * `<bundle id>.<action>` and marks it eligible for search, which is what puts
+ * it in Spotlight — but iOS only hands a tapped activity back to an app whose
+ * Info.plist lists that type in `NSUserActivityTypes`. Undeclared, the entry
+ * still appears and the tap merely opens the app wherever it was last.
+ *
+ * So the two donating features both have to be declared here: the app's own
+ * shortcuts, by their ids, and the fixed slots trails are indexed into.
+ */
+export function donatedActivityTypes(bundleId: string): string[] {
+  return [...APP_SHORTCUTS.map(shortcut => shortcut.id), ...trailSpotlightActions()]
+    .map(action => `${bundleId}.${action}`)
+}
+
+const ACTIVITY_TYPES_BLOCK = /[ \t]*<key>NSUserActivityTypes<\/key>\s*<array>[\s\S]*?<\/array>\n?/
+
+/**
+ * An Info.plist with exactly those activity types declared.
+ *
+ * Text rather than a plist parse: Craft writes this file from a template on
+ * every iOS build, so this runs against known-shaped XML it has just emitted,
+ * and a rewrite that preserved nothing but the keys would be harder to read in
+ * a diff than the one line it replaces.
+ */
+export function withActivityTypes(plist: string, types: string[]): string {
+  const entries = types.map(type => `        <string>${escapeXml(type)}</string>`).join('\n')
+  const block = `    <key>NSUserActivityTypes</key>\n    <array>\n${entries}\n    </array>\n`
+
+  if (ACTIVITY_TYPES_BLOCK.test(plist))
+    return plist.replace(ACTIVITY_TYPES_BLOCK, block)
+
+  const close = plist.lastIndexOf('</dict>')
+  if (close < 0)
+    throw new Error('Info.plist has no root dictionary to declare activity types in')
+
+  return plist.slice(0, close) + block + plist.slice(close)
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/** Declare the donated activity types in the generated project's Info.plist. */
+export async function writeActivityTypes(projectDir: string, bundleId: string): Promise<string | null> {
+  const path = join(projectDir, 'Info.plist')
+  if (!existsSync(path))
+    return null
+
+  await writeFile(path, withActivityTypes(await Bun.file(path).text(), donatedActivityTypes(bundleId)))
+  return path
+}
+
 /** Where the generated file goes inside a Craft iOS project. */
 export function shortcutsSourcePath(projectDir: string, appName: string): string {
   return join(projectDir, 'Sources', `${swiftIdentifier(appName)}AppShortcuts.swift`)
@@ -243,6 +299,13 @@ if (import.meta.main) {
 
   const path = await writeIosShortcuts(projectDir, options)
   console.log(`Wrote ${APP_SHORTCUTS.length} App Shortcuts to ${path}`)
+
+  const types = donatedActivityTypes(mobile.ios.bundleId)
+  const plist = await writeActivityTypes(projectDir, mobile.ios.bundleId)
+  if (plist)
+    console.log(`Declared ${types.length} activity types in ${plist}, so a tapped Siri or Spotlight entry reaches the app.`)
+  else
+    console.warn('::warning::No Info.plist in the generated project; donated Siri and Spotlight entries will not open the screen they name.')
 
   const conflicts = await conflictingProviders(projectDir, path)
   if (conflicts.length > 0)

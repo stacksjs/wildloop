@@ -5,14 +5,40 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   conflictingProviders,
+  donatedActivityTypes,
   iosShortcutsSwift,
   shortcutsSourcePath,
   swiftPhraseLiteral,
   swiftIdentifier,
   swiftString,
+  withActivityTypes,
+  writeActivityTypes,
   writeIosShortcuts,
 } from '../../scripts/generate-ios-shortcuts'
 import { APP_SHORTCUTS } from '../../resources/functions/app-shortcuts'
+import { TRAIL_SPOTLIGHT_SLOTS, trailSpotlightActions } from '../../resources/functions/trail-spotlight'
+
+/** The shape Craft's template emits: nested dicts, root dict last. */
+const CRAFT_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>org.wildloop.app</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>localhost</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+</dict>
+</plist>
+`
 
 const options = { appName: 'Wildloop', scheme: 'wildloop' }
 
@@ -187,5 +213,56 @@ describe('what it deliberately leaves to Craft', () => {
     const swift = iosShortcutsSwift(options)
     expect(swift).not.toContain('performActionFor')
     expect(swift).not.toContain('extension')
+  })
+})
+
+describe('the activity types a tapped entry needs declared', () => {
+  it('declares every action the app donates, under the bundle id', () => {
+    const types = donatedActivityTypes('org.wildloop.app')
+
+    for (const shortcut of APP_SHORTCUTS)
+      expect(types).toContain(`org.wildloop.app.${shortcut.id}`)
+    for (const action of trailSpotlightActions())
+      expect(types).toContain(`org.wildloop.app.${action}`)
+
+    expect(types).toHaveLength(APP_SHORTCUTS.length + TRAIL_SPOTLIGHT_SLOTS)
+    expect(new Set(types).size).toBe(types.length)
+  })
+
+  it('declares them in the root dictionary, not a nested one', () => {
+    const plist = withActivityTypes(CRAFT_PLIST, ['org.wildloop.app.favorites'])
+
+    expect(plist).toContain('    <key>NSUserActivityTypes</key>')
+    expect(plist).toContain('        <string>org.wildloop.app.favorites</string>')
+    // Still well-formed, and the declaration is inside the document's own dict.
+    expect(plist.split('<dict>')).toHaveLength(plist.split('</dict>').length)
+    expect(plist.trimEnd().endsWith('</dict>\n</plist>')).toBe(true)
+    expect(plist.indexOf('NSUserActivityTypes')).toBeGreaterThan(plist.indexOf('NSAppTransportSecurity'))
+  })
+
+  it('replaces what an earlier build declared instead of stacking a second list', () => {
+    const once = withActivityTypes(CRAFT_PLIST, ['org.wildloop.app.trail-slot-0', 'org.wildloop.app.trail-slot-1'])
+    const again = withActivityTypes(once, ['org.wildloop.app.trail-slot-0'])
+
+    expect(again.split('<key>NSUserActivityTypes</key>')).toHaveLength(2)
+    expect(again).not.toContain('trail-slot-1')
+    expect(withActivityTypes(once, ['org.wildloop.app.trail-slot-0', 'org.wildloop.app.trail-slot-1'])).toBe(once)
+  })
+
+  it('escapes a bundle id that would not be XML', () => {
+    expect(withActivityTypes(CRAFT_PLIST, ['org.wild&loop.app.favorites'])).toContain('org.wild&amp;loop.app.favorites')
+  })
+
+  it('says so rather than throwing when there is no plist to declare them in', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ios-plist-'))
+    expect(await writeActivityTypes(dir, 'org.wildloop.app')).toBeNull()
+
+    await writeFile(join(dir, 'Info.plist'), CRAFT_PLIST)
+    expect(await writeActivityTypes(dir, 'org.wildloop.app')).toBe(join(dir, 'Info.plist'))
+    expect(await Bun.file(join(dir, 'Info.plist')).text()).toContain('org.wildloop.app.trail-slot-3')
+  })
+
+  it('refuses a file that is not a plist, rather than appending to it', () => {
+    expect(() => withActivityTypes('not a plist', ['org.wildloop.app.favorites'])).toThrow(/root dictionary/)
   })
 })
