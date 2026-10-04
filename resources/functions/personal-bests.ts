@@ -15,6 +15,8 @@ export interface BestsActivity {
   elevationGain?: number | null
   completedAt?: string | null
   createdAt?: string | null
+  /** Sent only to the athlete themselves. `rejected` never sets a record. */
+  integrityStatus?: string | null
 }
 
 export type PersonalBestKey = 'distance' | 'time' | 'elevation'
@@ -79,7 +81,10 @@ function best(
  * behind it (no elevation on any activity, say) is left out rather than
  * shown as zero.
  */
-export function personalBests(activities: BestsActivity[]): PersonalBest[] {
+export function personalBests(all: BestsActivity[]): PersonalBest[] {
+  // A track the integrity checks refused stays in the log and in the month's
+  // miles, but the longest activity on record is not the drive home.
+  const activities = all.filter(activity => activity.integrityStatus !== 'rejected')
   const records: PersonalBest[] = []
   const add = (key: PersonalBestKey, label: string, found: ReturnType<typeof best>, format: (amount: number) => string) => {
     if (!found)

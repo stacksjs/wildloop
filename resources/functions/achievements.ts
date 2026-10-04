@@ -101,6 +101,7 @@ export interface AchievementMetricActivity {
   trail_id?: number | null
   completed_at?: string | null
   splits?: string | null
+  integrity_status?: string | null
 }
 
 export interface AchievementMetricStats {
@@ -123,7 +124,11 @@ export function achievementMetricValues(input: {
   kudosGiven: unknown[]
   stats?: AchievementMetricStats | null
 }): Record<string, number> {
-  const { activities, kudosGiven, stats } = input
+  const { kudosGiven, stats } = input
+  // A track the integrity checks refused is in the athlete's log, but a car
+  // ride home is not a hundred-mile month or a sub-seven mile, so it earns
+  // nothing here.
+  const activities = input.activities.filter(activity => activity.integrity_status !== 'rejected')
   return {
     activities: activities.length,
     distinct_trails: new Set(activities.map(a => a.trail_id).filter(Boolean)).size,

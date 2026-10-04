@@ -96,13 +96,19 @@ export default new Action({
        * wondering whether it worked. Every other activity that ran this ground
        * is matched when it is next saved, or by a backfill — walking the whole
        * catalog here would make drawing a segment an expensive request.
+       *
+       * Not when the integrity checks refused that activity. Its line can
+       * still mark out a stretch of ground worth racing, but its times are
+       * why it was refused, and they never go on a board.
        */
-      await recordSegmentEfforts({
-        id: activityId,
-        userId,
-        activityType: String(activity.activity_type),
-        samples: samples.map(sample => ({ lat: sample.lat, lng: sample.lng, time: sample.time })),
-      })
+      if ((activity as any).integrity_status !== 'rejected') {
+        await recordSegmentEfforts({
+          id: activityId,
+          userId,
+          activityType: String(activity.activity_type),
+          samples: samples.map(sample => ({ lat: sample.lat, lng: sample.lng, time: sample.time })),
+        })
+      }
 
       return response.json({
         success: true,

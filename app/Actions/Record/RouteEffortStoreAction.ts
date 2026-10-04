@@ -104,6 +104,14 @@ export default new Action({
           return response.json({ success: false, error: 'Activity not found' }, 404)
         if (activity.user_id !== userId)
           return response.json({ success: false, error: 'That activity belongs to another athlete' }, 403)
+        // A track the integrity checks refused is kept in the athlete's log,
+        // but its clock or its speed is what got it refused, and a record is
+        // nothing but a clock.
+        if ((activity as any).integrity_status === 'rejected') {
+          const reason = (activity as any).integrity_reason
+          const message = `That activity can't back a record${reason ? `: ${reason}` : ''}`
+          return response.json({ success: false, error: message, fields: { activity_id: message } }, 422)
+        }
         const existing = await RouteEffort.where('activity_id', '=', activityId).first()
         if (existing)
           return response.json({ success: false, error: 'That activity has already been filed as a record attempt' }, 409)

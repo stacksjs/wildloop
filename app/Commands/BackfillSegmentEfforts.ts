@@ -73,11 +73,13 @@ export default function (cli: CLI) {
         return
       }
 
-      // Only activities with a recorded line can be on a board at all.
+      // Only activities with a recorded line can be on a board at all, and
+      // never one the integrity checks refused: its times are why.
       const countable = await db.sql`
         SELECT COUNT(*) AS total
         FROM activities
         WHERE gpx_data IS NOT NULL
+          AND integrity_status <> 'rejected'
           AND (${since} IS NULL OR completed_at >= ${since})
       `.execute() as Array<{ total: number }>
       const outstanding = Number(countable?.[0]?.total ?? 0)
@@ -104,6 +106,7 @@ export default function (cli: CLI) {
           SELECT id, user_id, activity_type, gpx_data
           FROM activities
           WHERE gpx_data IS NOT NULL
+            AND integrity_status <> 'rejected'
             AND id > ${lastId}
             AND (${since} IS NULL OR completed_at >= ${since})
           ORDER BY id ASC

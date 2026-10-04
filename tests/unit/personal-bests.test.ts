@@ -23,6 +23,13 @@ describe('personal bests', () => {
     expect(time.value).toBe('30m')
   })
 
+  it('never sets a record from a track the integrity checks refused, but keeps its miles in the month', () => {
+    const drive = { id: 5, title: 'Drive home', distance: 31, movingTime: '0:40:00', elevationGain: 2000, completedAt: '2026-09-13T08:00:00Z', integrityStatus: 'rejected' }
+
+    expect(personalBests([...runs, drive]).map(b => b.activityId)).toEqual([1, 2, 2])
+    expect(monthlyProgress([...runs, drive], 2026)[8].miles).toBe(3.2 + 31)
+  })
+
   it('leaves out a record nothing has set, and shows nothing for no activities', () => {
     expect(personalBests([{ id: 4, distance: 2, movingTime: '0:20:00' }]).map(b => b.key)).toEqual(['distance', 'time'])
     expect(personalBests([])).toEqual([])

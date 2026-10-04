@@ -15,6 +15,7 @@
 // with the whole picture rather than a side effect of one review.
 
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
 import Activity from '../../Models/Activity'
 import UserNotification from '../../Models/UserNotification'
 import { isAdminUser } from '../../Support/routeEfforts'
@@ -74,6 +75,19 @@ export default new Action({
       }
 
       await Activity.where('id', '=', activityId).update(updates as any)
+
+      // An upheld activity is `rejected`, the same as one the physics checks
+      // refused on upload, and a rejected activity holds no place on a segment
+      // board. Unlike territory, nothing has been built on top of an effort,
+      // so taking it off is safe to do here.
+      if (decision === 'uphold') {
+        const segments = await db.sql`SELECT DISTINCT segment_id FROM segment_efforts WHERE activity_id = ${activityId}`.execute() as Array<{ segment_id: number }>
+        if (segments?.length) {
+          await db.sql`DELETE FROM segment_efforts WHERE activity_id = ${activityId}`.execute()
+          for (const { segment_id: segmentId } of segments)
+            await db.sql`UPDATE segments SET effort_count = (SELECT COUNT(*) FROM segment_efforts WHERE segment_id = ${segmentId}) WHERE id = ${segmentId}`.execute()
+        }
+      }
 
       const athleteId = Number((activity as any).user_id)
       if (decision === 'uphold' && Number.isFinite(athleteId)) {
