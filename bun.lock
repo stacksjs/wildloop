@@ -8,7 +8,7 @@
         "@bughq/stacks": "^0.2.2",
         "@iconify-json/lucide": "^1.2.137",
         "@loghq/stacks": "^0.2.6",
-        "@stacksjs/mobile": "^0.75.28",
+        "@stacksjs/mobile": "^0.75.56",
         "@ts-analytics/tracking": "^0.1.17",
         "bun-query-builder": "0.3.3",
         "stacks": "^0.74.70",
@@ -170,7 +170,7 @@
 
     "@stacksjs/mail": ["@stacksjs/mail@0.3.8", "", {}, "sha512-KF6yOTCieIaVvYOK72CGVFxMSx2XpaRaDbIt5yY4WmTs4d6ZFsr4UKhk/4G0psQjCXx7ATx+i11JVOaPZde3pQ=="],
 
-    "@stacksjs/mobile": ["@stacksjs/mobile@0.75.28", "", { "dependencies": { "craft-native": ">=0.0.103" } }, "sha512-7+pTCqxrtg/+OWNESCNeY1oaZKSmoAfTIjmWgBShNnQl9TFzqlnMRkACNtlysPM9GliTu9IzlftZ5HoOKB1DEQ=="],
+    "@stacksjs/mobile": ["@stacksjs/mobile@0.75.56", "", { "dependencies": { "craft-native": ">=0.0.107" } }, "sha512-Z1n9qgYNemD5yIjUvWgQRP+spQfEPlFvofLxF/RklKggTuoJmljUGbR1QOm/GPoODEuaakbWfPqKbCWsqEyPSg=="],
 
     "@stacksjs/model-meta": ["@stacksjs/model-meta@0.74.70", "", { "dependencies": { "@stacksjs/path": "0.74.70", "@stacksjs/storage": "0.74.70", "@stacksjs/strings": "0.74.70", "@stacksjs/ts-validation": "^0.5.6", "@stacksjs/types": "0.74.70", "@stacksjs/validation": "0.74.70" } }, "sha512-o5/kLOz/9uiVTTueXhuv38PHhuP+gSDrS3gJQbnb9mLLwJGJr1QQrDK0Oevvtzf6RDNl8USlOeKRoBHYscFkag=="],
 
