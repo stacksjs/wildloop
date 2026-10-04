@@ -148,7 +148,9 @@ describe('activity integrity', () => {
       source: 'web_gps',
       activityType: 'Trail Run',
     })
-    expect(result.valid).toBe(false)
+    // Refused for play, kept for the log: see activity-store-decision.test.ts.
+    expect(result.valid).toBe(true)
+    expect(result.captureEligible).toBe(false)
     expect(result.status).toBe('rejected')
   })
 

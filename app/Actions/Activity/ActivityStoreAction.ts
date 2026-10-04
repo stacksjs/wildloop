@@ -11,7 +11,7 @@ import { Auth } from '@stacksjs/auth'
 import { parseDurationToSeconds } from '../../../resources/functions/duration'
 
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
-import { durationLabel, evaluateTrackIntegrity, isLiveGpsSource, type RecordingSource, withoutFixes } from '../../../resources/functions/activity-integrity'
+import { durationLabel, evaluateTrackIntegrity, integrityColumns, isLiveGpsSource, type RecordingSource, storeRefusal, withoutFixes } from '../../../resources/functions/activity-integrity'
 import { integrityFlagsJson, verifyAgainstHistory } from '../../Support/activityIntegrityCheck'
 import { recordSegmentEfforts } from '../../Support/segmentEfforts'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
@@ -100,14 +100,24 @@ export default new Action({
     if (!VISIBILITIES.includes(visibility))
       fields.visibility = `must be one of: ${VISIBILITIES.join(', ')}`
 
+    /*
+     * Only a payload that is not a track is refused here: no coordinates, or
+     * coordinates off the globe. A track that fails the physics checks — a
+     * car's speed, a lift's climb, a clock running backwards — is still the
+     * athlete's recording, and refusing it lost the run from their log as
+     * well as its score. It is saved below as `rejected`, which keeps it out
+     * of territory, segments, records and every board.
+     */
     const integrity = evaluateTrackIntegrity({
-      gpxData: typeof gpxData === 'string' ? gpxData : null,
+      // Not worth parsing a payload already refused for its size or type.
+      gpxData: typeof gpxData === 'string' && !fields.gpx_data ? gpxData : null,
       source: recordingSource,
       activityType,
       completedAt: typeof completedAt === 'string' ? completedAt : null,
     })
-    if (!integrity.valid)
-      fields.gpx_data = integrity.reason ?? 'Track telemetry failed integrity checks'
+    const refusal = storeRefusal(integrity)
+    if (refusal)
+      fields.gpx_data = refusal
 
     if (Object.keys(fields).length)
       return response.json({ success: false, error: 'Validation failed', fields }, 422)
@@ -146,7 +156,8 @@ export default new Action({
         completedAt: typeof completedAt === 'string' ? completedAt : null,
         captureEligible: claimedEligible,
       })
-      const captureEligible = verdict.captureEligible
+      const integrityFields = integrityColumns(integrity, verdict)
+      const captureEligible = integrityFields.capture_eligible
       const serverDistance = isLiveGpsSource(recordingSource) && integrity.distanceMiles !== null
         ? Number(integrity.distanceMiles.toFixed(2))
         : distance
@@ -192,9 +203,7 @@ export default new Action({
         upload_id: uploadId,
         recording_source: recordingSource,
         game_mode: gameMode,
-        capture_eligible: captureEligible,
-        integrity_status: integrity.status,
-        integrity_reason: captureEligible ? null : (verdict.reason ?? integrity.reason),
+        ...integrityFields,
         anomaly_score: integrity.anomalyScore,
         integrity_flags: integrityFlagsJson(integrity, verdict.findings),
         track_fingerprint: integrity.fingerprint,
@@ -207,13 +216,18 @@ export default new Action({
        * here costs a place on a leaderboard, and blocking the save over it
        * would cost the run. `recordSegmentEfforts` never throws and logs what
        * it could not do, so a missed match can be matched again later.
+       *
+       * Never for a refused track: its times are what made it refused, and a
+       * segment board is nothing but times.
        */
-      await recordSegmentEfforts({
-        id: Number(activity.id),
-        userId,
-        activityType,
-        samples: integrity.samples.map(sample => ({ lat: sample.lat, lng: sample.lng, time: sample.time })),
-      })
+      if (integrityFields.integrity_status !== 'rejected') {
+        await recordSegmentEfforts({
+          id: Number(activity.id),
+          userId,
+          activityType,
+          samples: integrity.samples.map(sample => ({ lat: sample.lat, lng: sample.lng, time: sample.time })),
+        })
+      }
 
       // Unlock engine hook (#982) - best-effort, never blocks the store.
       await evaluateAchievementsForUser(userId).catch((err: unknown) =>

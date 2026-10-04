@@ -27,6 +27,13 @@ export interface TrackSample extends Coordinate {
 }
 
 export interface TrackIntegrityResult {
+  /**
+   * Whether this is an activity at all. False only for input that is not a
+   * track — no usable coordinates, or coordinates off the globe — which the
+   * store refuses outright. A track refused on physics is valid: it is a
+   * real recording of something, it goes in the athlete's log with status
+   * `rejected`, and it never captures or competes.
+   */
   valid: boolean
   captureEligible: boolean
   status: 'verified' | 'unverified' | 'rejected'
@@ -109,7 +116,8 @@ export function parseTrackSamples(raw: string | null | undefined): TrackSample[]
   return []
 }
 
-function rejected(reason: string, samples: TrackSample[] = []): TrackIntegrityResult {
+/** Not a track: the store answers 422 and nothing is saved. */
+function malformed(reason: string, samples: TrackSample[] = []): TrackIntegrityResult {
   return {
     valid: false,
     captureEligible: false,
@@ -118,6 +126,56 @@ function rejected(reason: string, samples: TrackSample[] = []): TrackIntegrityRe
     samples,
     distanceMiles: null,
     durationSeconds: null,
+    anomalyScore: 0,
+    anomalySignals: [],
+    fingerprint: null,
+    droppedFixes: [],
+  }
+}
+
+/**
+ * A track that is a recording of something, but not of a body moving on its
+ * own: a speed, a climb or a clock no athlete produces.
+ *
+ * It used to be refused with the rest, and the athlete lost the run from
+ * their log as well as its score — usually an honest run with a phone that
+ * went wrong, or a recorder left running in the car home. It is kept now,
+ * measured from the fixes it came with, and marked `rejected`: never a
+ * capture, never on a board.
+ *
+ * Every refusal passes the fixes as submitted, not the ones left after
+ * glitches were dropped: a refused track is stored whole, so its distance
+ * and duration are measured from the same fixes the log will show. A car
+ * turning a corner at 40 m/s reads as a glitch, and dropping those cut three
+ * seconds from a one-minute drive.
+ *
+ * No fingerprint, so a refused track never makes another one look like its
+ * duplicate.
+ */
+function refused(reason: string, samples: TrackSample[]): TrackIntegrityResult {
+  const usable = samples.filter(sample => Number.isFinite(sample.lat) && Number.isFinite(sample.lng))
+  // The span of the clock rather than last minus first: a refusal for time
+  // running backwards would otherwise store a negative duration. A loop, not
+  // a spread: an ultra's worth of fixes is more arguments than a call takes.
+  let earliest = Infinity
+  let latest = -Infinity
+  let timed = 0
+  for (const sample of usable) {
+    if (sample.time === null)
+      continue
+    timed++
+    earliest = Math.min(earliest, sample.time)
+    latest = Math.max(latest, sample.time)
+  }
+  const durationSeconds = timed >= 2 ? Math.round((latest - earliest) / 1000) : null
+  return {
+    valid: true,
+    captureEligible: false,
+    status: 'rejected',
+    reason,
+    samples,
+    distanceMiles: usable.length >= 2 ? totalMiles(usable) : null,
+    durationSeconds,
     anomalyScore: 0,
     anomalySignals: [],
     fingerprint: null,
@@ -349,12 +407,12 @@ export function evaluateTrackIntegrity(input: {
 
   const submitted = parseTrackSamples(input.gpxData)
   if (submitted.length < 2)
-    return rejected('Track must include at least two valid telemetry samples', submitted)
+    return malformed('Track must include at least two valid telemetry samples', submitted)
 
   for (const sample of submitted) {
     if (!Number.isFinite(sample.lat) || !Number.isFinite(sample.lng)
       || sample.lat < -90 || sample.lat > 90 || sample.lng < -180 || sample.lng > 180)
-      return rejected('Track contains an invalid coordinate', submitted)
+      return malformed('Track contains an invalid coordinate', submitted)
   }
 
   const kind = activityKind(input.activityType)
@@ -377,10 +435,10 @@ export function evaluateTrackIntegrity(input: {
       const previous = submitted[unique[unique.length - 1]]
       const sample = submitted[index]
       if ((sample.time as number) < (previous.time as number))
-        return rejected('Track timestamps must increase monotonically', submitted)
+        return refused('Track timestamps must increase monotonically', submitted)
       if (sample.time === previous.time) {
         if (haversineMetres(previous, sample) > stepError(previous, sample))
-          return rejected('Track timestamps must increase monotonically', submitted)
+          return refused('Track timestamps must increase monotonically', submitted)
         duplicates++
         continue
       }
@@ -417,7 +475,7 @@ export function evaluateTrackIntegrity(input: {
     if (sample.time !== null) {
       timedSamples++
       if (previousTime !== null && sample.time <= previousTime)
-        return rejected('Track timestamps must increase monotonically', samples)
+        return refused('Track timestamps must increase monotonically', submitted)
       previousTime = sample.time
     }
     if (index === 0)
@@ -431,12 +489,12 @@ export function evaluateTrackIntegrity(input: {
     if (isLiveGpsSource(source) && startTime !== null && sample.time !== null) {
       const bounds = stepBounds(previous, sample)
       if (!bounds)
-        return rejected('Track timestamps must increase monotonically', samples)
+        return refused('Track timestamps must increase monotonically', submitted)
       const { seconds } = bounds
 
       const speed = segmentMetres / seconds
       if (bounds.minSpeed > burstLimit)
-        return rejected(`Track contains an implausible ${input.activityType.toLowerCase()} speed`, samples)
+        return refused(`Track contains an implausible ${input.activityType.toLowerCase()} speed`, submitted)
 
       // A track assembled from waypoints jumps between speeds with nothing in
       // between. A body cannot: it has to accelerate, and the limit here is
@@ -447,12 +505,12 @@ export function evaluateTrackIntegrity(input: {
       if (previousBounds !== null) {
         const leastChange = Math.max(0, bounds.minSpeed - previousBounds.maxSpeed, previousBounds.minSpeed - bounds.maxSpeed)
         if (leastChange / seconds > MAX_ACCELERATION)
-          return rejected('Track contains an implausible change of speed', samples)
+          return refused('Track contains an implausible change of speed', submitted)
       }
 
       // Altitude climbs faster than this in a lift, not on a trail.
       if (bounds.minVerticalSpeed !== null && bounds.minVerticalSpeed > MAX_VERTICAL_SPEED)
-        return rejected('Track contains an implausible change of altitude', samples)
+        return refused('Track contains an implausible change of altitude', submitted)
 
       // The same two limits over the last ten seconds or so, end to end. The
       // straight line between the ends is the least distance covered, so this
@@ -463,9 +521,9 @@ export function evaluateTrackIntegrity(input: {
       if (spanStart < index - 1 && spanFrom.time !== null && (sample.time - spanFrom.time) / 1000 >= SPAN_SECONDS) {
         const span = stepBounds(spanFrom, sample)
         if (span && span.minSpeed > burstLimit)
-          return rejected(`Track contains an implausible ${input.activityType.toLowerCase()} speed`, samples)
+          return refused(`Track contains an implausible ${input.activityType.toLowerCase()} speed`, submitted)
         if (span?.minVerticalSpeed != null && span.minVerticalSpeed > MAX_VERTICAL_SPEED)
-          return rejected('Track contains an implausible change of altitude', samples)
+          return refused('Track contains an implausible change of altitude', submitted)
       }
 
       previousBounds = bounds
@@ -481,7 +539,7 @@ export function evaluateTrackIntegrity(input: {
       })
     }
     else if (isLiveGpsSource(source) && segmentMetres > 2000) {
-      return rejected('Track contains an implausible GPS jump', samples)
+      return refused('Track contains an implausible GPS jump', submitted)
     }
   }
 
@@ -492,9 +550,9 @@ export function evaluateTrackIntegrity(input: {
   if (isLiveGpsSource(source) && segments.length > 0) {
     const window = worstSustainedWindow(segments, 300)
     if (window && window.speed > maxSustainableSpeed(kind, window.seconds)) {
-      return rejected(
+      return refused(
         `Track holds ${window.speed.toFixed(1)} m/s for ${Math.round(window.seconds / 60)} minutes, which is faster than a ${kind === 'other' ? 'human' : kind} sustains`,
-        samples,
+        submitted,
       )
     }
   }
@@ -575,6 +633,45 @@ export function evaluateTrackIntegrity(input: {
     anomalySignals: anomalies.signals,
     fingerprint,
     droppedFixes,
+  }
+}
+
+/**
+ * Why the store refuses this upload outright, or null when it is to be saved.
+ *
+ * Only input that is not a track is refused. A track that fails the physics
+ * checks is saved, as `rejected` — see `refused`.
+ */
+export function storeRefusal(integrity: TrackIntegrityResult): string | null {
+  return integrity.valid ? null : (integrity.reason ?? 'Track telemetry failed integrity checks')
+}
+
+export interface IntegrityColumns {
+  capture_eligible: boolean
+  integrity_status: TrackIntegrityResult['status']
+  integrity_reason: string | null
+}
+
+/**
+ * The integrity columns a saved activity carries, from the track's own
+ * verdict and the one from the athlete's history.
+ *
+ * A history finding that disqualifies a capture — the same trace twice, or two
+ * places at once — makes the activity `rejected` as surely as a physics
+ * refusal does: it is the same run counted again, and it stays off every board
+ * for the same reason it cannot capture.
+ */
+export function integrityColumns(
+  integrity: TrackIntegrityResult,
+  history: { captureEligible: boolean, reason: string | null },
+): IntegrityColumns {
+  // Both have to agree. The history check only ever runs on a track that was
+  // eligible on its own, but this should not depend on the caller knowing that.
+  const captureEligible = integrity.captureEligible && history.captureEligible
+  return {
+    capture_eligible: captureEligible,
+    integrity_status: history.reason ? 'rejected' : integrity.status,
+    integrity_reason: captureEligible ? null : (history.reason ?? integrity.reason),
   }
 }
 

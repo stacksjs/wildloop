@@ -31,6 +31,8 @@ declare global {
   const parseTrackSamples: typeof autoImports.parseTrackSamples
   const withoutFixes: typeof autoImports.withoutFixes
   const evaluateTrackIntegrity: typeof autoImports.evaluateTrackIntegrity
+  const storeRefusal: typeof autoImports.storeRefusal
+  const integrityColumns: typeof autoImports.integrityColumns
   const durationLabel: typeof autoImports.durationLabel
   const activityKind: typeof autoImports.activityKind
   const maxSustainableSpeed: typeof autoImports.maxSustainableSpeed
