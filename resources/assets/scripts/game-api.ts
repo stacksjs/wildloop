@@ -919,6 +919,23 @@ function claimRefusal(result: RunResult): string | null {
   return battled ? null : claim.error
 }
 
+/**
+ * What a run won, for the recorder's Captured and XP tiles: the server's XP
+ * across the claim and every battle, and the ids of the territories it now
+ * holds because of this run.
+ */
+export function runOutcome(result: RunResult): { xp: number, territoryIds: number[] } {
+  const ids: number[] = []
+  if (result.claim?.success && result.claim.territory?.id)
+    ids.push(result.claim.territory.id)
+  for (const won of result.conquest?.territories ?? []) {
+    const id = won.newTerritoryId ?? won.originalId
+    if (id && !ids.includes(id))
+      ids.push(id)
+  }
+  return { xp: (result.claim?.xpGained ?? 0) + (result.conquest?.xpGained ?? 0), territoryIds: ids }
+}
+
 /** Build a short toast message from a run result, or null if nothing happened. */
 export function runResultMessage(result: RunResult): string | null {
   const parts: string[] = []

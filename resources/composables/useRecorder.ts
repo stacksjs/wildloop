@@ -19,6 +19,7 @@ import {
 import {
   type ActivityPayload,
   routeToGeoJson,
+  runOutcome,
   runSaveMessage,
   runResultMessage,
 } from '../assets/scripts/game-api'
@@ -759,6 +760,11 @@ export function useRecorder({ mapElId, wl }: RecorderOptions) {
       const result = await saveFinishedRecording(recordingSnapshot(), payload)
       pendingRecording.set(null)
       recordingError.set(null)
+      // The Captured and XP tiles under the map were never written: both
+      // read 0 after a claim worth 144 XP.
+      const outcome = runOutcome(result)
+      sessionXp.set(outcome.xp)
+      conqueredIds.set(outcome.territoryIds)
       const message = runResultMessage(result)
       if (message) {
         conquestToast.set(message)
