@@ -1,5 +1,6 @@
 /**
- * Signing in with Google: the decisions, away from the network.
+ * Signing in with Google (and, through the same `decideLink`, with Apple —
+ * see appleSignIn.ts): the decisions, away from the network.
  *
  * Everything here is pure, so the parts that are easy to get quietly wrong —
  * which state is acceptable, whether an existing account may be linked, what
@@ -13,14 +14,20 @@
 /** How long a sign-in may sit half-finished before its state is refused. */
 export const STATE_LIFETIME_MS = 10 * 60 * 1000
 
-export interface GoogleProfile {
-  /** Google's own subject id. Stable for the account, unlike the address. */
+/**
+ * Who a provider says somebody is. Google and Apple both reduce to this, which
+ * is what lets one set of decisions serve both.
+ */
+export interface SocialProfile {
+  /** The provider's own subject id. Stable for the account, unlike the address. */
   sub: string
   email: string
   emailVerified: boolean
   name?: string | null
   picture?: string | null
 }
+
+export type GoogleProfile = SocialProfile
 
 export type LinkDecision =
   /** No account has this address: make one. */
@@ -38,7 +45,7 @@ export interface ExistingUser {
 }
 
 /**
- * What to do with a profile Google has just vouched for.
+ * What to do with a profile Google (or Apple) has just vouched for.
  *
  * The order matters. A known identity signs in without consulting the address
  * at all, because the address is the one thing about a Google account that can
@@ -51,7 +58,7 @@ export interface ExistingUser {
  * somebody's email take their account. That is the whole of the security here,
  * so it is checked before anything else and refused rather than downgraded.
  */
-export function decideLink(profile: GoogleProfile, identityUserId: number | null, existing: ExistingUser | null): LinkDecision {
+export function decideLink(profile: SocialProfile, identityUserId: number | null, existing: ExistingUser | null): LinkDecision {
   if (identityUserId !== null)
     return { action: 'sign-in', userId: identityUserId }
 
