@@ -337,6 +337,8 @@
           <span :if="recording && !paused">Recording</span>
           <span :if="recording && paused">Paused</span>
         </p>
+        <!-- The one rule a first capture run needs, before it is run rather than after it fails. -->
+        <p :if="!recording && !hasPendingRecording && runMode === 'capture'" class="mx-auto mt-3 max-w-md text-center text-sm text-slate-600 dark:text-slate-300">Finish within 50 m of where you start to claim the ground inside your loop. Run straight across someone else's territory to take part of it.</p>
         <p :if="isWebRecorder" class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">On the web, keep this page visible and your screen unlocked. Background GPS is not guaranteed.</p>
       </div>
 

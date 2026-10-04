@@ -68,7 +68,7 @@
     <div class="mx-auto flex max-w-7xl flex-col gap-5 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:px-8">
       <div class="min-w-0">
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 md:text-4xl dark:text-white">Your territory map</h1>
-        <p class="mt-2 max-w-xl leading-relaxed text-slate-600 dark:text-slate-400">Green is yours. Orange belongs to someone else. Tap a zone, then hit Capture to run the lines that steal it.</p>
+        <p class="mt-2 max-w-xl leading-relaxed text-slate-600 dark:text-slate-400">Green is yours. Orange belongs to someone else. Run a closed loop to claim new ground, or run straight across someone else's zone to take part of it.</p>
       </div>
       <StxLink to="/record" class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-full bg-emerald-600 px-6 font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:self-auto">
         <Icon name="play" size="18" />
