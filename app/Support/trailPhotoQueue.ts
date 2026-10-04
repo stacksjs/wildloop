@@ -1,19 +1,23 @@
 import type { PhotoCandidate } from './trailPhotoCandidates'
+import type { NameSearchPlan } from './trailPhotoNameSearch'
 import type { RankableTrail, TrailActivity } from './trailRanking'
 import type { SqlTag } from './trailViews'
 import { db } from '@stacksjs/orm'
 import { isStockTrailPhoto } from '../../resources/functions/stock-photos'
 import { licenseVerdict } from './photoLicenses'
 import { candidatesFrom, commonsGeosearchUrl } from './trailPhotoCandidates'
+import { candidatesFromNameSearch, commonsNameSearchUrl, nameSearchPlan } from './trailPhotoNameSearch'
 import { rankTrails, viewSignal } from './trailRanking'
 import { firstViewDay, RANKED_VIEW_DAYS } from './trailViews'
 
 /**
  * Which trails get a photograph looked for first, and the looking.
  *
- * `trailPhotoCandidates.ts` can find Commons files whose titles name a trail,
- * and refuses to decide whether one shows it. This is the other half: aim
- * that search at the trails people actually open, a bounded number a night,
+ * `trailPhotoCandidates.ts` can find Commons files near a trail head whose
+ * titles name the trail, and `trailPhotoNameSearch.ts` files named after it
+ * that lie near it or name its park; both refuse to decide whether one shows
+ * it. This is the other half: aim those searches at the trails people
+ * actually open, a bounded number a night,
  * and leave what it finds as pending rows for a person to approve on
  * /admin/photos (trailPhotoReview.ts). Nothing here makes a photo a cover.
  *
@@ -46,7 +50,7 @@ export const SEARCH_REFRESH_DAYS = 90
 /** Metres around a trail head to look for photographs, as the coverage report does. */
 export const SEARCH_RADIUS_METRES = 3000
 
-/** Trails searched a night unless told otherwise. About a minute of polite requests. */
+/** Trails searched a night unless told otherwise. Two polite requests each, about two minutes. */
 export const DEFAULT_NIGHTLY_LIMIT = 60
 
 /** At most this many candidates kept per trail: a reviewer reads them, not a crawler. */
@@ -272,6 +276,14 @@ export interface SearchableTrail {
   image?: string | null
   source?: string | null
   source_id?: string | null
+  /** Where it is, for the search by name: park, location, state and the box its line fills. */
+  location?: string | null
+  managed_by?: string | null
+  state_name?: string | null
+  min_lat?: number | null
+  max_lat?: number | null
+  min_lng?: number | null
+  max_lng?: number | null
 }
 
 /**
@@ -293,7 +305,8 @@ export async function trailsToSearch(
   const cutoff = new Date(at.getTime() - (options.refreshDays ?? SEARCH_REFRESH_DAYS) * 86_400_000).toISOString()
 
   const rows = await sql`
-    SELECT t.id, t.name, t.state, t.latitude, t.longitude, t.image, t.source, t.source_id
+    SELECT t.id, t.name, t.state, t.latitude, t.longitude, t.image, t.source, t.source_id,
+      t.location, t.managed_by, t.state_name, t.min_lat, t.max_lat, t.min_lng, t.max_lng
     FROM trails t
     WHERE t.id IN (SELECT value FROM json_each(${list}))
       AND t.latitude IS NOT NULL AND t.longitude IS NOT NULL
@@ -339,7 +352,7 @@ export function retryAfterMs(header: string | null, fallback = 5000): number {
 }
 
 /**
- * The geosearch for one trail head, as Commons answers it.
+ * One Commons API request, as Commons answers it.
  *
  * `maxlag=5` asks Commons to refuse us whenever its replicas are behind,
  * which is the API's own convention for a client that can wait. A refusal for
@@ -347,10 +360,10 @@ export function retryAfterMs(header: string | null, fallback = 5000): number {
  * `Retry-After` says and no longer than `MAX_RETRY_WAIT_MS`; refused twice, it
  * throws `CommonsRateLimited` and the caller stops for the night.
  */
-export async function fetchCommonsGeosearch(lat: number, lng: number, radiusMetres: number, client: CommonsClient = {}): Promise<unknown> {
+export async function fetchCommons(apiUrl: string, client: CommonsClient = {}): Promise<unknown> {
   const send = client.fetch ?? ((input: string, init?: RequestInit) => fetch(input, init))
   const sleep = client.sleep ?? ((ms: number) => Bun.sleep(ms))
-  const url = `${commonsGeosearchUrl(lat, lng, radiusMetres)}&maxlag=5`
+  const url = `${apiUrl}&maxlag=5`
   const init: RequestInit = {
     headers: { 'User-Agent': COMMONS_USER_AGENT, 'Api-User-Agent': COMMONS_USER_AGENT, 'Accept': 'application/json' },
     signal: AbortSignal.timeout(30_000),
@@ -378,11 +391,41 @@ export async function fetchCommonsGeosearch(lat: number, lng: number, radiusMetr
   throw new CommonsRateLimited(MAX_RETRY_WAIT_MS)
 }
 
+/** The geosearch for one trail head. */
+export function fetchCommonsGeosearch(lat: number, lng: number, radiusMetres: number, client: CommonsClient = {}): Promise<unknown> {
+  return fetchCommons(commonsGeosearchUrl(lat, lng, radiusMetres), client)
+}
+
+/** The search for one trail's name, narrowed by its places. */
+export function fetchCommonsNameSearch(plan: NameSearchPlan, client: CommonsClient = {}): Promise<unknown> {
+  return fetchCommons(commonsNameSearchUrl(plan), client)
+}
+
+/**
+ * One trail's candidates from both searches, each file once. The geosearch's
+ * come first: a camera near the trail head is the stronger evidence, and a
+ * file both searches found is the nearby one.
+ */
+export function mergeCandidates(nearby: PhotoCandidate[], byName: PhotoCandidate[]): PhotoCandidate[] {
+  const seen = new Set<string>()
+  const merged: PhotoCandidate[] = []
+  for (const candidate of [...nearby, ...byName]) {
+    const key = candidate.title.trim().toLowerCase()
+    if (seen.has(key))
+      continue
+    seen.add(key)
+    merged.push(candidate)
+  }
+  return merged
+}
+
 export interface StoredCandidates {
   /** Files whose titles name the trail. */
   found: number
   /** Of those, the ones newly written as pending for a person to look at. */
   pending: number
+  /** Of the pending, the ones the search by name found. */
+  byName: number
   /** Refused for their licence, written as rejected with the reason. */
   refused: number
 }
@@ -400,6 +443,7 @@ export async function storeCandidates(
 ): Promise<StoredCandidates> {
   const kept = candidates.slice(0, MAX_CANDIDATES_PER_TRAIL)
   let pending = 0
+  let byName = 0
   let refused = 0
   const now = new Date().toISOString()
 
@@ -410,12 +454,14 @@ export async function storeCandidates(
     const status = verdict.allowed ? 'pending' : 'rejected'
     const reason = verdict.allowed ? null : verdict.reason
     const credit = candidate.credit.slice(0, 200)
+    const foundBy = candidate.foundBy === 'name' ? 'name' : 'nearby'
+    const distance = Number.isFinite(candidate.distanceMetres) ? Math.round(Number(candidate.distanceMetres)) : null
     const inserted = await sql`
       INSERT INTO trail_photo_candidates
-        (trail_id, file_title, url, page_url, credit, license, license_url, matched_words, status, reason, priority, created_at, updated_at)
+        (trail_id, file_title, url, page_url, credit, license, license_url, matched_words, status, reason, priority, found_by, distance_m, created_at, updated_at)
       VALUES
         (${trailId}, ${candidate.title.slice(0, 500)}, ${candidate.url}, ${candidate.pageUrl}, ${credit}, ${candidate.license.slice(0, 100)},
-         ${candidate.licenseUrl.slice(0, 500)}, ${candidate.matched.join(' ')}, ${status}, ${reason}, ${priority}, ${now}, ${now})
+         ${candidate.licenseUrl.slice(0, 500)}, ${candidate.matched.join(' ')}, ${status}, ${reason}, ${priority}, ${foundBy}, ${distance}, ${now}, ${now})
       ON CONFLICT (trail_id, file_title) DO NOTHING
       RETURNING id
     `
@@ -423,12 +469,16 @@ export async function storeCandidates(
     // rejected by a person, and stays as it was.
     if (!inserted?.length)
       continue
-    if (verdict.allowed)
-      pending += 1
-    else refused += 1
+    if (!verdict.allowed) {
+      refused += 1
+      continue
+    }
+    pending += 1
+    if (foundBy === 'name')
+      byName += 1
   }
 
-  return { found: candidates.length, pending, refused }
+  return { found: candidates.length, pending, byName, refused }
 }
 
 /** Remember that a trail was looked up, so the next nights skip it. */
@@ -446,6 +496,8 @@ export interface SourcingReport {
   searched: number
   withCandidates: number
   pending: number
+  /** Of the pending, the ones found by searching for a trail's name. */
+  byName: number
   refused: number
   failed: number
   /** Set when Commons asked us to stop and the night ended early. */
@@ -468,14 +520,16 @@ export interface SourcingOptions extends CommonsClient {
 
 /**
  * One night's sourcing: build the queue, look up the first `limit` trails it
- * still holds, and store what Commons offers for each, one request at a time.
+ * still holds, and store what Commons offers for each, one request at a time:
+ * the geosearch around the head, then — when the name is distinctive enough
+ * to search for — the search by name.
  */
 export async function sourceTrailPhotos(options: SourcingOptions = {}): Promise<SourcingReport> {
   const sql = options.sql ?? ormSql
   const limit = Math.max(1, Math.floor(Number(options.limit) || DEFAULT_NIGHTLY_LIMIT))
   const sleep = options.sleep ?? ((ms: number) => Bun.sleep(ms))
   const metros = options.metros ?? PHOTO_QUEUE_METROS
-  const report: SourcingReport = { queued: 0, searched: 0, withCandidates: 0, pending: 0, refused: 0, failed: 0 }
+  const report: SourcingReport = { queued: 0, searched: 0, withCandidates: 0, pending: 0, byName: 0, refused: 0, failed: 0 }
 
   const demand = await trailDemand({ at: options.at }, sql)
   const activity = new Map<number, TrailActivity>(demand.map(row => [row.trailId, row]))
@@ -504,8 +558,20 @@ export async function sourceTrailPhotos(options: SourcingOptions = {}): Promise<
 
     let stored: StoredCandidates
     try {
-      const payload = await fetchCommonsGeosearch(Number(trail.latitude), Number(trail.longitude), options.radiusMetres ?? SEARCH_RADIUS_METRES, options)
-      stored = await storeCandidates(trail.id, candidatesFrom(payload, trail.name), queued.priority, sql)
+      const nearby = candidatesFrom(
+        await fetchCommonsGeosearch(Number(trail.latitude), Number(trail.longitude), options.radiusMetres ?? SEARCH_RADIUS_METRES, options),
+        trail.name,
+      )
+      const plan = nameSearchPlan(trail)
+      let byName: PhotoCandidate[] = []
+      if (plan) {
+        await sleep(PAUSE_MS)
+        byName = candidatesFromNameSearch(await fetchCommonsNameSearch(plan, options), trail, plan)
+      }
+      // Both searches or neither: a trail is recorded as searched only once
+      // both have answered, so a failure in the second retries the first
+      // tomorrow too, and the unique index keeps that from doubling anything.
+      stored = await storeCandidates(trail.id, mergeCandidates(nearby, byName), queued.priority, sql)
     }
     catch (error) {
       if (error instanceof CommonsRateLimited) {
@@ -522,6 +588,7 @@ export async function sourceTrailPhotos(options: SourcingOptions = {}): Promise<
     await recordSearch(trail.id, stored, queued.priority, options.at, sql)
     report.searched += 1
     report.pending += stored.pending
+    report.byName += stored.byName
     report.refused += stored.refused
     if (stored.pending > 0)
       report.withCandidates += 1

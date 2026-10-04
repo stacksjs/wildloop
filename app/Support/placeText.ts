@@ -231,3 +231,108 @@ export function agrees(
     ? known.includes(said)
     : known.some(value => value.length > 3 && (value === said || said.includes(value) || value.includes(said)))
 }
+
+/** The trail fields that say where it is, as the catalog row carries them. */
+export interface TrailPlaceFields {
+  latitude?: number | null
+  longitude?: number | null
+  location?: string | null
+  managed_by?: string | null
+  state_name?: string | null
+}
+
+/** Words that make a name a park, forest or other protected area. */
+const PARK_WORDS = /\b(?:park|forest|monument|recreation area|scenic area|seashore|lakeshore|preserve|reserve|wilderness|grassland|wildlife refuge|conservation area|open space)\b|nationalpark|naturpark|naturschutzgebiet|biosph(?:a|ä|ae)renreservat/i
+
+/** The designation around a park's own name, front or back. */
+const PARK_SUFFIX = /(?:^|\s+)(?:(?:national|state|county|regional|provincial|city|historic)\s+)*(?:park|forest|monument|recreation area|scenic area|seashore|lakeshore|preserve|reserve|wilderness|grassland|wildlife refuge|conservation area|open space(?: preserve)?)$/i
+const PARK_PREFIX = /^(?:nationalpark|naturpark|naturschutzgebiet|biosph(?:a|ä|ae)renreservat|parc national(?: de la| de| des| du)?)\s+/i
+
+/**
+ * The park, forest or other protected area a trail lies in, by its own name:
+ * "Coconino National Forest" is "Coconino", "Nationalpark Berchtesgaden" is
+ * "Berchtesgaden". That is the word a photographer puts in a caption, where
+ * the full designation is often left off.
+ *
+ * Read from who manages the trail, then from the first part of its location
+ * when that names a park rather than a town ("Santa Monica Mountains
+ * National Recreation Area, CA"). A manager that is a trust or a club, not a
+ * place, is not a park. Null when neither names one.
+ */
+export function parkOf(trail: TrailPlaceFields): string | null {
+  const candidates = [trail.managed_by, String(trail.location ?? '').split(',')[0]]
+  for (const raw of candidates) {
+    const name = String(raw ?? '').replace(/\s+/g, ' ').trim()
+    if (!name || !PARK_WORDS.test(name))
+      continue
+    const own = name.replace(PARK_PREFIX, '').replace(PARK_SUFFIX, '').trim()
+    // Only a designation stripped off counts: "Park City" names a town, and
+    // "State Park" alone leaves nothing to search for.
+    if (own && own !== name)
+      return own
+  }
+  return null
+}
+
+const EARTH_RADIUS_KM = 6371
+
+function kmBetween(a: PlacePoint, b: PlacePoint): number {
+  const rad = Math.PI / 180
+  const h = Math.sin(((b.lat - a.lat) * rad) / 2) ** 2
+    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lng - a.lng) * rad) / 2) ** 2
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+/**
+ * Kilometres from a named region's point that still count as in it. The
+ * regions are metro-sized or a range, pinned near their middle, so this is
+ * generous enough for a valley's edge and too tight to reach the next one.
+ */
+export const REGION_REACH_KM = 25
+
+/**
+ * The named region a point lies in, as people write it ("lake tahoe",
+ * "schwarzwald"), or null when none is near. The nearest wins where two
+ * reach. A name of three letters or fewer is skipped for a longer spelling:
+ * "dmv" is a motor vehicles office to anyone searching for it.
+ */
+export function regionNear(point: PlacePoint | null | undefined, withinKm = REGION_REACH_KM): string | null {
+  const lat = Number(point?.lat)
+  const lng = Number(point?.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng))
+    return null
+
+  let best: { name: string, km: number } | null = null
+  for (const region of NAMED_REGIONS) {
+    const km = kmBetween({ lat, lng }, region.point)
+    if (km > withinKm || (best && best.km <= km))
+      continue
+    best = { name: region.names.find(name => name.length > 3) ?? region.names[0]!, km }
+  }
+  return best?.name ?? null
+}
+
+/**
+ * The places a photograph of this trail would plausibly be captioned with,
+ * most specific first: its park, the named region it lies in, and its state
+ * or Land. What a search by the trail's name is narrowed by, so "Cathedral
+ * Rock" finds Sedona's and not the one in Oregon. Empty when none is known.
+ */
+export function searchPlaces(trail: TrailPlaceFields): string[] {
+  const point = { lat: Number(trail.latitude), lng: Number(trail.longitude) }
+  const places = [
+    parkOf(trail),
+    trail.latitude == null || trail.longitude == null ? null : regionNear(point),
+    String(trail.state_name ?? '').trim() || null,
+  ]
+  const seen = new Set<string>()
+  return places.filter((place): place is string => {
+    if (!place)
+      return false
+    const key = foldName(place)
+    if (!key || seen.has(key))
+      return false
+    seen.add(key)
+    return true
+  })
+}

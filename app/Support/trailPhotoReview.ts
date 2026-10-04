@@ -35,6 +35,10 @@ export interface QueueCandidate {
   license: string
   licenseUrl: string
   matched: string[]
+  /** `nearby` for the geosearch around the trail head, `name` for the search by the trail's name. */
+  foundBy: 'nearby' | 'name'
+  /** For a file found by name, metres from the trail; null when it has no coordinates, or was found nearby. */
+  distanceMetres: number | null
 }
 
 export interface QueueTrail {
@@ -97,7 +101,7 @@ export async function pendingPhotoQueue(options: { limit?: number } = {}, sql: S
   const candidates = ids.length === 0
     ? []
     : await sql`
-        SELECT id, trail_id, file_title, url, page_url, credit, license, license_url, matched_words
+        SELECT id, trail_id, file_title, url, page_url, credit, license, license_url, matched_words, found_by, distance_m
         FROM trail_photo_candidates
         WHERE status = 'pending' AND trail_id IN (SELECT value FROM json_each(${JSON.stringify(ids)}))
         ORDER BY trail_id, length(matched_words) - length(replace(matched_words, ' ', '')) DESC, id ASC
@@ -117,6 +121,8 @@ export async function pendingPhotoQueue(options: { limit?: number } = {}, sql: S
       license: String(row.license),
       licenseUrl: licenseLink(row.license_url, row.page_url),
       matched: String(row.matched_words ?? '').split(' ').filter(Boolean),
+      foundBy: row.found_by === 'name' ? 'name' : 'nearby',
+      distanceMetres: row.distance_m === null || row.distance_m === undefined || !Number.isFinite(Number(row.distance_m)) ? null : Number(row.distance_m),
     })
     byTrail.set(Number(row.trail_id), list)
   }

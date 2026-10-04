@@ -1,0 +1,269 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "pages": {
+      "9200001": {
+        "pageid": 9200001,
+        "ns": 6,
+        "title": "File:Cathedral Rock from Red Rock Crossing.jpg",
+        "index": 1,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_from_Red_Rock_Crossing.jpg/960px-Cathedral_Rock_from_Red_Rock_Crossing.jpg",
+            "thumbwidth": 960,
+            "thumbheight": 640,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_from_Red_Rock_Crossing.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_from_Red_Rock_Crossing.jpg",
+            "extmetadata": {
+              "ObjectName": {
+                "value": "Cathedral Rock from Red Rock Crossing",
+                "source": "mediawiki-metadata"
+              },
+              "Categories": {
+                "value": "Cathedral Rock (Sedona)|Red Rock Crossing",
+                "source": "commons-categories",
+                "hidden": ""
+              },
+              "ImageDescription": {
+                "value": "<p>Cathedral Rock across Oak Creek at Red Rock Crossing, near Sedona, Arizona.</p>",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "<a href=\"https://en.wikipedia.org/wiki/User:QA_Walker\" class=\"extiw\" title=\"en:User:QA Walker\">QA Walker</a> (<a href=\"https://en.wikipedia.org/wiki/User_talk:QA_Walker\" class=\"extiw\" title=\"en:User talk:QA Walker\">talk</a><span style=\"white-space:nowrap\"> <span style=\"font-weight:bold;\">·</span></span> <a href=\"https://en.wikipedia.org/wiki/Special:Contributions/QA_Walker\" class=\"extiw\" title=\"en:Special:Contributions/QA_Walker\">contribs</a>)",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY 2.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by/2.0",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9200002": {
+        "pageid": 9200002,
+        "ns": 6,
+        "title": "File:Cathedral Rock saddle view.jpg",
+        "index": 2,
+        "coordinates": [
+          {
+            "lat": 34.82,
+            "lon": -111.793,
+            "primary": "",
+            "globe": "earth"
+          }
+        ],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_saddle_view.jpg/960px-Cathedral_Rock_saddle_view.jpg",
+            "thumbwidth": 960,
+            "thumbheight": 640,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_saddle_view.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_saddle_view.jpg",
+            "extmetadata": {
+              "ObjectName": {
+                "value": "Cathedral Rock saddle view",
+                "source": "mediawiki-metadata"
+              },
+              "ImageDescription": {
+                "value": "View from the saddle of Cathedral Rock",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "<a href=\"//commons.wikimedia.org/wiki/User:QA_Summiteer\" title=\"User:QA Summiteer\">QA Summiteer</a> <a href=\"//commons.wikimedia.org/wiki/User_talk:QA_Summiteer\" title=\"User talk:QA Summiteer\">(talk)</a>",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY-SA 4.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-sa/4.0",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9200003": {
+        "pageid": 9200003,
+        "ns": 6,
+        "title": "File:Cathedral Rock (Oregon), Mount Hood National Forest.jpg",
+        "index": 3,
+        "coordinates": [
+          {
+            "lat": 45.339,
+            "lon": -121.709,
+            "primary": "",
+            "globe": "earth"
+          }
+        ],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_(Oregon)%2C_Mount_Hood_National_Forest.jpg/960px-Cathedral_Rock_(Oregon)%2C_Mount_Hood_National_Forest.jpg",
+            "thumbwidth": 960,
+            "thumbheight": 640,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_(Oregon)%2C_Mount_Hood_National_Forest.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_(Oregon)%2C_Mount_Hood_National_Forest.jpg",
+            "extmetadata": {
+              "ObjectName": {
+                "value": "Cathedral Rock (Oregon), Mount Hood National Forest",
+                "source": "mediawiki-metadata"
+              },
+              "ImageDescription": {
+                "value": "Cathedral Rock in the Mount Hood National Forest, Oregon. Not the one in Arizona.",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "QA Elsewhere",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY-SA 4.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-sa/4.0",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9200004": {
+        "pageid": 9200004,
+        "ns": 6,
+        "title": "File:Cathedral Rock trailhead sign.jpg",
+        "index": 4,
+        "coordinates": [
+          {
+            "lat": 34.825,
+            "lon": -111.7885,
+            "primary": "",
+            "globe": "earth"
+          }
+        ],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_trailhead_sign.jpg/960px-Cathedral_Rock_trailhead_sign.jpg",
+            "thumbwidth": 960,
+            "thumbheight": 640,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_trailhead_sign.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_trailhead_sign.jpg",
+            "extmetadata": {
+              "ObjectName": {
+                "value": "Cathedral Rock trailhead sign",
+                "source": "mediawiki-metadata"
+              },
+              "Artist": {
+                "value": "QA Hiker",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY-SA 4.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-sa/4.0",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9200005": {
+        "pageid": 9200005,
+        "ns": 6,
+        "title": "File:Cathedral Rock in snow.jpg",
+        "index": 5,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_in_snow.jpg/960px-Cathedral_Rock_in_snow.jpg",
+            "thumbwidth": 960,
+            "thumbheight": 640,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_in_snow.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_in_snow.jpg",
+            "extmetadata": {
+              "ObjectName": {
+                "value": "Cathedral Rock in snow",
+                "source": "mediawiki-metadata"
+              },
+              "Categories": {
+                "value": "Snow",
+                "source": "commons-categories",
+                "hidden": ""
+              },
+              "ImageDescription": {
+                "value": "Snow on the buttes",
+                "source": "commons-desc-page"
+              },
+              "Artist": {
+                "value": "QA Winter",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY 2.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by/2.0",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      },
+      "9200006": {
+        "pageid": 9200006,
+        "ns": 6,
+        "title": "File:Cathedral Rock at dusk.jpg",
+        "index": 6,
+        "coordinates": [
+          {
+            "lat": 34.823,
+            "lon": -111.79,
+            "primary": "",
+            "globe": "earth"
+          }
+        ],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/q/qa/Cathedral_Rock_at_dusk.jpg/960px-Cathedral_Rock_at_dusk.jpg",
+            "thumbwidth": 960,
+            "thumbheight": 640,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/q/qa/Cathedral_Rock_at_dusk.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cathedral_Rock_at_dusk.jpg",
+            "extmetadata": {
+              "ObjectName": {
+                "value": "Cathedral Rock at dusk",
+                "source": "mediawiki-metadata"
+              },
+              "Artist": {
+                "value": "QA Dusk",
+                "source": "commons-desc-page"
+              },
+              "LicenseShortName": {
+                "value": "CC BY-ND 2.0",
+                "source": "commons-desc-page",
+                "hidden": ""
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-nd/2.0",
+                "source": "commons-desc-page"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -16,7 +16,9 @@ interface SourceOptions {
  * the trails people open, and queue them for review on /admin/photos (#1006).
  *
  * The nightly job, and the legwork `trails:photo-coverage --search` used to
- * leave on the terminal: the same search, aimed by demand and then by what
+ * leave on the terminal: the same geosearch, plus a search by each trail's
+ * name narrowed to files near it or naming its park or region
+ * (trailPhotoNameSearch.ts), aimed by demand and then by what
  * ranks first around the biggest cities (trailPhotoQueue.ts), with every
  * candidate written down as pending instead of printed and forgotten.
  *
@@ -25,7 +27,7 @@ interface SourceOptions {
  * beside the trail's line. Files under a licence a cover cannot use are
  * written as rejected with the reason, and never shown.
  *
- * Polite by construction: one request at a time, a second apart, with a
+ * Polite by construction: two requests a trail, one at a time, a second apart, with a
  * User-Agent that says who is asking and `maxlag` set; told to slow down
  * twice, it stops for the night. A trail it has looked up is not asked about
  * again for 90 days.
@@ -52,7 +54,8 @@ export default function (cli: CLI) {
             log.warn(`  ${trail.id}  ${trail.name}: ${error}`)
             return
           }
-          const found = stored?.pending ? `${stored.pending} to review` : 'nothing names it'
+          const byName = stored?.byName ? ` (${stored.byName} by name)` : ''
+          const found = stored?.pending ? `${stored.pending} to review${byName}` : 'nothing names it'
           const refused = stored?.refused ? `, ${stored.refused} refused for licence` : ''
           log.info(`  ${trail.id}  ${trail.name}${trail.state ? ` (${trail.state})` : ''} [${queued.reason}]: ${found}${refused}`)
         },
@@ -62,6 +65,7 @@ export default function (cli: CLI) {
       log.info(`  looked up        ${report.searched} of ${report.queued}`)
       log.info(`  with candidates  ${report.withCandidates}`)
       log.info(`  to review        ${report.pending}`)
+      log.info(`  found by name    ${report.byName}`)
       log.info(`  licence refused  ${report.refused}`)
       if (report.failed)
         log.warn(`  failed           ${report.failed} (tried again tomorrow)`)

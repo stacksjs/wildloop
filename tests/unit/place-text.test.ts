@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { agrees, placeOfRegion, placeOfText } from '../../app/Support/placeText'
+import { agrees, parkOf, placeOfRegion, placeOfText, regionNear, searchPlaces } from '../../app/Support/placeText'
 
 /**
  * Whether a gazetteer match is the place a club's location text names.
@@ -92,5 +92,53 @@ describe('a club named after a region', () => {
     expect(placeOfRegion('Boulder, CO')).toBeNull()
     expect(placeOfRegion('Innsbruck, AT')).toBeNull()
     expect(placeOfRegion('')).toBeNull()
+  })
+})
+
+/**
+ * The places a trail photo search by name is narrowed by (#1006): a file
+ * titled "Cathedral Rock" is Sedona's when its page says Coconino or Arizona.
+ * Rows below are the catalog's own (database/trailbuddy.sqlite).
+ */
+describe('the places a trail lies in', () => {
+  it('names the park by its own name, without its designation', () => {
+    expect(parkOf({ managed_by: 'Coconino National Forest' })).toBe('Coconino')
+    expect(parkOf({ managed_by: 'Yosemite National Park' })).toBe('Yosemite')
+    expect(parkOf({ managed_by: 'Mount Tamalpais State Park' })).toBe('Mount Tamalpais')
+    expect(parkOf({ managed_by: 'Golden Gate National Recreation Area' })).toBe('Golden Gate')
+    expect(parkOf({ managed_by: 'Columbia River Gorge National Scenic Area' })).toBe('Columbia River Gorge')
+    expect(parkOf({ managed_by: 'Nationalpark Berchtesgaden' })).toBe('Berchtesgaden')
+  })
+
+  it('reads the park from the location when nobody is said to manage it', () => {
+    expect(parkOf({ managed_by: '', location: 'Santa Monica Mountains National Recreation Area, CA' })).toBe('Santa Monica Mountains')
+    expect(parkOf({ location: 'Coconino National Forest, AZ' })).toBe('Coconino')
+  })
+
+  it('names no park for a town, a trust, or a designation alone', () => {
+    expect(parkOf({ managed_by: 'Mountains to Sound Greenway Trust', location: 'North Bend, WA' })).toBeNull()
+    expect(parkOf({ location: 'Park City, UT' })).toBeNull()
+    expect(parkOf({ managed_by: 'State Park' })).toBeNull()
+    expect(parkOf({})).toBeNull()
+  })
+
+  it('finds the named region a point lies in, and none far from all of them', () => {
+    // Emerald Bay, on Lake Tahoe's west shore.
+    expect(regionNear({ lat: 38.9541, lng: -120.1100 })).toBe('lake tahoe')
+    // Feldberg, in the Black Forest.
+    expect(regionNear({ lat: 47.8740, lng: 8.0040 })).toBe('schwarzwald')
+    // Washington's DMV is spelt out: "dmv" alone searches for motor vehicles.
+    expect(regionNear({ lat: 38.9, lng: -77.03 })).toBe('dc metro')
+    // Sedona is in none of them.
+    expect(regionNear({ lat: 34.8256, lng: -111.7880 })).toBeNull()
+    expect(regionNear(null)).toBeNull()
+  })
+
+  it('lists park, region and state, most specific first, each once', () => {
+    expect(searchPlaces({ latitude: 34.8256, longitude: -111.7880, managed_by: 'Coconino National Forest', location: 'Sedona, AZ', state_name: 'Arizona' }))
+      .toEqual(['Coconino', 'Arizona'])
+    expect(searchPlaces({ latitude: 38.9541, longitude: -120.1100, managed_by: 'Lake Tahoe Basin Management Unit', state_name: 'California' }))
+      .toEqual(['lake tahoe', 'California'])
+    expect(searchPlaces({ latitude: 34.8256, longitude: -111.7880, state_name: '' })).toEqual([])
   })
 })

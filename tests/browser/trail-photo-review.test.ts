@@ -2,9 +2,10 @@
  * Reviewing Commons photographs for trail covers (#1006), against a real
  * server and a throwaway database.
  *
- * `scripts/start-recording-qa.ts` seeds the queue from a recorded-shape
- * Commons answer (fixtures/commons-geosearch-sedona.json) through the same
- * parsing and licence rules the nightly job uses, so nothing here reaches
+ * `scripts/start-recording-qa.ts` seeds the queue from recorded-shape
+ * Commons answers (fixtures/commons-geosearch-sedona.json, and
+ * fixtures/commons-search-cathedral-rock.json for the search by name) through
+ * the same parsing and licence rules the nightly job uses, so nothing here reaches
  * Wikimedia. The unit suite proves the rules; this one proves what only a
  * server can: the queue is closed to anybody who is not an admin, a
  * non-commercial file never reaches it, and an approval is what makes a
@@ -68,7 +69,17 @@ async function trail(id: number): Promise<Record<string, any>> {
   return (await response.json()).trail
 }
 
-interface QueueTrail { id: number, name: string, candidates: Array<{ id: number, title: string, license: string, licenseUrl: string, credit: string, url: string }> }
+interface QueueCandidate {
+  id: number
+  title: string
+  license: string
+  licenseUrl: string
+  credit: string
+  url: string
+  foundBy: 'nearby' | 'name'
+  distanceMetres: number | null
+}
+interface QueueTrail { id: number, name: string, candidates: QueueCandidate[] }
 
 async function pending(token: string): Promise<{ trails: QueueTrail[], pendingTrails: number, pendingCandidates: number }> {
   const response = await queue(token)
@@ -106,9 +117,10 @@ describe.skipIf(!qa)('the trail photo review queue', () => {
   })
 
   /*
-   * The fixture holds five files: two usable ones for Cathedral Rock, one
-   * under CC BY-NC-SA, one usable for Devils Bridge, and a pine tree whose
-   * title names neither trail. Only the three usable ones are offered.
+   * The geosearch fixture holds five files: two usable ones for Cathedral
+   * Rock, one under CC BY-NC-SA, one usable for Devils Bridge, and a pine
+   * tree whose title names neither trail. Only the three usable ones are
+   * offered as found nearby.
    */
   it('offers only files that name the trail under a licence a cover can carry', async () => {
     const { trails } = await pending(adminToken)
@@ -117,11 +129,11 @@ describe.skipIf(!qa)('the trail photo review queue', () => {
     expect(cathedral, JSON.stringify(trails)).toBeDefined()
     expect(devils, JSON.stringify(trails)).toBeDefined()
 
-    expect(cathedral!.candidates.map(c => c.title).sort()).toEqual([
+    expect(cathedral!.candidates.filter(c => c.foundBy === 'nearby').map(c => c.title).sort()).toEqual([
       'Cathedral Rock from Oak Creek Crossing.jpg',
       'Cathedral Rock trailhead sign.jpg',
     ])
-    expect(devils!.candidates.map(c => [c.title, c.license])).toEqual([['Devils Bridge, Sedona, Arizona.jpg', 'CC0']])
+    expect(devils!.candidates.map(c => [c.title, c.license, c.foundBy])).toEqual([['Devils Bridge, Sedona, Arizona.jpg', 'CC0', 'nearby']])
 
     const all = trails.flatMap(entry => entry.candidates)
     expect(all.some(c => /NC/.test(c.license))).toBe(false)
@@ -135,6 +147,60 @@ describe.skipIf(!qa)('the trail photo review queue', () => {
     expect(sign.licenseUrl).toContain('commons.wikimedia.org/wiki/File:')
     // Higher priority first: the seed ranks Cathedral Rock above Devils Bridge.
     expect(trails.indexOf(cathedral!)).toBeLessThan(trails.indexOf(devils!))
+  })
+
+  /*
+   * The search by name (fixtures/commons-search-cathedral-rock.json) returns
+   * six files for Cathedral Rock. Two are offered: one with no coordinates
+   * whose page names Sedona, Arizona, and one located on the trail. The
+   * Oregon namesake is too far away, one says nowhere at all, one is already
+   * on the list from the geosearch, and one is NoDerivatives.
+   */
+  it('offers files found by the trail name that lie near it or name its place, credited by name', async () => {
+    const { trails } = await pending(adminToken)
+    const cathedral = byName(trails, 'Cathedral Rock Trail')!
+    const found = cathedral.candidates.filter(c => c.foundBy === 'name')
+    expect(found.map(c => c.title).sort(), JSON.stringify(cathedral.candidates)).toEqual([
+      'Cathedral Rock from Red Rock Crossing.jpg',
+      'Cathedral Rock saddle view.jpg',
+    ])
+
+    const unlocated = found.find(c => c.title.includes('Red Rock Crossing'))!
+    expect(unlocated.distanceMetres).toBeNull()
+    expect(unlocated.license).toBe('CC BY 2.0')
+    // "QA Walker (talk · contribs)" on Commons; a name on the card.
+    expect(unlocated.credit).toBe('QA Walker')
+
+    const located = found.find(c => c.title.includes('saddle'))!
+    expect(located.distanceMetres).toBeGreaterThan(500)
+    expect(located.distanceMetres).toBeLessThan(1500)
+    expect(located.credit).toBe('QA Summiteer')
+
+    const titles = cathedral.candidates.map(c => c.title)
+    expect(titles.some(title => /Oregon|snow|dusk/.test(title))).toBe(false)
+    // Found by both searches, offered once, as the nearby one.
+    expect(cathedral.candidates.filter(c => c.title === 'Cathedral Rock trailhead sign.jpg').map(c => c.foundBy)).toEqual(['nearby'])
+    expect(cathedral.candidates).toHaveLength(4)
+  })
+
+  it('makes a photo found by name the cover once approved, credited by name', async () => {
+    const { trails } = await pending(adminToken)
+    const cathedral = byName(trails, 'Cathedral Rock Trail')!
+    const photo = cathedral.candidates.find(c => c.title === 'Cathedral Rock from Red Rock Crossing.jpg')!
+
+    const approved = await review(adminToken, photo.id, 'approve')
+    expect(approved.status, await approved.clone().text()).toBe(200)
+    try {
+      const after = await trail(cathedral.id)
+      expect(after.image).toBe(photo.url)
+      expect(after.coverCredit).toBe('QA Walker')
+      expect(after.coverLicense).toBe('CC BY 2.0')
+    }
+    finally {
+      const reopened = await review(adminToken, photo.id, 'reopen')
+      expect(reopened.status, await reopened.clone().text()).toBe(200)
+    }
+    expect((await trail(cathedral.id)).image ?? '').not.toBe(photo.url)
   })
 
   it('refuses a decision it does not know', async () => {
@@ -181,7 +247,7 @@ describe.skipIf(!qa)('the trail photo review queue', () => {
 
     const undone = await trail(cathedral.id)
     expect(undone.image ?? '').not.toBe(photo.url)
-    expect(byName((await pending(adminToken)).trails, 'Cathedral Rock Trail')?.candidates).toHaveLength(2)
+    expect(byName((await pending(adminToken)).trails, 'Cathedral Rock Trail')?.candidates).toHaveLength(4)
   })
 
   it('rejects with the reviewer\'s note, out of the queue and off the trail', async () => {

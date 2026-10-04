@@ -35,6 +35,14 @@ export interface PhotoCandidate {
   licenseUrl: string
   /** How many of the trail's distinctive words the title carries. */
   matched: string[]
+  /**
+   * How it was found: `nearby`, by the geosearch around the trail head, or
+   * `name`, by a search for the trail's name (trailPhotoNameSearch.ts).
+   * Nearby when not said.
+   */
+  foundBy?: 'nearby' | 'name'
+  /** For a file found by name: metres from the trail, or null when it has no coordinates. */
+  distanceMetres?: number | null
 }
 
 /**

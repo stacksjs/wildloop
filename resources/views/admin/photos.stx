@@ -22,10 +22,13 @@
    * The review queue for trail photos (#1006).
    *
    * Every candidate here is a Wikimedia Commons file whose title names the
-   * trail and which was taken within a few kilometres of its start — which
-   * is why it is here, and also all that is known. Approving says "this is
-   * the trail", and the photo goes on every card and the trail page with its
-   * author and licence. Nothing is approved without a click on this page.
+   * trail, and either was taken within a few kilometres of its start or was
+   * found by searching for its name — near the trail if the file has
+   * coordinates, naming its park or region if it has none. Each card says
+   * which, since that is why it is here, and also all that is known.
+   * Approving says "this is the trail", and the photo goes on every card and
+   * the trail page with its author and licence. Nothing is approved without
+   * a click on this page.
    */
   useHead({ title: 'Trail photos — Wildloop' })
 
@@ -100,6 +103,15 @@
     return parts.join(' · ')
   }
 
+  /** Why this file is here: where it was taken, as far as Commons says. */
+  function foundLabel(candidate) {
+    if (candidate.foundBy !== 'name') return 'Taken near the trail head'
+    if (candidate.distanceMetres === null || candidate.distanceMetres === undefined) return 'Found by name · no location on the file'
+    const metres = Number(candidate.distanceMetres)
+    const where = metres < 100 ? 'on the trail' : metres < 1000 ? `${Math.round(metres / 10) * 10} m from the trail` : `${Math.round(metres / 100) / 10} km from the trail`
+    return `Found by name · ${where}`
+  }
+
   function matchedLabel(candidate) {
     return candidate.matched.length ? `Title names: ${candidate.matched.join(', ')}` : ''
   }
@@ -126,7 +138,7 @@
         </StxLink>
         <h1 class="font-display text-3xl font-bold tracking-[-0.035em] text-slate-950 sm:text-4xl dark:text-white">Trail photos</h1>
         <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-          Wikimedia Commons photos whose titles name a trail and that were taken near its start. Approve one only when it shows the trail itself — it replaces the illustrative photo on every card, credited to its author under its licence.
+          Wikimedia Commons photos whose titles name a trail, taken near its start or found by its name. Approve one only when it shows the trail itself — it replaces the illustrative photo on every card, credited to its author under its licence.
         </p>
       </div>
       <p :if="!loading() && !loadError()" class="text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
@@ -187,6 +199,10 @@
               <a x-href="candidate.pageUrl" target="_blank" rel="noopener noreferrer" class="line-clamp-2 font-semibold text-slate-900 hover:text-emerald-700 dark:text-white">{{ candidate.title }}</a>
               <p class="truncate">{{ 'By ' + candidate.credit }}</p>
               <a x-href="candidate.licenseUrl" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ candidate.license }}</a>
+              <p class="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                <i x-class="candidate.foundBy === 'name' ? 'i-lucide-search h-3.5 w-3.5 shrink-0' : 'i-lucide-map-pin h-3.5 w-3.5 shrink-0'" aria-hidden="true"></i>
+                <span>{{ foundLabel(candidate) }}</span>
+              </p>
               <p :if="matchedLabel(candidate) !== ''" class="text-slate-400 dark:text-slate-500">{{ matchedLabel(candidate) }}</p>
               <div class="mt-auto grid grid-cols-2 gap-2 pt-2">
                 <button type="button" @click="decide(trail, candidate, 'reject')" x-disabled="busy() !== 0" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40">{{ buttonLabel(candidate, 'reject', 'Reject') }}</button>

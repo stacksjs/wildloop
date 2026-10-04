@@ -207,14 +207,15 @@ describe('the queue in a database', () => {
     database.run(`CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`)
     database.run(`INSERT INTO users (id, name) VALUES (7, 'Reviewer')`)
     database.run(`CREATE TABLE trails (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, location TEXT, state TEXT, latitude REAL, longitude REAL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, location TEXT, state TEXT, state_name TEXT, managed_by TEXT,
+      latitude REAL, longitude REAL, min_lat REAL, max_lat REAL, min_lng REAL, max_lng REAL,
       distance REAL, geometry TEXT, image TEXT, source TEXT, source_id TEXT, review_count INTEGER DEFAULT 0)`)
-    database.run(`INSERT INTO trails (id, name, location, state, latitude, longitude, distance, image, review_count) VALUES
-      (1, 'Temescal Canyon Trail', 'Pacific Palisades', 'CA', 34.0505, -118.5302, 3.0, NULL, 4),
-      (2, 'Escondido Falls Trail', 'Malibu', 'CA', 34.0399, -118.7764, 3.7, NULL, 2),
-      (3, 'Mystery Loop', 'Nowhere', 'CA', NULL, NULL, 1.0, NULL, 9),
-      (4, 'Runyon Canyon Loop', 'Hollywood', 'CA', 34.1106, -118.3497, 2.7, 'https://example.com/editor-chosen.jpg', 8)`)
-    for (const file of ['0000000186-create-trail-view-days.sql', '0000000192-create-trail-photo-candidates.sql']) {
+    database.run(`INSERT INTO trails (id, name, location, state, state_name, latitude, longitude, distance, image, review_count) VALUES
+      (1, 'Temescal Canyon Trail', 'Pacific Palisades', 'CA', 'California', 34.0505, -118.5302, 3.0, NULL, 4),
+      (2, 'Escondido Falls Trail', 'Malibu', 'CA', 'California', 34.0399, -118.7764, 3.7, NULL, 2),
+      (3, 'Mystery Loop', 'Nowhere', 'CA', 'California', NULL, NULL, 1.0, NULL, 9),
+      (4, 'Runyon Canyon Loop', 'Hollywood', 'CA', 'California', 34.1106, -118.3497, 2.7, 'https://example.com/editor-chosen.jpg', 8)`)
+    for (const file of ['0000000186-create-trail-view-days.sql', '0000000192-create-trail-photo-candidates.sql', '0000000197-alter-trail-photo-candidates-found-by.sql']) {
       const migration = readFileSync(new URL(`../../database/migrations/${file}`, import.meta.url), 'utf8')
       for (const statement of migration.split(';').map(part => part.trim()).filter(Boolean))
         database.run(statement)
@@ -248,7 +249,7 @@ describe('the queue in a database', () => {
       { ...candidate('Temescal insecure.jpg', 'CC BY 2.0'), url: 'http://upload.wikimedia.org/x.jpg' },
     ], 3.5, sqlite(db))
 
-    expect(stored).toEqual({ found: 3, pending: 1, refused: 1 })
+    expect(stored).toEqual({ found: 3, pending: 1, byName: 0, refused: 1 })
     const written = rows(db)
     expect(written.map(row => [row.file_title, row.status])).toEqual([
       ['Temescal Canyon waterfall.jpg', 'pending'],
@@ -269,7 +270,7 @@ describe('the queue in a database', () => {
       candidate('Temescal Canyon summit.jpg', 'CC0'),
     ], 1, sql)
 
-    expect(again).toEqual({ found: 2, pending: 1, refused: 0 })
+    expect(again).toEqual({ found: 2, pending: 1, byName: 0, refused: 0 })
     expect(rows(db).map(row => [row.file_title, row.status, row.reason])).toEqual([
       ['Temescal Canyon waterfall.jpg', 'rejected', 'shows the beach'],
       ['Temescal Canyon summit.jpg', 'pending', null],
@@ -379,19 +380,24 @@ describe('the queue in a database', () => {
       commonsPage('Temescal Canyon NC.jpg', 'CC BY-NC 2.0', 'https://creativecommons.org/licenses/by-nc/2.0'),
       commonsPage('Pinus coulteri.jpg', 'CC0'),
     ))
+    /** The search by name, answering for nothing at all. */
+    const nothingByName = () => json(commonsPayload())
 
     it('searches the wanted trails a second apart, queues what it finds, and skips them the next night', async () => {
       const db = photoDatabase()
       const sql = sqlite(db)
-      const { send, calls } = scriptedFetch(answer(), answer())
+      const { send, calls } = scriptedFetch(answer(), nothingByName(), answer(), nothingByName())
       const sleeps: number[] = []
 
       const report = await sourceTrailPhotos({ sql, fetch: send, sleep: async ms => void sleeps.push(ms), metros: [], at })
 
-      // Trail 3 has no coordinates and trail 4 has an editor's photo.
-      expect(calls).toHaveLength(2)
-      expect(sleeps).toEqual([1000])
-      expect(report).toMatchObject({ queued: 2, searched: 2, withCandidates: 2, pending: 2, refused: 1, failed: 0 })
+      // Trail 3 has no coordinates and trail 4 has an editor's photo. Each
+      // of the others is searched twice: around its head, then by name.
+      expect(calls.map(call => new URL(call.url).searchParams.get('generator'))).toEqual(['geosearch', 'search', 'geosearch', 'search'])
+      expect(new URL(calls[1].url).searchParams.get('gsrsearch')).toBe('intitle:"Temescal Canyon" "san fernando valley" OR California filetype:bitmap')
+      expect(calls.every(call => call.url.includes('maxlag=5'))).toBe(true)
+      expect(sleeps).toEqual([1000, 1000, 1000])
+      expect(report).toMatchObject({ queued: 2, searched: 2, withCandidates: 2, pending: 2, byName: 0, refused: 1, failed: 0 })
       expect(rows(db).map(row => [row.trail_id, row.file_title, row.status])).toEqual([
         [1, 'Temescal Canyon Falls.jpg', 'pending'],
         [1, 'Temescal Canyon NC.jpg', 'rejected'],
@@ -402,7 +408,70 @@ describe('the queue in a database', () => {
 
       const tomorrow = await sourceTrailPhotos({ sql, fetch: send, sleep: async () => {}, metros: [], at: new Date('2026-10-05T05:10:00Z') })
       expect(tomorrow.queued).toBe(0)
-      expect(calls).toHaveLength(2)
+      expect(calls).toHaveLength(4)
+    })
+
+    /*
+     * The search by name finds what the geosearch cannot: a file with no
+     * coordinates whose page says where it is, and one taken further along
+     * the trail. The namesake in Riverside County is refused for distance,
+     * and a file both searches found is stored once, as the nearby one.
+     */
+    it('queues files found by name beside the nearby ones, each once, and says which is which', async () => {
+      const db = photoDatabase()
+      const sql = sqlite(db)
+      const located = (page: any, lat: number, lng: number) => ({ ...page, coordinates: [{ lat, lon: lng, primary: '', globe: 'earth' }] })
+      const described = (page: any, description: string) => ({
+        ...page,
+        imageinfo: [{ ...page.imageinfo[0], extmetadata: { ...page.imageinfo[0].extmetadata, ImageDescription: { value: description } } }],
+      })
+      const byName = json(commonsPayload(
+        located(commonsPage('Temescal Canyon waterfall, upper.jpg', 'CC BY-SA 4.0'), 34.0600, -118.5300),
+        described(commonsPage('Temescal Canyon Ridge Trail.jpg', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0'), 'Looking down to Pacific Palisades, California'),
+        located(commonsPage('Temescal Canyon Falls.jpg', 'CC BY-SA 4.0'), 34.0510, -118.5300),
+        located(commonsPage('Temescal Canyon, Riverside County.jpg', 'CC BY-SA 4.0'), 33.80, -117.50),
+      ))
+      const { send } = scriptedFetch(answer(), byName, answer(), nothingByName())
+
+      const report = await sourceTrailPhotos({ sql, fetch: send, sleep: async () => {}, metros: [], at })
+      expect(report).toMatchObject({ searched: 2, pending: 4, byName: 2, refused: 1 })
+
+      const written = db.query(`SELECT file_title, status, found_by, distance_m FROM trail_photo_candidates WHERE trail_id = 1 ORDER BY id`).all() as any[]
+      expect(written.map(row => [row.file_title, row.status, row.found_by])).toEqual([
+        ['Temescal Canyon Falls.jpg', 'pending', 'nearby'],
+        ['Temescal Canyon NC.jpg', 'rejected', 'nearby'],
+        ['Temescal Canyon waterfall, upper.jpg', 'pending', 'name'],
+        ['Temescal Canyon Ridge Trail.jpg', 'pending', 'name'],
+      ])
+      expect(written[2].distance_m).toBeGreaterThan(900)
+      expect(written[2].distance_m).toBeLessThan(1200)
+      expect(written[3].distance_m).toBeNull()
+      expect(written[0].distance_m).toBeNull()
+
+      // The review queue says which is which, and still approves nothing.
+      const page = await pendingPhotoQueue({}, sql)
+      const temescal = page.trails.find(entry => entry.id === 1)!
+      expect(temescal.candidates.map(c => [c.title, c.foundBy, c.distanceMetres === null])).toEqual(expect.arrayContaining([
+        ['Temescal Canyon Falls.jpg', 'nearby', true],
+        ['Temescal Canyon waterfall, upper.jpg', 'name', false],
+        ['Temescal Canyon Ridge Trail.jpg', 'name', true],
+      ]))
+      expect((await approvedTrailPhotos([1, 2], sql)).size).toBe(0)
+    })
+
+    /*
+     * Both searches or neither: a trail whose search by name fails is not
+     * recorded, so tomorrow asks again, and what the geosearch found tonight
+     * is not stored twice when it does.
+     */
+    it('tries a trail again tomorrow when its search by name fails', async () => {
+      const db = photoDatabase()
+      const sql = sqlite(db)
+      const { send } = scriptedFetch(answer(), json({}, 500), answer(), nothingByName())
+
+      const report = await sourceTrailPhotos({ sql, fetch: send, sleep: async () => {}, metros: [], at })
+      expect(report).toMatchObject({ queued: 2, searched: 1, failed: 1 })
+      expect(db.query('SELECT trail_id FROM trail_photo_searches').all()).toEqual([{ trail_id: 2 }])
     })
 
     it('stops for the night when Commons asks twice, and tries the trail again tomorrow', async () => {
@@ -419,7 +488,7 @@ describe('the queue in a database', () => {
     it('counts one failed trail and goes on to the next', async () => {
       const db = photoDatabase()
       const sql = sqlite(db)
-      const { send } = scriptedFetch(json({}, 500), answer())
+      const { send } = scriptedFetch(json({}, 500), answer(), nothingByName())
 
       const report = await sourceTrailPhotos({ sql, fetch: send, sleep: async () => {}, metros: [], at })
       expect(report).toMatchObject({ queued: 2, searched: 1, failed: 1 })
@@ -428,10 +497,10 @@ describe('the queue in a database', () => {
 
     it('honours the limit', async () => {
       const db = photoDatabase()
-      const { send, calls } = scriptedFetch(answer())
+      const { send, calls } = scriptedFetch(answer(), nothingByName())
       const report = await sourceTrailPhotos({ sql: sqlite(db), fetch: send, sleep: async () => {}, metros: [], at, limit: 1 })
       expect(report.queued).toBe(1)
-      expect(calls).toHaveLength(1)
+      expect(calls).toHaveLength(2)
     })
   })
 })

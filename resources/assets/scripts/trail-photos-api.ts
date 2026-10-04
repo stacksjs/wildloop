@@ -17,6 +17,10 @@ export interface PhotoQueueCandidate {
   license: string
   licenseUrl: string
   matched: string[]
+  /** `nearby`: taken near the trail head. `name`: found by searching for the trail's name. */
+  foundBy: 'nearby' | 'name'
+  /** For a file found by name, metres from the trail; null when it has no coordinates. */
+  distanceMetres: number | null
 }
 
 export interface PhotoQueueTrail {

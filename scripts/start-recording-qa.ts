@@ -184,19 +184,28 @@ db.query(`INSERT INTO user_identities (user_id, provider, provider_user_id, emai
 // seed, with no cover of their own, so approving one visibly changes what the
 // trail serves. The fixture carries a non-commercial file the queue must
 // refuse and a tree it must not offer at all.
+//
+// Cathedral Rock is also searched by name, from a second recorded answer
+// (fixtures/commons-search-cathedral-rock.json): a file with no coordinates
+// that names Sedona, one located on the trail, the Oregon namesake located
+// far away, one the geosearch already found, one that says nowhere, and one
+// under NoDerivatives.
 const photoTrail = db.query(`INSERT INTO trails
   (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude, source, source_id)
-  VALUES (?, 'Coconino National Forest, AZ', 'AZ', 'Arizona', 'US', ?, 0, 'moderate', ?, ?, 'osm', ?) RETURNING id`)
+  VALUES (?, 'Coconino National Forest, AZ', 'AZ', 'Arizona', 'US', ?, 0, 'moderate', ?, ?, 'osm', ?) RETURNING *`)
 const { candidatesFrom } = await import('../app/Support/trailPhotoCandidates')
-const { storeCandidates } = await import('../app/Support/trailPhotoQueue')
+const { candidatesFromNameSearch } = await import('../app/Support/trailPhotoNameSearch')
+const { mergeCandidates, storeCandidates } = await import('../app/Support/trailPhotoQueue')
 const commons = JSON.parse(await readFile('tests/browser/fixtures/commons-geosearch-sedona.json', 'utf8'))
+const commonsByName = JSON.parse(await readFile('tests/browser/fixtures/commons-search-cathedral-rock.json', 'utf8'))
 const seedSql = async (strings: TemplateStringsArray, ...values: unknown[]) => db.query(strings.join('?')).all(...(values as any[])) as any[]
-for (const [name, distance, latitude, longitude, sourceId, priority] of [
-  ['Cathedral Rock Trail', 1.2, 34.8256, -111.7880, 'qa/cathedral-rock', 3],
-  ['Devils Bridge Trail', 4.2, 34.8946, -111.8120, 'qa/devils-bridge', 2],
+for (const [name, distance, latitude, longitude, sourceId, priority, byName] of [
+  ['Cathedral Rock Trail', 1.2, 34.8256, -111.7880, 'qa/cathedral-rock', 3, commonsByName],
+  ['Devils Bridge Trail', 4.2, 34.8946, -111.8120, 'qa/devils-bridge', 2, null],
 ] as const) {
-  const { id } = photoTrail.get(name, distance, latitude, longitude, sourceId) as { id: number }
-  await storeCandidates(id, candidatesFrom(commons, name), priority, seedSql)
+  const trail = photoTrail.get(name, distance, latitude, longitude, sourceId) as any
+  const found = byName ? candidatesFromNameSearch(byName, trail) : []
+  await storeCandidates(trail.id, mergeCandidates(candidatesFrom(commons, name), found), priority, seedSql)
 }
 // Every trail above went in by plain INSERT, and the search index is
 // external-content FTS5, which does not see writes to its table — production
