@@ -102,6 +102,8 @@ export { parsePhotoList, trailGallery } from '../../../resources/functions/trail
 export type { GalleryPhoto, GalleryTrail, GalleryReview, GalleryContribution } from '../../../resources/functions/trail-photos'
 export { trailSpotlightAction, trailSpotlightSlot, trailSpotlightActions, trailSpotlightTitle, placeTrail, removeTrail, trailSpotlightRoute, readSpotlightEntries, TRAIL_SPOTLIGHT_SLOTS } from '../../../resources/functions/trail-spotlight'
 export type { TrailSpotlightEntry, SpotlightTrail, TrailPlacement } from '../../../resources/functions/trail-spotlight'
+export { readSpotlightKinds, spotlightKind, spotlightAction, spotlightSlot, spotlightActions, spotlightTitle, placeItem, removeItem, spotlightRoute, readSpotlightEntries, MAX_SLOTS_PER_KIND, SPOTLIGHT_ENABLED, SPOTLIGHT_KINDS } from '../../../resources/functions/spotlight'
+export type { SpotlightKind, SpotlightItem, SpotlightEntry, KindReadResult, SpotlightPlacement } from '../../../resources/functions/spotlight'
 export { formatTrailTime, parseTrailTime, displayTrailTime } from '../../../resources/functions/trail-time'
 export { durationSeconds, computeTrainingStats } from '../../../resources/functions/training-stats'
 export type { TrainingActivity, TrainingStats } from '../../../resources/functions/training-stats'

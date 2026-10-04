@@ -258,6 +258,19 @@ declare global {
   const trailSpotlightRoute: typeof autoImports.trailSpotlightRoute
   const readSpotlightEntries: typeof autoImports.readSpotlightEntries
   const TRAIL_SPOTLIGHT_SLOTS: typeof autoImports.TRAIL_SPOTLIGHT_SLOTS
+  const readSpotlightKinds: typeof autoImports.readSpotlightKinds
+  const spotlightKind: typeof autoImports.spotlightKind
+  const spotlightAction: typeof autoImports.spotlightAction
+  const spotlightSlot: typeof autoImports.spotlightSlot
+  const spotlightActions: typeof autoImports.spotlightActions
+  const spotlightTitle: typeof autoImports.spotlightTitle
+  const placeItem: typeof autoImports.placeItem
+  const removeItem: typeof autoImports.removeItem
+  const spotlightRoute: typeof autoImports.spotlightRoute
+  const readSpotlightEntries: typeof autoImports.readSpotlightEntries
+  const MAX_SLOTS_PER_KIND: typeof autoImports.MAX_SLOTS_PER_KIND
+  const SPOTLIGHT_ENABLED: typeof autoImports.SPOTLIGHT_ENABLED
+  const SPOTLIGHT_KINDS: typeof autoImports.SPOTLIGHT_KINDS
   const formatTrailTime: typeof autoImports.formatTrailTime
   const parseTrailTime: typeof autoImports.parseTrailTime
   const displayTrailTime: typeof autoImports.displayTrailTime
