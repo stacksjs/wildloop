@@ -87,6 +87,18 @@ for (const [name, location, distance, latitude, longitude, source, sourceId] of 
   ['Walker Ranch Loop', 'Boulder County Open Space, CO', 7.6, 39.9520, -105.3380, 'osm', 'qa/walker-ranch'],
 ] as const)
   nearbyTrail.run(name, location, distance, latitude, longitude, source, sourceId)
+// Two trails nobody else looks at, for counting page views. Bend, Oregon, more
+// than 600 miles from every other seed, so views here move no other suite's
+// rankings. Alike in every way that ranking reads but distance: Tumalo is the
+// closer, so it leads "most popular" until somebody looks at Shevlin.
+const viewedTrail = db.query(`INSERT INTO trails
+  (name, location, state, state_name, country, distance, elevation, difficulty, latitude, longitude, source, source_id)
+  VALUES (?, 'Deschutes National Forest, OR', 'OR', 'Oregon', 'US', 3.2, 0, 'easy', ?, ?, 'osm', ?)`)
+for (const [name, latitude, longitude, sourceId] of [
+  ['Tumalo Creek Trail', 44.0650, -121.3100, 'qa/tumalo-creek'],
+  ['Shevlin Creek Trail', 44.0950, -121.3600, 'qa/shevlin-creek'],
+] as const)
+  viewedTrail.run(name, latitude, longitude, sourceId)
 // One record of each kind the detail pages render, in a public and a withheld
 // variant, so the suite can assert both halves of each page's server block:
 // that a public record reaches the HTML, and that a private one does not.

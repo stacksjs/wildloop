@@ -11,6 +11,7 @@ import {
   sameTrailKey,
   tasteFit,
   tasteProfile,
+  viewSignal,
 } from '../../app/Support/trailRanking'
 
 /**
@@ -109,6 +110,49 @@ describe('length, reviews and use', () => {
   })
 })
 
+describe('page views', () => {
+  const none = { saves: 0, completions: 0, photos: 0 }
+
+  it('counts interest that lasts over a one-day spike', () => {
+    // Thirty views, one a day, keep all thirty; thirty in one day keep their
+    // square root.
+    expect(viewSignal({ ...none, views: 30, viewDays: 30 })).toBe(30)
+    expect(viewSignal({ ...none, views: 30, viewDays: 1 })).toBeCloseTo(Math.sqrt(30))
+    expect(viewSignal({ ...none, views: 30, viewDays: 10 })).toBeGreaterThan(viewSignal({ ...none, views: 30, viewDays: 2 }))
+    // Never more than the views themselves, and nothing without any.
+    expect(viewSignal({ ...none, views: 3, viewDays: 9 })).toBe(3)
+    expect(viewSignal({ ...none, views: 0, viewDays: 0 })).toBe(0)
+    expect(viewSignal(none)).toBe(0)
+    expect(viewSignal(undefined)).toBe(0)
+  })
+
+  it('takes views without a day count as one day of them', () => {
+    expect(viewSignal({ ...none, views: 16 })).toBe(4)
+  })
+
+  it('weighs a view far below a save', () => {
+    const saved = engagementAppeal(0, { ...none, saves: 1 })
+    const looked = engagementAppeal(0, { ...none, views: 1, viewDays: 1 })
+    expect(looked).toBeGreaterThan(1)
+    expect(looked - 1).toBeLessThan((saved - 1) / 10)
+    // About twenty steady views to say what one save does.
+    expect(engagementAppeal(0, { ...none, views: 20, viewDays: 20 })).toBeCloseTo(saved, 5)
+    // The most a trail can gather in the 30 days read, the daily cap every
+    // day, says less than forty people saving it.
+    expect(engagementAppeal(0, { ...none, views: 30 * 500, viewDays: 30 })).toBeLessThan(engagementAppeal(0, { ...none, saves: 40 }))
+  })
+
+  it('grows slower the more there are', () => {
+    const at = (views: number) => engagementAppeal(0, { ...none, views, viewDays: Math.min(30, views) })
+    expect(at(300) - at(30)).toBeLessThan(at(30) - at(0))
+  })
+
+  it('adds to what people did rather than replacing it', () => {
+    const both = engagementAppeal(0, { saves: 2, completions: 1, photos: 0, views: 40, viewDays: 20 })
+    expect(both).toBeGreaterThan(engagementAppeal(0, { saves: 2, completions: 1, photos: 0 }))
+  })
+})
+
 describe('distance', () => {
   it('measures miles', () => {
     // Santa Monica Pier to Temescal Canyon trailhead: about four miles.
@@ -157,6 +201,27 @@ describe('ranking a place', () => {
     const activity = new Map([[loved.id, { saves: 30, completions: 20, photos: 5 }]])
     expect(rankTrails([quiet, loved], SANTA_MONICA, 25, 'best', activity)[0].trail).toBe(loved)
     expect(rankTrails([escondido, loved], SANTA_MONICA, 25, 'popular', activity)[0].trail).toBe(loved)
+  })
+
+  it('lets the trails people keep looking at lead under most popular', () => {
+    // Two plain trails, one a little further out that people open every day.
+    const nearer = trail('Hastain Trail', 34.05, -118.5, { distance: 2.5 })
+    const looked = trail('Garapito Trail', 34.09, -118.56, { distance: 2.5 })
+    const activity = new Map([[looked.id, { saves: 0, completions: 0, photos: 0, views: 60, viewDays: 30 }]])
+
+    expect(rankTrails([nearer, looked], SANTA_MONICA, 25, 'popular').map(r => r.trail)).toEqual([nearer, looked])
+    expect(rankTrails([nearer, looked], SANTA_MONICA, 25, 'popular', activity).map(r => r.trail)).toEqual([looked, nearer])
+  })
+
+  it('lets views nudge best match, not overrule a far better trail', () => {
+    const plain = trail('Hastain Trail', 34.05, -118.5, { distance: 2.5 })
+    const falls = trail('Escondido Falls Trail', 34.05, -118.5, { distance: 2.5 })
+    // A few people looked at the plain one over a week.
+    const activity = new Map([[plain.id, { saves: 0, completions: 0, photos: 0, views: 7, viewDays: 7 }]])
+    const [withViews] = rankTrails([plain], SANTA_MONICA, 25, 'best', activity)
+    const [without] = rankTrails([plain], SANTA_MONICA, 25, 'best')
+    expect(withViews.score).toBeGreaterThan(without.score)
+    expect(rankTrails([plain, falls], SANTA_MONICA, 25, 'best', activity)[0].trail).toBe(falls)
   })
 
   it('puts reviewed trails first under top rated, and best match after them', () => {

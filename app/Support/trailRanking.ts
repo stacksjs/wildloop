@@ -15,8 +15,9 @@
  *   score = appeal × proximity
  *
  * Appeal is everything known about a trail that says people go there:
- * reviews, saves and completions first, because those are the real thing, and
- * until there are enough of them, what the catalog row itself gives away. A
+ * reviews, saves and completions first, because those are the real thing,
+ * then how often people look at the trail page, and until there is enough of
+ * any of that, what the catalog row itself gives away. A
  * name ending in "Falls" or "Peak" is somewhere people set out for; "Edison
  * Road" and "4N35" are how the map gets from one of those to another; a
  * "Proposed" or "-UNMAINTAINED-" trail is one nobody should be sent down.
@@ -68,6 +69,10 @@ export interface TrailActivity {
   saves: number
   completions: number
   photos: number
+  /** Trail page views over the last 30 days (app/Support/trailViews.ts). */
+  views?: number
+  /** On how many of those days anybody looked. */
+  viewDays?: number
 }
 
 export interface Origin {
@@ -80,7 +85,9 @@ export interface Origin {
  *
  * - `best`: appeal and proximity together. What a trail app means by "best
  *   match" once it knows where you are.
- * - `popular`: what people actually do, with proximity as the tiebreak.
+ * - `popular`: what people actually do — reviews, saves, completions, photos
+ *   and page views — with proximity as the tiebreak. Where views tell trails
+ *   apart most, since they are the one signal most trails have.
  * - `rating`: reviews first, best match after that.
  * - `nearest`: closest first, whatever it is — with fragments and junk still
  *   kept out of the way, since "closest" never means "closest unnamed spur".
@@ -267,17 +274,43 @@ export function ratingAppeal(rating: number | null | undefined, reviews: number 
 }
 
 /**
- * What people do, as a multiplier: reviews, saves, completions and photos.
+ * What one view is worth against one save. Opening a trail page is a look,
+ * not a plan: twenty people looking say about what one person saving does.
+ */
+const VIEW_WEIGHT = 0.05
+
+/**
+ * Page views as one number, weighted toward interest that lasts.
+ *
+ * The geometric mean of the views and the days they came on. A trail looked
+ * at a little every day keeps nearly all of its views; the same number in
+ * one day — a link passed round, somebody clicking through the list — keeps
+ * only their square root. Never more than the views themselves, since every
+ * day counted had at least one. Without a day count the views are taken as
+ * one day's, the least they could be worth.
+ */
+export function viewSignal(activity?: TrailActivity): number {
+  const views = Math.max(0, Number(activity?.views) || 0)
+  const days = Math.min(views, Math.max(0, Number(activity?.viewDays ?? (views > 0 ? 1 : 0)) || 0))
+  return Math.sqrt(views * days)
+}
+
+/**
+ * What people do, as a multiplier: reviews, saves, completions, photos and,
+ * much more lightly, views of the trail page.
  *
  * Logarithmic, because the tenth person to walk a trail says much less than
  * the first, and a trail with a hundred completions should not bury every
- * other trail in the county.
+ * other trail in the county. Views go through the same curve: a trail looked
+ * at every day for a month, thirty views, adds what one save and a half
+ * would, and the most one day can count, five hundred, about one.
  */
 export function engagementAppeal(reviews: number | null | undefined, activity?: TrailActivity): number {
   const signal = (Number(reviews) || 0)
     + (activity?.saves ?? 0)
     + 2 * (activity?.completions ?? 0)
     + (activity?.photos ?? 0)
+    + VIEW_WEIGHT * viewSignal(activity)
   return 1 + 0.6 * Math.log2(1 + Math.max(0, signal))
 }
 

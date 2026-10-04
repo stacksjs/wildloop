@@ -1,5 +1,6 @@
 import type { TrailActivity } from './trailRanking'
 import { db } from '@stacksjs/orm'
+import { firstViewDay, RANKED_VIEW_DAYS } from './trailViews'
 
 /**
  * What Wildloop's own athletes have done with each of a set of trails.
@@ -12,9 +13,13 @@ import { db } from '@stacksjs/orm'
  * Distinct people, not rows: one athlete running the same loop every morning
  * is one person who likes it, not three hundred.
  *
- * Three grouped reads for a page's worth of candidates. Each is narrowed by
- * an index on `trail_id` (migration 0000000182), so the cost follows the
- * number of candidates rather than the size of the activity log.
+ * And how often the trail page was looked at over the last 30 days, with the
+ * number of those days anybody did (app/Support/trailViews.ts). Far weaker
+ * than any of the above, and far more plentiful.
+ *
+ * Four grouped reads for a page's worth of candidates. Each is narrowed by
+ * an index on `trail_id` (migrations 0000000182 and 0000000186), so the cost
+ * follows the number of candidates rather than the size of the activity log.
  */
 export async function trailEngagement(trailIds: number[]): Promise<Map<number, TrailActivity>> {
   const result = new Map<number, TrailActivity>()
@@ -31,7 +36,7 @@ export async function trailEngagement(trailIds: number[]): Promise<Map<number, T
   const entry = (id: number): TrailActivity => {
     let value = result.get(id)
     if (!value) {
-      value = { saves: 0, completions: 0, photos: 0 }
+      value = { saves: 0, completions: 0, photos: 0, views: 0, viewDays: 0 }
       result.set(id, value)
     }
     return value
@@ -39,7 +44,9 @@ export async function trailEngagement(trailIds: number[]): Promise<Map<number, T
 
   // A failed read costs that signal for one request and nothing else: the
   // list still ranks on everything else it knows.
-  const [saves, completions, photos] = await Promise.all([
+  const since = firstViewDay(RANKED_VIEW_DAYS)
+
+  const [saves, completions, photos, views] = await Promise.all([
     db.sql`
       SELECT trail_id, COUNT(DISTINCT user_id) AS n
       FROM saved_trails
@@ -58,7 +65,13 @@ export async function trailEngagement(trailIds: number[]): Promise<Map<number, T
       WHERE trail_id IN (${list}) AND status = 'visible'
       GROUP BY trail_id
     `.execute().catch(() => []),
-  ]) as Array<Array<{ trail_id: number, n: number }>>
+    db.sql`
+      SELECT trail_id, SUM(views) AS n, COUNT(*) AS days
+      FROM trail_view_days
+      WHERE trail_id IN (${list}) AND day >= ${since}
+      GROUP BY trail_id
+    `.execute().catch(() => []),
+  ]) as Array<Array<{ trail_id: number, n: number, days?: number }>>
 
   for (const row of saves ?? [])
     entry(Number(row.trail_id)).saves = Number(row.n) || 0
@@ -66,6 +79,11 @@ export async function trailEngagement(trailIds: number[]): Promise<Map<number, T
     entry(Number(row.trail_id)).completions = Number(row.n) || 0
   for (const row of photos ?? [])
     entry(Number(row.trail_id)).photos = Number(row.n) || 0
+  for (const row of views ?? []) {
+    const value = entry(Number(row.trail_id))
+    value.views = Number(row.n) || 0
+    value.viewDays = Number(row.days) || 0
+  }
 
   return result
 }
