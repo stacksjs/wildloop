@@ -25,6 +25,8 @@ export interface CreatedActivity {
 export interface ClaimResult {
   success: boolean
   error?: string
+  /** Why no territory was drawn: not_a_loop, too_small, too_large, overlap, privacy_zone... */
+  code?: string
   territory?: { id: number, name: string, areaSize: number, centerLat: number, centerLng: number }
   /** Authoritative XP from the server (#947). */
   xpGained?: number
@@ -894,7 +896,27 @@ export function runSaveMessage(result: RunResult): string {
     return result.error || 'Activity could not be saved'
   if (result.captureIneligible)
     return `Activity saved, but territory capture did not count: ${result.integrityReason || 'Route telemetry was not eligible'}`
-  return 'Activity saved'
+  const refusal = claimRefusal(result)
+  return refusal ? `Activity saved. ${refusal}` : 'Activity saved'
+}
+
+/**
+ * Why a capture run drew no territory, when nothing else happened on it.
+ *
+ * A refused claim used to be dropped: the run saved, the screen said
+ * "Activity saved", and a player whose loop ended 60 m from its start, or
+ * enclosed too little ground, had no way to learn what to do differently.
+ * When the same run fought a battle, that result is the news instead.
+ */
+function claimRefusal(result: RunResult): string | null {
+  const claim = result.claim
+  if (!claim || claim.success || !claim.error)
+    return null
+  const conquest = result.conquest
+  const battled = (conquest?.conqueredCount ?? 0) > 0
+    || (conquest?.contested?.length ?? 0) > 0
+    || (conquest?.defended?.length ?? 0) > 0
+  return battled ? null : claim.error
 }
 
 /** Build a short toast message from a run result, or null if nothing happened. */

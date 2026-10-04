@@ -202,7 +202,7 @@ export function validateGpsDataForClaim(
   }
 
   if (coordinates.length < minPoints) {
-    return { valid: false, error: `Insufficient GPS points: ${coordinates.length} (minimum: ${minPoints})` }
+    return { valid: false, error: `No territory: the recording has ${coordinates.length} GPS points, and a claim needs at least ${minPoints}.` }
   }
 
   // Check if it forms a closed loop
@@ -222,7 +222,7 @@ export function validateGpsDataForClaim(
   if (distance > maxGapMeters) {
     return {
       valid: false,
-      error: `Route does not form a closed loop: start/end gap is ${distance.toFixed(1)}m (maximum: ${maxGapMeters}m)`,
+      error: `No territory: your run finished ${Math.round(distance)} m from where it started. End within ${maxGapMeters} m of your start to claim the ground inside the loop.`,
     }
   }
 

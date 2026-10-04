@@ -56,7 +56,7 @@ export default new Action({
 
       const validation = validateGpsDataForClaim(activity.gpx_data)
       if (!validation.valid) {
-        return response.json({ success: false, error: validation.error }, 400)
+        return response.json({ success: false, error: validation.error, code: 'not_a_loop' }, 400)
       }
 
       const coordinates = validation.coordinates!
@@ -70,7 +70,8 @@ export default new Action({
       if (!isClosedLoop(coordinates)) {
         return response.json({
           success: false,
-          error: 'GPS track does not form a closed loop (start and end must be within 50m)',
+          error: 'No territory: your run did not finish within 50 m of where it started.',
+          code: 'not_a_loop',
         }, 400)
       }
 
@@ -92,7 +93,7 @@ export default new Action({
         if (pointInPolygon(home, simplified) || distanceToRingMeters(home, simplified) <= radius) {
           return response.json({
             success: false,
-            error: 'Activity saved, but no territory was created inside your protected home zone',
+            error: 'No territory: the loop comes within your protected home zone, and the game never draws one there.',
             code: 'privacy_zone',
           }, 422)
         }
@@ -101,14 +102,16 @@ export default new Action({
       if (area < MIN_TERRITORY_SIZE) {
         return response.json({
           success: false,
-          error: `Territory too small: ${area.toFixed(0)} sq meters (minimum: ${MIN_TERRITORY_SIZE} sq meters)`,
+          error: `No territory: the loop encloses ${Math.round(area).toLocaleString('en-US')} m², and a claim needs at least ${MIN_TERRITORY_SIZE.toLocaleString('en-US')} m².`,
+          code: 'too_small',
         }, 400)
       }
 
       if (area > MAX_TERRITORY_SIZE) {
         return response.json({
           success: false,
-          error: `Territory too large: ${area.toFixed(0)} sq meters (maximum: ${MAX_TERRITORY_SIZE} sq meters)`,
+          error: `No territory: the loop encloses ${(area / 1_000_000).toFixed(1)} km², more than the ${MAX_TERRITORY_SIZE / 1_000_000} km² one claim can hold.`,
+          code: 'too_large',
         }, 400)
       }
 
@@ -143,7 +146,7 @@ export default new Action({
         for (const candidate of candidates) {
           if (!['active', 'contested'].includes(candidate.status) || !candidate.polygon_data) continue
           if (polygonsOverlap(simplified, geoJsonToCoordinates(candidate.polygon_data)))
-            return { overlap: true, territory: null, previousXp: existingStats?.xp || 0 }
+            return { overlap: true, ownLand: candidate.user_id === userId, territory: null, previousXp: existingStats?.xp || 0 }
         }
 
         await tx.insertInto('territories').values({
@@ -221,7 +224,11 @@ export default new Action({
       if (transactionResult.overlap) {
         return response.json({
           success: false,
-          error: 'Territory overlaps existing land. Run through it to conquer instead',
+          // The conquest pass that follows a claim resolves any battle; this
+          // only says why no new territory was drawn.
+          error: transactionResult.ownLand
+            ? 'No new territory: this loop overlaps ground you already hold.'
+            : 'No new territory: this loop overlaps land someone else holds. Run across it to take part of it.',
           code: 'overlap',
         }, 409)
       }
