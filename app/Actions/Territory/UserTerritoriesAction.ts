@@ -1,9 +1,13 @@
-// No imports needed - everything is auto-imported!
+// Auth is imported explicitly: it is not in the API server bundle's
+// auto-imports (see ActivityStoreAction). Everything else is auto-imported.
 //
 // NOTE: the ORM is snake_case (rows + where/orderBy columns use column names).
 // Reads below use snake_case; JSON output keeps camelCase for the UI.
 
+import { Auth } from '@stacksjs/auth'
+import UserPrivacySetting from '../../Models/UserPrivacySetting'
 import { avatarOf } from '../../Support/avatars'
+import { territoryFeature } from '../../Support/territoryFeatures'
 
 export default new Action({
   name: 'User Territories',
@@ -11,17 +15,22 @@ export default new Action({
   method: 'GET',
 
   async handle(request) {
-    const userId = request.get<number>('user_id')
+    // The route is /territories/user/{userId}. Reading `user_id` found nothing
+    // there, so every request answered 400 "User ID is required".
+    const userId = positiveInt(request.get('userId') ?? request.get('user_id'))
 
     if (!userId) {
       return response.json({ success: false, error: 'User ID is required' }, 400)
     }
 
     try {
+      const viewerId = (await Auth.user().catch(() => null))?.id ?? null
+      const blockedIds = await blockedUserIdsFor(viewerId)
       const user = await User.find(userId)
-      if (!user) {
+      if (!user || blockedIds.has(userId)) {
         return response.json({ success: false, error: 'User not found' }, 404)
       }
+      const ownerSettings = await UserPrivacySetting.where('user_id', '=', userId).first().catch(() => null)
 
       // Contested territories still belong to the user (and they especially
       // need to see them - they're under attack/decaying); only expired
@@ -44,7 +53,9 @@ export default new Action({
         conquestCount: t.conquest_count,
         claimedAt: t.claimed_at,
         status: t.status,
-        polygon: t.polygon_data ? JSON.parse(t.polygon_data) : null,
+        // The same outline the map would draw for this viewer: coarse unless
+        // it is theirs or its owner chose precise outlines.
+        polygon: territoryFeature(t, { viewerId, owner: user, ownerSettings, defendCount: 0 }).geometry,
       }))
 
       return response.json({
