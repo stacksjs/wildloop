@@ -21,6 +21,10 @@
    * variable name in the served HTML.
    */
   const googleReady = Boolean(config.auth?.social?.google?.configured)
+  /** The same for Apple, which needs four values set rather than two. */
+  const appleReady = Boolean(config.auth?.social?.apple?.configured)
+  /** Neither: no divider promising other ways in that do not exist. */
+  const socialReady = googleReady || appleReady
 
   useSeoMeta({
     title: 'Sign Up — Wildloop',
@@ -42,7 +46,7 @@
 </script>
 
 <script client>
-  import { completeGoogleSignIn, postAuthDestination, readyToken, redirectAfterAuth, signUp } from '../assets/scripts/auth'
+  import { completeAppleSignIn, completeGoogleSignIn, postAuthDestination, readyToken, redirectAfterAuth, signUp } from '../assets/scripts/auth'
 
   useHead({ title: 'Sign Up — Wildloop' })
 
@@ -77,36 +81,42 @@
     return password() === confirm
   }
 
-  /** What went wrong out at Google, said in a way somebody can act on. */
-  const GOOGLE_PROBLEMS = {
+  /** What went wrong out at Google or Apple, said in a way somebody can act on. */
+  const SOCIAL_PROBLEMS = {
     'google-cancelled': 'Signing up with Google was cancelled.',
     'google-unverified': 'Google has not verified that address, so we cannot create an account from it. Sign up with an email and password instead.',
     'google-expired': 'That took too long. Please try again.',
     'google-unavailable': 'Signing up with Google is not available right now.',
     'google-failed': 'We could not finish signing you up with Google. Please try again.',
+    'apple-cancelled': 'Signing up with Apple was cancelled.',
+    'apple-unverified': 'Apple has not verified that address, so we cannot create an account from it. Sign up with an email and password instead.',
+    'apple-expired': 'That took too long. Please try again.',
+    'apple-unavailable': 'Signing up with Apple is not available right now.',
+    'apple-failed': 'We could not finish signing you up with Apple. Please try again.',
   }
 
   onMount(async () => {
     const params = new URLSearchParams(location.search)
 
-    // Back from Google, on the page the flow started from, with a session
-    // waiting in a one-minute cookie.
-    if (params.get('google') === '1') {
+    // Back from Google or Apple, on the page the flow started from, with a
+    // session waiting in a one-minute cookie.
+    const provider = params.get('google') === '1' ? 'google' : params.get('apple') === '1' ? 'apple' : null
+    if (provider) {
       loading.set(true)
-      const result = await completeGoogleSignIn()
+      const result = provider === 'google' ? await completeGoogleSignIn() : await completeAppleSignIn()
       loading.set(false)
       history.replaceState({}, '', location.pathname)
       if (result.ok) {
         navigate(postAuthDestination('/'))
         return
       }
-      error.set(result.failure?.message ?? GOOGLE_PROBLEMS['google-failed'])
+      error.set(result.failure?.message ?? SOCIAL_PROBLEMS[`${provider}-failed`])
       return
     }
 
     const problem = params.get('error')
-    if (problem && GOOGLE_PROBLEMS[problem]) {
-      error.set(GOOGLE_PROBLEMS[problem])
+    if (problem && SOCIAL_PROBLEMS[problem]) {
+      error.set(SOCIAL_PROBLEMS[problem])
       history.replaceState({}, '', location.pathname)
     }
 
@@ -281,6 +291,7 @@
           </button>
         </form>
 
+        @if(socialReady)
         <!-- Divider -->
         <div class="relative my-8">
           <div class="flex absolute inset-0 items-center">
@@ -292,12 +303,13 @@
         </div>
 
         <!-- Social sign-up, which is the same endpoint as signing in: the
-             callback creates an account when the Google identity is one it has
-             not seen, so there is no separate sign-up flow to build. A link
-             rather than a button, so it works before hydration. -->
-        <div class="grid gap-4 grid-cols-2">
+             callback creates an account when the Google or Apple identity is
+             one it has not seen, so there is no separate sign-up flow to
+             build. Links rather than buttons, so they work before hydration,
+             and each only when its credentials are configured. -->
+        <div class="flex gap-4">
           @if(googleReady)
-          <a href="/api/auth/google/redirect?from=register" rel="nofollow" class="flex items-center justify-center px-4 py-3 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 transition">
+          <a href="/api/auth/google/redirect?from=register" rel="nofollow" class="flex flex-1 items-center justify-center px-4 py-3 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 transition">
             <svg class="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -307,13 +319,16 @@
             Google
           </a>
           @endif
-          <button type="button" disabled title="Signing up with Apple is not available yet" class="flex cursor-not-allowed items-center justify-center px-4 py-3 text-gray-400 dark:text-slate-500 border border-gray-200 rounded-xl dark:border-slate-700 transition">
+          @if(appleReady)
+          <a href="/api/auth/apple/redirect?from=register" rel="nofollow" class="flex flex-1 items-center justify-center px-4 py-3 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 transition">
             <svg class="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M17.05 12.54c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.42-.14-2.77.83-3.49.83-.72 0-1.83-.81-3.01-.79-1.55.02-2.98.9-3.78 2.29-1.61 2.8-.41 6.95 1.16 9.22.77 1.11 1.68 2.36 2.88 2.31 1.16-.05 1.6-.75 3-.75s1.79.75 3.02.72c1.25-.02 2.03-1.13 2.79-2.25.88-1.29 1.24-2.54 1.26-2.6-.03-.01-2.42-.93-2.44-3.69zM14.75 5.15c.64-.78 1.07-1.86.95-2.94-.92.04-2.03.61-2.69 1.38-.59.69-1.11 1.79-.97 2.85 1.02.08 2.07-.52 2.71-1.29z"/>
             </svg>
             Apple
-          </button>
+          </a>
+          @endif
         </div>
+        @endif
 
         <!-- Login Link -->
         <p class="mt-8 text-center text-gray-500 text-sm dark:text-slate-400">

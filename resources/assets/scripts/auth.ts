@@ -699,6 +699,11 @@ export function completeGoogleSignIn(): Promise<AuthResult> {
   return submit('/api/auth/google/session', {}, 'auth:google', true)
 }
 
+/** The same, for a sign-in that went out to Apple. */
+export function completeAppleSignIn(): Promise<AuthResult> {
+  return submit('/api/auth/apple/session', {}, 'auth:apple', true)
+}
+
 export function signUp(input: { name: string, email: string, password: string }): Promise<AuthResult> {
   return submit('/api/register', input, 'auth:signUp')
 }
