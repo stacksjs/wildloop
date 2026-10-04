@@ -4,6 +4,7 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildGazetteerFile } from 'ts-maps/gazetteer'
+import { QA_ADMIN } from '../tests/browser/qa-admin'
 import { QA_PORTS } from '../tests/browser/qa-ports'
 
 const directory = await mkdtemp(join(tmpdir(), 'wildloop-browser-qa-'))
@@ -144,6 +145,14 @@ qaEffort.run(qaUserId, 'rejected', 1180)
 // — so this one is a naming fixture only.
 db.run(`INSERT INTO territories (name, user_id, polygon_data, center_lat, center_lng, area_size, status, claimed_at)
   VALUES ('Torrey Pines Bluff Territory', ${qaUserId}, '{"type":"Polygon","coordinates":[[[-117.2528,32.9209],[-117.2520,32.9209],[-117.2520,32.9215],[-117.2528,32.9215],[-117.2528,32.9209]]]}', 32.9212, -117.2524, 580000, 'active', '2030-05-01T13:00:00Z')`)
+// An administrator, so the `role:admin` routes can be tested from the side
+// that is let in as well as the side that is refused. No API grants the role,
+// so it is written here; see tests/browser/qa-admin.ts.
+db.run(`INSERT OR IGNORE INTO roles (name, guard_name, description) VALUES ('admin', 'web', 'QA administrator')`)
+db.query(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`)
+  .run(QA_ADMIN.name, QA_ADMIN.email, await Bun.password.hash(QA_ADMIN.password, { algorithm: 'bcrypt', cost: 4 }))
+db.run(`INSERT INTO user_roles (user_id, role_id)
+  SELECT (SELECT id FROM users WHERE email = '${QA_ADMIN.email}'), (SELECT id FROM roles WHERE name = 'admin' AND guard_name = 'web')`)
 // Every trail above went in by plain INSERT, and the search index is
 // external-content FTS5, which does not see writes to its table — production
 // keeps it in step from the ingest (app/Ingest/ingest.ts). Without this every
