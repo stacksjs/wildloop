@@ -8,7 +8,8 @@
 
 export interface TerritoryRankStatsRow {
   id: number
-  user_id: number
+  /** Null on a row whose account is gone; such rows are not ranked. */
+  user_id: number | null
   total_area_owned?: number | null
   total_territories_owned?: number | null
   weekly_rank?: number | null
@@ -57,7 +58,11 @@ export function computeTerritoryRankAssignments(
   const now = opts.now ?? Date.now()
   const since = now - windowDays * 86400000
 
-  const allTimeOrder = [...stats].sort((a, b) =>
+  // A row whose player is gone holds no rank. Production has twenty of them,
+  // and ranked among them the third-largest real holder came ninth.
+  const players = stats.filter((s): s is TerritoryRankStatsRow & { user_id: number } => s.user_id != null)
+
+  const allTimeOrder = [...players].sort((a, b) =>
     (b.total_area_owned ?? 0) - (a.total_area_owned ?? 0)
     || (b.total_territories_owned ?? 0) - (a.total_territories_owned ?? 0)
     || a.user_id - b.user_id)
@@ -73,12 +78,12 @@ export function computeTerritoryRankAssignments(
     gains.set(e.user_id, (gains.get(e.user_id) ?? 0) + (e.area_at_event ?? 0))
   }
 
-  const weeklyOrder = [...stats].sort((a, b) =>
+  const weeklyOrder = [...players].sort((a, b) =>
     (gains.get(b.user_id) ?? 0) - (gains.get(a.user_id) ?? 0)
     || (allTimeRank.get(a.user_id) ?? 0) - (allTimeRank.get(b.user_id) ?? 0))
   const weeklyRank = new Map(weeklyOrder.map((s, i) => [s.user_id, i + 1]))
 
-  return stats.map(s => ({
+  return players.map(s => ({
     id: s.id,
     user_id: s.user_id,
     weekly_rank: weeklyRank.get(s.user_id) ?? 0,
