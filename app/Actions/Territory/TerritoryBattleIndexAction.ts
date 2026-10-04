@@ -1,5 +1,5 @@
 import { Auth } from '@stacksjs/auth'
-import { isAnsweredContest } from '../../Support/battleRows'
+import { isAnsweredContest, pairSplitRows } from '../../Support/battleRows'
 import { avatarOf } from '../../Support/avatars'
 
 const BATTLE_EVENTS = ['conquered', 'split', 'contested', 'defended']
@@ -12,7 +12,8 @@ export default new Action({
     const limit = Math.min(200, Math.max(1, Number(request.get('limit') || 100)))
     const viewerId = (await Auth.user().catch(() => null))?.id ?? null
     const blockedIds = await blockedUserIdsFor(viewerId)
-    const rows = ((await TerritoryHistory.whereIn('event_type', BATTLE_EVENTS).orderBy('created_at', 'desc').limit(limit).get()) ?? [])
+    // A split is two rows, folded into one battle before anything reads them.
+    const rows = pairSplitRows(((await TerritoryHistory.whereIn('event_type', BATTLE_EVENTS).orderBy('created_at', 'desc').limit(limit).get()) ?? []) as any[])
       .filter((row: any) => !blockedIds.has(row.user_id) && !blockedIds.has(row.previous_owner_id))
     const territoryIds = [...new Set(rows.map((row: any) => row.territory_id).filter(Boolean))]
     const activityIds = [...new Set(rows.map((row: any) => row.activity_id).filter(Boolean))]
