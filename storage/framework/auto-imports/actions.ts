@@ -103,6 +103,7 @@ export const actions = {
   'Actions/Territory/ProcessActivityConquestAction': '../../../app/Actions/Territory/ProcessActivityConquestAction.ts',
   'Actions/Territory/TerritoryBattleIndexAction': '../../../app/Actions/Territory/TerritoryBattleIndexAction.ts',
   'Actions/Territory/TerritoryLeaderboardAction': '../../../app/Actions/Territory/TerritoryLeaderboardAction.ts',
+  'Actions/Territory/TerritoryShowAction': '../../../app/Actions/Territory/TerritoryShowAction.ts',
   'Actions/Territory/UserTerritoriesAction': '../../../app/Actions/Territory/UserTerritoriesAction.ts',
   'Actions/Trail/CompletedTrailIndexAction': '../../../app/Actions/Trail/CompletedTrailIndexAction.ts',
   'Actions/Trail/SavedTrailIndexAction': '../../../app/Actions/Trail/SavedTrailIndexAction.ts',

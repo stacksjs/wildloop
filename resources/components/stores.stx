@@ -593,6 +593,19 @@
         }
         this.users = next
       },
+      /** Insert or replace one territory fetched on its own (a detail page). */
+      upsertTerritoryFromApi(territory: Territory, polygon: [number, number][] | null, owner: User) {
+        const index = this.territories.findIndex((t: Territory) => t.id === territory.id)
+        this.territories = index >= 0
+          ? this.territories.map((t: Territory, i: number) => i === index ? territory : t)
+          : [...this.territories, territory]
+        if (polygon)
+          this.territoryPolygons = { ...this.territoryPolygons, [territory.id]: polygon }
+        const ownerIndex = this.users.findIndex((u: User) => u.id === owner.id)
+        this.users = ownerIndex >= 0
+          ? this.users.map((u: User, i: number) => i === ownerIndex ? { ...u, ...owner } : u)
+          : [...this.users, owner]
+      },
       /** Replace seed activities with live data from /api/activities. */
       hydrateActivitiesFromApi(activities: Activity[]) {
         this.activities = activities

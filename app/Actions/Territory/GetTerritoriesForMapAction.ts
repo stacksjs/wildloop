@@ -9,7 +9,7 @@ import { Auth } from '@stacksjs/auth'
 
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
 import { mapBoundsFromQuery } from '../../../resources/functions/map-area'
-import { avatarOf } from '../../Support/avatars'
+import { territoryFeature } from '../../Support/territoryFeatures'
 
 export default new Action({
   name: 'Get Territories For Map',
@@ -80,55 +80,15 @@ export default new Action({
       for (const row of defendRows)
         defendCounts.set(row.territory_id, (defendCounts.get(row.territory_id) ?? 0) + 1)
 
-      const features = filteredTerritories.filter((t: any) => !blockedIds.has(t.user_id)).map((t: any) => {
-        const owner = userMap.get(t.user_id)
-        const isOwned = currentUserId ? t.user_id === currentUserId : false
-
-        let geometry
-        try {
-          geometry = JSON.parse(t.polygon_data)
-        }
-        catch {
-          geometry = null
-        }
-        const ownerSettings = settingsMap.get(t.user_id)
-        const canSeePrecise = isOwned || ownerSettings?.show_precise_territories
-        if (geometry && !canSeePrecise && t.bounding_box) {
-          const bbox = parseBoundingBox(t.bounding_box)
-          geometry = {
-            type: 'Polygon',
-            coordinates: [[
-              [bbox.minLng, bbox.minLat],
-              [bbox.maxLng, bbox.minLat],
-              [bbox.maxLng, bbox.maxLat],
-              [bbox.minLng, bbox.maxLat],
-              [bbox.minLng, bbox.minLat],
-            ]],
-          }
-        }
-
-        return {
-          type: 'Feature',
-          properties: {
-            id: t.id,
-            name: t.name,
-            ownerId: t.user_id,
-            ownerName: owner?.name || 'Unknown',
-            ownerAvatar: avatarOf(owner),
-            isOwned,
-            areaSize: t.area_size,
-            perimeter: t.perimeter,
-            conquestCount: t.conquest_count,
-            defendCount: defendCounts.get(t.id) ?? 0,
-            claimedAt: t.claimed_at,
-            status: t.status,
-            centerLat: t.center_lat,
-            centerLng: t.center_lng,
-            preciseGeometry: canSeePrecise,
-          },
-          geometry,
-        }
-      }).filter(f => f.geometry !== null)
+      const features = filteredTerritories
+        .filter((t: any) => !blockedIds.has(t.user_id))
+        .map((t: any) => territoryFeature(t, {
+          viewerId: currentUserId,
+          owner: userMap.get(t.user_id),
+          ownerSettings: settingsMap.get(t.user_id),
+          defendCount: defendCounts.get(t.id) ?? 0,
+        }))
+        .filter(f => f.geometry !== null)
 
       return response.json({
         success: true,

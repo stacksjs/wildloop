@@ -469,6 +469,8 @@ route.get('/territories/map', 'Actions/Territory/GetTerritoriesForMapAction')
 route.get('/territories/leaderboard', 'Actions/Territory/TerritoryLeaderboardAction')
 route.get('/territories/battles', 'Actions/Territory/TerritoryBattleIndexAction')
 route.get('/territories/user/{userId}', 'Actions/Territory/UserTerritoriesAction')
+// After the literal paths above, so 'map' or 'battles' is never taken as an id.
+route.get('/territories/{id}', 'Actions/Territory/TerritoryShowAction')
 // Registered before /users/{id} so 'search' isn't captured as an id (#971).
 route.get('/users/search', 'Actions/Social/UserSearchAction')
 route.get('/users/{id}/follows', 'Actions/Social/UserFollowsAction')

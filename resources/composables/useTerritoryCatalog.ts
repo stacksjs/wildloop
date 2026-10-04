@@ -92,34 +92,12 @@ export async function loadTerritories(
 
     for (const f of features) {
       const p = f.properties
-      territories.push({
-        id: p.id,
-        name: p.name,
-        user_id: p.ownerId,
-        areaSize: p.areaSize ?? 0,
-        conquestCount: p.conquestCount ?? 0,
-        defendCount: p.defendCount ?? 0,
-        totalRunners: 0,
-        status: p.status === 'contested' ? 'contested' : 'active',
-        claimedAt: p.claimedAt ?? new Date().toISOString(),
-        lat: p.centerLat ?? 0,
-        lng: p.centerLng ?? 0,
-      })
-
-      // GeoJSON polygon ring is [[lng, lat], ...]; the store wants [lat, lng].
-      const ring = f.geometry?.coordinates?.[0]
+      territories.push(storeTerritory(f))
+      const ring = storeRing(f)
       if (ring)
-        polygons[p.id] = ring.map(([lng, lat]) => [lat, lng] as [number, number])
-
-      if (!usersById.has(p.ownerId)) {
-        usersById.set(p.ownerId, {
-          id: p.ownerId,
-          name: p.ownerName || 'Unknown',
-          email: '',
-          avatar: p.ownerAvatar ?? null,
-          joinedAt: new Date().toISOString(),
-        })
-      }
+        polygons[p.id] = ring
+      if (!usersById.has(p.ownerId))
+        usersById.set(p.ownerId, storeOwner(f))
     }
 
     wl.hydrateTerritoriesFromApi(territories, polygons, [...usersById.values()])
@@ -130,6 +108,72 @@ export async function loadTerritories(
     territoryError.set(err instanceof Error ? err.message : 'Could not load territories')
     territorySource.set('seed')
     return false
+  }
+}
+
+function storeTerritory(f: MapFeature) {
+  const p = f.properties
+  return {
+    id: p.id,
+    name: p.name,
+    user_id: p.ownerId,
+    areaSize: p.areaSize ?? 0,
+    conquestCount: p.conquestCount ?? 0,
+    defendCount: p.defendCount ?? 0,
+    totalRunners: 0,
+    status: p.status === 'contested' ? 'contested' : 'active',
+    claimedAt: p.claimedAt ?? new Date().toISOString(),
+    lat: p.centerLat ?? 0,
+    lng: p.centerLng ?? 0,
+  }
+}
+
+/** GeoJSON polygon ring is [[lng, lat], ...]; the store wants [lat, lng]. */
+function storeRing(f: MapFeature): [number, number][] | null {
+  const ring = f.geometry?.coordinates?.[0]
+  return ring ? ring.map(([lng, lat]) => [lat, lng] as [number, number]) : null
+}
+
+function storeOwner(f: MapFeature) {
+  const p = f.properties
+  return {
+    id: p.ownerId,
+    name: p.ownerName || 'Unknown',
+    email: '',
+    avatar: p.ownerAvatar ?? null,
+    joinedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Fetch one territory into the store, for a page opened on it directly.
+ *
+ * The store holds the land around wherever the map last looked, so a
+ * territory reached from a notification or a shared link is usually not in
+ * it. Answers whether the territory exists, or null when the API could not
+ * say.
+ */
+export async function loadTerritory(
+  wl: (TerritoryStoreLike & { upsertTerritoryFromApi: (territory: unknown, polygon: [number, number][] | null, owner: unknown) => void }) | null,
+  id: number,
+): Promise<boolean | null> {
+  if (!wl || !(id > 0))
+    return false
+  try {
+    const res = await apiFetch(`/api/territories/${id}`, {})
+    if (res.status === 404 || res.status === 422)
+      return false
+    if (!res.ok)
+      return null
+    const payload = await res.json()
+    const feature = payload?.territory as MapFeature | undefined
+    if (!feature?.properties)
+      return false
+    wl.upsertTerritoryFromApi(storeTerritory(feature), storeRing(feature), storeOwner(feature))
+    return true
+  }
+  catch {
+    return null
   }
 }
 
