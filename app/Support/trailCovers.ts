@@ -1,5 +1,6 @@
 import { db } from '@stacksjs/orm'
 import { isStockTrailPhoto } from '../../resources/functions/stock-photos'
+import { applyApprovedTrailPhoto, approvedTrailPhotos } from './approvedTrailPhotos'
 import { applyCuratedTrailPhoto } from './curatedTrailPhotos'
 import { applyTrailAreaPhoto } from './trailAreaPhotos'
 import { trailPhotoUrl } from './trailPhotoPayload'
@@ -61,10 +62,14 @@ export async function latestVisibleCommunityCovers(ids: number[]): Promise<Commu
   `.execute() as CommunityCover[]
 }
 
-/** Community photos win, then the small reviewed seed, then stock art. */
+/**
+ * Community photos win, then the small reviewed seed, then a Commons photo a
+ * person approved on /admin/photos (approvedTrailPhotos.ts), then a photo of
+ * the area, then stock art. Both reads are one query for the whole page.
+ */
 export async function withBestTrailCovers<T extends CoverTrail>(trails: T[], size: 'thumb' | 'display' = 'thumb'): Promise<T[]> {
   const ids = trailsNeedingCommunityCover(trails)
-  const covers = await latestVisibleCommunityCovers(ids)
+  const [covers, approved] = await Promise.all([latestVisibleCommunityCovers(ids), approvedTrailPhotos(ids)])
   return applyCommunityCovers(trails, covers, size)
-    .map(trail => applyTrailAreaPhoto(applyCuratedTrailPhoto(trail as T))) as T[]
+    .map(trail => applyTrailAreaPhoto(applyApprovedTrailPhoto(applyCuratedTrailPhoto(trail as T), approved.get(Number(trail.id))))) as T[]
 }

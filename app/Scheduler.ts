@@ -57,6 +57,25 @@ export default function () {
     .withName('wildloop-trail-view-prune')
 
   /*
+   * Photo candidates for the trails people open, for a person to review on
+   * /admin/photos (#1006). Never a cover by itself: it only writes pending
+   * rows (app/Support/trailPhotoQueue.ts).
+   *
+   * Sixty trails is about a minute and a half of Wikimedia Commons, one
+   * request a second with a User-Agent that says who we are, and nothing
+   * else of ours calls Commons. Told to slow down twice it stops for the
+   * night. A trail looked up is skipped for 90 days, so each night reaches
+   * further down the list rather than asking the same questions again.
+   * 05:10 UTC, after the 04:40 prune and well before the 09:40 slice.
+   */
+  schedule.command('./buddy trails:source-photos --limit 60')
+    .at('05:10')
+    .setTimeZone('UTC')
+    .withoutOverlapping(30)
+    .onOneServer()
+    .withName('wildloop-trail-photo-candidates')
+
+  /*
    * Elevation gain for the catalog, a slice a night (#1003).
    *
    * Nobody was ever going to type this. The command has been on the box since

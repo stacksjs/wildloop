@@ -60,6 +60,10 @@ export default {
     file: 'SnapshotDatabase',
     enabled: true,
   },
+  'trails:source-photos': {
+    file: 'SourceTrailPhotos',
+    enabled: true,
+  },
   'territory:ranks': {
     file: 'ComputeTerritoryRanks',
     enabled: true,
