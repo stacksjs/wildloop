@@ -12,6 +12,7 @@
     location?: string | null
     joinedAt: string
     roles?: string[]
+    hasPassword?: boolean
   }
 
   interface Trail {
@@ -468,6 +469,8 @@
           location: user.location !== undefined ? user.location : existing?.location ?? null,
           joinedAt: user.joinedAt || user.created_at || existing?.joinedAt || new Date().toISOString(),
           roles: user.roles ?? existing?.roles ?? [],
+          // Unknown until /api/me says, and unknown reads as "has one".
+          hasPassword: user.hasPassword ?? existing?.hasPassword,
         }
         this.users = existing
           ? this.users.map((candidate: User) => candidate.id === user.id ? { ...candidate, ...normalized } : candidate)

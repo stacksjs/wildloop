@@ -66,9 +66,12 @@
   const passwordNotice = state('')
 
   // Deleting the account. Two steps: the section explains, and the password
-  // field and the final button only appear once someone asks for them.
+  // field and the final button only appear once someone asks for them. An
+  // account Google or Apple made has no password, so it types DELETE instead
+  // (see deleteWithPassword below).
   const deleteOpen = state(false)
   const deletePassword = state('')
+  const deleteConfirmation = state('')
   const deleteWorking = state(false)
   const deleteError = state('')
 
@@ -203,6 +206,7 @@
   function cancelDeleteAccount() {
     deleteOpen.set(false)
     deletePassword.set('')
+    deleteConfirmation.set('')
     deleteError.set('')
   }
 
@@ -242,6 +246,9 @@
   const profileTint = derived(() => avatarTint(profileAccount()?.id ?? profileName()))
   const profileBioCount = derived(() => characterCount(profileBio(), PROFILE_LIMITS.bio))
   const profileAlt = derived(() => `Profile photo of ${profileAccount()?.name || 'you'}`)
+  // Only a server that says "no password" switches to typing DELETE. Not
+  // knowing yet asks for the password, as every account did before.
+  const deleteWithPassword = derived(() => profileAccount()?.hasPassword !== false)
 
   // The form is filled once, when the account is first known. Filling it on
   // every store change would overwrite what somebody is in the middle of typing.
@@ -359,13 +366,18 @@
   async function confirmDeleteAccount() {
     if (deleteWorking())
       return
-    if (!deletePassword()) {
+    const withPassword = deleteWithPassword()
+    if (withPassword && !deletePassword()) {
       deleteError.set('Enter your password to confirm.')
+      return
+    }
+    if (!withPassword && deleteConfirmation().trim().toUpperCase() !== 'DELETE') {
+      deleteError.set('Type DELETE to confirm.')
       return
     }
     deleteWorking.set(true)
     deleteError.set('')
-    const failure = await deleteAccount(deletePassword())
+    const failure = await deleteAccount(withPassword ? { password: deletePassword() } : { confirmation: deleteConfirmation() })
     deleteWorking.set(false)
     if (failure) {
       deleteError.set(failure)
@@ -853,7 +865,8 @@
 
   <!-- Deleting the account (App Store 5.1.1(v)). What it removes is spelled
        out before anything can be pressed, and the password is asked for again:
-       a phone left unlocked must not be enough. -->
+       a phone left unlocked must not be enough. An account Google or Apple
+       made types DELETE instead, from a recent sign-in. -->
   <section class="mt-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-red-200 rounded-2xl shadow-sm dark:border-red-500/30 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-red-50 dark:bg-red-500/10" aria-hidden="true">
@@ -868,9 +881,17 @@
         </button>
 
         <div :if="deleteOpen()" class="mt-4">
-          <label class="text-sm text-slate-700 dark:text-slate-300">
+          <label :if="deleteWithPassword()" class="text-sm text-slate-700 dark:text-slate-300">
             <span class="mb-1.5 block font-medium">Enter your password to confirm</span>
             <input type="password" autocomplete="current-password" x-value="deletePassword" @input="deletePassword.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white max-w-sm" />
+          </label>
+          <!-- Signed up with Google or Apple: there is no password to ask
+               for. The server also wants a sign-in from the last 15 minutes,
+               and says so if this one is older. -->
+          <label :if="!deleteWithPassword()" class="text-sm text-slate-700 dark:text-slate-300">
+            <span class="mb-1.5 block font-medium">Type DELETE to confirm</span>
+            <input type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" x-value="deleteConfirmation" @input="deleteConfirmation.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white max-w-sm" />
+            <span class="mt-1.5 block text-slate-500 dark:text-slate-400">You signed up with Google or Apple. If you last signed in more than 15 minutes ago, you will be asked to sign in again first.</span>
           </label>
           <p :if="deleteError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ deleteError }}</p>
           <div class="mt-4 flex flex-wrap gap-3">

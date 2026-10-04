@@ -4,6 +4,7 @@
  * its copy with what the server now holds in one step.
  */
 
+import { accountPassword } from './accountPassword'
 import { profileFields } from './avatars'
 
 /**
@@ -37,6 +38,12 @@ export interface SessionUserPayload {
   location: string | null
   joinedAt: string | null
   roles: string[]
+  /**
+   * False for an account Google or Apple created and nobody has set a
+   * password on, so the app asks for something else where it would ask for
+   * one (deleting the account, for one). See accountPassword.ts.
+   */
+  hasPassword: boolean
 }
 
 export async function sessionUserPayload(user: Record<string, any>, roles?: string[]): Promise<SessionUserPayload> {
@@ -46,5 +53,6 @@ export async function sessionUserPayload(user: Record<string, any>, roles?: stri
     name: String(user.name ?? ''),
     ...profileFields(user),
     roles: roles ?? await roleNamesFor(Number(user.id)),
+    hasPassword: (await accountPassword(Number(user.id))).hasPassword,
   }
 }

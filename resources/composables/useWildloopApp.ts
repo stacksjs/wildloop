@@ -19,6 +19,7 @@ interface BootstrapUser {
   location?: string | null
   joinedAt?: string | null
   roles?: string[]
+  hasPassword?: boolean
 }
 
 /** Parse the cross-bundle auth event defensively before changing shared state. */

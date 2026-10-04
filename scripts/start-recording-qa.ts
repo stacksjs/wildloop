@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { buildGazetteerFile } from 'ts-maps/gazetteer'
 import { QA_ADMIN } from '../tests/browser/qa-admin'
 import { QA_PORTS } from '../tests/browser/qa-ports'
+import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
 
 const directory = await mkdtemp(join(tmpdir(), 'wildloop-browser-qa-'))
 
@@ -169,6 +170,13 @@ db.query(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`)
   .run(QA_ADMIN.name, QA_ADMIN.email, await Bun.password.hash(QA_ADMIN.password, { algorithm: 'bcrypt', cost: 4 }))
 db.run(`INSERT INTO user_roles (user_id, role_id)
   SELECT (SELECT id FROM users WHERE email = '${QA_ADMIN.email}'), (SELECT id FROM roles WHERE name = 'admin' AND guard_name = 'web')`)
+// An account a Google sign-in created, with no password of its own, so
+// deleting one can be tested from a real server; see
+// tests/browser/qa-social-account.ts.
+const { id: socialUserId } = db.query(`INSERT INTO users (name, email, password) VALUES (?, ?, ?) RETURNING id`)
+  .get(QA_SOCIAL_ACCOUNT.name, QA_SOCIAL_ACCOUNT.email, await Bun.password.hash(QA_SOCIAL_ACCOUNT.sessionSecret, { algorithm: 'bcrypt', cost: 4 })) as { id: number }
+db.query(`INSERT INTO user_identities (user_id, provider, provider_user_id, email, created_account) VALUES (?, 'google', ?, ?, 1)`)
+  .run(socialUserId, QA_SOCIAL_ACCOUNT.providerUserId, QA_SOCIAL_ACCOUNT.email)
 // Photo candidates waiting for review (#1006), from a recorded-shape Commons
 // geosearch rather than the network: tests/browser/fixtures holds the
 // answer, and the same parsing and licence rules the nightly job uses write

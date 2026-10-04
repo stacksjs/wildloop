@@ -174,6 +174,10 @@ export async function deleteAccount(userId: number): Promise<AccountDeletionRepo
     await db.sql`DELETE FROM device_push_tokens WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM garmin_activity_imports WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM garmin_connections WHERE user_id = ${userId}`.execute()
+    // Said outright rather than left to ON DELETE CASCADE, which SQLite only
+    // honours with foreign keys switched on. A row left behind would point a
+    // later Google or Apple sign-in at an account that no longer exists.
+    await db.sql`DELETE FROM user_identities WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM passkeys WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM webauthn_challenges WHERE user_id = ${userId}`.execute()
     await db.sql`DELETE FROM two_factor_challenges WHERE user_id = ${userId}`.execute()

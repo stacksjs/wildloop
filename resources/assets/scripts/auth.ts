@@ -198,6 +198,8 @@ export interface AuthUser {
   location?: string | null
   joinedAt?: string | null
   roles?: string[]
+  /** False when Google or Apple made the account and it has no password of its own. */
+  hasPassword?: boolean
 }
 
 export interface AuthResult {
@@ -508,17 +510,18 @@ export async function requestPasswordReset(email: string): Promise<{ ok: boolean
  * Delete the signed-in account (DELETE /api/me). Resolves to a message to
  * show, or null once the account is gone and this device has forgotten it.
  *
- * The server asks for the password again, and removes this device's push
- * registration along with the account. The sign-out hooks still run after,
- * signed out by then, so they only clear the device's own opt-in.
+ * The server asks for the password again, or, for an account Google or Apple
+ * made, for the word DELETE from a recent sign-in. It removes this device's
+ * push registration along with the account. The sign-out hooks still run
+ * after, signed out by then, so they only clear the device's own opt-in.
  */
-export async function deleteAccount(password: string): Promise<string | null> {
+export async function deleteAccount(proof: { password: string } | { confirmation: string }): Promise<string | null> {
   try {
     const response = await apiFetch('/api/me', {
       method: 'DELETE',
       credentials: 'same-origin',
       headers: headers(),
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(proof),
     })
     if (response.ok) {
       await forgetSession()

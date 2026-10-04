@@ -48,7 +48,7 @@ describe('deleting an account', () => {
     store.set('auth_user', JSON.stringify({ id: 5, email: 'pawel@wildloop.test' }))
     respondWith(204)
 
-    const failure = await deleteAccount('correct horse')
+    const failure = await deleteAccount({ password: 'correct horse' })
 
     const request = calls.find(call => call.url === '/api/me' && call.init?.method === 'DELETE')
     expect(request?.init.method).toBe('DELETE')
@@ -63,7 +63,25 @@ describe('deleting an account', () => {
     store.set('auth_token', 'abc')
     respondWith(403, { success: false, error: 'That is not your password.' })
 
-    expect(await deleteAccount('nope')).toBe('That is not your password.')
+    expect(await deleteAccount({ password: 'nope' })).toBe('That is not your password.')
+    expect(store.get('auth_token')).toBe('abc')
+  })
+
+  it('sends the typed confirmation, and nothing else, for an account with no password', async () => {
+    store.set('auth_token', 'abc')
+    respondWith(204)
+
+    expect(await deleteAccount({ confirmation: 'DELETE' })).toBeNull()
+    const request = calls.find(call => call.url === '/api/me' && call.init?.method === 'DELETE')
+    expect(JSON.parse(request?.init.body)).toEqual({ confirmation: 'DELETE' })
+  })
+
+  it('passes on the request to sign in again, and keeps the session to do it with', async () => {
+    store.set('auth_token', 'abc')
+    const error = 'For your security, sign out, sign in again with Google, and then delete your account within 15 minutes.'
+    respondWith(403, { success: false, error, reason: 'reauthenticate' })
+
+    expect(await deleteAccount({ confirmation: 'DELETE' })).toBe(error)
     expect(store.get('auth_token')).toBe('abc')
   })
 
@@ -74,10 +92,12 @@ describe('deleting an account', () => {
     expect(group).toContain("route.delete('/me', 'Actions/Auth/AccountDestroyAction')")
   })
 
-  it('is offered in settings, behind a second step and the password', () => {
+  it('is offered in settings, behind a second step and the password or the word DELETE', () => {
     const settings = readFileSync(new URL('../../resources/views/settings.stx', import.meta.url), 'utf8')
     expect(settings).toContain('Delete my account permanently')
-    expect(settings).toContain('await deleteAccount(deletePassword())')
+    expect(settings).toContain('await deleteAccount(withPassword ? { password: deletePassword() } : { confirmation: deleteConfirmation() })')
     expect(settings).toContain(':if="deleteOpen()"')
+    // Only an explicit "no password" from the server drops the password field.
+    expect(settings).toContain('profileAccount()?.hasPassword !== false')
   })
 })

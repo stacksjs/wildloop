@@ -47,11 +47,15 @@ async function identityIsOnRecord(
   userId: number,
   profile: { sub: string, email: string },
   now: string,
+  createdAccount: boolean,
 ): Promise<boolean> {
   try {
+    // `created_account` marks the account as one nobody holds a password for,
+    // which is what lets its owner delete it without one (see
+    // app/Support/accountPassword.ts).
     await db.sql`
-      INSERT INTO user_identities (user_id, provider, provider_user_id, email, created_at, updated_at)
-      VALUES (${userId}, ${provider}, ${profile.sub}, ${profile.email || null}, ${now}, ${now})
+      INSERT INTO user_identities (user_id, provider, provider_user_id, email, created_account, created_at, updated_at)
+      VALUES (${userId}, ${provider}, ${profile.sub}, ${profile.email || null}, ${createdAccount ? 1 : 0}, ${now}, ${now})
     `.execute()
     return true
   }
@@ -146,7 +150,7 @@ export async function finishSocialSignIn(provider: SocialProvider, profile: Soci
   // account instead of their own. That is worth refusing over — anyone who
   // reached here through an existing account still has their password, and
   // anyone new can try again.
-  if (decision.action !== 'sign-in' && !(await identityIsOnRecord(provider, userId, profile, now))) {
+  if (decision.action !== 'sign-in' && !(await identityIsOnRecord(provider, userId, profile, now, decision.action === 'create'))) {
     log.error(`[auth] refused a ${provider} sign-in whose identity could not be recorded`, { userId, provider })
     return { ok: false, reason: 'failed' }
   }
