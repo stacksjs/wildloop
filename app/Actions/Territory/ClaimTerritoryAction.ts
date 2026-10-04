@@ -74,7 +74,12 @@ export default new Action({
         }, 400)
       }
 
+      // Closed explicitly: the track ends up to 50 m from where it began, and
+      // the overlap and home-zone checks below walk the outline edge by edge,
+      // so without the closing edge that last stretch was never checked.
       const simplified = simplifyTrack(coordinates)
+      if (simplified[0].lat !== simplified[simplified.length - 1].lat || simplified[0].lng !== simplified[simplified.length - 1].lng)
+        simplified.push(simplified[0])
       const area = calculatePolygonArea(simplified)
 
       // A home safety zone is stronger than route masking: it prevents a
@@ -84,7 +89,7 @@ export default new Action({
       if (privacy?.exclude_home_from_game && privacy.home_lat != null && privacy.home_lng != null) {
         const home = { lat: privacy.home_lat, lng: privacy.home_lng }
         const radius = privacy.home_radius_meters ?? 500
-        if (pointInPolygon(home, simplified) || simplified.some((point: any) => haversineDistance(home, point) <= radius)) {
+        if (pointInPolygon(home, simplified) || distanceToRingMeters(home, simplified) <= radius) {
           return response.json({
             success: false,
             error: 'Activity saved, but no territory was created inside your protected home zone',

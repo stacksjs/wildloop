@@ -85,9 +85,11 @@ declare global {
   const haversineDistance: typeof autoImports.haversineDistance
   const isClosedLoop: typeof autoImports.isClosedLoop
   const calculatePolygonArea: typeof autoImports.calculatePolygonArea
+  const ringSelfIntersects: typeof autoImports.ringSelfIntersects
   const calculatePerimeter: typeof autoImports.calculatePerimeter
   const simplifyTrack: typeof autoImports.simplifyTrack
   const pointInPolygon: typeof autoImports.pointInPolygon
+  const distanceToRingMeters: typeof autoImports.distanceToRingMeters
   const lineIntersectsPolygon: typeof autoImports.lineIntersectsPolygon
   const routeIntersectsPolygon: typeof autoImports.routeIntersectsPolygon
   const getBoundingBox: typeof autoImports.getBoundingBox

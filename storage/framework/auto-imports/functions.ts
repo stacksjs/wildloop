@@ -36,7 +36,7 @@ export { elevationProfile, PROFILE_POINTS } from '../../../resources/functions/e
 export type { ProfilePoint, ElevationProfile } from '../../../resources/functions/elevation-profile'
 export { garminCardState, garminConnectedLabel, garminImportSummary } from '../../../resources/functions/garmin-status'
 export type { GarminCardState, GarminStatusPayload } from '../../../resources/functions/garmin-status'
-export { haversineDistance, isClosedLoop, calculatePolygonArea, calculatePerimeter, simplifyTrack, pointInPolygon, lineIntersectsPolygon, routeIntersectsPolygon, getBoundingBox, parseBoundingBox, boundingBoxesOverlap, polygonsOverlap, getCentroid, coordinatesToGeoJson, geoJsonToCoordinates, findLinePolygonIntersections, splitPolygonByRoute, generateLoopCoordinates } from '../../../resources/functions/geo'
+export { haversineDistance, isClosedLoop, calculatePolygonArea, ringSelfIntersects, calculatePerimeter, simplifyTrack, pointInPolygon, distanceToRingMeters, lineIntersectsPolygon, routeIntersectsPolygon, getBoundingBox, parseBoundingBox, boundingBoxesOverlap, polygonsOverlap, getCentroid, coordinatesToGeoJson, geoJsonToCoordinates, findLinePolygonIntersections, splitPolygonByRoute, generateLoopCoordinates } from '../../../resources/functions/geo'
 export type { Coordinate, GeoJsonPolygon } from '../../../resources/functions/geo'
 export { parseGpx, parseJsonCoordinates, parseGpsData, generateSampleLoopGpx, generateSampleLoopJson, validateGpsDataForClaim, validateTrackRealism } from '../../../resources/functions/gpx'
 export { formatHealthSummary } from '../../../resources/functions/health-summary'

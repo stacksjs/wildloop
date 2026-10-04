@@ -57,8 +57,21 @@ export function isClosedLoop(
 }
 
 /**
- * Calculate area of a polygon using Shoelace formula
- * @returns Area in square meters
+ * The ground a ring encloses, in square metres.
+ *
+ * "Enclosed" is the non-zero winding rule: a point is inside when the ring
+ * goes around it at least once, whichever way and however many times. For a
+ * ring that never crosses itself that is the shoelace area, which is exact and
+ * is what this returns. A recorded loop does cross itself, though, and the
+ * shoelace formula then answers a different question:
+ *
+ *  - two laps of a park counted the park twice, so a runner could claim (and
+ *    take XP for) any multiple of the land they actually circled;
+ *  - a figure of eight subtracts one lobe from the other, so a runner who
+ *    circled two fields was refused as "too small".
+ *
+ * Self-crossing rings are measured by scanline instead, row by row, counting
+ * the stretches the ring winds around.
  */
 export function calculatePolygonArea(coordinates: Coordinate[]): number {
   if (coordinates.length < 3)
@@ -74,6 +87,9 @@ export function calculatePolygonArea(coordinates: Coordinate[]): number {
     y: (c.lat - coordinates[0].lat) * metersPerDegreeLat,
   }))
 
+  if (ringSelfIntersects(coordinates))
+    return nonZeroWindingArea(projected)
+
   // Shoelace formula
   let area = 0
   for (let i = 0; i < projected.length; i++) {
@@ -83,6 +99,71 @@ export function calculatePolygonArea(coordinates: Coordinate[]): number {
   }
 
   return Math.abs(area / 2)
+}
+
+/** The ring as distinct vertices, without a closing repeat of the first. */
+function openRing(ring: Coordinate[]): Coordinate[] {
+  const open = [...ring]
+  while (open.length > 1 && open[0].lat === open[open.length - 1].lat && open[0].lng === open[open.length - 1].lng)
+    open.pop()
+  return open
+}
+
+/** Whether any two non-adjacent edges of a ring cross. */
+export function ringSelfIntersects(ring: Coordinate[]): boolean {
+  const open = openRing(ring)
+  const n = open.length
+  if (n < 4)
+    return false
+  for (let i = 0; i < n; i++) {
+    const a1 = open[i]
+    const a2 = open[(i + 1) % n]
+    for (let k = i + 2; k < n; k++) {
+      // The closing edge shares a vertex with the first one.
+      if (i === 0 && k === n - 1)
+        continue
+      if (linesIntersect(a1, a2, open[k], open[(k + 1) % n]))
+        return true
+    }
+  }
+  return false
+}
+
+/** Non-zero winding area of a projected ring (metres), measured by scanline. */
+function nonZeroWindingArea(ring: Array<{ x: number, y: number }>): number {
+  let minY = Number.POSITIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (const point of ring) {
+    minY = Math.min(minY, point.y)
+    maxY = Math.max(maxY, point.y)
+  }
+  const height = maxY - minY
+  if (!(height > 0))
+    return 0
+
+  const rows = 2048
+  const step = height / rows
+  let area = 0
+  const crossings: Array<{ x: number, direction: number }> = []
+  for (let row = 0; row < rows; row++) {
+    const y = minY + (row + 0.5) * step
+    crossings.length = 0
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i]
+      const b = ring[(i + 1) % ring.length]
+      if ((a.y <= y) === (b.y <= y))
+        continue
+      crossings.push({ x: a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y), direction: b.y > a.y ? 1 : -1 })
+    }
+    crossings.sort((left, right) => left.x - right.x)
+    let winding = 0
+    for (let k = 0; k < crossings.length; k++) {
+      if (winding !== 0)
+        area += (crossings[k].x - crossings[k - 1].x) * step
+      winding += crossings[k].direction
+    }
+  }
+  return area
 }
 
 /**
@@ -161,25 +242,66 @@ function perpendicularDistance(
 }
 
 /**
- * Check if a point is inside a polygon using ray casting algorithm
+ * Whether a point is inside a polygon, by the non-zero winding rule.
+ *
+ * The same rule `calculatePolygonArea` measures by, so a territory is the same
+ * ground to every check. Even-odd ray casting agreed for simple rings, but put
+ * the middle of a two-lap loop outside it: two crossings is even. A rival's
+ * claim drawn inside that land, or a protected home in the middle of it, then
+ * went unnoticed.
  */
 export function pointInPolygon(point: Coordinate, polygon: Coordinate[]): boolean {
-  let inside = false
+  let winding = 0
   const x = point.lng
   const y = point.lat
 
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].lng
-    const yi = polygon[i].lat
-    const xj = polygon[j].lng
-    const yj = polygon[j].lat
-
-    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-      inside = !inside
+    const a = polygon[j]
+    const b = polygon[i]
+    // Which side of the edge a→b the point lies on: positive is left.
+    const side = (b.lng - a.lng) * (y - a.lat) - (x - a.lng) * (b.lat - a.lat)
+    if (a.lat <= y) {
+      if (b.lat > y && side > 0)
+        winding++
+    }
+    else if (b.lat <= y && side < 0) {
+      winding--
     }
   }
 
-  return inside
+  return winding !== 0
+}
+
+/**
+ * The shortest distance from a point to a ring's outline, in metres.
+ *
+ * Measured to the edges, not only the vertices: a simplified loop keeps one
+ * vertex at each end of a straight street, so a vertex-only check let an
+ * outline run past a protected home a hundred metres away when both ends were
+ * further than its radius.
+ */
+export function distanceToRingMeters(point: Coordinate, ring: Coordinate[]): number {
+  if (ring.length === 0)
+    return Number.POSITIVE_INFINITY
+  if (ring.length === 1)
+    return haversineDistance(point, ring[0])
+
+  const metersPerDegreeLat = 111132.92
+  const metersPerDegreeLng = 111132.92 * Math.cos(toRad(point.lat))
+  const project = (c: Coordinate) => ({ x: (c.lng - point.lng) * metersPerDegreeLng, y: (c.lat - point.lat) * metersPerDegreeLat })
+
+  let nearest = Number.POSITIVE_INFINITY
+  for (let i = 0; i < ring.length; i++) {
+    const a = project(ring[i])
+    const b = project(ring[(i + 1) % ring.length])
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const lengthSquared = dx * dx + dy * dy
+    // The origin is the point itself; clamp its projection onto the edge.
+    const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, -(a.x * dx + a.y * dy) / lengthSquared))
+    nearest = Math.min(nearest, Math.hypot(a.x + t * dx, a.y + t * dy))
+  }
+  return nearest
 }
 
 /**

@@ -3,8 +3,11 @@ import { describe, expect, it } from 'bun:test'
 import {
   calculatePerimeter,
   calculatePolygonArea,
+  distanceToRingMeters,
   isClosedLoop,
+  pointInPolygon,
   polygonsOverlap,
+  ringSelfIntersects,
   simplifyTrack,
 } from '../../resources/functions/geo'
 import { validateGpsDataForClaim, validateTrackRealism } from '../../resources/functions/gpx'
@@ -131,5 +134,63 @@ describe('territory claim: conquest overlap', () => {
     // ~50 km north. Two people running different trails must not fight.
     const elsewhere = simplifyTrack(coordsOf(loop(40.2000, -105.2211, 0.005)))
     expect(polygonsOverlap(defender, elsewhere)).toBe(false)
+  })
+})
+
+describe('territory claim: loops that cross themselves', () => {
+  const METRES_PER_DEG = 111_320
+  const centre = { lat: 34.05, lng: -118.25 }
+  const at = (north: number, east: number): Coordinate => ({
+    lat: centre.lat + north / METRES_PER_DEG,
+    lng: centre.lng + east / (METRES_PER_DEG * Math.cos(centre.lat * Math.PI / 180)),
+  })
+  /** A circle of `radius` metres around (north, east), one way round or the other. */
+  const lap = (radius: number, north = 0, east = 0, clockwise = false, from = 0): Coordinate[] =>
+    Array.from({ length: 61 }, (_, i) => {
+      const angle = from + (clockwise ? -1 : 1) * (i / 60) * 2 * Math.PI
+      return at(north + radius * Math.sin(angle), east + radius * Math.cos(angle))
+    })
+  const oneLap = lap(100)
+  const oneLapArea = calculatePolygonArea(simplifyTrack(oneLap))
+
+  it('measures a simple loop exactly as before', () => {
+    expect(ringSelfIntersects(oneLap)).toBe(false)
+    expect(oneLapArea).toBeGreaterThan(30_000)
+    expect(oneLapArea).toBeLessThan(31_500)
+  })
+
+  it('counts the ground inside two laps once, not twice', () => {
+    // Slightly different the second time round, as a second lap always is.
+    const twoLaps = simplifyTrack([...oneLap, ...lap(98).slice(1)])
+    expect(ringSelfIntersects(twoLaps)).toBe(true)
+    expect(calculatePolygonArea(twoLaps) / oneLapArea).toBeCloseTo(1, 1)
+  })
+
+  it('counts both lobes of a figure of eight', () => {
+    // Round the east field anticlockwise, back through the middle and round
+    // the west field clockwise: the two lobes wind opposite ways.
+    const eight = simplifyTrack([...lap(100, 0, 100, false, Math.PI), ...lap(100, 0, -100, true, 0).slice(1)])
+    expect(calculatePolygonArea(eight) / (2 * oneLapArea)).toBeCloseTo(1, 1)
+  })
+
+  it('treats the middle of a two-lap loop as inside it', () => {
+    const twoLaps = [...oneLap, ...lap(98).slice(1)]
+    expect(pointInPolygon(centre, twoLaps)).toBe(true)
+    expect(pointInPolygon(at(0, 300), twoLaps)).toBe(false)
+  })
+})
+
+describe('territory claim: protected home zone', () => {
+  it('measures to the outline between vertices, not only to the vertices', () => {
+    // A 1 km straight edge, simplified to its two ends; home 100 m off its middle.
+    const ring: Coordinate[] = [
+      { lat: 34.0, lng: -118.0 },
+      { lat: 34.0, lng: -117.98918 },
+      { lat: 34.009, lng: -117.98918 },
+      { lat: 34.009, lng: -118.0 },
+    ]
+    const home = { lat: 33.9991, lng: -117.99459 }
+    expect(distanceToRingMeters(home, ring)).toBeGreaterThan(90)
+    expect(distanceToRingMeters(home, ring)).toBeLessThan(110)
   })
 })
