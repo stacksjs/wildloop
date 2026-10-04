@@ -40,6 +40,7 @@
     "app/Support/trailPhotoProcessing.ts",
     "app/Support/photoStorage.ts",
     "app/Support/trailPhotoPayload.ts",
+    "app/Support/trailLocation.ts",
     "resources/assets/scripts/auth.ts",
     "resources/assets/scripts/game-api.ts",
     "resources/assets/scripts/offline-trails.ts",
@@ -81,7 +82,8 @@
     "tests/unit/personal-bests.test.ts",
     "tests/unit/native-tabs.test.ts",
     "tests/unit/route-actions.test.ts",
-    "tests/unit/search-results.test.ts"
+    "tests/unit/search-results.test.ts",
+    "tests/unit/trail-location.test.ts"
   ],
   "exclude": [
     "cloud/**",
