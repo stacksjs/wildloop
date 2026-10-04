@@ -3,6 +3,7 @@
 import { Auth } from '@stacksjs/auth'
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
+import { listGeometry } from '../../Support/listGeometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { trailEngagement } from '../../Support/trailEngagement'
 import { athleteTaste } from '../../Support/trailTaste'
@@ -156,6 +157,10 @@ export default new Action({
 
       const trails = (await withBestTrailCovers(rows ?? [])).map((row: Record<string, unknown>) => ({
         ...row,
+        // Thinned to within three metres of the stored line: half the bytes,
+        // and close enough for everything the client does with it, offline
+        // downloads and navigation included (app/Support/listGeometry.ts).
+        geometry: listGeometry(row.geometry),
         // The map layer reads `lat`/`lng`; the column names are the long form.
         lat: row.latitude,
         lng: row.longitude,
