@@ -16,16 +16,20 @@ import type { CraftShortcutItem } from '../functions/app-shortcuts'
 export interface CraftShortcutsApi {
   set?: (items: CraftShortcutItem[]) => Promise<unknown>
   clear?: () => Promise<unknown>
-  onShortcut?: (handler: (detail: unknown) => void) => void
 }
 
 /**
  * Craft's Siri calls, which are also its Spotlight calls.
  *
- * `register` builds an NSUserActivity for the action, marks it eligible for
- * search and prediction, and makes it current — so a registered phrase is both
- * a Siri suggestion and a Spotlight entry — and `remove` deletes the saved
- * activity by that same identifier.
+ * `register` builds an NSUserActivity typed after the action, marks it
+ * eligible for search and prediction, and makes it current — so a registered
+ * phrase is both a Siri suggestion and a Spotlight entry — and `remove`
+ * deletes the saved activity by that same identifier.
+ *
+ * Their `onInvoke` counterpart is deliberately left out, here and for
+ * shortcuts: both are listeners on window events the app can listen for
+ * itself, and going through the wrapper buys a subscription that cannot be
+ * removed. See `onAppShortcut`.
  */
 export interface CraftSiriApi {
   register?: (phrase: string, action: string) => Promise<unknown>

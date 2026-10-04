@@ -32,8 +32,24 @@ describe('reading a tapped shortcut', () => {
     expect(shortcutRoute('https://wildloop.org/trails?near=me')).toBe('/trails?near=me')
   })
 
+  it('takes the action a Siri or Spotlight entry arrives under', () => {
+    // Craft's handleSiriActivity sends {action, data} for a donated activity.
+    expect(shortcutRoute({ action: 'favorites', data: {} })).toBe('/profile?tab=saved')
+  })
+
+  it('asks the caller about an action the app itself does not own', () => {
+    const resolve = (action: string) => action === 'trail-slot-2' ? '/trail/88' : null
+
+    expect(shortcutRoute({ action: 'trail-slot-2' }, resolve)).toBe('/trail/88')
+    expect(shortcutRoute('trail-slot-2', resolve)).toBe('/trail/88')
+    expect(shortcutRoute({ action: 'trail-slot-9' }, resolve)).toBeNull()
+    // The app's own shortcuts are still answered without asking.
+    expect(shortcutRoute({ action: 'view-stats' }, () => '/nope')).toBe('/stats')
+  })
+
   it('prefers the id, which cannot be spoofed by a link', () => {
     expect(shortcutRoute({ type: 'view-stats', userInfo: { url: 'wildloop://record' } })).toBe('/stats')
+    expect(shortcutRoute({ action: 'view-stats', url: 'wildloop://record' })).toBe('/stats')
   })
 
   it('navigates nowhere on anything it does not recognise', () => {
@@ -113,5 +129,36 @@ describe('following a tap', () => {
     globalThis.dispatchEvent(new CustomEvent('craftShortcut', { detail: { type: 'view-stats' } }))
 
     expect(routes).toEqual(['/profile?tab=saved'])
+  })
+
+  it('routes a Siri or Spotlight tap, which arrives on its own event', () => {
+    const routes: string[] = []
+    const stop = onAppShortcut(route => routes.push(route), action => action === 'trail-slot-0' ? '/trail/12' : null)
+
+    globalThis.dispatchEvent(new CustomEvent('craftSiriShortcut', { detail: { action: 'view-stats', data: {} } }))
+    globalThis.dispatchEvent(new CustomEvent('craftSiriShortcut', { detail: { action: 'trail-slot-0', data: {} } }))
+    stop()
+    globalThis.dispatchEvent(new CustomEvent('craftSiriShortcut', { detail: { action: 'favorites' } }))
+
+    expect(routes).toEqual(['/stats', '/trail/12'])
+  })
+
+  it('follows a tap once, not once per channel the host offers', () => {
+    // Craft's shortcuts.onShortcut and siri.onInvoke are themselves listeners
+    // on these events, so a handler that also went through them would fire
+    // twice per tap.
+    const seen: string[] = []
+    installCraft({
+      shortcuts: { onShortcut: () => seen.push('subscribed via onShortcut') },
+      siri: { onInvoke: () => seen.push('subscribed via onInvoke') },
+    })
+
+    const routes: string[] = []
+    const stop = onAppShortcut(route => routes.push(route))
+    globalThis.dispatchEvent(new CustomEvent('craftShortcut', { detail: { type: 'favorites' } }))
+    stop()
+
+    expect(routes).toEqual(['/profile?tab=saved'])
+    expect(seen).toEqual([])
   })
 })

@@ -70,28 +70,48 @@ export async function donateSiriPhrases(): Promise<number> {
 }
 
 /**
+ * A reader for an action this module does not own.
+ *
+ * The app's own shortcuts are a fixed list, but the same Siri/Spotlight
+ * channel carries entries other features donate — a trail, say — whose action
+ * only they can resolve. Rather than teach this module about them, a caller
+ * hands in the reader for its own actions.
+ */
+export type ActionResolver = (action: string) => string | null
+
+function routeForAction(action: string, resolveAction?: ActionResolver): string | null {
+  return appShortcutRoute(action) ?? resolveAction?.(action) ?? null
+}
+
+/**
  * The route a tapped shortcut means.
  *
  * Kept pure and tolerant because the detail's shape is the native side's to
- * choose: Craft's own bridge passes the shortcut item through, and the
- * generated intents open a link instead. Both arrive here, and anything that
- * is neither a known shortcut nor a Wildloop link resolves to null rather than
- * navigating somewhere on a guess.
+ * choose: a home-screen quick action arrives as `{type}`, a Siri or Spotlight
+ * entry as `{action, data}`, and the generated intents open a link instead.
+ * All three arrive here, and anything that is neither a known action nor a
+ * Wildloop link resolves to null rather than navigating somewhere on a guess.
  */
-export function shortcutRoute(detail: unknown): string | null {
+export function shortcutRoute(detail: unknown, resolveAction?: ActionResolver): string | null {
   // `deepLinkPath` is the app's one reader of a Wildloop link — the same one
   // the deep-link handler uses — so a shortcut cannot open anywhere a deep
   // link could not, and neither can drift from the other.
   if (typeof detail === 'string')
-    return appShortcutRoute(detail) ?? deepLinkPath(detail)
+    return routeForAction(detail, resolveAction) ?? deepLinkPath(detail)
 
   if (!detail || typeof detail !== 'object')
     return null
 
-  const item = detail as { type?: unknown, url?: unknown, userInfo?: { url?: unknown } }
-  const byType = typeof item.type === 'string' ? appShortcutRoute(item.type) : null
-  if (byType)
-    return byType
+  const item = detail as { type?: unknown, action?: unknown, url?: unknown, userInfo?: { url?: unknown } }
+
+  // An identifier the host chose beats a link it carried: the quick action's
+  // `type` and the activity's `action` are both ours, set at donation time,
+  // while a url is only ever as trustworthy as `deepLinkPath` finds it.
+  for (const key of [item.type, item.action]) {
+    const byAction = typeof key === 'string' ? routeForAction(key, resolveAction) : null
+    if (byAction)
+      return byAction
+  }
 
   const url = typeof item.userInfo?.url === 'string'
     ? item.userInfo.url
@@ -100,36 +120,43 @@ export function shortcutRoute(detail: unknown): string | null {
   return url ? deepLinkPath(url) : null
 }
 
+/** The events a host reports a tapped shortcut on. */
+const SHORTCUT_EVENTS = [
+  // A home-screen quick action, long-pressed on the icon.
+  'craftShortcut',
+  // A Siri suggestion, or a Spotlight result for a donated activity.
+  'craftSiriShortcut',
+] as const
+
 /**
  * Follow a shortcut the host reports as tapped.
  *
- * Craft's `onShortcut` listens for a `craftShortcut` event. A host that never
- * sends one simply never calls back, which is why the generated intents open a
- * deep link instead of relying on this: the two paths end at the same routes,
- * and this one costs a listener.
+ * These are plain window events, listened for directly rather than through
+ * Craft's `shortcuts.onShortcut` and `siri.onInvoke`: both of those are
+ * themselves listeners on the two events below, so going through them would
+ * run every tap twice and leave a subscription their wrappers offer no way to
+ * take back down.
+ *
+ * A host that sends neither event simply never calls back, which is why the
+ * generated intents open a deep link instead of relying on this: the two paths
+ * end at the same routes, and this one costs a listener.
  */
-export function onAppShortcut(handler: (route: string) => void): () => void {
-  const api = craftBridge()?.shortcuts
+export function onAppShortcut(handler: (route: string) => void, resolveAction?: ActionResolver): () => void {
   const listener = (event: Event) => {
-    const route = shortcutRoute((event as CustomEvent).detail)
+    const route = shortcutRoute((event as CustomEvent).detail, resolveAction)
     if (route)
       handler(route)
   }
 
-  if (typeof globalThis.addEventListener === 'function')
-    globalThis.addEventListener('craftShortcut', listener)
-
-  // Craft's own wrapper offers no way to unsubscribe, so it is registered
-  // alongside rather than instead: the listener above is the one this can take
-  // back down.
-  api?.onShortcut?.((detail) => {
-    const route = shortcutRoute(detail)
-    if (route)
-      handler(route)
-  })
+  if (typeof globalThis.addEventListener === 'function') {
+    for (const name of SHORTCUT_EVENTS)
+      globalThis.addEventListener(name, listener)
+  }
 
   return () => {
-    if (typeof globalThis.removeEventListener === 'function')
-      globalThis.removeEventListener('craftShortcut', listener)
+    if (typeof globalThis.removeEventListener === 'function') {
+      for (const name of SHORTCUT_EVENTS)
+        globalThis.removeEventListener(name, listener)
+    }
   }
 }
