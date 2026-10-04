@@ -98,6 +98,28 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Ship the commit CI approved, and nothing the setup above made.
+      #
+      # The pantry action can run "post-database-setup commands" on the runner
+      # - buddy migrate WITH generation, seed, and model generation - inside
+      # this checkout. Generation wrote twenty create-TABLE-table migrations
+      # into database/migrations, the release was packaged from here, and the
+      # server applied them to production as if they had been committed:
+      # 35 duplicate indexes, nine on the trails table (dropped again by
+      # migration 0000000193). Tracked files go back to the commit, untracked
+      # ones go (ignored files such as node_modules stay), and the deploy
+      # stops if anything still differs.
+      - name: Ship exactly the approved commit
+        run: |
+          git status --porcelain
+          git checkout -- .
+          git clean -fd
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::The checkout differs from the approved commit after setup:"
+            git status --porcelain
+            exit 1
+          fi
+
       # The deploy talks to the server as root over SSH with BatchMode on, so
       # the key has to be in an agent before it runs — there is no prompt to
       # fall back to.
