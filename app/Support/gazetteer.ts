@@ -45,3 +45,19 @@ export function openGazetteer(): Gazetteer | null {
     return null
   }
 }
+
+/**
+ * The nearest town to a point, by name, or null when the gazetteer is not
+ * built or nothing lies within `maxKm`. Never throws: naming is a nicety.
+ */
+export function nearestTownName(point: { lat: number, lng: number }, maxKm = 25): string | null {
+  try {
+    const [hit] = openGazetteer()?.reverseSync(point, { limit: 1 }) ?? []
+    const name = hit?.properties?.name
+    const km = Number(hit?.properties?.distanceKm)
+    return typeof name === 'string' && name.trim() && (!Number.isFinite(km) || km <= maxKm) ? name.trim() : null
+  }
+  catch {
+    return null
+  }
+}

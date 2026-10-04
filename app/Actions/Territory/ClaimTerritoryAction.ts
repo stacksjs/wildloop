@@ -7,6 +7,8 @@ import { Auth } from '@stacksjs/auth'
 import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievementsAction'
 import { recomputeTerritoryRanks } from './ComputeTerritoryRanksAction'
 import UserPrivacySetting from '../../Models/UserPrivacySetting'
+import { nearestTownName } from '../../Support/gazetteer'
+import { claimName } from '../../Support/territoryNames'
 
 const MIN_TERRITORY_SIZE = 1000
 const MAX_TERRITORY_SIZE = 5000000
@@ -121,6 +123,7 @@ export default new Action({
       const bounds = parseBoundingBox(boundingBox)
       const polygonData = coordinatesToGeoJson(simplified)
 
+      const place = nearestTownName(centroid)
       const xpGained = XP_REWARDS.claim(area)
       const now = new Date().toISOString()
       const { db } = await import('@stacksjs/database')
@@ -153,7 +156,7 @@ export default new Action({
           user_id: userId,
           activity_id: activityId,
           parent_territory_id: null,
-          name: `Territory #${Date.now()}`,
+          name: claimName(place, candidates.map((candidate: any) => candidate.name)),
           polygon_data: polygonData,
           bounding_box: boundingBox,
           min_lat: bounds.minLat,

@@ -4,6 +4,7 @@ import { evaluateAchievementsForUser } from '../Achievement/EvaluateAchievements
 import { classifyBattleOutcome } from '../../../resources/functions/territory-battle'
 import { recomputeTerritoryRanks } from './ComputeTerritoryRanksAction'
 import { runTerritoryDecaySweep } from './DecayTerritoriesAction'
+import { splitPieceName } from '../../Support/territoryNames'
 
 const MIN_TERRITORY_SIZE = 1000
 
@@ -268,7 +269,7 @@ export default new Action({
               user_id: userId,
               activity_id: activityId,
               parent_territory_id: territory.id,
-              name: `${territory.name} (Conquered)`,
+              name: splitPieceName(territory.name),
               polygon_data: coordinatesToGeoJson(captured.polygon),
               bounding_box: capturedBoundsText,
               min_lat: capturedBounds.minLat,
