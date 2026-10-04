@@ -136,6 +136,13 @@ describe('what a street is', () => {
     expect(isStreetWay({ highway: 'cycleway', surface: 'concrete' })).toBe(false)
   })
 
+  it('does not count an old road given over to walkers, unpaved', () => {
+    // Old US 1 on the Old Bahia Honda Bridge Trail (relation/4511589), Florida Keys.
+    expect(isStreetWay({ highway: 'pedestrian', name: 'Old US 1', surface: 'gravel' })).toBe(false)
+    // A pedestrian street in town is paved.
+    expect(isStreetWay({ highway: 'pedestrian', surface: 'paving_stones' })).toBe(true)
+  })
+
   it('leaves fire roads alone, which in a park are service roads', () => {
     expect(isStreetWay({ highway: 'service' })).toBe(false)
     expect(isStreetWay({ highway: 'track', tracktype: 'grade2' })).toBe(false)

@@ -183,9 +183,11 @@ export default function () {
    *
    * Resumable on the table itself: it asks only about relations with no row,
    * and every relation asked about gets one, so once the catalog is measured
-   * it costs one query a night. 3,000 relations is 20 requests, ten minutes
-   * at the two a minute Overpass is asked for, so the 14,000 relations
-   * `trails:repair-distances` counted are done in five nights.
+   * it costs one query a night. The catalog's 84,847 relations were measured
+   * by hand on 2026-10-05 (566 requests, about five hours at the two a minute
+   * Overpass is asked for), and the ingest measures what it writes, so this
+   * is the catch-up for anything either missed. 3,000 relations is 20
+   * requests, ten minutes.
    *
    * 11:40 UTC, an hour after the fragment slice (04:40 Pacific).
    */

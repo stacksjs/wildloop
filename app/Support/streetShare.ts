@@ -77,9 +77,32 @@ function hasSidewalk(tags: Record<string, string>): boolean {
   return SIDEWALK_KEYS.some(key => Boolean(tags[key]) && tags[key] !== 'no' && tags[key] !== 'none')
 }
 
+/**
+ * Surfaces no street has. `highway=pedestrian` is also how mappers tag a road
+ * closed to cars and left to walkers: the Old Bahia Honda Bridge Trail in the
+ * Keys is Old US 1 as gravel, `highway=pedestrian`, and measured 86% street
+ * until an unpaved way stopped counting as one.
+ */
+const UNPAVED = new Set([
+  'unpaved',
+  'gravel',
+  'fine_gravel',
+  'pebblestone',
+  'compacted',
+  'dirt',
+  'earth',
+  'ground',
+  'mud',
+  'sand',
+  'grass',
+  'grass_paver',
+  'rock',
+  'woodchips',
+])
+
 /** Whether a way is part of a street rather than a path of its own. */
 export function isStreetWay(tags: Record<string, string> | null | undefined): boolean {
-  if (!tags)
+  if (!tags || UNPAVED.has(tags.surface ?? ''))
     return false
   if (STREET_HIGHWAYS.has(tags.highway ?? '') || STREET_FOOTWAYS.has(tags.footway ?? ''))
     return true
