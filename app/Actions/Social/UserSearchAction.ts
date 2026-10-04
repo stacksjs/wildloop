@@ -1,7 +1,8 @@
 // Auth is imported explicitly: it is NOT in the API server bundle's auto-imports,
 // so `Auth.user()` threw "Auth.user is not a function" at runtime in production
-// while type-checking clean against the declarations. Everything else here is
-// auto-imported as usual.
+// while type-checking clean against the declarations. `db` is imported the way
+// the other raw-SQL actions import it; everything else here is auto-imported
+// as usual.
 //
 // GET /api/users/search?q= - find athletes by name (#971). With a query of
 // 2+ characters it's a case-insensitive LIKE search; with no/shorter query it
@@ -9,8 +10,9 @@
 // includes enough stats to render discover cards without extra calls.
 
 import { Auth } from '@stacksjs/auth'
-import { avatarOf } from '../../Support/avatars'
-import { livesNear, readOrigin } from '../../Support/athletesNear'
+import { db } from '@stacksjs/orm'
+import { isNameSearch, searchAthletes } from '../../Support/athleteSearch'
+import { athletesLivingNear, readOrigin } from '../../Support/athletesNear'
 
 export default new Action({
   name: 'User Search',
@@ -24,51 +26,25 @@ export default new Action({
     try {
       const viewerId = (await Auth.user().catch(() => null))?.id ?? null
       const blockedIds = await blockedUserIdsFor(viewerId)
-      // Fetch the full match set, then paginate - so meta.total/hasMore reflect
-      // the real count (a DB-side .limit() before paginate() would cap total at
-      // the page size and make hasMore always false, #978 review).
-      const users = q.length >= 2
-        ? (await User.where('name', 'like', `%${q}%`).get()) ?? []
-        : (await User.query().get()) ?? []
-
-      const visibleUsers = users.filter((user: any) => !blockedIds.has(user.id))
-      const ids = visibleUsers.map((u: any) => u.id)
-      const activities = ids.length ? (await Activity.whereIn('user_id', ids).get()) ?? [] : []
-      const stats = ids.length ? (await TerritoryStats.whereIn('user_id', ids).get()) ?? [] : []
-      const followers = ids.length ? (await Follow.whereIn('following_id', ids).get()) ?? [] : []
-
-      const activityCount = new Map<number, number>()
-      for (const a of activities)
-        activityCount.set(a.user_id, (activityCount.get(a.user_id) ?? 0) + 1)
-      const followerCount = new Map<number, number>()
-      for (const f of followers)
-        followerCount.set(f.following_id, (followerCount.get(f.following_id) ?? 0) + 1)
-      const statsByUser = new Map(stats.map((s: any) => [s.user_id, s]))
+      const run = async (sql: string, params: unknown[] = []) => (await db.sql`${db.unsafe(sql, params)}`.execute() as any[]) ?? []
 
       // Discover mode can be asked from somewhere (`?lat=&lng=`, the same
       // coarse fix the catalog opens on). Athletes whose public profile town
       // is near it come first. Only a yes/no goes back: nobody's coordinates
       // or distance from the viewer leave the server.
-      const from = q.length < 2 ? readOrigin(request) : null
-      const isNear = (u: any): boolean => from !== null && livesNear(u.location, from)
+      const from = isNameSearch(q) ? null : readOrigin(request)
+      const near = from ? await athletesLivingNear(run, from) : null
 
-      const athletes = visibleUsers
-        .map((u: any) => ({
-          id: u.id,
-          name: u.name,
-          avatar: avatarOf(u),
-          nearYou: isNear(u),
-          activityCount: activityCount.get(u.id) ?? 0,
-          followerCount: followerCount.get(u.id) ?? 0,
-          territoriesOwned: statsByUser.get(u.id)?.total_territories_owned ?? 0,
-          totalAreaOwned: statsByUser.get(u.id)?.total_area_owned ?? 0,
-        }))
-        // Discover mode surfaces the athletes near the viewer, then the most
-        // active ones.
-        .sort((a: any, b: any) => Number(b.nearYou) - Number(a.nearYou) || b.activityCount - a.activityCount || b.followerCount - a.followerCount || a.id - b.id)
-
-      const paged = paginate(athletes, readPageParams(request, { defaultLimit: 20, maxLimit: 50 }))
-      return response.json({ success: true, athletes: paged.items, meta: { ...paged.meta, query: q } })
+      // Counted, ordered and paged in SQL (see athleteSearch), so meta.total
+      // and hasMore are the real match count (#978) without loading every
+      // athlete and every activity they ever recorded.
+      const { athletes, meta } = await searchAthletes(run, {
+        text: q,
+        blocked: blockedIds,
+        near,
+        page: readPageParams(request, { defaultLimit: 20, maxLimit: 50 }),
+      })
+      return response.json({ success: true, athletes, meta: { ...meta, query: q } })
     }
     catch (error) {
       console.error('[users] search failed:', error)

@@ -24,6 +24,23 @@ export function readOrigin(request: { get: (key: string) => any }): Origin | nul
   return { lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 }
 }
 
+/** Every athlete with a profile town, and only the two columns the test needs. */
+export const PROFILE_TOWNS_SQL = 'SELECT id, location FROM users WHERE location IS NOT NULL'
+
+/**
+ * The ids of the athletes local to a place. Reads every profile town — a
+ * narrow read, and the gazetteer answer for each town is remembered — and
+ * leaves the rest of the user row alone.
+ */
+export async function athletesLivingNear(
+  run: (sql: string) => Promise<any[]>,
+  origin: Origin,
+  isNear: (profileLocation: unknown, origin: Origin) => boolean = livesNear,
+): Promise<number[]> {
+  const rows = ((await run(PROFILE_TOWNS_SQL)) ?? []) as Array<{ id: number, location: unknown }>
+  return rows.filter(row => isNear(row.location, origin)).map(row => Number(row.id))
+}
+
 /**
  * Whether an athlete is local to a place, by the town on their public profile.
  *
