@@ -41,6 +41,7 @@
     "app/Support/photoStorage.ts",
     "app/Support/trailPhotoPayload.ts",
     "app/Support/trailLocation.ts",
+    "app/Support/photoLicenses.ts",
     "resources/assets/scripts/auth.ts",
     "resources/assets/scripts/game-api.ts",
     "resources/assets/scripts/offline-trails.ts",
