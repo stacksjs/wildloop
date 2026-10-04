@@ -68,6 +68,32 @@ export default function () {
     .withoutOverlapping(300)
     .onOneServer()
     .withName('wildloop-trail-elevation')
+
+  /*
+   * Place names for the catalog, a slice a night.
+   *
+   * Most trails came from OpenStreetMap and read only their state —
+   * "California" on 76% of a 2,190-trail sample around Los Angeles. The
+   * ingest now names a trail after its park or nearest town as it writes it;
+   * this names the ones it wrote before.
+   *
+   * Resumable the same way as the elevation slice: it selects on
+   * `location_checked_at`, so each night carries on from the last and a
+   * finished catalog costs one indexed COUNT. Unlike that job it needs
+   * nothing off the box — the gazetteer and the agency trails are local — so
+   * the slice is bounded by the database alone. 50,000 trails ran in 106s on
+   * a 600,000-row copy on a laptop; allow the box several times that and the
+   * catalog is done in about twelve nights.
+   *
+   * 09:40 UTC is the small hours across the US (02:40 Pacific), and clear of
+   * the 02:10 elevation slice, which can hold the box past 04:00.
+   */
+  schedule.command('./buddy trails:repair-locations --limit 50000')
+    .at('09:40')
+    .setTimeZone('UTC')
+    .withoutOverlapping(120)
+    .onOneServer()
+    .withName('wildloop-trail-locations')
 }
 
 process.on('SIGINT', () => {

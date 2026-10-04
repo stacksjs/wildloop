@@ -44,6 +44,10 @@ export default {
     file: 'RepairTrailElevation',
     enabled: true,
   },
+  'trails:repair-locations': {
+    file: 'RepairTrailLocations',
+    enabled: true,
+  },
   'trails:requeue': {
     file: 'RequeueTrailShards',
     enabled: true,
