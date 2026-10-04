@@ -227,6 +227,17 @@ assert(events.every((row: any) => row.attacker_id !== row.defender_id), `Someone
 assert.equal(events.filter((row: any) => row.status === 'conquered').length, 1, `The split should be one battle: ${JSON.stringify(events)}`)
 pass('the battle feed names the attacker and the defender of each event, once')
 
+// A player's own feed is every battle they fought, not the newest in the game.
+for (const player of [alice, bob]) {
+  const own = await call('/territories/battles?mine=1&limit=1000', 'GET', undefined, player.token)
+  assert.equal(own.status, 200, `Own battles returned ${own.status}`)
+  const theirs = own.body.battles as any[]
+  assert(theirs.some(row => row.status === 'conquered' && row.attacker_id === bob.id && row.defender_id === alice.id), `${player.id} is missing the split from their own feed`)
+  assert(theirs.some(row => row.status === 'defended' && row.defender_id === alice.id), `${player.id} is missing the defence from their own feed`)
+  assert(theirs.every(row => row.attacker_id === player.id || row.defender_id === player.id), `${player.id}'s own feed holds somebody else's battle: ${JSON.stringify(theirs)}`)
+}
+pass('each player\'s own feed holds every battle they fought, and only those')
+
 const notes = await call('/notifications', 'GET', undefined, alice.token)
 const bodies: string[] = (notes.body.notifications ?? []).map((row: any) => row.body)
 assert(bodies.some(text => text.includes('conquered')), `Alice was not told about the split: ${JSON.stringify(bodies)}`)

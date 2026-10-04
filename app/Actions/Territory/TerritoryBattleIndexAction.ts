@@ -1,19 +1,53 @@
 import { Auth } from '@stacksjs/auth'
+import { db } from '@stacksjs/orm'
 import { isAnsweredContest, pairSplitRows } from '../../Support/battleRows'
 import { avatarOf } from '../../Support/avatars'
 
 const BATTLE_EVENTS = ['conquered', 'split', 'contested', 'defended']
+
+/** Enough for any one player's history; a page, not a dump, for the rest. */
+const MINE_LIMIT = 1000
+
+/**
+ * Every territory a player has fought over: ones they attacked, defended or
+ * lost (any row naming them), and ones they hold now — a contest on their
+ * land names only the attacker, and a defence answering their own attack
+ * names only the owner, so both are found through the territory.
+ */
+async function territoriesInvolving(userId: number): Promise<number[]> {
+  const rows = await db.sql`
+    SELECT territory_id AS id FROM territory_histories
+    WHERE (user_id = ${userId} OR previous_owner_id = ${userId}) AND territory_id IS NOT NULL
+    UNION
+    SELECT id FROM territories WHERE user_id = ${userId}
+  `.execute() as Array<{ id: number }>
+  return [...new Set((rows ?? []).map(row => Number(row.id)).filter(id => Number.isInteger(id) && id > 0))]
+}
 
 export default new Action({
   name: 'Territory Battle Index',
   description: 'Recent persisted territory battle events and currently contested land',
   method: 'GET',
   async handle(request) {
-    const limit = Math.min(200, Math.max(1, Number(request.get('limit') || 100)))
     const viewerId = (await Auth.user().catch(() => null))?.id ?? null
+    // `?mine=1`: the signed-in player's own battles, however long ago, rather
+    // than the newest in the whole game. /conquests builds the player's record
+    // from these; folded from the global feed it only ever counted what was
+    // still among the last 200 battles anyone fought.
+    const mine = request.get('mine') === '1' && viewerId !== null
+    const limit = Math.min(mine ? MINE_LIMIT : 200, Math.max(1, Number(request.get('limit') || 100)))
     const blockedIds = await blockedUserIdsFor(viewerId)
+
+    let query = TerritoryHistory.whereIn('event_type', BATTLE_EVENTS)
+    if (mine) {
+      const territoryIds = await territoriesInvolving(Number(viewerId))
+      if (territoryIds.length === 0)
+        return response.json({ success: true, battles: [], updatedAt: new Date().toISOString(), pollAfterSeconds: 15 })
+      query = query.whereIn('territory_id', territoryIds)
+    }
+
     // A split is two rows, folded into one battle before anything reads them.
-    const rows = pairSplitRows(((await TerritoryHistory.whereIn('event_type', BATTLE_EVENTS).orderBy('created_at', 'desc').limit(limit).get()) ?? []) as any[])
+    const rows = pairSplitRows(((await query.orderBy('created_at', 'desc').limit(limit).get()) ?? []) as any[])
       .filter((row: any) => !blockedIds.has(row.user_id) && !blockedIds.has(row.previous_owner_id))
     const territoryIds = [...new Set(rows.map((row: any) => row.territory_id).filter(Boolean))]
     const activityIds = [...new Set(rows.map((row: any) => row.activity_id).filter(Boolean))]
@@ -100,7 +134,12 @@ export default new Action({
         created_at: row.created_at,
       }
     })
-    return response.json({ success: true, battles, updatedAt: new Date().toISOString(), pollAfterSeconds: 15 })
+    // Found through the territories, so a later fight between two other
+    // players on land this one once fought over is in `rows`; it is not theirs.
+    const answered = mine
+      ? battles.filter((battle: any) => battle.attacker_id === viewerId || battle.defender_id === viewerId)
+      : battles
+    return response.json({ success: true, battles: answered, updatedAt: new Date().toISOString(), pollAfterSeconds: 15 })
   },
 })
 

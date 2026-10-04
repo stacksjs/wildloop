@@ -39,7 +39,10 @@
     if (!wl) return []
     const uid = wl.currentUserId()
     if (!uid) return []
-    return wl.conquests().filter((c: any) => c.attacker_id === uid || c.defender_id === uid)
+    // Their own history when it has arrived (every battle, not just the
+    // newest 200 in the game), else what the game-wide feed holds of them.
+    const own = wl.myConquests()
+    return (own.length > 0 ? own : wl.conquests()).filter((c: any) => c.attacker_id === uid || c.defender_id === uid)
   })
 
   const filtered = derived(() => {
@@ -90,7 +93,7 @@
   }
 
   const underAttack = derived(() =>
-    wl ? wl.conquests().filter((c: any) => c.defender_id === wl.currentUserId() && c.status === 'active').slice(0, 5) : []
+    wl ? mine().filter((c: any) => c.defender_id === wl.currentUserId() && c.status === 'active').slice(0, 5) : []
   )
 </script>
 

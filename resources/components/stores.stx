@@ -399,6 +399,9 @@
       // used to seed this had three "active" battles in it, so the feed said
       // turf was being taken right now whether or not anything was.
       conquests: [] as Conquest[],
+      // The signed-in player's own battles, all of them (`?mine=1`). Their
+      // record is folded from these, not from the game-wide feed above.
+      myConquests: [] as Conquest[],
       // Only the API fills this, for the same reason: a player with no
       // challenges was shown six between demo athletes, some naming them.
       challenges: [] as Challenge[],
@@ -633,6 +636,10 @@
         this.conquests = conquests
         this.recomputeConquestStats()
       },
+      hydrateMyConquestsFromApi(conquests: Conquest[]) {
+        this.myConquests = conquests
+        this.recomputeConquestStats()
+      },
       /**
        * Refold the signed-in athlete's game record from the battle feed.
        *
@@ -643,7 +650,9 @@
       recomputeConquestStats() {
         if (!this.currentUserId)
           return
-        this.conquestStats = computeConquestRecord(this.currentUserId, this.conquests)
+        // The player's own history once it has arrived; until then, what the
+        // game-wide feed shows of them.
+        this.conquestStats = computeConquestRecord(this.currentUserId, this.myConquests.length > 0 ? this.myConquests : this.conquests)
       },
       findTrail(id: number): Trail | undefined {
         return this.trails.find((t: Trail) => t.id === id)
