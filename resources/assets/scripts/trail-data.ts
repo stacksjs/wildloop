@@ -59,6 +59,12 @@ export interface UiTrail {
    */
   dogsAllowed: boolean | null
   wheelchairAccessible: boolean | null
+  /**
+   * Straight-line miles from where a "near me" list was asked about to the
+   * trailhead. Null on every other list: it is relative to a place, so it
+   * means nothing once the trail is shown anywhere else.
+   */
+  milesAway: number | null
 }
 
 /**
@@ -162,7 +168,15 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     nationalTrail: Boolean(row.nationalTrail ?? row.national_trail),
     dogsAllowed: readTriState(row.dogsAllowed ?? row.dogs_allowed),
     wheelchairAccessible: readTriState(row.wheelchairAccessible ?? row.wheelchair_accessible),
+    milesAway: readMilesAway(row.milesAway),
   }
+}
+
+function readMilesAway(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '')
+    return null
+  const miles = Number(raw)
+  return Number.isFinite(miles) && miles >= 0 ? Math.round(miles * 10) / 10 : null
 }
 
 /** true / false / unknown, from a column that may be absent, 0/1 or a string. */

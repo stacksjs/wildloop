@@ -462,6 +462,22 @@
   const placeOrigin = state<{ lat: number, lng: number, label: string, radius?: number, view?: { center: [number, number], zoom: number } } | null>(null)
   const placeActive = derived(() => !!placeOrigin() && !activeState() && !activeCountry())
   const placeLabel = derived(() => placeOrigin()?.label ?? '')
+
+  /**
+   * Whether the list is about somewhere, so "how far is it" is worth saying.
+   *
+   * On a national list a distance from wherever the visitor happens to be is
+   * noise; on a list ranked around them it is half of why a trail is where it
+   * is in the order.
+   */
+  const listIsNear = derived(() => placeActive() || nearMeActive())
+
+  function awayLabel(trail: { milesAway?: number | null }): string {
+    const miles = trail?.milesAway
+    if (!listIsNear() || miles === null || miles === undefined)
+      return ''
+    return miles < 1 ? 'Under a mile away' : `${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi away`
+  }
   const placeSearch = usePlaceSearch({ limit: 4 })
   const placeResults = placeSearch.results
   /** Whether the towns matching the search box are showing under it. */
@@ -560,12 +576,18 @@
 
   /** The open panel's rows: the filters' own, or the country and region lists. */
   /** The order the list is in, named: what was picked, or the page's own. */
-  const currentSortId = derived(() => sortChoice() || urlSort() || (search() ? 'featured' : (placeActive() || nearMeActive()) ? 'rating' : 'featured'))
+  // Best match everywhere: near somebody it now ranks how good a trail is
+  // against how far away it is, which "top rated" cannot while almost nothing
+  // in the catalog has a rating.
+  const currentSortId = derived(() => sortChoice() || urlSort() || 'featured')
   const sortLabel = derived(() => sortOptions.find(option => option.id === currentSortId())?.label ?? 'Best match')
 
   const menuOptions = derived(() => {
     if (openFilter() === 'sort')
-      return sortOptions.map(option => ({ id: option.id, label: option.label, active: currentSortId() === option.id }))
+      return sortOptions
+        // "Closest" to nowhere is not an order.
+        .filter(option => option.id !== 'nearest' || listIsNear())
+        .map(option => ({ id: option.id, label: option.label, active: currentSortId() === option.id }))
     if (openFilter() === 'country')
       return countryOptions()
     if (openFilter() === 'region')
@@ -721,11 +743,12 @@
         country: activeCountry(),
         state: activeState(),
         ...filtersToQuery(filters()),
-        // Near me sorts by rating: within a radius somebody can drive, "which
-        // of these is good" is the remaining question. Nationally there is no
-        // such thing as near, so length is what makes the list impressive
-        // rather than arbitrary.
-        sort: sortChoice() || urlSort() || (search() ? 'featured' : near ? 'rating' : 'featured'),
+        // Best match, near somebody or not. With a location the API ranks
+        // appeal against distance (app/Support/trailRanking.ts) — Temescal
+        // Canyon four miles from Santa Monica, not the longest fire road in a
+        // 50-mile box. "Top rated" used to be the near-me default, which at 0%
+        // rated meant ordering by length.
+        sort: sortChoice() || urlSort() || 'featured',
         ...(near ? { lat: near.lat, lng: near.lng, radius: (placeActive() && placeOrigin()?.radius) || 25 } : {}),
         limit: 60,
       }
@@ -740,7 +763,9 @@
         // showing: "nothing within 25 miles" invites a retry that will fail
         // the same way.
         nearbyMiss.set({ label: nearbyLabel() || placeLabel(), radius: res.radius ?? query.radius ?? 25 })
-        res = await queryTrails({ ...query, sort: 'featured', lat: undefined, lng: undefined, radius: undefined })
+        // A sort that only means something near a place has nothing to say
+        // about the whole catalog.
+        res = await queryTrails({ ...query, sort: query.sort === 'nearest' ? 'featured' : query.sort, lat: undefined, lng: undefined, radius: undefined })
         near = null
         useNearMe.set(false)
         placeOrigin.set(null)
@@ -1001,7 +1026,7 @@
     // rather than off: the link is a request for somewhere specific — here —
     // and it outranks the page's own default either way.
     const near = text(query.near).toLowerCase()
-    const knownSort = ['featured', 'rating', 'longest', 'distance', 'name'].includes(sort)
+    const knownSort = ['featured', 'popular', 'nearest', 'rating', 'longest', 'distance', 'name'].includes(sort)
 
     // A link can carry the filters too, so a shared list opens as the list
     // somebody was actually looking at rather than the default catalog.
@@ -1698,6 +1723,9 @@
                     <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                     <span class="tabular-nums">{{ 'Est. ' + trail.estimatedTime }}</span>
                   </span>
+                </p>
+                <p :if="awayLabel(trail) !== ''" class="mt-1 inline-flex items-center gap-1 text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                  <i class="i-lucide-navigation h-3 w-3" aria-hidden="true"></i>{{ awayLabel(trail) }}
                 </p>
 
                 <!-- Who has been up there lately.

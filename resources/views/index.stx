@@ -357,7 +357,10 @@
   /** Load the shelf for a place, however that place was arrived at. */
   function loadFeaturedNear(place) {
     return loadFeatured(
-      { lat: place.lat, lng: place.lng, radius: 40, sort: 'rating' },
+      // Best match ranks how good a trail is against how far away it is. It
+      // used to ask for "top rated", which with almost nothing rated was the
+      // longest routes in an 80-mile box.
+      { lat: place.lat, lng: place.lng, radius: 40, sort: 'featured' },
       place.source === 'gps' ? 'Local favorites near you' : `Local favorites near ${place.label}`,
     )
   }

@@ -61,6 +61,9 @@ export const RATING_OPTIONS = [
 
 export const SORT_OPTIONS = [
   { id: 'featured', label: 'Best match' },
+  { id: 'popular', label: 'Most popular' },
+  // Only offered on a list about somewhere: see `menuOptions` in trails.stx.
+  { id: 'nearest', label: 'Closest' },
   { id: 'rating', label: 'Top rated' },
   { id: 'longest', label: 'Longest' },
   { id: 'distance', label: 'Shortest' },
