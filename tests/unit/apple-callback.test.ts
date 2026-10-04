@@ -44,6 +44,9 @@ const realAppUrl = process.env.APP_URL
 const { config } = await import('@stacksjs/config')
 const apple = (config as any).auth.social.apple as { clientId: string, teamId: string, keyId: string, privateKey: string }
 const realCredentials = { clientId: apple.clientId, teamId: apple.teamId, keyId: apple.keyId, privateKey: apple.privateKey }
+// The refresh token is sealed with APP_KEY, which CI does not set.
+const realAppKey = (config as any).app.key
+const TEST_APP_KEY = 'apple-callback-unit-test-key'
 
 /*
  * `response` is another global the server injects at boot. The redirect uses
@@ -59,6 +62,7 @@ afterAll(() => {
   mock.module('@stacksjs/auth', () => realAuth)
   mock.module('@stacksjs/security', () => realSecurity)
   Object.assign(apple, realCredentials)
+  ;(config as any).app.key = realAppKey
   ;(globalThis as any).response = realResponseHelper
   globalThis.fetch = realFetch
   if (realAppUrl === undefined)
@@ -190,6 +194,7 @@ const userWrites = () => queries.filter(q => q.text.includes('INSERT INTO users'
 
 beforeEach(() => {
   Object.assign(apple, { clientId: CLIENT_ID, teamId: 'TEAM123456', keyId: 'KEY1234567', privateKey: keyPem })
+  ;(config as any).app.key = TEST_APP_KEY
   queries = []
   exchanges = []
   rows = {}
@@ -389,6 +394,74 @@ describe('the token exchange', () => {
     const result = await callback({ cookie: issuedCookie() })
     expect(result.reason).toBe('apple-failed')
     expect(queries).toHaveLength(0)
+  })
+})
+
+// ── what is kept for later ───────────────────────────────────────────────────
+
+describe('what the sign-in keeps', () => {
+  const REFRESH = 'r.apple-refresh-0123456789abcdef'
+  const withRefresh = (claims: Record<string, unknown>) =>
+    () => new Response(JSON.stringify({ id_token: idToken(claims), refresh_token: REFRESH }), { status: 200 })
+  const tokenWrites = () => queries.filter(q => q.text.includes('UPDATE user_identities SET refresh_token'))
+
+  /*
+   * Apple requires its tokens revoked when the account is deleted, and the
+   * revoke endpoint wants one it issued. This is the only time one arrives.
+   */
+  it('keeps Apple\'s refresh token, sealed, against this Apple ID on this account', async () => {
+    rows.identityUserId = 42
+    tokenResponse = withRefresh(VERIFIED)
+    const result = await callback({ cookie: issuedCookie() })
+
+    expect(result.handoff).toContain('token-for-42')
+    expect(tokenWrites()).toHaveLength(1)
+    const [sealed, , sub, userId] = tokenWrites()[0].values as string[]
+    expect(sub).toBe(VERIFIED.sub)
+    expect(userId).toBe(42 as any)
+    expect(sealed).not.toContain(REFRESH)
+    const { openToken } = await import('../../app/Support/appleTokens')
+    expect(await openToken(sealed, TEST_APP_KEY)).toBe(REFRESH)
+  })
+
+  it('signs in all the same when the token cannot be kept', async () => {
+    rows.identityUserId = 42
+    tokenResponse = withRefresh(VERIFIED)
+    ;(config as any).app.key = ''
+    const result = await callback({ cookie: issuedCookie() })
+
+    expect(result.reason).toBeNull()
+    expect(result.handoff).toContain('token-for-42')
+    expect(tokenWrites()).toHaveLength(0)
+  })
+
+  it('writes nothing when Apple sent no refresh token', async () => {
+    rows.identityUserId = 42
+    await callback({ cookie: issuedCookie() })
+    expect(tokenWrites()).toHaveLength(0)
+  })
+
+  it('keeps nothing from a sign-in that was refused', async () => {
+    tokenResponse = withRefresh({ ...VERIFIED, email_verified: 'false' })
+    rows.userByEmail = { id: 7, email: 'ada@icloud.com' }
+    await callback({ cookie: issuedCookie() })
+    expect(tokenWrites()).toHaveLength(0)
+  })
+
+  /*
+   * An account Apple made has no password anybody knows, so deleting it asks
+   * for something else. The identity row is where the server learns that.
+   */
+  it('marks an account it creates as made by Apple, and an account it links as not', async () => {
+    rows.createdId = 99
+    await callback({ cookie: issuedCookie(), user: FIRST_TIME_USER })
+    expect(identityWrites()[0].text).toContain('created_account')
+    expect(identityWrites()[0].values[4]).toBe(1)
+
+    queries = []
+    rows = { userByEmail: { id: 7, email: 'ada@icloud.com' } }
+    await callback({ cookie: issuedCookie() })
+    expect(identityWrites()[0].values[4]).toBe(0)
   })
 })
 

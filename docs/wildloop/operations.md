@@ -84,6 +84,19 @@ mail from senders registered for the Services ID: add the domain and the
 Sign in with Apple for Email Communication, or password resets and
 notifications to those accounts are silently dropped.
 
+Deleting an account revokes its Apple tokens, as Apple requires of apps that
+offer Sign in with Apple. Each Apple sign-in keeps the refresh token from its
+exchange, sealed with `APP_KEY`, in `user_identities.refresh_token`, and
+deletion sends it to `https://appleid.apple.com/auth/revoke`
+(`app/Support/appleTokens.ts`). Revoking is best effort: an Apple that cannot
+be reached, or credentials removed since, is logged as `[account] could not
+revoke an Apple token` and the account is deleted anyway. Rotating `APP_KEY`
+makes the stored tokens unreadable, so they are logged and skipped.
+
+An account Google or Apple created has no password anybody knows, so Settings
+asks its owner to type DELETE instead, and the server accepts that only from a
+session issued in the last 15 minutes (`app/Support/deletionProof.ts`).
+
 Both providers link a sign-in to an existing account only when the provider
 says it verified the address itself, and create the account only after the
 token exchange succeeds, so an abandoned sign-in leaves nothing behind.

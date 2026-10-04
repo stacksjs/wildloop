@@ -22,6 +22,7 @@ import {
   appleNameFromUser,
   appleProfileFromClaims,
 } from '../../Support/appleSignIn'
+import { rememberAppleRefreshToken } from '../../Support/appleTokens'
 import { finishSocialSignIn } from '../../Support/socialAccount'
 import { stateIsAcceptable } from '../../Support/socialIdentity'
 import {
@@ -84,6 +85,7 @@ export default new Action({
       return backTo(back, 'apple-expired', [spent])
 
     let claims: Record<string, unknown>
+    let refreshToken = ''
     try {
       // Minted here rather than read from config: Apple's "secret" is a JWT
       // signed with our key and valid for minutes, so it is made fresh for the
@@ -111,7 +113,8 @@ export default new Action({
         console.error('[auth] apple token exchange failed', exchanged.status, await exchanged.text().catch(() => ''))
         return backTo(back, 'apple-failed', [spent])
       }
-      const body = await exchanged.json() as { id_token?: string } | null
+      const body = await exchanged.json() as { id_token?: string, refresh_token?: string } | null
+      refreshToken = typeof body?.refresh_token === 'string' ? body.refresh_token : ''
       const payload = String(body?.id_token ?? '').split('.')[1] ?? ''
       claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
     }
@@ -132,6 +135,15 @@ export default new Action({
     const outcome = await finishSocialSignIn('apple', profile)
     if (!outcome.ok)
       return backTo(back, outcome.reason === 'unverified' ? 'apple-unverified' : 'apple-failed', [spent])
+
+    // Kept, sealed, for one thing: revoking it when the account is deleted,
+    // which Apple requires (see appleTokens.ts). A failure here costs that
+    // revocation, not this sign-in, so it is logged without the token.
+    if (refreshToken) {
+      await rememberAppleRefreshToken(outcome.userId, profile.sub, refreshToken).catch((error: unknown) => {
+        console.error('[auth] could not keep the Apple refresh token', error instanceof Error ? error.message : 'unknown error')
+      })
+    }
 
     const headers = new Headers({ Location: `${back}?apple=1`, 'Cache-Control': 'no-store' })
     headers.append('Set-Cookie', spent)

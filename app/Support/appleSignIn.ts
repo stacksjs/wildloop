@@ -79,7 +79,10 @@ export function appleAuthorizeUrl(options: { clientId: string, redirectUri: stri
  * file with real newlines, with `\n` escapes, or as the bare base64 body with
  * the header lines left off.
  */
-export function pkcs8FromPem(pem: string): Uint8Array {
+// `Uint8Array<ArrayBuffer>` rather than the default `ArrayBufferLike`: WebCrypto
+// will not take bytes that might sit in a SharedArrayBuffer, and with some
+// lib versions in scope the checker says so.
+export function pkcs8FromPem(pem: string): Uint8Array<ArrayBuffer> {
   const body = pem
     .replace(/\\n/g, '\n')
     .replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '')

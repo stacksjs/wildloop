@@ -1,5 +1,6 @@
 import { db } from '@stacksjs/orm'
 import { computeCounterFixes } from '../../resources/functions/counters'
+import { revokeAppleTokens, sealedAppleTokensFor } from './appleTokens'
 import { photoStorage } from './photoStorage'
 import { inWriteTransaction } from './writeTransaction'
 import { invalidateTrailReviews } from './reviewCache'
@@ -14,7 +15,8 @@ import { invalidateTrailReviews } from './reviewCache'
  *   reviews, comments, kudos, saved trails, routes, achievements and stats;
  *   follows in both directions, blocks and reports they filed; notifications
  *   to them or about them; and every sign-in: tokens, push registrations,
- *   passkeys, two-factor state, the Garmin link.
+ *   passkeys, two-factor state, the Garmin link, the Google and Apple links.
+ *   Apple is also asked to revoke its tokens, as Sign in with Apple requires.
  *
  * What stays, without them:
  *   Their territories become claimable. Battle history keeps each event but no
@@ -35,6 +37,7 @@ export interface AccountDeletionReport {
   clubsHandedOver: number
   clubsDeleted: number
   eventsDeleted: number
+  appleTokensRevoked: number
 }
 
 interface MemberRow {
@@ -67,6 +70,12 @@ export async function deleteAccount(userId: number): Promise<AccountDeletionRepo
   const photos = await rows<{ storage_key: string, thumb_key: string | null }>(
     db.sql`SELECT storage_key, thumb_key FROM trail_photos WHERE user_id = ${userId}`,
   )
+  // Read now, while the identity rows exist. Revoked only once the account is
+  // gone for good, so a failed deletion leaves the Apple link working.
+  const appleTokens = await sealedAppleTokensFor(userId).catch((error: unknown) => {
+    console.error('[account] could not read Apple tokens to revoke', error)
+    return [] as string[]
+  })
 
   const report = await inWriteTransaction(async () => {
     const user = (await rows<{ email: string }>(db.sql`SELECT email FROM users WHERE id = ${userId}`))[0]
@@ -215,7 +224,11 @@ export async function deleteAccount(userId: number): Promise<AccountDeletionRepo
     }
   }
 
-  return report
+  // Apple last, and best effort for the same reason: an Apple that cannot be
+  // reached is logged, and the account is deleted regardless.
+  const apple = await revokeAppleTokens(appleTokens)
+
+  return { ...report, appleTokensRevoked: apple.revoked }
 }
 
 /** The same rules as `buddy counters:recompute`, for just the trails and activities touched. */
