@@ -1,0 +1,73 @@
+@extends('layouts/default')
+
+@section('title', 'Support - Wildloop')
+
+@section('content')
+<script server>
+  /*
+   * The page the App Store lists as Wildloop's support URL, and where the
+   * privacy policy and terms send questions. Metadata is written inline for
+   * the reason privacy.stx gives.
+   */
+  useSeoMeta({
+    title: 'Support — Wildloop',
+    description: 'How to reach Wildloop, fix recording and sign-in problems, report an athlete, and delete your account.',
+    canonical: 'https://wildloop.org/support',
+    robots: 'index, follow, max-image-preview:large',
+    ogTitle: 'Support — Wildloop',
+    ogDescription: 'How to reach Wildloop, fix recording and sign-in problems, report an athlete, and delete your account.',
+    ogType: 'website',
+    ogUrl: 'https://wildloop.org/support',
+    ogImage: 'https://wildloop.org/images/social/og-default.jpg',
+    ogSiteName: 'Wildloop',
+    ogLocale: 'en_US',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Support — Wildloop',
+    twitterDescription: 'How to reach Wildloop, fix recording and sign-in problems, report an athlete, and delete your account.',
+    twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
+  })
+</script>
+
+<script client>
+  useHead({ title: 'Support — Wildloop' })
+</script>
+
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-8">
+      <h1 class="font-bold text-3xl text-gray-900 dark:text-white mb-2">Support</h1>
+      <p class="text-gray-500 dark:text-slate-400">Something not working, or a question we have not answered here? Email <a href="mailto:support@wildloop.org" class="text-emerald-600 hover:underline">support@wildloop.org</a> and a person will reply.</p>
+    </div>
+
+    <div class="space-y-8 text-gray-600 dark:text-slate-300 leading-relaxed">
+      <section>
+        <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">A run did not record, or recorded badly</h2>
+        <p>Wildloop needs location access with precise location on, and permission to keep using it in the background so a run keeps recording with the screen off. On iPhone that is Settings › Wildloop › Location. A track with long gaps or impossible speeds is still saved, but it does not count for territory, records or segments, and the activity page says why.</p>
+      </section>
+
+      <section>
+        <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">Trails near me look wrong</h2>
+        <p>Trails come from OpenStreetMap and public land agencies. If one is missing, misplaced or named wrongly, email us the trail page link and what is off, and we will fix it at the source where we can.</p>
+      </section>
+
+      <section>
+        <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">Signing in</h2>
+        <p>If you signed up with Google or Apple, sign in the same way: there is no separate password. If you signed up with an email and password and have lost it, use <StxLink to="/forgot-password" class="text-emerald-600 hover:underline">Forgot password</StxLink>.</p>
+      </section>
+
+      <section>
+        <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">Reporting an athlete or an activity</h2>
+        <p>Use Report on the activity or profile, or block the athlete from their profile. For anything urgent, email us as well.</p>
+      </section>
+
+      <section>
+        <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">Deleting your account</h2>
+        <p>Go to <StxLink to="/settings" class="text-emerald-600 hover:underline">Settings</StxLink> and choose Delete account. It removes your activities, photos, reviews, comments, kudos and follows straight away and cannot be undone. Export any routes you want to keep as GPX first.</p>
+      </section>
+    </div>
+
+    <div class="mt-12 pt-6 border-t border-gray-100 dark:border-slate-700 flex items-center gap-4 text-sm">
+      <StxLink to="/privacy" class="text-emerald-600 hover:underline font-medium">Privacy Policy</StxLink>
+      <StxLink to="/terms" class="text-emerald-600 hover:underline font-medium">Terms of Service</StxLink>
+    </div>
+  </div>
+@endsection

@@ -82,6 +82,7 @@
           <li><StxLink to="/app" class="text-slate-600 transition hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400">Mobile app</StxLink></li>
           <li><StxLink to="/privacy" class="text-slate-600 transition hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400">Privacy</StxLink></li>
           <li><StxLink to="/terms" class="text-slate-600 transition hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400">Terms</StxLink></li>
+          <li><StxLink to="/support" class="text-slate-600 transition hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400">Support</StxLink></li>
           <li><a href="https://github.com/stacksjs/wildloop" rel="noopener" class="text-slate-600 transition hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400">Source</a></li>
         </ul>
       </div>

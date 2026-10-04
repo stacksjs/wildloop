@@ -64,12 +64,12 @@
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">Your choices</h2>
-        <p>You can edit or delete activities, export your own route as GPX, update location controls, block athletes, and report activities or profiles. To delete your account entirely, contact us and we'll remove your personal data, subject to legal retention requirements.</p>
+        <p>You can edit or delete activities, export your own route as GPX, update location controls, block athletes, and report activities or profiles. To delete your account entirely, use Delete account in Settings: your personal data is removed straight away, subject to legal retention requirements.</p>
       </section>
 
       <section>
         <h2 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">Contact</h2>
-        <p>Privacy questions? Email <a href="mailto:privacy@wildloop.test" class="text-emerald-600 hover:underline">privacy@wildloop.test</a>.</p>
+        <p>Privacy questions? Email <a href="mailto:support@wildloop.org" class="text-emerald-600 hover:underline">support@wildloop.org</a>.</p>
       </section>
     </div>
 

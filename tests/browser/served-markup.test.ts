@@ -102,8 +102,12 @@ function isNamedOnTheClient(element: any): boolean {
     || element.getAttribute?.('x-aria-labelledby') !== null
 }
 
-/** The routes every visitor and crawler sees. */
-const ROUTES = ['/', '/trails'] as const
+/**
+ * The routes every visitor and crawler sees. The last three are the ones the
+ * App Store listing links to: a support URL and a privacy policy that do not
+ * load are a rejection.
+ */
+const ROUTES = ['/', '/trails', '/support', '/privacy', '/terms'] as const
 
 let trailPath = ''
 
@@ -119,6 +123,21 @@ beforeAll(async () => {
   expect(trail?.id, 'the QA catalog must have at least one trail').toBeDefined()
   trailPath = `/trail/${trail.id}`
 }, READY_TIMEOUT_MS + 30_000)
+
+describe.skipIf(!qa)('the pages the App Store listing links to', () => {
+  it('give an address that can receive mail', async () => {
+    for (const path of ['/support', '/privacy', '/terms']) {
+      const { html } = await serve(path)
+      expect(html, path).toContain('mailto:support@wildloop.org')
+      expect(html, path).not.toMatch(/@wildloop\.test/)
+    }
+  })
+
+  it('link to support from the footer', async () => {
+    const { document } = await serve('/')
+    expect(document.querySelector('footer a[href="/support"]'), 'footer support link').not.toBeNull()
+  })
+})
 
 describe.skipIf(!qa)('the served document', () => {
   it('declares a language, a charset and a viewport', async () => {
