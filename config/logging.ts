@@ -1,14 +1,14 @@
 import type { LoggingConfig } from '@stacksjs/types'
 import { bughqTransport } from '@bughq/stacks'
-import { loghqTransport } from '@loghq/stacks'
+import { install as streamLogsToLogHQ } from '@loghq/stacks'
 import { storagePath } from '@stacksjs/path'
 
 /**
  * Whether errors from this process should become issues somebody is emailed about.
  *
- * Not under `bun test`. `environment` on each transport below labels an event;
- * it does not withhold one, so a test that deliberately throws still filed an
- * issue and mailed the owner. `tests/unit/google-callback.test.ts` injects a
+ * Not under `bun test`. The `environment` passed to each reporter below labels
+ * an event; it does not withhold one, so a test that deliberately throws still
+ * filed an issue and mailed the owner. `tests/unit/google-callback.test.ts` injects a
  * UNIQUE violation on `user_identities` to prove the Google callback refuses a
  * sign-in it cannot record — working as intended, and indistinguishable in the
  * inbox from the same constraint failing in production.
@@ -17,6 +17,30 @@ import { storagePath } from '@stacksjs/path'
  * it buries is the real one.
  */
 const REPORTS_ISSUES = process.env.APP_ENV !== 'test' && process.env.NODE_ENV !== 'test'
+
+/**
+ * Stream this app's log.* calls to loghq.
+ *
+ * `@loghq/stacks` offers two forms and only one of them attaches here.
+ * `loghqTransport()` is the declarative form: it builds a transport and waits
+ * for a framework that reads `transports` out of this file — and the installed
+ * one does not read it, so the entry sat in the array below shipping nothing
+ * for as long as it has been there. `install()` finds the logger's registry
+ * itself; it reports seam `transport` via `registerTransport`, `live: true`,
+ * and a `log.error` lands at the ingest host (tests/unit/log-reporting.test.ts
+ * pins both halves of that against a local sink).
+ *
+ * Attachment is asynchronous, so anything logged in the first few ticks of a
+ * process is not streamed. Awaiting it here would make importing a config file
+ * block on the network.
+ */
+if (REPORTS_ISSUES) {
+  streamLogsToLogHQ({
+    key: 'loghq_208c4a438f864ead9868ca74a8b1fd46e2093257d820441a90802c5bee49106b',
+    environment: process.env.APP_ENV,
+    release: process.env.APP_VERSION,
+  })
+}
 
 /**
  * **Logging Configuration**
@@ -46,22 +70,19 @@ export default {
    */
   deploymentsPath: storagePath('logs/deployments.log'),
 
-  // Both HQ apps attach as log transports and receive the raw record before
-  // formatting (an Error stays an Error, an object stays an object). loghq
-  // streams every log.* call at info+; bughq turns log.error and reported
-  // request/job failures into issues, lower-severity lines into breadcrumbs
-  // (30 per trace, attached to the next issue). Keys are public per-project
-  // ingest keys, safe to keep inline.
+  // bughq turns log.error and reported request/job failures into issues, and
+  // lower-severity lines into breadcrumbs (30 per trace, attached to the next
+  // issue). Keys are public per-project ingest keys, safe to keep inline.
+  //
+  // This array is documentation, not wiring: `@stacksjs/logging` never reads
+  // it. `bughqTransport()` registers itself with the logger from inside, so
+  // CALLING it is what attaches it — which is why the gate above guards the
+  // call rather than the array (tests/unit/logging-transports.test.ts).
   //
   // Never add a top-level `level` here: it breaks the transports array. Set
-  // severity per transport instead (loghq `minLevel`, bughq `eventLevel`).
+  // severity per transport instead (bughq `eventLevel`).
   transports: REPORTS_ISSUES
     ? [
-        loghqTransport({
-          key: 'loghq_208c4a438f864ead9868ca74a8b1fd46e2093257d820441a90802c5bee49106b',
-          environment: process.env.APP_ENV,
-          release: process.env.APP_VERSION,
-        }),
         bughqTransport({
           key: 'bughq_de5b1dcd73d04d9b978431db956d50224ebe8a72f5644eb18438777293377171',
           environment: process.env.APP_ENV,

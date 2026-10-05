@@ -64,14 +64,26 @@ describe('logging transports', () => {
   })
 
   /*
-   * And the factories are still there to be called outside test — a gate that
-   * worked by deleting them would pass everything above and report nothing from
-   * production either.
+   * And both reporters are still there to be attached outside test — a gate
+   * that worked by deleting them would pass everything above and report nothing
+   * from production either.
+   *
+   * Source text rather than behaviour, because behaviour here means attaching,
+   * and attaching is the one thing the gate exists to prevent in this process.
+   * tests/unit/log-reporting.test.ts exercises the attachment itself, against a
+   * local sink.
    */
-  it('still carries both transports for the environments that report', async () => {
-    const source = await Bun.file('config/logging.ts').text()
+  it('still attaches both reporters in the environments that report', async () => {
+    // Comments stripped first: the file explains the inert form by naming it,
+    // and a guard that trips on its own explanation fails on the fixed file.
+    const source = (await Bun.file('config/logging.ts').text())
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '')
 
-    expect(source).toContain('loghqTransport(')
     expect(source).toContain('bughqTransport(')
+    expect(source).toContain('streamLogsToLogHQ(')
+    // The declarative form builds a transport nothing registers, which is how
+    // loghq came to be configured and silent.
+    expect(source, 'loghqTransport() attaches nothing — use install()').not.toContain('loghqTransport(')
   })
 })
