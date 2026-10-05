@@ -16,7 +16,7 @@
  *
  *   Hollywood Walk of Fame                  100%  sidewalks and crosswalks
  *   California Mission Trail, stage 04       98%  primary, secondary and tertiary roads
- *   KulturGeschichtsPfad 12, Munich          92%  town streets with pavements, a pedestrian zone
+ *   KulturGeschichtsPfad 12, Munich          85%  town streets with pavements
  *   Kirchseeon - Grafing                     49%  half town sidewalks, half farm lanes
  *   Culver Boulevard Median Path              7%  a footway down a median, across side streets
  *   Park to Playa Trail                       6%  bike paths and dirt, across a few sidewalks
@@ -33,11 +33,16 @@
  */
 
 /**
- * Streets wherever they are: a pedestrian street, and roads from tertiary up,
- * which carry traffic through a village as much as through a city.
+ * Streets wherever they are: roads from tertiary up, which carry traffic
+ * through a village as much as through a city.
+ *
+ * Not `pedestrian`. It is a car-free way, and mappers use it for a beach
+ * boardwalk as readily as for a shopping street: the Mission Beach boardwalk
+ * in San Diego (relation/3570265, Oceanfront Walk) is `highway=pedestrian`,
+ * and so is Old US 1 on the Old Bahia Honda Bridge Trail, a highway closed to
+ * cars. With nothing beside it to walk next to, it is a walk, not a street.
  */
 const STREET_HIGHWAYS = new Set([
-  'pedestrian',
   'road',
   'tertiary',
   'tertiary_link',
@@ -78,10 +83,9 @@ function hasSidewalk(tags: Record<string, string>): boolean {
 }
 
 /**
- * Surfaces no street has. `highway=pedestrian` is also how mappers tag a road
- * closed to cars and left to walkers: the Old Bahia Honda Bridge Trail in the
- * Keys is Old US 1 as gravel, `highway=pedestrian`, and measured 86% street
- * until an unpaved way stopped counting as one.
+ * Surfaces no street has. A gravel county road is `tertiary` across much of
+ * the rural West, and a long trail that follows one for a few miles is on a
+ * backroad, not a street.
  */
 const UNPAVED = new Set([
   'unpaved',

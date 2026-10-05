@@ -11,6 +11,7 @@ interface MeasureOptions {
   limit?: number | string
   dryRun?: boolean
   show?: number | string
+  measuredBefore?: string
 }
 
 /** Relation ids per Overpass request: what `trails:repair-distances` found Overpass answers whole. */
@@ -36,7 +37,11 @@ const REPORTED_SHARE = 0.25
  * Resumable by construction: it selects relations with no row in
  * `trail_street_shares`, and every relation it asks about gets one,
  * including a relation Overpass no longer has (with a null share), so a
- * finished catalog costs one query and a re-run never asks twice. Shaped like
+ * finished catalog costs one query and a re-run never asks twice. When the
+ * rule in streetShare.ts changes, `--measured-before <iso>` asks again about
+ * every relation measured before then, and overwrites what it finds; pass the
+ * same cutoff to every run of one re-measure and it resumes the same way.
+ * Shaped like
  * `trails:repair-distances`, and as gentle with Overpass, through the same
  * client.
  */
@@ -47,6 +52,7 @@ export default function (cli: CLI) {
     .option('--limit [count]', 'Stop after this many relations (0 = all)', { default: 0 })
     .option('--dry-run', 'Measure and report without writing', { default: false })
     .option('--show [count]', 'Print this many of the routes that are mostly street', { default: 20 })
+    .option('--measured-before <iso>', 'Also re-measure relations measured before this ISO time')
     .action(async (options: MeasureOptions) => {
       intro('trails:measure-streets')
 
@@ -54,11 +60,24 @@ export default function (cli: CLI) {
       const limit = Math.max(0, Number(options.limit ?? 0) || 0)
       const show = Math.max(0, Number(options.show ?? 20) || 0)
 
+      // Nothing sorts before the empty string, so without a cutoff only the
+      // relations with no row are asked about.
+      let cutoff = ''
+      if (options.measuredBefore) {
+        const date = new Date(options.measuredBefore)
+        if (Number.isNaN(date.getTime())) {
+          log.error(`--measured-before is not a date: ${options.measuredBefore}`)
+          process.exitCode = ExitCode.FatalError
+          return
+        }
+        cutoff = date.toISOString()
+      }
+
       const rows = await db.sql`
         SELECT source_id FROM trails
         WHERE source = 'osm'
           AND source_id LIKE 'relation/%'
-          AND id NOT IN (SELECT trail_id FROM trail_street_shares)
+          AND id NOT IN (SELECT trail_id FROM trail_street_shares WHERE measured_at >= ${cutoff})
         ORDER BY id
         LIMIT ${limit > 0 ? limit : -1}
       `.execute() as Array<{ source_id: string }>

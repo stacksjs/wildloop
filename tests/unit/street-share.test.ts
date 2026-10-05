@@ -116,12 +116,19 @@ const VENICE_BEACH: RouteMember[] = [
   { tags: { highway: 'footway', footway: 'crossing' }, meters: 21 },
 ]
 
+/** relation/3570265: the Mission Beach boardwalk, San Diego. Car-free, on the sand. */
+const MISSION_BEACH_BOARDWALK: RouteMember[] = [
+  { tags: { highway: 'pedestrian', surface: 'concrete', motor_vehicle: 'no' }, meters: 3703 },
+  { tags: { highway: 'footway', surface: 'paved', motor_vehicle: 'no' }, meters: 1383 },
+  { tags: { highway: 'footway', footway: 'sidewalk', motor_vehicle: 'no' }, meters: 60 },
+  { tags: { highway: 'cycleway', surface: 'asphalt' }, meters: 8 },
+]
+
 describe('what a street is', () => {
-  it('counts sidewalks, crosswalks, pedestrian streets and through roads', () => {
+  it('counts sidewalks, crosswalks and through roads', () => {
     for (const tags of [
       { highway: 'footway', footway: 'sidewalk' },
       { highway: 'footway', footway: 'crossing' },
-      { highway: 'pedestrian' },
       { highway: 'tertiary' },
       { highway: 'primary', surface: 'asphalt' },
     ])
@@ -136,11 +143,16 @@ describe('what a street is', () => {
     expect(isStreetWay({ highway: 'cycleway', surface: 'concrete' })).toBe(false)
   })
 
-  it('does not count an old road given over to walkers, unpaved', () => {
+  it('does not count a way with no traffic beside it', () => {
+    // The Mission Beach boardwalk, San Diego (relation/3570265, Oceanfront Walk).
+    expect(isStreetWay({ highway: 'pedestrian', name: 'Ocean Front Walk', surface: 'concrete', motor_vehicle: 'no', foot: 'designated' })).toBe(false)
     // Old US 1 on the Old Bahia Honda Bridge Trail (relation/4511589), Florida Keys.
     expect(isStreetWay({ highway: 'pedestrian', name: 'Old US 1', surface: 'gravel' })).toBe(false)
-    // A pedestrian street in town is paved.
-    expect(isStreetWay({ highway: 'pedestrian', surface: 'paving_stones' })).toBe(true)
+  })
+
+  it('does not count a road that is not paved', () => {
+    expect(isStreetWay({ highway: 'tertiary', surface: 'gravel' })).toBe(false)
+    expect(isStreetWay({ highway: 'residential', sidewalk: 'both', surface: 'dirt' })).toBe(false)
   })
 
   it('leaves fire roads alone, which in a park are service roads', () => {
@@ -169,7 +181,7 @@ describe('how much of a route is street', () => {
   })
 
   it('finds a city history walk in Munich is street', () => {
-    expect(share(KULTURGESCHICHTSPFAD_12)).toBeCloseTo(0.92, 2)
+    expect(share(KULTURGESCHICHTSPFAD_12)).toBeCloseTo(0.85, 2)
   })
 
   it('finds a Wanderweg along a farm lane is not', () => {
@@ -193,6 +205,10 @@ describe('how much of a route is street', () => {
 
   it('finds a road by name is not a street by tag', () => {
     expect(share(MOUNT_WILSON_TOLL_ROAD)).toBe(0)
+  })
+
+  it('finds the Mission Beach boardwalk is a walk, though mapped as a pedestrian street', () => {
+    expect(share(MISSION_BEACH_BOARDWALK)).toBeLessThan(0.02)
   })
 
   it('finds the beach path at Venice is a walk, not a sidewalk', () => {
