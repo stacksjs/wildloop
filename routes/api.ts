@@ -517,8 +517,12 @@ route.get('/events/{id}', 'Actions/Event/EventShowAction')
 // user is derived from the session (Auth.user()), never from the request body,
 // so a caller can't record/kudos/claim/conquer as someone else (#939).
 //
-// Rate limits (#980) - enforced per authenticated user (falls back to IP) by
-// the Throttle middleware (429 + Retry-After + X-RateLimit-* headers):
+// Rate limits (#980) - enforced per authenticated user by the Throttle
+// middleware, which runs after `auth` (429 + Retry-After + X-RateLimit-*
+// headers). A signed-out request spends its client address's budget: the
+// visitor Cloudflare names in CF-Connecting-IP, believed only when rpx says
+// the connection came from a Cloudflare edge (bun-router `clientAddress()`).
+// scripts/verify-rate-limit.ts checks both.
 //   - game writes  (claim / process-conquest)  30/min - GPS-heavy, one real
 //     run produces exactly one claim + one conquest call, so 30 is generous
 //     for humans and a wall for scripts

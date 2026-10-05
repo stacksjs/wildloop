@@ -2,10 +2,11 @@
  * Verification harness for rate limiting (#980).
  *
  * The Throttle middleware runs in the HTTP router layer (in-process action
- * harnesses bypass it), so this suite drives the same primitives the
- * middleware uses - parseThrottleString + createRateLimitMiddleware from
- * @stacksjs/router - with synthetic requests, then statically asserts the
- * route tiers in routes/api.ts are wired the way the documentation block
+ * harnesses bypass it), so this suite calls the app's Throttle middleware
+ * directly with synthetic requests - checking that a signed-in request spends
+ * its user's budget and an anonymous one its client's, which a forged
+ * X-Forwarded-For or CF-Connecting-IP cannot change - then statically asserts
+ * the route tiers in routes/api.ts are wired the way the documentation block
  * says they are.
  *
  * Run:  bun scripts/verify-rate-limit.ts   (no seed required)
@@ -16,7 +17,7 @@ import process from 'node:process'
 
 process.on('unhandledRejection', (err) => { console.error('UNHANDLED', err); process.exit(1) })
 
-const { parseThrottleString, createRateLimitMiddleware } = await import('@stacksjs/router')
+const { parseThrottleString } = await import('@stacksjs/router')
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string) {
@@ -37,29 +38,88 @@ const hours = parseThrottleString('1000,1h')
 check('parses seconds/hours windows', seconds.maxAttempts === 10 && seconds.windowMs === 30000
   && hours.maxAttempts === 1000 && hours.windowMs === 3600000)
 
-// --- Part 2: enforcement -------------------------------------------------------------
+// --- Part 2: enforcement, through the app's own Throttle middleware -----------------
+//
+// The same module the API resolves for `throttle:N,M` (the vendored defaults
+// tree), driven with synthetic requests. Each scenario uses its own pattern,
+// because limiters are registered process-wide by pattern.
 
-const fakeReq = (ip: string) => ({
-  headers: new Headers({ 'x-forwarded-for': ip }),
-  url: 'http://localhost/api/territories/claim',
-  method: 'POST',
-})
+const { default: Throttle } = await import('../storage/framework/defaults/app/Middleware/Throttle')
 
-const limiter = createRateLimitMiddleware(parseThrottleString('3,1'), 'verify:throttle')
-const results: Array<Response | null> = []
-for (let i = 0; i < 5; i++)
-  results.push(await limiter(fakeReq('10.0.0.1') as any, async () => null))
+interface FakeRequest {
+  headers: Headers
+  url: string
+  method: string
+  _middlewareParams: { throttle: string }
+  _authenticatedUser?: { id: number }
+  _responseHeaders?: Record<string, string>
+}
 
-check('requests within the limit pass', results.slice(0, 3).every(r => !(r instanceof Response)))
-const blocked = results[3]
-check('request over the limit → 429', blocked instanceof Response && blocked.status === 429)
-check('429 carries Retry-After + X-RateLimit headers', blocked instanceof Response
+function fakeReq(pattern: string, headers: Record<string, string>, userId?: number): FakeRequest {
+  return {
+    headers: new Headers(headers),
+    url: 'http://localhost/api/activities',
+    method: 'POST',
+    _middlewareParams: { throttle: pattern },
+    ...(userId === undefined ? {} : { _authenticatedUser: { id: userId } }),
+  }
+}
+
+/** The status Throttle answers with: 200 when it lets the request through. */
+async function hit(req: FakeRequest): Promise<number> {
+  try {
+    await Throttle.handle(req as any)
+    return 200
+  }
+  catch (thrown) {
+    if (thrown instanceof Response)
+      return thrown.status
+    throw thrown
+  }
+}
+
+async function statuses(make: (i: number) => FakeRequest, count: number): Promise<number[]> {
+  const out: number[] = []
+  for (let i = 0; i < count; i++)
+    out.push(await hit(make(i)))
+  return out
+}
+
+// Every QA user is on 127.0.0.1, as are an office's or a carrier NAT's users.
+const sameAddress = { 'x-forwarded-for': '203.0.113.20' }
+
+const userOne = await statuses(() => fakeReq('3,1', sameAddress, 1), 5)
+check('requests within the limit pass, the one over it is a 429, and it stays blocked', JSON.stringify(userOne) === JSON.stringify([200, 200, 200, 429, 429]), userOne.join(','))
+check('another signed-in user on the same address has a budget of their own', await hit(fakeReq('3,1', sameAddress, 2)) === 200)
+
+const firstOk = fakeReq('3,1', sameAddress, 3)
+await hit(firstOk)
+check('a request that gets through is told its remaining budget', firstOk._responseHeaders?.['X-RateLimit-Remaining'] === '2'
+  && firstOk._responseHeaders?.['X-RateLimit-Limit'] === '3', JSON.stringify(firstOk._responseHeaders ?? {}))
+
+let blocked: Response | undefined
+try {
+  await Throttle.handle(fakeReq('3,1', sameAddress, 1) as any)
+}
+catch (thrown) {
+  blocked = thrown instanceof Response ? thrown : undefined
+}
+check('429 carries Retry-After + X-RateLimit headers', blocked !== undefined
   && Number(blocked.headers.get('Retry-After')) > 0
-  && blocked.headers.get('X-RateLimit-Remaining') === '0', blocked instanceof Response ? blocked.headers.get('Retry-After') ?? '' : 'no response')
-check('still blocked while window is open', results[4] instanceof Response && (results[4] as Response).status === 429)
+  && blocked.headers.get('X-RateLimit-Remaining') === '0', blocked?.headers.get('Retry-After') ?? 'no response')
 
-const otherKey = await limiter(fakeReq('10.0.0.2') as any, async () => null)
-check('limits are per key - another caller is unaffected', !(otherKey instanceof Response))
+const spoofed = await statuses(i => fakeReq('3,2', { 'x-forwarded-for': `198.18.0.${i}, 203.0.113.30` }), 4)
+check('an anonymous client cannot buy a fresh budget by prefixing X-Forwarded-For', JSON.stringify(spoofed) === JSON.stringify([200, 200, 200, 429]), spoofed.join(','))
+check('a different anonymous client is unaffected', await hit(fakeReq('3,2', { 'x-forwarded-for': '203.0.113.31' })) === 200)
+
+// Production: rpx writes the Cloudflare edge it accepted the connection from
+// into X-Forwarded-For; Cloudflare states the visitor in CF-Connecting-IP.
+const edge = '172.70.1.9'
+const viaCloudflare = await statuses(() => fakeReq('3,3', { 'x-forwarded-for': edge, 'cf-connecting-ip': '203.0.113.40' }), 4)
+check('a visitor through Cloudflare is limited on their own address', JSON.stringify(viaCloudflare) === JSON.stringify([200, 200, 200, 429]), viaCloudflare.join(','))
+check('another visitor through the same Cloudflare edge is unaffected', await hit(fakeReq('3,3', { 'x-forwarded-for': edge, 'cf-connecting-ip': '203.0.113.41' })) === 200)
+const direct = await statuses(i => fakeReq('3,4', { 'x-forwarded-for': '203.0.113.50', 'cf-connecting-ip': `198.18.1.${i}` }), 4)
+check('CF-Connecting-IP from a client that skipped Cloudflare is ignored', JSON.stringify(direct) === JSON.stringify([200, 200, 200, 429]), direct.join(','))
 
 // --- Part 3: route wiring is what the docs say -----------------------------------------
 
