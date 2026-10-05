@@ -222,13 +222,20 @@ jobs:
       # Until this step existed, the c3e435d API release crash-looped, the
       # smoke check failed the job, and the site answered 502 until somebody
       # started the previous release by hand.
+      #
+      # `--only-if-live` is what keeps this safe: a site whose live release is
+      # not this commit (the deploy never reached it, or its own cutover
+      # already restored it) is left alone rather than taken back to a release
+      # older than the one it is serving. Stacks 0.75.60 refuses these flags on
+      # a ts-cloud older than 0.16.34, which ignored them and rolled back for
+      # real.
       - name: Roll back to the previous release
         if: failure() && (steps.deploy.outcome == 'failure' || steps.smoke.outcome == 'failure') && (github.event.inputs.environment == '' || github.event.inputs.environment == 'production')
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
         run: |
           rolled=0
-          scripts/rollback-this-deploy.sh "$GITHUB_SHA" production || rolled=$?
+          ./buddy deploy:rollback --all --only-if-live "$GITHUB_SHA" --env production || rolled=$?
           scripts/purge-edge-cache.sh || echo "::warning::could not purge the edge cache after rolling back"
           if bun scripts/smoke.ts https://wildloop.org; then
             echo "::error::Deploy of ${GITHUB_SHA::7} failed and was rolled back. The previous release passes the smoke check."

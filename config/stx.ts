@@ -28,6 +28,21 @@ export default {
 
   partialsDir: 'resources/components',
 
+  /*
+   * Do not auto-register `@stacksjs/components` as a component package.
+   *
+   * stx 0.2.36x registers it for every app that has it installed (Stacks does,
+   * transitively), and searches its directories BEFORE the framework defaults
+   * Stacks passes as `fallbackComponentsDir`. Every default it also ships —
+   * Image, Avatar, Badge, Card, Video — then renders the package's version
+   * instead. For `<Image x-src="…">` that is a <picture> holding the bound src
+   * on itself and an empty <img> inside, with the caller's classes dropped:
+   * the profile photo, the athlete faces and the trail-area photos all went
+   * blank. Every component this app uses resolves from resources/components or
+   * the Stacks defaults, which is how it rendered on stx 0.2.313.
+   */
+  componentPackages: [],
+
   css: './crosswind.ts',
 
   app: {

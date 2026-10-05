@@ -145,6 +145,17 @@ describe('the CSRF cookie and a shared answer', () => {
     expect(csrf.generateCsrfToken).toBe(framework.generateCsrfToken)
     await expect(csrf.validateCsrfRequest(new Request('http://127.0.0.1/api/login', { method: 'POST' }))).rejects.toThrow()
   })
+
+  // The router imports this file in place of the framework's and calls what it
+  // finds there. Stacks 0.75 began calling `csrfCookieToken`, which this file
+  // did not pass through, so every page request carrying the cookie threw.
+  it('exports every name the framework module does', async () => {
+    const csrf = await import('../../app/Middleware/Csrf')
+    const framework = await import('../../storage/framework/defaults/app/Middleware/Csrf')
+    const missing = Object.keys(framework).filter(name => !(name in csrf))
+    expect(missing).toEqual([])
+    expect(csrf.csrfCookieToken).toBe(framework.csrfCookieToken)
+  })
 })
 
 /**

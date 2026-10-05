@@ -50,7 +50,12 @@ export function frameworkCsrfPath(root: string = join(import.meta.dir, '..', '..
 
 const framework = await import(frameworkCsrfPath()) as FrameworkModule
 
+// Every export of the framework module is passed through, because the router
+// calls them on this file: since Stacks 0.75 it reads an existing cookie's
+// token with `csrfCookieToken` before rendering a page.
 export const CSRF_COOKIE_NAME = framework.CSRF_COOKIE_NAME
+export const csrfCookieToken = framework.csrfCookieToken
+export const responseDeclaresShared = framework.responseDeclaresShared
 export const generateCsrfToken = framework.generateCsrfToken
 export const createCsrfCookie = framework.createCsrfCookie
 export const responseMayUseCsrfToken = framework.responseMayUseCsrfToken
