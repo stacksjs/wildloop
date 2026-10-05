@@ -429,6 +429,13 @@
       "category": "data"
     },
     {
+      "id": "gdpr-request",
+      "name": "GdprRequest",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "data"
+    },
+    {
       "id": "gift-card",
       "name": "GiftCard",
       "icon": "giftcard.fill",

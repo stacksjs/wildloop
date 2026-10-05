@@ -65,8 +65,8 @@ they name: `defineEvents` and `defineListener` from `@stacksjs/events`,
 ### Core App
 | File | Type | Key Settings |
 |------|------|-------------|
-| `app.ts` | AppConfig | name, env, url, debug, key, timezone, locale |
-| `auth.ts` | AuthConfig | guards, providers, tokenExpiry(30d), tokenRotation(7d), passwordReset |
+| `app.ts` | AppConfig | name, env, url, debug, key, timezone, locale, seo (sitemap.xml / robots.txt) |
+| `auth.ts` | AuthConfig | guards, providers, token and browser-session lifetimes, passwordReset |
 | `database.ts` | DatabaseConfig | default driver, connections (sqlite/mysql/postgres/dynamodb), queryLogging |
 | `cache.ts` | CacheConfig | driver('memory'), ttl(3600), maxKeys(-1), redis config |
 | `env.ts` | EnvConfig | validation schemas for env vars |
@@ -127,7 +127,7 @@ they name: `defineEvents` and `defineListener` from `@stacksjs/events`,
 ### Other
 | File | Type | Key Settings |
 |------|------|-------------|
-| `buddy-bot.ts` | BuddyBotConfig | repository, dashboard, workflows |
+| `buddy-bot.ts` | BuddyConfig (`@buddysh/buddy`) | repository, dashboard, workflows |
 | `cli.ts` | BinaryConfig | name, command, description |
 | `deps.ts` | PantryConfig | system dependencies (bun, sqlite, redis, etc.) |
 | `errors.ts` | ErrorConfig | comprehensive validation error messages |

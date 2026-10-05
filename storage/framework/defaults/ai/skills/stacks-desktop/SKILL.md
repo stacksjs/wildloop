@@ -37,9 +37,17 @@ navigation otherwise appears as a blank native window.
 
 ## API
 
+Two packages carry "desktop" in their name. `@stacksjs/desktop-build` (this
+repo, `storage/framework/core/desktop`) holds the build and launch helpers
+below. `@stacksjs/desktop` (the stx repo) wraps the Craft bridge for code
+running inside the window; import it from `@stacksjs/desktop/browser` there,
+since its root entry also carries host-side modules that pull in Node builtins
+and fail a browser bundle. Attic (`~/Code/Apps/attic`) uses it for native
+menus, context menus and alerts.
+
 ```typescript
-import { openDevWindow } from '@stacksjs/desktop'
-import type { Desktop, OpenDevWindowOptions } from '@stacksjs/desktop'
+import { openDevWindow } from '@stacksjs/desktop-build'
+import type { Desktop, OpenDevWindowOptions } from '@stacksjs/desktop-build'
 
 interface OpenDevWindowOptions {
   title?: string
@@ -214,7 +222,19 @@ buddy desktop:apple:init       # generate the reusable GitHub Actions caller
 buddy desktop:apple:doctor     # validate Apple tooling, identities, profile, and API key
 buddy desktop:apple:package    # build, sandbox, sign, and create a Store .pkg
 buddy desktop:apple:publish    # validate or upload the package to App Store Connect
+buddy desktop:probe            # measure what a Craft window offers interactive/game content
 ```
+
+`desktop:probe` opens a visible Craft window (not `--headless`, which stops
+requestAnimationFrame) and measures WebGL2/WebGPU, frame pacing under load,
+input and audio latency, the Gamepad API, fullscreen and pointer lock.
+`--browser[=Safari]` runs the same page in a browser for comparison, and
+`--record` writes the result into `storage/framework/core/desktop/src/probe/results/`,
+which `buddy docs:capabilities` publishes in `docs/features/capabilities.md`.
+Probes that need a real click or key press are recorded as
+`requires-interaction`, never as a number. Stacks ships no game engine,
+physics or asset pipeline; this only says what an engine someone else wrote
+would get.
 
 ## Mac App Store
 
@@ -227,6 +247,15 @@ uses App Store Connect API-key authentication for validation/upload.
 
 Start with `validate-only: true`. Upload only after the signed artifact passes
 local launch and UI QA.
+
+To package on a developer machine without importing distribution keys into the
+login keychain, generate keys and certificates with `buddy desktop:apple:csr`
+and `buddy desktop:apple:provision --apply`, import the two `.p12` files into a
+throwaway keychain file, and point `--keychain <path>` (or `APPLE_KEYCHAIN`) at
+it. `codesign` and `productbuild` then look for identities in that file only,
+so the search list never changes. The Mac App Distribution identity is named
+`3rd Party Mac Developer Application: ...` and the installer one
+`3rd Party Mac Developer Installer: ...`.
 
 Human-owned prerequisites that Buddy does not pretend to automate:
 
@@ -245,6 +274,7 @@ Repository variables:
 - `DESKTOP_URL`
 - `APPLE_APP_SIGNING_IDENTITY`
 - `APPLE_INSTALLER_SIGNING_IDENTITY`
+- `APPLE_KEYCHAIN` (local only, optional): sign from this keychain file instead of the search list
 
 Repository secrets:
 

@@ -23,7 +23,18 @@
  * and user routes load first, so your handler always takes priority.
  */
 
+import { oauthAuthorizationServerMetadataPath, resolveOAuthProviderConfig } from '@stacksjs/auth'
+import { config } from '@stacksjs/config'
 import { route } from '@stacksjs/router'
+
+const oauthProvider = resolveOAuthProviderConfig(config.auth.oauthProvider)
+const oauthAuthorizationPath = oauthProvider ? new URL(oauthProvider.endpoints.authorization).pathname : '/oauth/authorize'
+const oauthTokenPath = oauthProvider ? new URL(oauthProvider.endpoints.token).pathname : '/oauth/token'
+const oauthRevocationPath = oauthProvider ? new URL(oauthProvider.endpoints.revocation).pathname : '/oauth/revoke'
+const oauthIntrospectionPath = oauthProvider ? new URL(oauthProvider.endpoints.introspection).pathname : '/oauth/introspect'
+const oauthMetadataPath = oauthProvider
+  ? oauthAuthorizationServerMetadataPath(oauthProvider.issuer)
+  : '/.well-known/oauth-authorization-server'
 
 // Rate limits on token-issuance + password-reset endpoints
 // (stacksjs/stacks#1921). `Auth.attempt()` already has a per-email
@@ -34,6 +45,15 @@ import { route } from '@stacksjs/router'
 // `routes/api.ts` (user routes win) gets to pick its own limits.
 route.post('/login', 'Actions/Auth/LoginAction').rateLimit(5, 'minute')
 route.post('/register', 'Actions/Auth/RegisterAction').rateLimit(3, 'minute')
+// OAuth authorization-server token exchange. The action remains a 404 unless
+// config.auth.oauthProvider.enabled is explicitly true. PKCE or HTTP Basic is
+// the endpoint's credential boundary, so the action opts out of browser CSRF.
+route.post(oauthTokenPath, 'Actions/Auth/OAuthTokenAction').rateLimit(30, 'minute')
+route.post(oauthRevocationPath, 'Actions/Auth/OAuthRevocationAction').rateLimit(30, 'minute')
+route.post(oauthIntrospectionPath, 'Actions/Auth/OAuthIntrospectionAction').rateLimit(30, 'minute')
+route.get(oauthAuthorizationPath, 'Actions/Auth/OAuthAuthorizationAction').rateLimit(60, 'minute')
+route.post(oauthAuthorizationPath, 'Actions/Auth/OAuthConsentAction').middleware('auth').rateLimit(30, 'minute')
+route.get(oauthMetadataPath, 'Actions/Auth/OAuthMetadataAction')
 // Magic links (config.auth.magicLink.enabled gates both, 404 when off).
 // The send endpoint answers a uniform 202 either way (anti-enumeration
 // lives in sendMagicLink); the consume endpoint is a POST because email
@@ -67,6 +87,13 @@ route.post('/verify-two-factor-login', 'Actions/Auth/VerifyTwoFactorLoginAction'
 
 route.group({ prefix: '/auth' }, () => {
   route.post('/refresh', 'Actions/Auth/RefreshTokenAction').rateLimit(10, 'minute')
+  route.get('/oauth/clients', 'Actions/Auth/OAuthClientsAction').middleware('auth')
+  route.post('/oauth/clients', 'Actions/Auth/OAuthClientStoreAction').middleware('auth').rateLimit(10, 'minute')
+  route.patch('/oauth/clients/{id}', 'Actions/Auth/OAuthClientUpdateAction').middleware('auth').rateLimit(20, 'minute')
+  route.post('/oauth/clients/{id}/disable', 'Actions/Auth/OAuthClientDisableAction').middleware('auth').rateLimit(10, 'minute')
+  route.post('/oauth/clients/{id}/rotate-secret', 'Actions/Auth/OAuthClientSecretRotateAction').middleware('auth').rateLimit(5, 'minute')
+  route.get('/oauth/connections', 'Actions/Auth/OAuthConnectionsAction').middleware('auth')
+  route.post('/oauth/connections/{id}/disconnect', 'Actions/Auth/OAuthDisconnectAction').middleware('auth').rateLimit(10, 'minute')
   route.get('/tokens', 'Actions/Auth/ListTokensAction').middleware('auth')
   route.post('/token', 'Actions/Auth/CreateTokenAction').middleware('auth').rateLimit(10, 'minute')
   route.delete('/tokens/{id}', 'Actions/Auth/RevokeTokenAction').middleware('auth')
@@ -77,6 +104,10 @@ route.group({ middleware: 'auth' }, () => {
   route.get('/referrals', 'Actions/Auth/ReferralSummaryAction').rateLimit(60, 'minute')
   route.post('/referrals/code', 'Actions/Auth/CreateReferralCodeAction').rateLimit(10, 'minute')
   route.get('/me', 'Actions/Auth/AuthUserAction')
+  // The caller's own personal data as a JSON download (GDPR access and
+  // portability, stacksjs/stacks#365). Reads every table the user touches,
+  // so it is held to a few an hour; each one is recorded in gdpr_requests.
+  route.get('/me/data-export', 'Actions/Auth/DataExportAction').rateLimit(3, 'hour')
   route.post('/logout', 'Actions/Auth/LogoutAction')
   // Sign out everywhere: revoke every access/refresh token AND destroy
   // every session for the authenticated user (stacksjs/stacks#1957).

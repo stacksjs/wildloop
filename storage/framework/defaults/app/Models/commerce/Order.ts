@@ -13,6 +13,7 @@ export default defineModel({
   ownership: customerOwnership(),
 
   traits: {
+    gdpr: { subject: { via: 'Customer' }, erasure: 'anonymize', basis: 'legal_obligation', purpose: 'Order fulfilment, kept for tax and accounting' },
     useUuid: true,
     useTimestamps: true,
     useSearch: {
@@ -64,7 +65,8 @@ export default defineModel({
       validation: {
         rule: schema.number().required().min(0),
       },
-      factory: faker => faker.number.int({ min: 100, max: 2000 }),
+      // Integer minor units, like every commerce amount: 1999 is $19.99.
+      factory: faker => faker.number.int({ min: 1000, max: 50000 }),
     },
 
     currency: {
@@ -84,7 +86,7 @@ export default defineModel({
       validation: {
         rule: schema.number().min(0),
       },
-      factory: faker => faker.number.int({ min: 10, max: 200 }),
+      factory: faker => faker.number.int({ min: 0, max: 4000 }),
     },
 
     discountAmount: {
@@ -94,7 +96,7 @@ export default defineModel({
       validation: {
         rule: schema.number().min(0),
       },
-      factory: faker => faker.number.int({ min: 0, max: 150 }),
+      factory: faker => faker.number.int({ min: 0, max: 2000 }),
     },
 
     deliveryFee: {
@@ -104,7 +106,7 @@ export default defineModel({
       validation: {
         rule: schema.number().min(0),
       },
-      factory: faker => faker.number.int({ min: 0, max: 100 }),
+      factory: faker => faker.helpers.arrayElement([0, 299, 499, 799]),
     },
 
     tipAmount: {
@@ -114,7 +116,7 @@ export default defineModel({
       validation: {
         rule: schema.number().min(0),
       },
-      factory: faker => faker.number.int({ min: 0, max: 200 }),
+      factory: faker => faker.number.int({ min: 0, max: 1500 }),
     },
 
     orderType: {
@@ -127,6 +129,7 @@ export default defineModel({
     },
 
     deliveryAddress: {
+      personal: true,
       order: 10,
       fillable: true,
       validation: {
@@ -136,6 +139,7 @@ export default defineModel({
     },
 
     specialInstructions: {
+      personal: true,
       order: 11,
       fillable: true,
       validation: {
@@ -174,6 +178,7 @@ export default defineModel({
 
     /** Geocoded delivery destination, so the map has somewhere to point. */
     deliveryLatitude: {
+      personal: true,
       order: 14,
       fillable: true,
       validation: { rule: schema.number().min(-90).max(90) },
@@ -181,6 +186,7 @@ export default defineModel({
     },
 
     deliveryLongitude: {
+      personal: true,
       order: 15,
       fillable: true,
       validation: { rule: schema.number().min(-180).max(180) },

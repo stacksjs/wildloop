@@ -252,7 +252,7 @@ Default configurations provided at `storage/framework/defaults/ide/`:
 - `vscode/.vscode/extensions.json` -- Recommended extensions
 - `vscode/.vscode/settings.json` -- Editor settings
 - `vscode/.vscode/stacks.code-snippets` -- Code snippets
-- `vscode/package.json` -- VS Code extension manifest
+- `vscode/package.json` -- the Stacks extension (`Stacks.vscode-stacks`). Self-contained: it installs no extension pack and depends on no extension. It builds in `.stx` support from `@stacksjs/stx-vscode` (the stx extension's language support as a library; the standalone stx extension, `Stacks.vscode-stx`, stands down next to it), pickier lint/format/fix-all through the project's own pickier, and env file hover decryption and `buddy env:*` commands. Run `bun run sync:stx` there after updating `@stacksjs/stx-vscode`; never map `*.stx` to `html` in `files.associations`, which takes `.stx` files away from the stx language.
 
 ### JetBrains
 - `.idea/` config (ESLint, modules, VCS, web resources)

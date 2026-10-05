@@ -83,9 +83,9 @@ jobs:
           persist-credentials: true
 
       - name: Setup Pantry
-        uses: pantry-pm/pantry/packages/action@fa35547da630b14beda5b26a2625490864d5c963 # v0.11.60
+        uses: pantry-pm/pantry/packages/action@605fd435116c4666ea81150add528760632e0bfb # v0.11.69
         with:
-          version: '0.11.60'
+          version: '0.11.69'
           install: 'false'
 
       - name: Install Dependencies
@@ -98,12 +98,12 @@ jobs:
 
       - name: Open and refresh update pull requests
         if: ${{ github.event.schedule == '0 */2 * * *' || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "update"]'), inputs.job)) }}
-        run: bunx buddy-bot update --strategy "${{ inputs.strategy || 'patch' }}" ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: bunx @buddysh/buddy update --strategy "${{ inputs.strategy || 'patch' }}" ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: Update the dependency dashboard
         if: ${{ github.event.schedule == '15 */2 * * *' || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "dashboard"]'), inputs.job)) }}
-        run: bunx buddy-bot dashboard ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: bunx @buddysh/buddy dashboard ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: Close landed pull requests and clean up branches
         if: ${{ github.event.schedule == '0 4 * * *' || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all", "check"]'), inputs.job)) }}
-        run: bunx buddy-bot update-check ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: bunx @buddysh/buddy update-check ${{ inputs.dry_run && '--dry-run' || '' }}

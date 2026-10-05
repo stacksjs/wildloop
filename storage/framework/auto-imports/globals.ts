@@ -247,6 +247,8 @@ declare global {
   const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
   const placeOfLocation: typeof autoImports.placeOfLocation
   const whereLocation: typeof autoImports.whereLocation
+  const wholeTrailFigures: typeof autoImports.wholeTrailFigures
+  const trailFacts: typeof autoImports.trailFacts
   const countryLabel: typeof autoImports.countryLabel
   const trailBreadcrumbs: typeof autoImports.trailBreadcrumbs
   const trailFaq: typeof autoImports.trailFaq

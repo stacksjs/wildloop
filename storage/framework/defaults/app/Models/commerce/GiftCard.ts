@@ -13,6 +13,7 @@ export default defineModel({
   ownership: customerOwnership(),
 
   traits: {
+    gdpr: { subject: { via: 'Customer' }, erasure: 'anonymize', basis: 'contract', purpose: 'Gift cards bought by the customer' },
     useUuid: true,
     useTimestamps: true,
     useSearch: {
@@ -57,7 +58,8 @@ export default defineModel({
       validation: {
         rule: schema.number().required().min(1),
       },
-      factory: faker => faker.number.int({ min: 100, max: 2000 }),
+      // Integer minor units, in the denominations cards are actually sold in: $25 to $250.
+      factory: faker => faker.helpers.arrayElement([2500, 5000, 10000, 15000, 20000, 25000]),
     },
 
     currentBalance: {
@@ -66,7 +68,9 @@ export default defineModel({
       validation: {
         rule: schema.number().required().min(0),
       },
-      factory: () => 1,
+      // Drawn below the smallest initial balance above, so a seeded card never
+      // holds more than it was issued with.
+      factory: faker => faker.number.int({ min: 0, max: 2500 }),
     },
 
     currency: {
@@ -98,6 +102,7 @@ export default defineModel({
     },
 
     recipient_email: {
+      personal: true,
       order: 7,
       fillable: true,
       validation: {
@@ -107,6 +112,7 @@ export default defineModel({
     },
 
     recipientName: {
+      personal: true,
       order: 8,
       fillable: true,
       validation: {
@@ -116,6 +122,7 @@ export default defineModel({
     },
 
     personalMessage: {
+      personal: true,
       order: 9,
       fillable: true,
       validation: {
