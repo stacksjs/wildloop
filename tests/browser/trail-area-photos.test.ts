@@ -3,10 +3,13 @@
  * rather than stock art, and a trail page says so rather than passing the
  * photo off as the trail itself.
  *
- * Ported from `trail-area-photos.pw.ts`, which only ever used Playwright's
- * HTTP client for this half. The page half stays in that spec: the label is
- * rendered on the client, so it exists only after hydration in a real
- * browser — it is not in the HTML the server sends.
+ * This is the half that can be asserted over `fetch`: what the API attributes
+ * the photo to.
+ *
+ * The other half is not covered anywhere. The label the page shows is rendered
+ * on the client, so it exists only after hydration in a real browser and is
+ * absent from the HTML the server sends. Nothing here drives a browser, so
+ * whether a reader is actually told the photo is of the area is unasserted.
  */
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { API, READY_TIMEOUT_MS, startQaServers } from './qa-servers'

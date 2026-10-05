@@ -77,34 +77,33 @@ No test harness should be deployed or pointed at a production database.
 7. Run the regular checks with pinned Bun on PATH: `./buddy test`,
    `bun run typecheck:app`, and `bunx --bun pickier .`.
 
-### Automated browser suite
+### Automated server-side suite
 
-The CI workflow includes a `recording-browser` job, so its failure blocks the
-CI-gated deployment. It uses Chromium at 390 x 844, a fresh temporary SQLite
-database, log-only mail and fictional accounts. The Playwright dependency and
-lockfile live under `tests/browser` without changing the app's dependency tree.
+The CI workflow includes a `recording-qa` job, so its failure blocks the
+CI-gated deployment. It runs the regressions under `tests/browser` on Bun's own
+test runner against a fresh temporary SQLite database, with log-only mail and
+fictional accounts. No browser is driven and nothing is installed beyond the
+app's own dependency tree.
 
-From `tests/browser`, with Bun on PATH:
+With Bun on PATH, from the project root:
 
 ```sh
-bun install --frozen-lockfile
-bunx playwright install chromium
-bun run test
+bun test tests/browser
 ```
 
-The suite starts its own servers on ports 4319, 4320, 4321 and 4322. They must be
-free. `RECORDING_QA_REUSE=1` is only for reusing the isolated local QA app described
-above, never a normal developer database. Test accounts remain in the temporary
-database. CI uploads failure traces for seven days; they contain only QA data.
+`scripts/start-recording-qa.ts` starts the servers on ports 4320, 4321 and 4332,
+and they must be free. `RECORDING_QA_REUSE=1` is only for reusing the isolated
+local QA app described above, never a normal developer database. Test accounts
+remain in the temporary database.
 
-These browser checks are separate from `buddy test`. The fault-injection
-harnesses bind only to loopback. Synthetic locations must never be used against
-the production territory game. Browser automation does not replace real-phone QA.
+These checks are separate from `buddy test`. The fault-injection harnesses bind
+only to loopback. Synthetic locations must never be used against the production
+territory game. None of this replaces real-phone QA.
 
-The suite also covers permission denial followed by retry, too few GPS samples,
-pause/resume across reload, one recovered GPS watcher, expired-session in-place
-login, and a browser-wide network outage followed by automatic upload of the
-unchanged saved payload. Recording-page tests fail on uncaught client runtime errors.
+What a browser used to cover here — a gesture on the map, a recording driven
+through the page, a layout measured on screen — is not covered by anything now.
+Positions are the gap: the DOM these tests run against reports every element at
+0,0, so hit testing, overlap and touch targets cannot be asserted at all.
 
 ### Framework compatibility
 

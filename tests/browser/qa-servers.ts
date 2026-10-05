@@ -80,7 +80,7 @@ function stop(): void {
 
 async function boot(): Promise<void> {
   // Something already answers there: a `buddy dev` a developer left running,
-  // or the Playwright stack. Use it, and leave it alone afterwards.
+  // left running. Use it, and leave it alone afterwards.
   if (await reachable(`${API}/health`))
     return
 

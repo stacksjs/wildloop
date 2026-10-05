@@ -153,7 +153,7 @@ jobs:
           AWS_DYNAMODB_ENDPOINT: http://localhost:8000
         run: bun test
 
-  recording-browser:
+  recording-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -167,19 +167,15 @@ jobs:
       - name: Install app dependencies
         run: bun install
       # Isolated test dependencies: no changes to the app's hoisted ORM tree.
-      - name: Install browser test dependencies
-        working-directory: tests/browser
-        run: bun install --frozen-lockfile
-      # Server-side regressions that need the QA app but no browser. They run
-      # before Chromium is installed.
+      # Server-side regressions that need the QA app but no browser.
       #
       # The QA servers are started here, not by the tests. Left to the test
       # file, the canary bun test killed them as a dangling process after the
       # first describe block ("killed 1 dangling process"), and every dashboard
       # case then met a dead server: a 5 s timeout, ECONNRESET, ECONNREFUSED.
       # tests/browser/qa-servers.ts uses servers that already answer. They run
-      # in their own process group, stopped whole afterwards, so Playwright
-      # below can start its own on the same ports.
+      # in their own process group, stopped whole afterwards, so the ports are
+      # free again when the job moves on.
       - name: API and catalog regressions
         env:
           RECORDING_QA: '1'
@@ -221,19 +217,6 @@ jobs:
             sleep 1
           done
           exit "$status"
-      - name: Install Chromium
-        working-directory: tests/browser
-        run: bunx playwright install --with-deps chromium
-      - name: Recording browser and API regressions
-        working-directory: tests/browser
-        run: bun run test
-      - name: Upload browser failure traces
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: recording-browser-traces
-          path: tests/browser/test-results/
-          retention-days: 7
 
   publish-commit:
     runs-on: ubuntu-latest

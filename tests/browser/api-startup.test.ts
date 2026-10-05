@@ -3,10 +3,9 @@
  * used to omit runtime initialization, so working API actions returned 500
  * there (#2789).
  *
- * This ran under Playwright as `api-startup.pw.ts`, which only ever used its
- * HTTP client: no page, no browser. It is the same suite against `fetch`, so
- * it needs neither Chromium nor a DOM. `scripts/start-recording-qa.ts` boots
- * both servers against a throwaway SQLite database, never the developer's.
+ * Asserted over `fetch`: no page and no DOM, because nothing here needs one.
+ * `scripts/start-recording-qa.ts` boots both servers against a throwaway
+ * SQLite database, never the developer's.
  */
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { API, APP, csrfToken, DASHBOARD, READY_TIMEOUT_MS, startQaServers } from './qa-servers'
