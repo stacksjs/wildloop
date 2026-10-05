@@ -45,6 +45,53 @@ export default {
           tracking: false,
           purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
         },
+        // What else an account holds, and what AnalyticsHQ counts. Kept in
+        // step with the App Store privacy answers: App Review compares the
+        // two, and a manifest that lists less than the labels is a rejection.
+        // Heart rate comes in with imported activity files; page views are
+        // counted without an account attached, so they are not linked.
+        {
+          type: 'NSPrivacyCollectedDataTypeHealth',
+          linked: true,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          type: 'NSPrivacyCollectedDataTypeName',
+          linked: true,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          type: 'NSPrivacyCollectedDataTypeEmailAddress',
+          linked: true,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          type: 'NSPrivacyCollectedDataTypeUserID',
+          linked: true,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          type: 'NSPrivacyCollectedDataTypePhotosorVideos',
+          linked: true,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          type: 'NSPrivacyCollectedDataTypeOtherUserContent',
+          linked: true,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        },
+        {
+          type: 'NSPrivacyCollectedDataTypeProductInteraction',
+          linked: false,
+          tracking: false,
+          purposes: ['NSPrivacyCollectedDataTypePurposeAnalytics'],
+        },
       ],
       accessedApiTypes: [{
         type: 'NSPrivacyAccessedAPICategoryUserDefaults',
