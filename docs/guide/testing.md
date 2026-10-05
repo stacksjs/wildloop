@@ -11,7 +11,6 @@ Testing in Stacks offers:
 - **Rich assertions** - Comprehensive assertion library
 - **Database utilities** - Transaction rollback, factories
 - **HTTP testing** - Test API endpoints easily
-- **Browser testing** - E2E with Playwright integration
 
 ## Quick Start
 
@@ -393,31 +392,6 @@ import { processPayment } from '@/services/payment'
 it('processes payment', async () => {
   const result = await processPayment(100)
   expect(result.success).toBe(true)
-})
-```
-
-## Browser Testing
-
-### Playwright Integration
-
-```typescript
-// tests/Browser/CheckoutTest.ts
-import { test, expect } from '@playwright/test'
-
-test.describe('Checkout', () => {
-  test('completes purchase', async ({ page }) => {
-    await page.goto('/products/1')
-
-    await page.click('button:has-text("Add to Cart")')
-    await page.click('a:has-text("Checkout")')
-
-    await page.fill('[name="email"]', 'test@example.com')
-    await page.fill('[name="card"]', '4242424242424242')
-
-    await page.click('button:has-text("Pay")')
-
-    await expect(page.locator('.success-message')).toBeVisible()
-  })
 })
 ```
 
