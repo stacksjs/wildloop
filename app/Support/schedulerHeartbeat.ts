@@ -48,3 +48,44 @@ export async function pingHeartbeat(url: string | undefined, fetcher: FetchLike 
   }
   return false
 }
+
+/**
+ * Run a scheduled command and tell its own StatusHQ monitor how it went.
+ *
+ * The scheduler heartbeat says the scheduler is alive, not that last night's
+ * backup worked. A job that matters gets a monitor of its own: `/start` when
+ * it begins (so StatusHQ can time it and notice one that never finishes),
+ * the plain ping when it exits 0, and `/fail` when it does not, which alerts
+ * at once instead of waiting for a missed deadline. A monitor whose cron
+ * expression matches the job also alerts when the run never happens.
+ *
+ * Throws on a non-zero exit, as `schedule.command` does, so the scheduler's
+ * own log and error handling see the failure too.
+ */
+export async function runReported(
+  command: string,
+  url: string | undefined,
+  run: (command: string) => Promise<number> = runInShell,
+  fetcher: FetchLike = fetch,
+): Promise<void> {
+  const base = String(url ?? '').trim().replace(/\/+$/, '')
+  if (base)
+    await pingHeartbeat(`${base}/start`, fetcher)
+
+  let code = 1
+  try {
+    code = await run(command)
+  }
+  finally {
+    if (base)
+      await pingHeartbeat(code === 0 ? base : `${base}/fail`, fetcher)
+  }
+  if (code !== 0)
+    throw new Error(`'${command}' exited with code ${code}`)
+}
+
+async function runInShell(command: string): Promise<number> {
+  log.info(`Executing command: ${command}`)
+  const child = Bun.spawn(['sh', '-c', command], { stdout: 'inherit', stderr: 'inherit' })
+  return await child.exited
+}

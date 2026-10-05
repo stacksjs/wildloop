@@ -1,6 +1,6 @@
 import process from 'node:process'
 import { Schedule, schedule } from '@stacksjs/scheduler'
-import { pingHeartbeat } from './Support/schedulerHeartbeat'
+import { pingHeartbeat, runReported } from './Support/schedulerHeartbeat'
 
 /**
  * **Scheduler**
@@ -24,6 +24,17 @@ export default function () {
       .withName('wildloop-heartbeat')
   }
 
+  /**
+   * The jobs whose failure should reach somebody: a missed backup, territory
+   * that stops decaying, counters that drift, the catalog fold. Each reports
+   * to its own StatusHQ monitor when HEARTBEAT_<JOB> holds its ping URL, and
+   * runs exactly as `schedule.command` would when it does not.
+   */
+  const reported = (command: string, env: string) => {
+    const url = process.env[env]
+    return url ? new Schedule(() => runReported(command, url)) : schedule.command(command)
+  }
+
   schedule.command('./buddy territory:ranks')
     .hourly()
     .withoutOverlapping(30)
@@ -37,7 +48,7 @@ export default function () {
     .onOneServer()
     .withName('wildloop-plan-reminders')
 
-  schedule.command('./buddy territory:decay --apply')
+  reported('./buddy territory:decay --apply', 'HEARTBEAT_TERRITORY_DECAY')
     .at('03:10')
     .setTimeZone('UTC')
     .withoutOverlapping(60)
@@ -48,14 +59,14 @@ export default function () {
   // off the box when DB_SNAPSHOT_RESTIC_ENV names a restic repository
   // (app/Support/databaseSnapshot.ts). Before the 04:10 repairs, so the copy
   // is of the database they found.
-  schedule.command('./buddy db:snapshot --keep 7')
+  reported('./buddy db:snapshot --keep 7', 'HEARTBEAT_DB_SNAPSHOT')
     .at('03:20')
     .setTimeZone('UTC')
     .withoutOverlapping(60)
     .onOneServer()
     .withName('wildloop-db-snapshot')
 
-  schedule.command('./buddy counters:recompute')
+  reported('./buddy counters:recompute', 'HEARTBEAT_COUNTERS')
     .at('04:10')
     .setTimeZone('UTC')
     .withoutOverlapping(60)
@@ -164,7 +175,7 @@ export default function () {
    * across the US (03:40 Pacific). Both rebuild the place suggestions at the
    * end, and an hour keeps the two rebuilds from overlapping.
    */
-  schedule.command('./buddy trails:fold-fragments --limit 25000')
+  reported('./buddy trails:fold-fragments --limit 25000', 'HEARTBEAT_TRAIL_FOLD')
     .at('10:40')
     .setTimeZone('UTC')
     .withoutOverlapping(60)

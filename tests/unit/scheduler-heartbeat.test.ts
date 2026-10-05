@@ -47,3 +47,42 @@ describe('scheduler heartbeat', () => {
       expect(line).not.toContain('0123456789abcdef')
   })
 })
+
+describe('a reported job', () => {
+  const base = 'https://statushq.org/api/ping/abc'
+
+  function recorder() {
+    const pinged: string[] = []
+    const fetcher = async (url: string) => { pinged.push(url); return new Response('{}', { status: 200 }) }
+    return { pinged, fetcher }
+  }
+
+  it('pings start, then success', async () => {
+    const { pinged, fetcher } = recorder()
+    const { runReported } = await import('../../app/Support/schedulerHeartbeat')
+    await runReported('./buddy db:snapshot', base, async () => 0, fetcher)
+    expect(pinged).toEqual([`${base}/start`, base])
+  })
+
+  it('pings fail and throws on a non-zero exit', async () => {
+    const { pinged, fetcher } = recorder()
+    const { runReported } = await import('../../app/Support/schedulerHeartbeat')
+    await expect(runReported('./buddy db:snapshot', `${base}/`, async () => 3, fetcher)).rejects.toThrow('exited with code 3')
+    expect(pinged).toEqual([`${base}/start`, `${base}/fail`])
+  })
+
+  it('pings fail when the command cannot even start', async () => {
+    const { pinged, fetcher } = recorder()
+    const { runReported } = await import('../../app/Support/schedulerHeartbeat')
+    await expect(runReported('x', base, async () => { throw new Error('spawn failed') }, fetcher)).rejects.toThrow('spawn failed')
+    expect(pinged).toEqual([`${base}/start`, `${base}/fail`])
+  })
+
+  it('runs the command for real, and pings nothing without a URL', async () => {
+    const { pinged, fetcher } = recorder()
+    const { runReported } = await import('../../app/Support/schedulerHeartbeat')
+    await runReported('true', undefined, undefined, fetcher)
+    await expect(runReported('exit 2', undefined, undefined, fetcher)).rejects.toThrow('exited with code 2')
+    expect(pinged).toEqual([])
+  })
+})
