@@ -168,6 +168,31 @@ jobs:
           #
           # Add a credential with `buddy env:set KEY value --file .env.production`.
 
+      # Drop Cloudflare's copies of the old release.
+      #
+      # Anonymous pages and trail reads are cached at the edge
+      # (scripts/cloudflare-cache-rules.ts), pages for five minutes. A page
+      # cached before this deploy names the previous build's fingerprinted
+      # CSS and JS, which the new release no longer serves, so for those
+      # minutes a visitor would get a page with no styles and no scripts.
+      # Purging here, before the smoke check reads the site, also means the
+      # check sees the new release rather than a cached copy of the old one.
+      #
+      # The token and zone come from .env.production like every other
+      # credential (see the Deploy step), and are never printed.
+      - name: Purge the edge cache
+        if: github.event.inputs.environment == '' || github.event.inputs.environment == 'production'
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+        run: |
+          token=$(./buddy env:get CLOUDFLARE_API_TOKEN --file .env.production 2>/dev/null | tail -1)
+          echo "::add-mask::$token"
+          zone=$(curl -fsS -H "Authorization: Bearer $token" 'https://api.cloudflare.com/client/v4/zones?name=wildloop.org' | jq -r '.result[0].id')
+          curl -fsS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/zones/$zone/purge_cache" \
+            -d '{"hosts":["wildloop.org","www.wildloop.org"]}' | jq -e '.success' > /dev/null
+          echo "Purged wildloop.org at the edge"
+
       # Ask the site whether the deploy worked, rather than trusting that the
       # deploy command exiting 0 means it did.
       #
