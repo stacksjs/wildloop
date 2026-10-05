@@ -11,6 +11,7 @@ import { NOT_FOLDED_SQL } from '../../Support/trailFragments'
 import { trailStreetShares } from '../../Support/trailStreetShares'
 import { athleteTaste } from '../../Support/trailTaste'
 import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
+import { WHOLE_AT_LEAST_SQL, WHOLE_AT_MOST_SQL, wholeTrails, withWholeTrail } from '../../Support/wholeTrail'
 import type { RankMode } from '../../Support/trailRanking'
 import { difficultyIsEstimated } from '../../../resources/functions/trail-difficulty'
 import { withEdgeCache } from '../../Support/edgeCache'
@@ -83,10 +84,13 @@ export default new Action({
         if (origin && rankMode)
           return fetchRankedPage(request, origin, radius ?? requestedRadius(request), rankMode, page)
 
-        const rows = await applyOrder(applyFilters(Trail.query(), request, skipInferredCountry, radius), request)
-          .limit(page.limit)
-          .offset(page.offset)
-          .get()
+        const byLength = lengthOrder(request)
+        const rows = byLength
+          ? await fetchLengthOrderedPage(request, skipInferredCountry, radius, byLength, page)
+          : await applyOrder(applyFilters(Trail.query(), request, skipInferredCountry, radius), request)
+            .limit(page.limit)
+            .offset(page.offset)
+            .get()
         const total = await countListed(request, skipInferredCountry, radius)
         return { rows, total }
       }
@@ -159,7 +163,12 @@ export default new Action({
         appliedCountry = undefined
       }
 
-      const trails = (await withBestTrailCovers(rows ?? [])).map((row: Record<string, unknown>) => ({
+      // A trail folded from pieces shows the whole trail: its length and
+      // ascent with the pieces', and its own beside them (#1002,
+      // app/Support/wholeTrail.ts). Its line stays its own.
+      const wholes = await wholeTrails((rows ?? []).map((row: any) => Number(row.id)))
+      const shown = (await withBestTrailCovers(rows ?? [])).map((row: Record<string, unknown>) => withWholeTrail(row, wholes.get(Number(row.id))))
+      const trails = shown.map((row: Record<string, unknown>) => ({
         ...row,
         // Thinned to within three metres of the stored line: half the bytes,
         // and close enough for everything the client does with it, offline
@@ -294,8 +303,14 @@ async function fetchRankedPage(
   // How much of each route is sidewalk, read beside the rows like
   // engagement: it is kept off the trails table (migration 0000000198).
   const candidateIds = unknown.map(row => Number(row.id))
-  const [engagement, streets] = await Promise.all([trailEngagement(candidateIds), trailStreetShares(candidateIds)])
-  const candidates = unknown.map(row => ({ ...row, street_share: streets.get(Number(row.id)) ?? null }))
+  const [engagement, streets, wholes] = await Promise.all([trailEngagement(candidateIds), trailStreetShares(candidateIds), wholeTrails(candidateIds)])
+  // Ranked on the whole trail it shows: a trail folded from pieces is as
+  // long as its pieces together, not as its own row (app/Support/wholeTrail.ts).
+  const candidates = unknown.map(row => ({
+    ...row,
+    distance: wholes.get(Number(row.id))?.distance ?? row.distance,
+    street_share: streets.get(Number(row.id)) ?? null,
+  }))
 
   const ranked = rankTrails(candidates, origin, radius, mode, engagement, taste?.profile ?? null, readSearch(request))
 
@@ -474,23 +489,27 @@ function applyFilters(
   if (source && SOURCES.has(source))
     query = query.where('source', source)
 
+  // On the whole trail, as the list shows it (`trail_totals`,
+  // app/Support/wholeTrail.ts), through the length indexes and the small
+  // totals table rather than a whole length per row.
   const minDistance = readNumber(request, 'minDistance')
   if (minDistance !== null)
-    query = query.where('distance', '>=', minDistance)
+    query = query.whereRaw(WHOLE_AT_LEAST_SQL.distance, minDistance, minDistance)
 
   const maxDistance = readNumber(request, 'maxDistance')
   if (maxDistance !== null)
-    query = query.where('distance', '<=', maxDistance)
+    query = query.whereRaw(WHOLE_AT_MOST_SQL.distance, maxDistance, maxDistance)
 
   // Ascent, in feet. The catalog stores the display unit (see
   // `normalizeTrailRow`), so the bound needs no conversion on the way in.
+  // On the whole trail too, the same way.
   const minElevation = readNumber(request, 'minElevation')
   if (minElevation !== null)
-    query = query.where('elevation', '>=', minElevation)
+    query = query.whereRaw(WHOLE_AT_LEAST_SQL.elevation, minElevation, minElevation)
 
   const maxElevation = readNumber(request, 'maxElevation')
   if (maxElevation !== null)
-    query = query.where('elevation', '<=', maxElevation)
+    query = query.whereRaw(WHOLE_AT_MOST_SQL.elevation, maxElevation, maxElevation)
 
   // A rating floor, not a sort. An unrated trail has `rating` 0, so it falls
   // out of any floor above zero — which is what "4.0+" is asking for.
@@ -510,24 +529,38 @@ function applyFilters(
   // "Near me": a bounding box, not a radius. It is an index range scan rather
   // than a full-table haversine, and at the zoom a map actually renders the
   // difference between a box and a circle is not visible.
-  const origin = readOrigin(request)
-  const radius = radiusOverride ?? requestedRadius(request)
-
-  if (origin && Number.isFinite(radius)) {
-    const { lat, lng } = origin
-    const latSpan = radius * DEGREES_PER_MILE
-    // A degree of longitude shrinks toward the poles; without the cosine the
-    // box would be far too wide in Alaska and slightly too narrow in Florida.
-    const lngSpan = latSpan / Math.max(0.15, Math.cos((lat * Math.PI) / 180))
-
+  const box = originBox(request, radiusOverride)
+  if (box) {
     query = query
-      .where('latitude', '>=', lat - latSpan)
-      .where('latitude', '<=', lat + latSpan)
-      .where('longitude', '>=', lng - lngSpan)
-      .where('longitude', '<=', lng + lngSpan)
+      .where('latitude', '>=', box.minLat)
+      .where('latitude', '<=', box.maxLat)
+      .where('longitude', '>=', box.minLng)
+      .where('longitude', '<=', box.maxLng)
   }
 
   return query
+}
+
+interface Box {
+  minLat: number
+  maxLat: number
+  minLng: number
+  maxLng: number
+}
+
+/** The box a "near me" list is answered in, or null when it is not one. */
+function originBox(request: { get: (key: string) => any }, radiusOverride?: number): Box | null {
+  const origin = readOrigin(request)
+  const radius = radiusOverride ?? requestedRadius(request)
+  if (!origin || !Number.isFinite(radius))
+    return null
+
+  const { lat, lng } = origin
+  const latSpan = radius * DEGREES_PER_MILE
+  // A degree of longitude shrinks toward the poles; without the cosine the
+  // box would be far too wide in Alaska and slightly too narrow in Florida.
+  const lngSpan = latSpan / Math.max(0.15, Math.cos((lat * Math.PI) / 180))
+  return { minLat: lat - latSpan, maxLat: lat + latSpan, minLng: lng - lngSpan, maxLng: lng + lngSpan }
 }
 
 /**
@@ -608,6 +641,131 @@ function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | '
       // country, and stopped at the end of the page (migration 0000000199).
       return FEATURED_ORDER.map(([column, direction]) => [column, direction])
   }
+}
+
+/** Whether a list is ordered by length alone, and which way. */
+function lengthOrder(request: { get: (key: string) => any }): 'asc' | 'desc' | null {
+  const sort = readString(request, 'sort')
+  return sort === 'distance' ? 'asc' : sort === 'longest' ? 'desc' : null
+}
+
+/** How many trails with a whole length are read at a time, at most. */
+const MAX_WHOLE_CHUNK = 5000
+
+/**
+ * One page of a list ordered by length, on the whole trail.
+ *
+ * A trail folded from pieces is as long as its pieces together, which no
+ * column of `trails` says, so no index of it orders by that. Two lists that
+ * are each in order are merged instead. Trails with no pieces come through
+ * the length indexes as before. Trails with pieces come from `trail_totals`
+ * in order of its own length index, narrowed there by country, the box
+ * around somebody and the search, which it carries for this, and read a
+ * chunk at a time until enough of them pass every other filter. Each list
+ * needs at most the page and what comes before it.
+ */
+async function fetchLengthOrderedPage(
+  request: { get: (key: string) => any },
+  skipInferredCountry: boolean,
+  radiusOverride: number | undefined,
+  direction: 'asc' | 'desc',
+  page: { limit: number, offset: number },
+): Promise<any[]> {
+  const want = page.offset + page.limit
+
+  const own = await applyFilters(Trail.query(), request, skipInferredCountry, radiusOverride)
+    .whereRaw('id NOT IN (SELECT trail_id FROM trail_totals)')
+    .select('id', 'distance')
+    .orderBy('distance', direction)
+    .limit(want)
+    .get() as Array<{ id: number, distance: number }>
+
+  const search = readSearch(request)
+  const narrowing: WholeNarrowing = {
+    country: resolveCountry(request, skipInferredCountry),
+    box: originBox(request, radiusOverride),
+    match: search ? toFtsQuery(search) : null,
+  }
+  const whole: Array<{ id: number, distance: number }> = []
+  // Twice the page to start with, which the filters this table cannot apply
+  // seldom thin by half, then twice as many each time they do. A search that
+  // sanitises to nothing matches nothing, as in applyFilters.
+  let size = Math.min(MAX_WHOLE_CHUNK, Math.max(100, 2 * want))
+  for (let offset = 0; whole.length < want && !(search && !narrowing.match); offset += size, size = Math.min(MAX_WHOLE_CHUNK, 2 * size)) {
+    const chunk = await wholeLengthsInOrder(narrowing, direction, size, offset)
+    if (chunk.length === 0)
+      break
+    const passing = await applyFilters(Trail.query(), request, skipInferredCountry, radiusOverride)
+      .whereRaw('id IN (SELECT value FROM json_each(?))', JSON.stringify(chunk.map(row => row.id)))
+      .select('id')
+      .get() as Array<{ id: number }>
+    const kept = new Set(passing.map(row => Number(row.id)))
+    whole.push(...chunk.filter(row => kept.has(row.id)))
+    if (chunk.length < size)
+      break
+  }
+
+  const sign = direction === 'asc' ? 1 : -1
+  const ids = [
+    ...own.map(row => ({ id: Number(row.id), distance: Number(row.distance) })),
+    ...whole,
+  ]
+    // Stable: equal lengths keep the order each list gave them.
+    .sort((a, b) => sign * (a.distance - b.distance))
+    .slice(page.offset, want)
+    .map(row => row.id)
+
+  if (ids.length === 0)
+    return []
+  const full = ((await Trail.whereIn('id', ids).get()) ?? []) as any[]
+  const byId = new Map(full.map(row => [Number(row.id), row]))
+  return ids.map(id => byId.get(id)).filter(Boolean)
+}
+
+/** What `trail_totals` can narrow by on its own. */
+interface WholeNarrowing {
+  country?: string
+  box: Box | null
+  /** An FTS5 query, already sanitised by `toFtsQuery`. */
+  match: string | null
+}
+
+/**
+ * The trails with pieces in order of their whole length, a chunk at a time.
+ *
+ * The country and the box are written into the statement rather than bound:
+ * the country is two letters `resolveCountry` checked, and the box four
+ * finite numbers worked out here, so neither can carry anything else. The
+ * direction is a keyword, which cannot be bound at all. The search is bound.
+ */
+async function wholeLengthsInOrder(
+  narrowing: WholeNarrowing,
+  direction: 'asc' | 'desc',
+  limit: number,
+  offset: number,
+): Promise<Array<{ id: number, distance: number }>> {
+  const where: string[] = []
+  if (narrowing.country && /^[A-Z]{2}$/.test(narrowing.country))
+    where.push(`country = '${narrowing.country}'`)
+  const box = narrowing.box
+  if (box && [box.minLat, box.maxLat, box.minLng, box.maxLng].every(Number.isFinite))
+    where.push(`latitude >= ${box.minLat} AND latitude <= ${box.maxLat} AND longitude >= ${box.minLng} AND longitude <= ${box.maxLng}`)
+  const filter = db.unsafe(where.length > 0 ? where.join(' AND ') : '1 = 1')
+  const order = db.unsafe(direction === 'asc' ? 'ASC' : 'DESC')
+
+  const rows = await (narrowing.match
+    ? db.sql`
+        SELECT trail_id, distance FROM trail_totals
+        WHERE ${filter} AND trail_id IN (SELECT rowid FROM trails_fts WHERE trails_fts MATCH ${narrowing.match})
+        ORDER BY distance ${order} LIMIT ${limit} OFFSET ${offset}
+      `
+    : db.sql`
+        SELECT trail_id, distance FROM trail_totals
+        WHERE ${filter}
+        ORDER BY distance ${order} LIMIT ${limit} OFFSET ${offset}
+      `
+  ).execute().catch(() => []) as Array<{ trail_id: number, distance: number }>
+  return (rows ?? []).map(row => ({ id: Number(row.trail_id), distance: Number(row.distance) }))
 }
 
 /**

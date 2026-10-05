@@ -1,7 +1,9 @@
 import type { FragmentCandidate } from './trailFragments'
+import type { WholeTrail, WholeTrailMember } from './wholeTrail'
 import { db } from '@stacksjs/orm'
 import { decodeRouteParts } from '../../resources/functions/trail-geometry'
 import { foldPieces } from './trailFragments'
+import { wholeTrail } from './wholeTrail'
 import { inWriteTransaction } from './writeTransaction'
 
 /**
@@ -61,6 +63,8 @@ interface GroupRow {
   country: string | null
   source: string | null
   distance: number | null
+  elevation: number | null
+  elevation_checked_at: string | null
   review_count: number | null
   latitude: number | null
   longitude: number | null
@@ -73,6 +77,52 @@ export interface NameGroup {
   candidates: FragmentCandidate[]
   /** Every row under the name, including ones whose line could not be read. */
   ids: number[]
+  /** Each row as its whole trail length needs it (app/Support/wholeTrail.ts). */
+  members: Map<number, WholeTrailMember>
+  /** Where each row is. */
+  places: Map<number, TrailPlace>
+}
+
+/** Where a kept row is, repeated beside its total for the catalog. */
+export interface TrailPlace {
+  country: string | null
+  latitude: number | null
+  longitude: number | null
+}
+
+const NOWHERE: TrailPlace = { country: null, latitude: null, longitude: null }
+
+function placeOf(row: { country?: string | null, latitude?: number | null, longitude?: number | null }): TrailPlace {
+  const latitude = row.latitude === null || row.latitude === undefined ? null : Number(row.latitude)
+  const longitude = row.longitude === null || row.longitude === undefined ? null : Number(row.longitude)
+  return {
+    country: row.country ?? null,
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+  }
+}
+
+/** A row read for its length: its distance, ascent and line. */
+interface LengthRow {
+  id: number
+  distance: number | null
+  elevation: number | null
+  elevation_checked_at: string | null
+  geometry: string | null
+}
+
+/** A row as `wholeTrail` reads it, from the line already decoded. */
+function memberOf(row: LengthRow, parts: Array<Array<[number, number]>> = decodeRouteParts(row.geometry)): WholeTrailMember {
+  const elevation = Number(row.elevation ?? 0) || 0
+  return {
+    id: Number(row.id),
+    distance: Number(row.distance ?? 0) || 0,
+    elevation,
+    // An ascent the source gave counts as measured as much as one the
+    // elevation backfill looked up.
+    elevationMeasured: elevation > 0 || Boolean(row.elevation_checked_at),
+    lines: parts.map(part => part.map(([lat, lng]) => ({ lat, lng }))),
+  }
 }
 
 /** Positive integer ids, once each, as the JSON `json_each` reads. */
@@ -89,30 +139,37 @@ function idList(ids: Iterable<number>): string {
  */
 export async function readNameGroup(name: string, store: FoldStore = ormStore): Promise<NameGroup> {
   const rows = await store.sql`
-    SELECT id, name, country, source, distance, review_count, latitude, longitude, geometry
+    SELECT id, name, country, source, distance, elevation, elevation_checked_at, review_count, latitude, longitude, geometry
     FROM trails
     WHERE name = ${name}
   ` as GroupRow[]
 
   const ids = rows.map(row => Number(row.id))
   const photos = await photoCounts(ids, store)
+  const members = new Map<number, WholeTrailMember>()
+  const places = new Map<number, TrailPlace>()
 
-  const candidates = rows.map(row => ({
-    id: Number(row.id),
-    name: String(row.name ?? ''),
-    country: row.country,
-    source: row.source,
-    distance: Number(row.distance ?? 0),
-    reviewCount: Number(row.review_count ?? 0),
-    photos: photos.get(Number(row.id)) ?? 0,
-    latitude: row.latitude === null ? null : Number(row.latitude),
-    longitude: row.longitude === null ? null : Number(row.longitude),
-    // Only where a row starts and ends decides anything, so a line stored in
-    // several parts is read end to end.
-    geometry: decodeRouteParts(row.geometry).flat().map(([lat, lng]) => ({ lat, lng })),
-  }))
+  const candidates = rows.map((row) => {
+    const parts = decodeRouteParts(row.geometry)
+    members.set(Number(row.id), memberOf(row, parts))
+    places.set(Number(row.id), placeOf(row))
+    return {
+      id: Number(row.id),
+      name: String(row.name ?? ''),
+      country: row.country,
+      source: row.source,
+      distance: Number(row.distance ?? 0),
+      reviewCount: Number(row.review_count ?? 0),
+      photos: photos.get(Number(row.id)) ?? 0,
+      latitude: row.latitude === null ? null : Number(row.latitude),
+      longitude: row.longitude === null ? null : Number(row.longitude),
+      // Only where a row starts and ends decides anything, so a line stored
+      // in several parts is read end to end.
+      geometry: parts.flat().map(([lat, lng]) => ({ lat, lng })),
+    }
+  })
 
-  return { name, candidates, ids }
+  return { name, candidates, ids, members, places }
 }
 
 /** Visible community photos per trail. A missing table is no photos. */
@@ -161,10 +218,18 @@ export async function writeFolds(
     countryOf?: Map<number, string | null>
     /** Where the nightly walk is up to, written with the batch it accounts for. */
     progress?: { afterName: string, passed: boolean }
+    /**
+     * The whole trail of every row among `ids` that keeps pieces
+     * (`trail_totals`, migration 0000000200). Given, the totals of those rows
+     * are made to match it: a row it leaves out has no pieces any more.
+     */
+    totals?: Map<number, WholeTrail>
+    /** Where each of those rows is, kept beside its total. */
+    places?: Map<number, TrailPlace>
   } = {},
   store: FoldStore = ormStore,
 ): Promise<FoldWrite> {
-  const { countryOf, progress } = options
+  const { countryOf, progress, totals, places } = options
   const list = idList(ids)
 
   return store.transaction(async () => {
@@ -195,6 +260,9 @@ export async function writeFolds(
       result.folded++
     }
 
+    if (totals)
+      await writeTotals(list, ids, folds, now, totals, places ?? new Map(), at, store)
+
     // In the same transaction as the writes it accounts for, so a run
     // stopped between the two never skips a name or repeats one.
     if (progress) {
@@ -212,6 +280,91 @@ export async function writeFolds(
   })
 }
 
+/**
+ * Make `trail_totals` match what a set of names decided.
+ *
+ * Every row among `ids` either keeps pieces, and has the total `totals` gives
+ * it, or has no total. A trail outside `ids` that one of these pieces used to
+ * be part of has lost it, so its total is dropped, and `fillWholeTrails` works
+ * it out again from the pieces it has left. A total already as decided is not
+ * written.
+ */
+async function writeTotals(
+  list: string,
+  ids: number[],
+  folds: Map<number, number>,
+  before: Map<number, { partOf: number }>,
+  totals: Map<number, WholeTrail>,
+  places: Map<number, TrailPlace>,
+  at: string,
+  store: FoldStore,
+): Promise<void> {
+  const inside = new Set(ids.map(Number))
+  const outside = new Set<number>()
+  for (const [piece, was] of before) {
+    if (!inside.has(was.partOf) && folds.get(piece) !== was.partOf)
+      outside.add(was.partOf)
+  }
+
+  const current = await store.sql`
+    SELECT trail_id, distance, elevation, pieces, country, latitude, longitude FROM trail_totals
+    WHERE trail_id IN (SELECT value FROM json_each(${list}))
+  ` as Array<{ trail_id: number, distance: number, elevation: number | null, pieces: number } & TrailPlace>
+  const now = new Map(current.map(row => [Number(row.trail_id), row]))
+
+  const gone = [...[...now.keys()].filter(id => !totals.has(id)), ...outside]
+  if (gone.length > 0)
+    await store.sql`DELETE FROM trail_totals WHERE trail_id IN (SELECT value FROM json_each(${idList(gone)}))`
+
+  for (const [trailId, whole] of totals) {
+    const place = places.get(trailId) ?? NOWHERE
+    const was = now.get(trailId)
+    if (was && Number(was.distance) === whole.distance && (was.elevation ?? null) === whole.elevation
+      && Number(was.pieces) === whole.pieces && (was.country ?? null) === place.country
+      && (was.latitude ?? null) === place.latitude && (was.longitude ?? null) === place.longitude)
+      continue
+    await writeTotal(trailId, whole, place, at, store)
+  }
+}
+
+async function writeTotal(trailId: number, whole: WholeTrail, place: TrailPlace, at: string, store: FoldStore): Promise<void> {
+  await store.sql`
+    INSERT INTO trail_totals (trail_id, distance, elevation, pieces, country, latitude, longitude, computed_at)
+    VALUES (${trailId}, ${whole.distance}, ${whole.elevation}, ${whole.pieces}, ${place.country}, ${place.latitude}, ${place.longitude}, ${at})
+    ON CONFLICT(trail_id) DO UPDATE SET
+      distance = excluded.distance, elevation = excluded.elevation, pieces = excluded.pieces,
+      country = excluded.country, latitude = excluded.latitude, longitude = excluded.longitude,
+      computed_at = excluded.computed_at
+  `
+}
+
+/**
+ * The whole trail of each kept row in `folds`, from rows already read.
+ *
+ * A piece and the row it folds into always share a name, so the rows of the
+ * names just decided hold every piece of every trail they keep.
+ */
+export function totalsOf(folds: Map<number, number>, members: Map<number, WholeTrailMember>): Map<number, WholeTrail> {
+  const piecesOf = new Map<number, WholeTrailMember[]>()
+  for (const [piece, partOf] of folds) {
+    const member = members.get(piece)
+    if (!member)
+      continue
+    const group = piecesOf.get(partOf)
+    if (group)
+      group.push(member)
+    else piecesOf.set(partOf, [member])
+  }
+
+  const totals = new Map<number, WholeTrail>()
+  for (const [partOf, pieces] of piecesOf) {
+    const kept = members.get(partOf)
+    if (kept)
+      totals.set(partOf, wholeTrail(kept, pieces))
+  }
+  return totals
+}
+
 export interface FoldNamesOutcome extends FoldWrite {
   names: number
   rows: number
@@ -219,6 +372,8 @@ export interface FoldNamesOutcome extends FoldWrite {
   skipped: number
   /** Every decision made, piece → the trail it is part of. */
   folds: Map<number, number>
+  /** The whole trail of every row that keeps pieces. */
+  totals: Map<number, WholeTrail>
 }
 
 export interface FoldNamesOptions {
@@ -241,6 +396,8 @@ export async function foldNames(names: string[], options: FoldNamesOptions = {},
 
   const folds = new Map<number, number>()
   const countryOf = new Map<number, string | null>()
+  const totals = new Map<number, WholeTrail>()
+  const places = new Map<number, TrailPlace>()
   const ids: number[] = []
   let skipped = 0
 
@@ -253,18 +410,25 @@ export async function foldNames(names: string[], options: FoldNamesOptions = {},
     // Each name on its own, never together with whatever else shares the
     // batch: "Mesa trail" beside "Mesa Trail" would otherwise be decided
     // together in one batch and apart in the next.
-    for (const [piece, partOf] of foldPieces(group.candidates))
+    const decided = foldPieces(group.candidates)
+    for (const [piece, partOf] of decided)
       folds.set(piece, partOf)
     for (const candidate of group.candidates)
       countryOf.set(candidate.id, candidate.country ?? null)
+    // Each kept row's whole length, from the lines just read for the
+    // decision, so the totals are written with the pieces they add up.
+    for (const [trailId, whole] of totalsOf(decided, group.members)) {
+      totals.set(trailId, whole)
+      places.set(trailId, group.places.get(trailId) ?? NOWHERE)
+    }
     ids.push(...group.ids)
   }
 
   const written = options.dryRun
     ? { folded: 0, unfolded: 0 }
-    : await writeFolds(ids, folds, at, { countryOf, progress: options.progress }, store)
+    : await writeFolds(ids, folds, at, { countryOf, progress: options.progress, totals, places }, store)
 
-  return { ...written, names: unique.length, rows: ids.length, skipped, folds }
+  return { ...written, names: unique.length, rows: ids.length, skipped, folds, totals }
 }
 
 /**
@@ -293,14 +457,23 @@ export async function foldWrittenNames(names: string[], store: FoldStore = ormSt
 export async function releaseStaleFolds(store: FoldStore = ormStore): Promise<number> {
   return store.transaction(async () => {
     const stale = await store.sql`
-      SELECT p.trail_id FROM trail_parts p
+      SELECT p.trail_id, p.part_of FROM trail_parts p
       LEFT JOIN trails t ON t.id = p.trail_id
       LEFT JOIN trails c ON c.id = p.part_of
       WHERE t.id IS NULL OR c.id IS NULL OR t.name IS NOT c.name OR p.country IS NOT t.country
-    ` as Array<{ trail_id: number }>
+    ` as Array<{ trail_id: number, part_of: number }>
     const ids = stale.map(row => Number(row.trail_id))
     if (ids.length > 0)
       await store.sql`DELETE FROM trail_parts WHERE trail_id IN (SELECT value FROM json_each(${idList(ids)}))`
+
+    // A trail that lost a piece here has a total that counts it. Dropped
+    // with the total of every trail left with no pieces at all — whose rows
+    // went some other way, a deleted trail among them — and filled again
+    // from what is left by `fillWholeTrails`.
+    const losers = [...new Set(stale.map(row => Number(row.part_of)).filter(id => id > 0))]
+    if (losers.length > 0)
+      await store.sql`DELETE FROM trail_totals WHERE trail_id IN (SELECT value FROM json_each(${idList(losers)}))`
+    await store.sql`DELETE FROM trail_totals WHERE trail_id NOT IN (SELECT part_of FROM trail_parts)`
     return ids.length
   })
 }
@@ -328,4 +501,85 @@ export async function nextSharedNames(afterName: string, limit: number, store: F
     LIMIT ${limit}
   ` as Array<{ name: string }>
   return rows.map(row => String(row.name))
+}
+
+export interface FillOutcome {
+  /** Trails whose whole length was worked out and written. */
+  filled: number
+  /** Whether every trail with pieces now has a total. */
+  done: boolean
+}
+
+/**
+ * Work out the whole length of trails that keep pieces and have no total yet.
+ *
+ * The walk writes a trail's total whenever it decides the trail's name, but a
+ * pass over every shared name takes several nights, and a trail can lose its
+ * total in between (`writeTotals`, `releaseStaleFolds`). This fills those, and
+ * every trail folded before `trail_totals` existed, a batch at a time: the
+ * kept rows in id order through `trail_parts_part_of_index`, each batch read
+ * first and written in one short transaction. What it is up to needs no
+ * record of its own, because a filled trail is no longer missing; a run
+ * stopped anywhere carries on with the next one.
+ *
+ * Up to `limit` trails, 0 for all of them.
+ */
+export async function fillWholeTrails(
+  options: { limit?: number, batch?: number, at?: string } = {},
+  store: FoldStore = ormStore,
+): Promise<FillOutcome> {
+  const limit = Math.max(0, Number(options.limit ?? 0) || 0)
+  const batch = Math.max(1, Number(options.batch ?? 200) || 200)
+  const at = options.at ?? new Date().toISOString()
+
+  let filled = 0
+  let after = 0
+  while (limit === 0 || filled < limit) {
+    const take = limit > 0 ? Math.min(batch, limit - filled) : batch
+    const missing = await store.sql`
+      SELECT DISTINCT part_of FROM trail_parts
+      WHERE part_of > ${after} AND part_of NOT IN (SELECT trail_id FROM trail_totals)
+      ORDER BY part_of
+      LIMIT ${take}
+    ` as Array<{ part_of: number }>
+    const keptIds = missing.map(row => Number(row.part_of))
+    if (keptIds.length === 0)
+      return { filled, done: true }
+    after = keptIds[keptIds.length - 1]
+
+    const list = idList(keptIds)
+    const kept = await store.sql`
+      SELECT id, distance, elevation, elevation_checked_at, geometry, country, latitude, longitude FROM trails
+      WHERE id IN (SELECT value FROM json_each(${list}))
+    ` as Array<LengthRow & TrailPlace>
+    const pieces = await store.sql`
+      SELECT p.part_of, t.id, t.distance, t.elevation, t.elevation_checked_at, t.geometry
+      FROM trail_parts p JOIN trails t ON t.id = p.trail_id
+      WHERE p.part_of IN (SELECT value FROM json_each(${list}))
+    ` as Array<LengthRow & { part_of: number }>
+
+    const piecesOf = new Map<number, WholeTrailMember[]>()
+    for (const row of pieces) {
+      const group = piecesOf.get(Number(row.part_of))
+      if (group)
+        group.push(memberOf(row))
+      else piecesOf.set(Number(row.part_of), [memberOf(row)])
+    }
+
+    // A trail_parts row whose trail is gone has no kept row to total, and
+    // is left to `releaseStaleFolds`.
+    const written = kept
+      .filter(row => piecesOf.has(Number(row.id)))
+      .map(row => ({ id: Number(row.id), place: placeOf(row), whole: wholeTrail(memberOf(row), piecesOf.get(Number(row.id)) ?? []) }))
+
+    await store.transaction(async () => {
+      for (const { id, place, whole } of written)
+        await writeTotal(id, whole, place, at, store)
+    })
+    filled += written.length
+
+    if (keptIds.length < take)
+      return { filled, done: true }
+  }
+  return { filled, done: false }
 }

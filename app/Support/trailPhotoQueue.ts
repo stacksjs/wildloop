@@ -252,9 +252,12 @@ export async function metroTrailPicks(
   const radius = options.radiusMiles ?? METRO_RADIUS_MILES
   const dLat = radius * DEGREES_PER_MILE
   const dLng = dLat / Math.max(0.2, Math.cos((metro.lat * Math.PI) / 180))
+  // Ranked on the whole trail, pieces included, as the catalog ranks it
+  // (`trail_totals`, app/Support/wholeTrail.ts).
   const rows = await sql`
-    SELECT id, name, location, source, distance, rating, review_count, national_trail, latitude, longitude, difficulty, route_type,
-      (SELECT share FROM trail_street_shares WHERE trail_id = trails.id) AS street_share
+    SELECT id, name, location, source, rating, review_count, national_trail, latitude, longitude, difficulty, route_type,
+      (SELECT share FROM trail_street_shares WHERE trail_id = trails.id) AS street_share,
+      COALESCE((SELECT distance FROM trail_totals WHERE trail_id = trails.id), distance) AS distance
     FROM trails
     WHERE latitude BETWEEN ${metro.lat - dLat} AND ${metro.lat + dLat}
       AND longitude BETWEEN ${metro.lng - dLng} AND ${metro.lng + dLng}

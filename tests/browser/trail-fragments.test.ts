@@ -97,6 +97,38 @@ describe.skipIf(!qa)('a trail folded from pieces', () => {
     expect(us.meta.total).toBe(us.trails.length)
   })
 
+  /*
+   * The park's record is 1.6 miles and the two ways continuing it 0.3 and
+   * 0.2, so the trail listed is 2.1 miles long. Its own row and line stay
+   * as they are, beside the whole (app/Support/wholeTrail.ts).
+   */
+  it('is listed at the length of the whole trail, pieces included', async () => {
+    const [trail] = craggy(await trails(`${HERE}&limit=50`))
+
+    expect(trail.distance).toBe(2.1)
+    expect(trail.ownDistance).toBe(1.6)
+    expect(trail.pieces).toBe(2)
+  })
+
+  it('is filtered and sorted by the length of the whole trail', async () => {
+    // Longer than two miles only with its pieces, and so never under 1.8.
+    const longEnough = await trails(`${HERE}&minDistance=2&limit=50`)
+    expect(craggy(longEnough).map(t => t.source_id)).toEqual(['qa/craggy-gardens'])
+    const shortEnough = await trails(`${HERE}&maxDistance=1.8&limit=50`)
+    expect(craggy(shortEnough)).toEqual([])
+
+    for (const sort of ['distance', 'longest']) {
+      const page = await trails(`${HERE}&sort=${sort}&limit=50`)
+      expect(craggy(page).map(t => t.distance), sort).toEqual([2.1])
+    }
+    // Without a location, through the totals table and the length indexes.
+    const longest = await trails('country=US&sort=longest&limit=500')
+    const lengths = longest.trails.map((t: any) => Number(t.distance))
+    expect(lengths).toEqual([...lengths].sort((a, b) => b - a))
+    // The same name in Maine is a trail of its own, and listed at its own 0.5.
+    expect(craggy(longest).map(t => [t.source_id, t.distance])).toEqual([['qa/craggy-gardens', 2.1], ['qa/craggy-gardens-maine', 0.5]])
+  })
+
   it('is suggested once as somebody types', async () => {
     const response = await fetch(`${API}/search/suggest?q=craggy`)
     expect(response.status).toBe(200)
@@ -157,5 +189,17 @@ describe.skipIf(!qa)('the URL of a piece', () => {
 
     const whole = await (await fetch(`${API}/trails/${ids['qa/craggy-gardens']}`)).json()
     expect(whole.trail.partOf).toBeNull()
+  })
+
+  it('answers the trail with its whole length and the lines of its pieces', async () => {
+    const { trail } = await (await fetch(`${API}/trails/${ids['qa/craggy-gardens']}`)).json()
+
+    expect(trail.distance).toBe(2.1)
+    expect(trail.ownDistance).toBe(1.6)
+    expect(trail.pieces).toBe(2)
+    // Its own line stays its own, for navigation and records; the pieces
+    // come beside it, for the map.
+    expect(JSON.parse(trail.geometry)[0]).toEqual([35.699, -82.38])
+    expect(trail.pieceRoutes).toHaveLength(2)
   })
 })

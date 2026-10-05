@@ -1,7 +1,7 @@
 import type { CLI } from '@stacksjs/types'
 import { intro, log, outro } from '@stacksjs/cli'
 import { rebuildSearchPlaces } from '../Support/searchPlaces'
-import { foldNames, foldProgress, MAX_NAME_ROWS, nextSharedNames, releaseStaleFolds } from '../Support/trailFolding'
+import { fillWholeTrails, foldNames, foldProgress, MAX_NAME_ROWS, nextSharedNames, releaseStaleFolds } from '../Support/trailFolding'
 
 interface FoldOptions {
   batch?: number | string
@@ -9,10 +9,22 @@ interface FoldOptions {
   dryRun?: boolean
   restart?: boolean
   show?: number | string
+  totalsLimit?: number | string
+  totalsOnly?: boolean
 }
 
 /** Names decided and written at a time — one write transaction per batch. */
 const DEFAULT_BATCH = 200
+
+/**
+ * Trails a run fills the whole length of before the walk, at most.
+ *
+ * About ten seconds of reading lines: a 596,556-row copy with 153,153 pieces
+ * has 84,641 trails keeping them, and filled all of them in 38 seconds. So
+ * the catalog folded before `trail_totals` existed fills over a few nights,
+ * or at once with `--totals-only --totals-limit 0`.
+ */
+const DEFAULT_TOTALS_LIMIT = 20_000
 
 /**
  * `buddy trails:fold-fragments` — stop listing the pieces of a trail as trails.
@@ -37,6 +49,13 @@ const DEFAULT_BATCH = 200
  * again from the first, so a decision the ingest missed is put right on the
  * next pass. The autocomplete place list is rebuilt once at the end, when
  * anything changed, since its counts leave pieces out.
+ *
+ * Each trail that keeps pieces also gets its whole length, pieces included,
+ * in `trail_totals` (app/Support/wholeTrail.ts): written with the pieces as
+ * the walk decides a name, and before the walk for up to `--totals-limit`
+ * trails that have pieces and no total — every trail folded before the table
+ * existed, and any whose pieces changed since. `--totals-only` does that and
+ * stops, which is how the catalog is filled at once.
  */
 export default function (cli: CLI) {
   cli
@@ -46,6 +65,8 @@ export default function (cli: CLI) {
     .option('--dry-run', 'Decide and report without writing', { default: false })
     .option('--restart', 'Start from the first name instead of where the last run stopped', { default: false })
     .option('--show [count]', 'Print this many of the folds', { default: 0 })
+    .option('--totals-limit [count]', 'Trails to fill the whole length of before the walk (0 = every one missing)', { default: DEFAULT_TOTALS_LIMIT })
+    .option('--totals-only', 'Fill whole lengths, then stop without walking names', { default: false })
     .action(async (options: FoldOptions) => {
       intro('trails:fold-fragments')
 
@@ -61,6 +82,19 @@ export default function (cli: CLI) {
       // are listed again before anything else, and decided afresh when the
       // walk reaches their name.
       const released = options.dryRun ? 0 : await releaseStaleFolds()
+
+      // Whole lengths missing for trails that keep pieces, before the walk
+      // writes more, so a night always makes headway on the backlog.
+      if (!options.dryRun) {
+        const totalsLimit = Math.max(0, Number(options.totalsLimit ?? DEFAULT_TOTALS_LIMIT) || 0)
+        const filling = performance.now()
+        const filled = await fillWholeTrails({ limit: totalsLimit })
+        log.info(`totals    ${filled.filled.toLocaleString()} whole trail lengths filled in ${((performance.now() - filling) / 1000).toFixed(1)}s${filled.done ? '' : ', more to fill on the next run'}`)
+      }
+      if (options.totalsOnly) {
+        outro('Done')
+        return
+      }
 
       const progress = await foldProgress()
       let after = options.restart ? '' : progress.afterName

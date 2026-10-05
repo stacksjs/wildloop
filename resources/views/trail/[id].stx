@@ -671,6 +671,24 @@
   // container is only ever built by one of them at a time.
   let detailMapMount: Promise<void> | null = null
 
+  // The lines of the rows folded into a trail as its pieces (#1002), drawn
+  // with its own so the map shows the whole trail its length measures. The
+  // store keeps only the trail's own line — navigation, records and offline
+  // downloads follow that — so they are asked for here, once per trail, and
+  // only for a trail that has pieces.
+  const pieceRoutesById = new Map<number, Promise<Array<Array<[number, number]>>>>()
+  function pieceRoutesFor(id: number): Promise<Array<Array<[number, number]>>> {
+    let found = pieceRoutesById.get(id)
+    if (!found) {
+      found = apiFetch(`/api/trails/${id}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then((payload: any) => (Array.isArray(payload?.trail?.pieceRoutes) ? payload.trail.pieceRoutes : []))
+        .catch(() => [])
+      pieceRoutesById.set(id, found)
+    }
+    return found
+  }
+
   async function mountDetailMap(): Promise<void> {
     while (detailMapMount)
       await detailMapMount.catch(() => undefined)
@@ -690,7 +708,9 @@
         // A trail in several pieces is drawn as those pieces, each its own
         // line: joining them drew straight lines across roads and houses.
         const parts = wl.trailRouteParts?.()[t.id]
-        const drawn = parts && parts.length > 1 ? parts : [coords]
+        const pieces = t.pieces > 0 ? await pieceRoutesFor(t.id) : []
+        if (!detailMap) return
+        const drawn = [...(parts && parts.length > 1 ? parts : [coords]), ...pieces]
         await drawTrailRoute(detailMap.map, drawn, { color: '#059669', weight: 4, opacity: 0.9 })
         detailMap.fitPoints(drawn.flat(), [30, 30])
       }

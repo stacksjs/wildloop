@@ -17,7 +17,11 @@ export interface UiTrail {
   difficultyLabel: string
   /** True when no ascent is on record, so distance alone decided the grade. */
   difficultyEstimated: boolean
-  /** Miles. Stored in miles too - see the note on `normalizeTrailRow`. */
+  /**
+   * Miles. Stored in miles too - see the note on `normalizeTrailRow`. For a
+   * trail folded from pieces (#1002) the API sends the whole trail, pieces
+   * included, while the line the store keeps is the row's own.
+   */
   distance: number
   /** Feet of ascent. */
   elevation: number
@@ -65,6 +69,8 @@ export interface UiTrail {
    * means nothing once the trail is shown anywhere else.
    */
   milesAway: number | null
+  /** Catalog rows folded into this trail as its pieces; 0 for a trail that is one row. */
+  pieces: number
 }
 
 /**
@@ -169,6 +175,7 @@ export function normalizeTrailRow(row: Record<string, unknown>): UiTrail | null 
     dogsAllowed: readTriState(row.dogsAllowed ?? row.dogs_allowed),
     wheelchairAccessible: readTriState(row.wheelchairAccessible ?? row.wheelchair_accessible),
     milesAway: readMilesAway(row.milesAway),
+    pieces: Math.max(0, Math.floor(Number(row.pieces) || 0)),
   }
 }
 
