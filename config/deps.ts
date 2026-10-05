@@ -84,10 +84,12 @@ export const config: PantryConfig = {
     enabled: true,
     commands: [
       {
-        name: 'Generate model files',
+        name: 'Generate database types',
         command: './buddy',
-        args: ['generate:model-files'],
-        description: 'Generate TypeScript model files from database schema',
+        // There is no `generate:model-files`; pantry reported it failing on
+        // every install. This refreshes database/types.d.ts from the schema.
+        args: ['generate:db-types'],
+        description: 'Generate database/types.d.ts from the database schema',
         required: false,
       },
     ],

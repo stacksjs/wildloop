@@ -51,6 +51,8 @@ declare module '@stacksjs/database' {
       integrity_flags: string | null
       track_fingerprint: string | null
       review_state: "none" | "pending" | "cleared" | "upheld"
+      heart_rate_avg: number | null
+      heart_rate_max: number | null
     }
     activity_comments: {
       // columns
@@ -61,6 +63,22 @@ declare module '@stacksjs/database' {
       user_id: number
       activity_id: number
       body: string
+    }
+    activity_photos: {
+      // columns
+      id: number
+      uuid: string
+      activity_id: number
+      user_id: number
+      storage_key: string
+      thumb_key: string
+      width: number
+      height: number
+      bytes: number
+      position: number
+      status: string
+      created_at: string
+      updated_at: string | null
     }
     analytics_events: {
       // columns
@@ -199,6 +217,7 @@ declare module '@stacksjs/database' {
       color: string
       position: number
       archived: number
+      team_id: number
     }
     campaign_sends: {
       // columns
@@ -368,6 +387,18 @@ declare module '@stacksjs/database' {
       categorizable_type: string
       created_at: string
       updated_at: string | null
+    }
+    categorizables: {
+      // columns
+      id: number
+      created_at: string
+      updated_at: string | null
+      name: string
+      slug: string
+      description: string | null
+      is_active: number
+      categorizable_id: number
+      categorizable_type: string
     }
     challenges: {
       // columns
@@ -773,6 +804,8 @@ declare module '@stacksjs/database' {
       start_time: string
       max_yards: number | null
       winner_id: number | null
+      latitude: number | null
+      longitude: number | null
     }
     failed_jobs: {
       // columns
@@ -862,6 +895,19 @@ declare module '@stacksjs/database' {
       last_sync_at: string | null
       created_at: string
       updated_at: string | null
+    }
+    gdpr_requests: {
+      // columns
+      id: number
+      uuid: string
+      created_at: string
+      updated_at: string | null
+      type: "access" | "erasure" | "retention"
+      subject_id: number
+      actor: string
+      status: "completed" | "failed"
+      summary: unknown
+      occurred_at: string
     }
     gift_cards: {
       // columns
@@ -957,6 +1003,7 @@ declare module '@stacksjs/database' {
       description: string
       expiry_date: string
       is_used: number
+      customer_id: number
     }
     loyalty_rewards: {
       // columns
@@ -1075,6 +1122,21 @@ declare module '@stacksjs/database' {
       data: string
       read_at: string
       user_id: number
+    }
+    oauth_access_tokens: {
+      // columns
+      id: number
+      created_at: string
+      updated_at: string | null
+      tokenable_type: string
+      tokenable_id: number
+      name: string
+      token: string
+      scopes: string
+      revoked: number
+      expires_at: string
+      user_agent: string
+      ip_address: string
     }
     order_idempotency: {
       // columns
@@ -1229,6 +1291,7 @@ declare module '@stacksjs/database' {
       level: string
       status: "pending" | "confirmed" | "cancelled"
       auction_id: number
+      customer_id: number
     }
     posts: {
       // columns
@@ -1289,6 +1352,10 @@ declare module '@stacksjs/database' {
       description: string
       options: string
       status: "active" | "inactive" | "draft"
+      sku: string | null
+      price: number | null
+      compare_at_price: number | null
+      inventory_count: number | null
       product_id: number
     }
     products: {
@@ -1364,6 +1431,25 @@ declare module '@stacksjs/database' {
       source: "slug-change" | "manual"
       site_id: number
     }
+    referral_codes: {
+      // columns
+      id: number
+      created_at: string
+      updated_at: string | null
+      user_id: number
+      code: string
+    }
+    referrals: {
+      // columns
+      id: number
+      created_at: string
+      updated_at: string | null
+      referrer_id: number
+      referred_user_id: number
+      code: string
+      status: "registered" | "qualified"
+      qualified_at: string | null
+    }
     releases: {
       // columns
       id: number
@@ -1428,6 +1514,76 @@ declare module '@stacksjs/database' {
       notes: string | null
       want_to_visit: number
       has_visited: number
+      is_saved: number
+    }
+    search_places: {
+      // columns
+      id: number
+      kind: string
+      label: string
+      state: string
+      state_name: string
+      country: string
+      trail_count: number
+    }
+    search_places_fts: {
+      // columns
+      label: unknown
+      state_name: unknown
+    }
+    search_places_fts_config: {
+      // columns
+      k: unknown
+      v: unknown
+    }
+    search_places_fts_data: {
+      // columns
+      id: number
+      block: Uint8Array | null
+    }
+    search_places_fts_docsize: {
+      // columns
+      id: number
+      sz: Uint8Array | null
+    }
+    search_places_fts_idx: {
+      // columns
+      segid: unknown
+      term: unknown
+      pgno: unknown
+    }
+    segment_efforts: {
+      // columns
+      id: number
+      segment_id: number
+      activity_id: number
+      user_id: number
+      elapsed_seconds: number
+      started_at: string
+      created_at: string
+    }
+    segments: {
+      // columns
+      id: number
+      uuid: string
+      trail_id: number | null
+      created_by: number | null
+      name: string
+      activity_type: string
+      geometry: string
+      distance: number
+      elevation: number
+      start_lat: number
+      start_lng: number
+      end_lat: number
+      end_lng: number
+      min_lat: number
+      max_lat: number
+      min_lng: number
+      max_lng: number
+      effort_count: number
+      created_at: string
+      updated_at: string | null
     }
     sender_domains: {
       // columns
@@ -1541,6 +1697,31 @@ declare module '@stacksjs/database' {
       image_url: string
       external_id: string
       user_id: number
+    }
+    storage_item_tasks: {
+      // columns
+      id: number
+      uuid: string
+      created_at: string
+      updated_at: string | null
+      disk: string
+      path: string
+      kind: "optimize" | "transcode" | "tag" | "preview"
+      state: "queued" | "running" | "done" | "failed" | "skipped"
+      attempts: number
+      error: string
+      started_at: string
+      finished_at: string
+    }
+    storage_items: {
+      // columns
+      id: number
+      uuid: string
+      created_at: string
+      updated_at: string | null
+      disk: string
+      path: string
+      favorite: number
     }
     subscriber_emails: {
       // columns
@@ -1729,6 +1910,13 @@ declare module '@stacksjs/database' {
       all_time_rank: number | null
       xp: number
     }
+    trail_fold_progress: {
+      // columns
+      id: number
+      after_name: string
+      passes: number
+      updated_at: string | null
+    }
     trail_ingest_shards: {
       // columns
       id: number
@@ -1747,6 +1935,59 @@ declare module '@stacksjs/database' {
       started_at: string
       completed_at: string
     }
+    trail_parts: {
+      // columns
+      trail_id: number
+      part_of: number
+      country: string | null
+      folded_at: string
+    }
+    trail_photo_candidates: {
+      // columns
+      id: number
+      trail_id: number
+      file_title: string
+      url: string
+      page_url: string
+      credit: string
+      license: string
+      license_url: string
+      matched_words: string
+      status: string
+      reason: string | null
+      priority: number
+      reviewed_by: number | null
+      reviewed_at: string | null
+      created_at: string
+      updated_at: string | null
+      found_by: string
+      distance_m: number | null
+    }
+    trail_photo_searches: {
+      // columns
+      trail_id: number
+      searched_at: string
+      found: number
+      accepted: number
+      priority: number
+    }
+    trail_photos: {
+      // columns
+      id: number
+      uuid: string
+      trail_id: number
+      user_id: number
+      review_id: number | null
+      storage_key: string
+      thumb_key: string
+      width: number
+      height: number
+      bytes: number
+      status: string
+      report_count: number
+      created_at: string
+      updated_at: string | null
+    }
     trail_reviews: {
       // columns
       id: number
@@ -1759,9 +2000,35 @@ declare module '@stacksjs/database' {
       title: string | null
       content: string
       visit_date: string | null
-      conditions: "excellent" | "good" | "fair" | "poor" | "muddy" | "icy" | null
+      conditions: "excellent" | "good" | "fair" | "poor" | "muddy" | "fallen-trees" | "snowy" | "icy" | "flooded" | "washed-out" | "extreme-heat" | "wildfire" | "closed" | null
+      conditions_reported_at: string | null
       helpful_count: number
       photos: string | null
+      difficulty: "easy" | "moderate" | "hard" | null
+    }
+    trail_street_shares: {
+      // columns
+      trail_id: number
+      share: number | null
+      measured_at: string
+    }
+    trail_totals: {
+      // columns
+      trail_id: number
+      distance: number
+      elevation: number | null
+      pieces: number
+      country: string | null
+      latitude: number | null
+      longitude: number | null
+      computed_at: string
+      difficulty: string | null
+    }
+    trail_view_days: {
+      // columns
+      trail_id: number
+      day: string
+      views: number
     }
     trails: {
       // columns
@@ -1798,6 +2065,8 @@ declare module '@stacksjs/database' {
       route_type: "loop" | "out-and-back" | "point-to-point" | "network"
       surface: string
       elevation_high: number
+      elevation_checked_at: string
+      location_checked_at: string
       allowed_uses: string
       dogs_allowed: number
       wheelchair_accessible: number
@@ -1845,6 +2114,26 @@ declare module '@stacksjs/database' {
       loyalty_points_redeemed: number
       order_id: number
     }
+    trip_plans: {
+      // columns
+      id: number
+      uuid: string
+      created_at: string
+      updated_at: string | null
+      user_id: number
+      trail_id: number
+      custom_route_id: number
+      title: string
+      place_label: string | null
+      latitude: number
+      longitude: number
+      planned_for: string
+      start_time: string | null
+      timezone: string | null
+      activity_type: string | null
+      notes: string | null
+      reminded_at: string | null
+    }
     usage_events: {
       // columns
       id: number
@@ -1878,6 +2167,18 @@ declare module '@stacksjs/database' {
       blocker_id: number
       blocked_id: number
     }
+    user_identities: {
+      // columns
+      id: number
+      user_id: number
+      provider: string
+      provider_user_id: string
+      email: string | null
+      created_at: string
+      updated_at: string | null
+      created_account: number
+      refresh_token: string | null
+    }
     user_notifications: {
       // columns
       id: number
@@ -1887,7 +2188,7 @@ declare module '@stacksjs/database' {
       recipient_id: number
       actor_id: number
       actor_name: string
-      type: "kudos" | "comment" | "follow" | "conquest" | "conquest_attack" | "conquest_defend" | "conquest_win" | "achievement" | "challenge" | "record"
+      type: "kudos" | "comment" | "follow" | "conquest" | "conquest_attack" | "conquest_defend" | "conquest_win" | "achievement" | "challenge" | "record" | "plan"
       body: string
       link: string
       read: number
@@ -1939,6 +2240,9 @@ declare module '@stacksjs/database' {
       name: string
       email: string
       password: string
+      avatar: string | null
+      bio: string | null
+      location: string | null
     }
     waitlist_products: {
       // columns
