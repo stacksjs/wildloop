@@ -4,6 +4,10 @@ preload = [ "./storage/framework/defaults/resources/plugins/preloader.ts" ]
 [test]
 preload = [ "./tests/setup.ts" ]
 coverage = false
+# The Stacks VS Code extension's own sources and tests arrive with the vendored
+# defaults (stacks 0.75), but they only run inside a stacks checkout: they
+# import `core/*` sources and @stacksjs/stx-vscode, neither of which an app has.
+pathIgnorePatterns = [ "storage/framework/defaults/ide/vscode/**" ]
 
 [run]
 # equivalent to `bun --bun` for all `bun run` commands
