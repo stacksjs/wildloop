@@ -1,5 +1,6 @@
 import { log } from '@stacksjs/logging'
 import { db } from '@stacksjs/orm'
+import { clientAddress } from '@stacksjs/router'
 
 /**
  * Trail page views, counted as a popularity signal and nothing more.
@@ -133,11 +134,17 @@ export function isCrossSite(headers: HeaderSource): boolean {
   return header(headers, 'sec-fetch-site').toLowerCase() === 'cross-site'
 }
 
-/** The address a request came from, as the edge reports it. Only ever hashed. */
-export function visitorAddress(headers: HeaderSource): string {
-  return header(headers, 'cf-connecting-ip')
-    || header(headers, 'x-real-ip')
-    || header(headers, 'x-forwarded-for').split(',')[0].trim()
+/**
+ * The address a request came from, as the proxies in front of us report it
+ * (`clientAddress()`). Only ever hashed.
+ *
+ * This read `CF-Connecting-IP` first, then the first `X-Forwarded-For` hop,
+ * both of which a client can write when it reaches the origin directly. A
+ * script naming a fresh address each time was a fresh visitor each time, up
+ * to the daily cap on every trail.
+ */
+export function visitorAddress(request: Request): string {
+  return clientAddress(request) ?? ''
 }
 
 /**
@@ -191,7 +198,8 @@ export class RecentViews {
  * Whether a request is one person looking at one trail. Cheap checks first:
  * a bot never reaches the visitor memory, so crawling cannot fill it.
  */
-export function judgeView(headers: HeaderSource, trailId: number, recent: RecentViews): ViewVerdict {
+export function judgeView(request: Request, trailId: number, recent: RecentViews): ViewVerdict {
+  const headers = request.headers
   const userAgent = header(headers, 'user-agent')
   if (isLikelyBot(userAgent))
     return { counted: false, reason: 'bot' }
@@ -199,7 +207,7 @@ export function judgeView(headers: HeaderSource, trailId: number, recent: Recent
     return { counted: false, reason: 'prefetch' }
   if (isCrossSite(headers))
     return { counted: false, reason: 'cross-site' }
-  if (recent.repeat(trailId, visitorAddress(headers), userAgent))
+  if (recent.repeat(trailId, visitorAddress(request), userAgent))
     return { counted: false, reason: 'repeat' }
   return { counted: true }
 }

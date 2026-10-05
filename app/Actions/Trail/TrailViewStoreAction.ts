@@ -26,7 +26,7 @@ export default new Action({
     if (!trailId)
       return response.json({ success: false, error: 'Trail ID is required' }, 422)
 
-    const verdict = judgeView(request.headers, trailId, recentTrailViews)
+    const verdict = judgeView(request, trailId, recentTrailViews)
     if (verdict.counted)
       void countTrailView(trailId)
 

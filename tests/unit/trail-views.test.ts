@@ -71,8 +71,9 @@ describe('one view per visitor', () => {
   const HOUR = 60 * 60 * 1000
   let clock = Date.parse('2026-10-04T12:00:00Z')
   const tick = () => clock
+  const post = (headers: Record<string, string>) => new Request('http://localhost/api/trails/7/view', { method: 'POST', headers })
   const visit = (agent: string, address = '203.0.113.7', extra: Record<string, string> = {}) =>
-    new Headers({ 'user-agent': agent, 'x-forwarded-for': `${address}, 10.0.0.1`, 'sec-fetch-site': 'same-origin', ...extra })
+    post({ 'user-agent': agent, 'x-forwarded-for': `${address}, 10.0.0.1`, 'sec-fetch-site': 'same-origin', ...extra })
 
   afterEach(() => {
     clock = Date.parse('2026-10-04T12:00:00Z')
@@ -106,9 +107,20 @@ describe('one view per visitor', () => {
 
   it('reads the address the edge reports', () => {
     const recent = new RecentViews(6 * HOUR, 1000, tick)
-    const behind = (address: string) => new Headers({ 'user-agent': CHROME, 'cf-connecting-ip': address, 'x-forwarded-for': '10.0.0.1' })
+    // rpx names the Cloudflare edge that connected; Cloudflare names the visitor.
+    const behind = (address: string) => post({ 'user-agent': CHROME, 'cf-connecting-ip': address, 'x-forwarded-for': '172.70.1.9' })
     expect(judgeView(behind('203.0.113.7'), 7, recent).counted).toBe(true)
     expect(judgeView(behind('203.0.113.8'), 7, recent).counted).toBe(true)
+    expect(judgeView(behind('203.0.113.7'), 7, recent).counted).toBe(false)
+  })
+
+  it('is not a new visitor for naming a new address', () => {
+    // Reaching the origin directly, a client writes whatever headers it likes.
+    // Only the hop the proxy in front of us appended says who it is.
+    const recent = new RecentViews(6 * HOUR, 1000, tick)
+    const direct = (claimed: string) => post({ 'user-agent': CHROME, 'cf-connecting-ip': claimed, 'x-forwarded-for': `${claimed}, 198.51.100.9` })
+    expect(judgeView(direct('203.0.113.7'), 7, recent).counted).toBe(true)
+    expect(judgeView(direct('203.0.113.8'), 7, recent)).toEqual({ counted: false, reason: 'repeat' })
   })
 
   it('never counts, or remembers, a bot', () => {
@@ -126,7 +138,7 @@ describe('one view per visitor', () => {
     expect(judgeView(visit(CHROME), 7, recent)).toEqual({ counted: true })
     // A client that says nothing about where it was sent from is judged on
     // its User-Agent.
-    expect(judgeView(new Headers({ 'user-agent': IPHONE }), 7, recent)).toEqual({ counted: true })
+    expect(judgeView(post({ 'user-agent': IPHONE }), 7, recent)).toEqual({ counted: true })
   })
 
   it('forgets the oldest visitor first when full, rather than growing', () => {
