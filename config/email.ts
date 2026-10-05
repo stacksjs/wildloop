@@ -42,6 +42,11 @@ export default {
     'support',
   ],
 
+  // Support mail reaches a person: forwarded to Chris's mailbox.
+  forwards: {
+    'support@wildloop.org': ['chris@wildloop.org'],
+  },
+
   url: envVars.APP_URL || 'https://wildloop.org',
   charset: 'UTF-8',
 
