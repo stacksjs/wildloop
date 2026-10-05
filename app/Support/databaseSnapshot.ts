@@ -13,11 +13,8 @@ import process from 'node:process'
  * Each snapshot is taken with SQLite's online backup API (`.backup`), which is
  * consistent while the app keeps writing, checked with `PRAGMA quick_check`,
  * compressed, and kept for `keep` nights. Snapshots on the same disk protect
- * against the database going wrong, not against the disk going: for that,
- * point `DB_SNAPSHOT_RESTIC_ENV` at an env file holding a restic repository
- * (RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE and the storage credentials) and
- * each snapshot is also sent off the box. The file is sourced by the shell;
- * its secrets never pass through this process.
+ * against the database going wrong, not against the disk going: the command
+ * then sends each one to Hetzner Object Storage (app/Support/snapshotOffsite.ts).
  */
 
 export const SNAPSHOT_PREFIX = 'stacks-'
@@ -38,8 +35,9 @@ export function snapshotsToPrune(files: string[], keep: number): string[] {
 export interface SnapshotReport {
   file: string
   bytes: number
+  /** Absolute path of the snapshot written. */
+  path: string
   pruned: string[]
-  offsite: 'sent' | 'not configured'
 }
 
 function run(command: string[]): void {
@@ -56,7 +54,7 @@ export function databasePath(): string {
   return resolve(process.env.DB_DATABASE_PATH || 'database/stacks.sqlite')
 }
 
-/** Take, check, compress, rotate and (when configured) send one snapshot. */
+/** Take, check, compress and rotate one snapshot. */
 export function snapshotDatabase(options: { keep?: number, directory?: string, at?: Date } = {}): SnapshotReport {
   const source = databasePath()
   if (!existsSync(source))
@@ -100,21 +98,5 @@ export function snapshotDatabase(options: { keep?: number, directory?: string, a
   for (const file of pruned)
     unlinkSync(join(directory, file))
 
-  let offsite: SnapshotReport['offsite'] = 'not configured'
-  const resticEnv = process.env.DB_SNAPSHOT_RESTIC_ENV
-  if (resticEnv && existsSync(resticEnv)) {
-    if (!has('restic'))
-      throw new Error('DB_SNAPSHOT_RESTIC_ENV is set but restic is not installed')
-    // Sourced by the shell, so the repository's secrets never pass through here.
-    const quote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`
-    run(['bash', '-c', [
-      'set -euo pipefail',
-      `set -a; source ${quote(resticEnv)}; set +a`,
-      `restic backup --quiet --tag wildloop-db ${quote(finished)}`,
-      'restic forget --quiet --tag wildloop-db --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune',
-    ].join('\n')])
-    offsite = 'sent'
-  }
-
-  return { file: basename(finished), bytes: statSync(finished).size, pruned, offsite }
+  return { file: basename(finished), path: finished, bytes: statSync(finished).size, pruned }
 }

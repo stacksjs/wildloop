@@ -3,11 +3,16 @@ import process from 'node:process'
 import { intro, log, outro } from '@stacksjs/cli'
 import { ExitCode } from '@stacksjs/types'
 import { snapshotDatabase } from '../Support/databaseSnapshot'
+import { sendSnapshotOffsite } from '../Support/snapshotOffsite'
 
 /**
  * `buddy db:snapshot` - a consistent, checked, compressed copy of the
- * database, rotated, and sent off the box when a restic repository is
- * configured (app/Support/databaseSnapshot.ts).
+ * database, rotated, and sent to Hetzner Object Storage when its credential
+ * is configured (app/Support/databaseSnapshot.ts, app/Support/snapshotOffsite.ts).
+ *
+ * An upload that fails fails the command, so the scheduler reports it. No
+ * credential at all only warns: that is a box not yet set up, not a backup
+ * that broke.
  *
  * The 03:20 job. Safe while the app is serving: SQLite's online backup API
  * copies a consistent instant without stopping writers.
@@ -20,10 +25,16 @@ export default function (cli: CLI) {
       const perf = await intro('buddy db:snapshot')
       try {
         const report = snapshotDatabase({ keep: Math.max(1, Number(options.keep) || 7) })
-        if (report.offsite === 'not configured')
-          log.warn('Kept on this box only: set DB_SNAPSHOT_RESTIC_ENV to send snapshots off it.')
+        log.info(`Wrote ${report.file} (${Math.round(report.bytes / 1048576)} MB), removed ${report.pruned.length} old`)
+
+        const offsite = await sendSnapshotOffsite(report.path, process.env)
+        if (offsite.status === 'not configured')
+          log.warn('Kept on this box only: set HETZNER_S3_ACCESS_KEY and HETZNER_S3_SECRET_KEY to send snapshots off it.')
+        else
+          log.info(`Sent to ${offsite.target}${offsite.pruned.length ? `, removed ${offsite.pruned.length} older` : ''}`)
+
         await outro(
-          `Wrote ${report.file} (${Math.round(report.bytes / 1048576)} MB), removed ${report.pruned.length} old, off-box: ${report.offsite}`,
+          `Snapshot ${report.file}, off-box: ${offsite.status === 'sent' ? offsite.target : 'not configured'}`,
           { startTime: perf, useSeconds: true },
         )
         process.exit(ExitCode.Success)
