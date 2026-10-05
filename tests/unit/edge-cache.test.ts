@@ -260,3 +260,24 @@ describe('a near-me location rounded for the edge', () => {
       expect(milesFromOrigin(origin, lat, lng)).toBe(Math.round(milesBetween(origin, lat, lng) * 10) / 10)
   })
 })
+
+describe('finding the framework CSRF middleware', () => {
+  it('uses the vendored copy in a checkout and the package in a release', async () => {
+    const { mkdirSync, mkdtempSync, writeFileSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { frameworkCsrfPath } = await import('../../app/Middleware/Csrf')
+
+    const release = mkdtempSync(join(tmpdir(), 'wildloop-release-'))
+    mkdirSync(join(release, 'node_modules/@stacksjs/defaults/app/Middleware'), { recursive: true })
+    writeFileSync(join(release, 'node_modules/@stacksjs/defaults/app/Middleware/Csrf.ts'), '')
+    // A release ships without storage/framework/defaults: the package's copy.
+    expect(frameworkCsrfPath(release)).toBe(join(release, 'node_modules/@stacksjs/defaults/app/Middleware/Csrf.ts'))
+
+    mkdirSync(join(release, 'storage/framework/defaults/app/Middleware'), { recursive: true })
+    writeFileSync(join(release, 'storage/framework/defaults/app/Middleware/Csrf.ts'), '')
+    expect(frameworkCsrfPath(release)).toBe(join(release, 'storage/framework/defaults/app/Middleware/Csrf.ts'))
+
+    expect(() => frameworkCsrfPath(join(release, 'nowhere'))).toThrow('none of')
+  })
+})

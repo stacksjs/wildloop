@@ -21,15 +21,46 @@
  * The router resolves `app/Middleware/Csrf.ts` before the vendored default, so
  * this is the module both the `csrf` middleware and the post-response seeding
  * load (`resolveDefaultsPath` in @stacksjs/router).
+ *
+ * The framework's module is found the way the router finds it: the vendored
+ * copy under storage/framework/defaults when there is one (a checkout), else
+ * the @stacksjs/defaults package (a release, which ships without the vendored
+ * tree). A static import of the vendored path took the API down on the first
+ * production deploy: the file is not in a release, and every route failed to
+ * register.
  */
+import type FrameworkCsrf from '../../storage/framework/defaults/app/Middleware/Csrf'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { declaresShared } from '../Support/edgeCache'
-import { seedCsrfCookieIfMissing as seedFrameworkCsrfCookie } from '../../storage/framework/defaults/app/Middleware/Csrf'
 
-export * from '../../storage/framework/defaults/app/Middleware/Csrf'
-export { default } from '../../storage/framework/defaults/app/Middleware/Csrf'
+type FrameworkModule = typeof import('../../storage/framework/defaults/app/Middleware/Csrf')
+
+/** Where the framework's CSRF middleware is, in a checkout and in a release. */
+export function frameworkCsrfPath(root: string = join(import.meta.dir, '..', '..')): string {
+  const candidates = [
+    join(root, 'storage/framework/defaults/app/Middleware/Csrf.ts'),
+    join(root, 'node_modules/@stacksjs/defaults/app/Middleware/Csrf.ts'),
+  ]
+  const found = candidates.find(path => existsSync(path))
+  if (!found)
+    throw new Error(`The framework CSRF middleware is in none of: ${candidates.join(', ')}`)
+  return found
+}
+
+const framework = await import(frameworkCsrfPath()) as FrameworkModule
+
+export const CSRF_COOKIE_NAME = framework.CSRF_COOKIE_NAME
+export const generateCsrfToken = framework.generateCsrfToken
+export const createCsrfCookie = framework.createCsrfCookie
+export const responseMayUseCsrfToken = framework.responseMayUseCsrfToken
+export const validateCsrfRequest = framework.validateCsrfRequest
+
+const csrf: typeof FrameworkCsrf = framework.default
+export default csrf
 
 export function seedCsrfCookieIfMissing(req: Request, response: Response, minted?: string, responseHasNoCookies = false): Response {
   if (declaresShared(response.headers))
     return response
-  return seedFrameworkCsrfCookie(req, response, minted, responseHasNoCookies)
+  return framework.seedCsrfCookieIfMissing(req, response, minted, responseHasNoCookies)
 }
