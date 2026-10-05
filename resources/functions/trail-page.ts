@@ -8,6 +8,29 @@
  * one answering "0 ft" — which reads as flat, and is a guess.
  */
 
+/**
+ * How a location says a trail is near a town rather than in it: "Near
+ * Republic, WA". The catalog writes that for a trail in the back country,
+ * whose nearest town is 25-45 km off (see `betterLocation()`).
+ */
+export const NEAR_PLACE_PREFIX = 'Near '
+
+/** The place a location names: "Near Republic, WA" is "Republic, WA". */
+export function placeOfLocation(location: string | null | undefined): string {
+  const text = String(location ?? '').trim()
+  return text.toLowerCase().startsWith(NEAR_PLACE_PREFIX.toLowerCase())
+    ? text.slice(NEAR_PLACE_PREFIX.length).trim()
+    : text
+}
+
+/** A location for the middle of a sentence: "in Hollywood, CA", "near Republic, WA", or ''. */
+export function whereLocation(location: string | null | undefined): string {
+  const place = placeOfLocation(location)
+  if (!place)
+    return ''
+  return place === String(location ?? '').trim() ? `in ${place}` : `near ${place}`
+}
+
 export interface PageTrail {
   id: number
   name: string
@@ -88,7 +111,7 @@ export interface FaqEntry {
 export function trailFaq(trail: PageTrail): FaqEntry[] {
   const name = trail.name
   const faq: FaqEntry[] = []
-  const where = trail.managedBy || trail.location || ''
+  const where = trail.managedBy ? `in ${trail.managedBy}` : whereLocation(trail.location)
 
   if (Number(trail.distance) > 0) {
     const shape = ROUTE_WORDS[trail.routeType ?? '']
@@ -110,7 +133,7 @@ export function trailFaq(trail: PageTrail): FaqEntry[] {
   if (where) {
     faq.push({
       question: `Where is ${name}?`,
-      answer: `${name} is in ${where}${trail.stateName && !where.includes(trail.stateName) ? `, ${trail.stateName}` : ''}. The route map shows the trailhead, and directions open in Apple or Google Maps.`,
+      answer: `${name} is ${where}${trail.stateName && !where.includes(trail.stateName) ? `, ${trail.stateName}` : ''}. The route map shows the trailhead, and directions open in Apple or Google Maps.`,
     })
   }
 
@@ -167,7 +190,7 @@ export function exploreNearLinks(trail: PageTrail): LinkGroup[] {
 
   const around: Crumb[] = []
   if (Number.isFinite(trail.lat) && Number.isFinite(trail.lng)) {
-    const place = (trail.location || trail.name).split(',')[0].trim()
+    const place = (placeOfLocation(trail.location) || trail.name).split(',')[0].trim()
     around.push({ label: `Trails near ${place}`, href: `/trails?near=${encodeURIComponent(place)}&lat=${trail.lat}&lng=${trail.lng}` })
   }
   if (trail.managedBy)

@@ -245,6 +245,8 @@ declare global {
   const decodeRouteParts: typeof autoImports.decodeRouteParts
   const primaryRoutePart: typeof autoImports.primaryRoutePart
   const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
+  const placeOfLocation: typeof autoImports.placeOfLocation
+  const whereLocation: typeof autoImports.whereLocation
   const countryLabel: typeof autoImports.countryLabel
   const trailBreadcrumbs: typeof autoImports.trailBreadcrumbs
   const trailFaq: typeof autoImports.trailFaq
@@ -252,6 +254,7 @@ declare global {
   const ratingSummary: typeof autoImports.ratingSummary
   const forecastDayLabel: typeof autoImports.forecastDayLabel
   const forecastBar: typeof autoImports.forecastBar
+  const NEAR_PLACE_PREFIX: typeof autoImports.NEAR_PLACE_PREFIX
   const parsePhotoList: typeof autoImports.parsePhotoList
   const trailGallery: typeof autoImports.trailGallery
   const formatTrailTime: typeof autoImports.formatTrailTime

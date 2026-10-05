@@ -32,6 +32,7 @@ interface CandidateRow {
   max_lat: number | null
   min_lng: number | null
   max_lng: number | null
+  managed_by: string | null
 }
 
 /**
@@ -74,6 +75,12 @@ export default function (cli: CLI) {
         return
       }
 
+      // A town more than 10 km off is only named once our routing server has
+      // said no ridge lies between it and the trail. Without one those
+      // trails are left for a run that has it, rather than settled unnamed.
+      if (!process.env.VALHALLA_URL?.trim())
+        log.warn('VALHALLA_URL is not set: trails whose town is more than 10 km off are left for a run that can check for a ridge between.')
+
       const batchSize = Math.max(1, Number(options.batch ?? DEFAULT_BATCH) || DEFAULT_BATCH)
       const limit = Math.max(0, Number(options.limit ?? 0) || 0)
       const show = Math.max(0, Number(options.show ?? 0) || 0)
@@ -103,10 +110,13 @@ export default function (cli: CLI) {
       const started = performance.now()
       let seen = 0
       let written = 0
+      let operators = 0
       let managed = 0
       let towns = 0
+      let nearTowns = 0
       let specific = 0
       let unnamed = 0
+      let deferred = 0
       let shown = 0
 
       // Paged by id rather than OFFSET: stamping the rows being paged over
@@ -115,7 +125,7 @@ export default function (cli: CLI) {
       while (seen < target) {
         const take = Math.min(batchSize, target - seen)
         const rows = await db.sql`
-          SELECT id, name, location, state, state_name, country, latitude, longitude, min_lat, max_lat, min_lng, max_lng
+          SELECT id, name, location, state, state_name, country, latitude, longitude, min_lat, max_lat, min_lng, max_lng, managed_by
           FROM trails
           WHERE location_checked_at IS NULL
             AND (${country} IS NULL OR country = ${country})
@@ -145,13 +155,18 @@ export default function (cli: CLI) {
             maxLat: row.max_lat,
             minLng: row.min_lng,
             maxLng: row.max_lng,
+            managedBy: row.managed_by,
           })
 
           if (outcome.status === 'better') {
-            if (outcome.decision.basis === 'managed')
+            if (outcome.decision.basis === 'operator')
+              operators++
+            else if (outcome.decision.basis === 'managed')
               managed++
-            else
+            else if (outcome.decision.basis === 'town')
               towns++
+            else
+              nearTowns++
             writes.push({ id: Number(row.id), from: String(row.location ?? ''), to: outcome.decision.location })
             if (shown < show) {
               shown++
@@ -164,8 +179,13 @@ export default function (cli: CLI) {
             specific++
           else if (outcome.status === 'unnamed')
             unnamed++
-          else
-            continue // The gazetteer went away mid-run: leave the row for the next one.
+          else {
+            // The gazetteer went away mid-run, or the routing server could
+            // not say whether a ridge lies between a trail and its town:
+            // leave the row for the next run.
+            deferred++
+            continue
+          }
           settled.push(Number(row.id))
         }
 
@@ -184,11 +204,15 @@ export default function (cli: CLI) {
 
       log.info('')
       log.info(`asked     ${seen.toLocaleString()} in ${seconds.toFixed(1)}s (${Math.round(seen / Math.max(seconds, 0.001)).toLocaleString()}/s)`)
+      log.info(`operator  ${operators.toLocaleString()} (named after the park or forest their operator tag names)`)
       log.info(`park      ${managed.toLocaleString()} (named after the park or forest around them)`)
       log.info(`town      ${towns.toLocaleString()} (named after the nearest town)`)
+      log.info(`near      ${nearTowns.toLocaleString()} (named "Near" a town 25-45 km off)`)
       log.info(`written   ${written.toLocaleString()}${options.dryRun ? ' (dry run)' : ''}`)
       log.info(`specific  ${specific.toLocaleString()} (already named finer than the region, left alone)`)
-      log.info(`unnamed   ${unnamed.toLocaleString()} (nothing near enough to name them by)`)
+      log.info(`unnamed   ${unnamed.toLocaleString()} (nothing honest to name them by)`)
+      if (deferred > 0)
+        log.info(`deferred  ${deferred.toLocaleString()} (could not be decided tonight, asked again next run)`)
 
       outro('Done')
     })

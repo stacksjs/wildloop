@@ -169,6 +169,20 @@ describe('search places, built from the trails', () => {
     expect(colorado).toEqual([{ kind: 'region' }])
   })
 
+  it('counts a trail near a town under the town', async () => {
+    database = await catalog()
+    // Back-country trails named after the nearest town 25-45 km off.
+    database.run(`INSERT INTO trails (id, name, location, state, state_name, country) VALUES
+      (21, 'Kettle Crest Trail North', 'Near Republic, WA', 'WA', 'Washington', 'US'),
+      (22, 'Sherman Pass Loop', 'Near Republic, WA', 'WA', 'Washington', 'US'),
+      (23, 'Fourth of July Ridge', 'Republic, WA', 'WA', 'Washington', 'US')`)
+    for (const statement of REBUILD_SEARCH_PLACES_SQL)
+      database.run(statement)
+
+    const rows = database.query(`SELECT label, trail_count FROM search_places WHERE kind = 'place' AND label LIKE '%Republic%'`).all()
+    expect(rows).toEqual([{ label: 'Republic, WA', trail_count: 3 }])
+  })
+
   it('rebuilds to the same list rather than accumulating duplicates', async () => {
     database = await catalog()
     const before = database.query('SELECT count(*) AS n FROM search_places').get() as { n: number }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { exploreNearLinks, forecastBar, forecastDayLabel, ratingSummary, trailBreadcrumbs, trailFaq } from '../../resources/functions/trail-page'
+import { exploreNearLinks, forecastBar, forecastDayLabel, placeOfLocation, ratingSummary, trailBreadcrumbs, trailFaq, whereLocation } from '../../resources/functions/trail-page'
 
 const ROCK_RIDGE = {
   id: 6139,
@@ -71,6 +71,29 @@ describe('exploreNearLinks', () => {
     expect(region.title).toBe('In California')
     expect(region.links[1]).toEqual({ label: 'Easy trails in California', href: '/trails?country=US&state=CA&difficulty=easy' })
     expect(nearby.links[0].href).toBe('/trails?near=Santa%20Monica%20Mountains%20National%20Recreation%20Area&lat=34.185&lng=-118.78')
+  })
+})
+
+describe('a trail near a town rather than in it', () => {
+  // A back-country trail named after a town 25-45 km off.
+  const KETTLE_CREST = { id: 298439, name: 'Kettle Crest Trail North', location: 'Near Republic, WA', state: 'WA', stateName: 'Washington', country: 'US', lat: 48.833515, lng: -118.417908 }
+
+  it('reads the place without the "Near"', () => {
+    expect(placeOfLocation('Near Republic, WA')).toBe('Republic, WA')
+    expect(placeOfLocation('Republic, WA')).toBe('Republic, WA')
+    expect(placeOfLocation(null)).toBe('')
+  })
+
+  it('says near in a sentence, and in where it is', () => {
+    expect(whereLocation('Near Republic, WA')).toBe('near Republic, WA')
+    expect(whereLocation('Hollywood, CA')).toBe('in Hollywood, CA')
+    expect(whereLocation('')).toBe('')
+    expect(trailFaq(KETTLE_CREST).find(e => e.question.startsWith('Where'))?.answer).toStartWith('Kettle Crest Trail North is near Republic, WA, Washington.')
+  })
+
+  it('links trails near the town, not near "Near Republic"', () => {
+    const [, nearby] = exploreNearLinks(KETTLE_CREST)
+    expect(nearby.links[0].label).toBe('Trails near Republic')
   })
 })
 

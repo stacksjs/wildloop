@@ -176,7 +176,7 @@
   import { activeDanger, conditionReports } from '../../functions/trail-conditions'
   import { deviceToday, useTripPlans } from '../../composables/useTripPlans'
   import { addDays, PLAN_ACTIVITIES, planDayLabel, planDirections, planTimeLabel } from '../../functions/trip-plans'
-  import { exploreNearLinks, forecastBar, forecastDayLabel, ratingSummary, trailBreadcrumbs, trailFaq } from '../../functions/trail-page'
+  import { exploreNearLinks, forecastBar, forecastDayLabel, ratingSummary, trailBreadcrumbs, trailFaq, whereLocation } from '../../functions/trail-page'
   import { queryTrails } from '../../composables/useTrailCatalog'
   import { isStockTrailPhoto } from '../../functions/stock-photos'
 
@@ -813,7 +813,7 @@
       parts.push(`${Math.round(current.elevation).toLocaleString()} ft elevation gain`)
 
     const facts = parts.join(' · ')
-    const where = current.location ? ` in ${current.location}` : ''
+    const where = current.location ? ` ${whereLocation(current.location)}` : ''
 
     return facts
       ? `${current.name}${where}. ${facts}. Route map, records and recent conditions on Wildloop.`

@@ -9,6 +9,8 @@
  * action runs, against a real SQLite with the real migration applied.
  */
 
+import { NEAR_PLACE_PREFIX } from '../../resources/functions/trail-page'
+
 export type SuggestionKind = 'region' | 'place' | 'trail'
 
 export interface Suggestion {
@@ -127,16 +129,23 @@ export function trailSuggestionsSql(nameMatch: string): string {
  *
  * Counted without the pieces of other trails, so "Boulder, CO · 212 trails"
  * says how many the catalog will list there, not how many rows it holds.
+ *
+ * A back-country trail "Near Republic, WA" counts under "Republic, WA": the
+ * place is the town, and searching it finds those trails too, since the
+ * index holds the same words.
  */
+/** A trail's location as a place: "Near Republic, WA" is the place "Republic, WA". */
+const PLACE_LABEL_SQL = `CASE WHEN trim(location) LIKE '${NEAR_PLACE_PREFIX}%' THEN trim(substr(trim(location), ${NEAR_PLACE_PREFIX.length + 1})) ELSE trim(location) END`
+
 export const REBUILD_SEARCH_PLACES_SQL: string[] = [
   'DELETE FROM search_places',
   `INSERT INTO search_places (kind, label, state, state_name, country, trail_count)
-    SELECT 'place', trim(location), coalesce(state, ''), max(coalesce(state_name, '')), coalesce(country, ''), count(*)
+    SELECT 'place', ${PLACE_LABEL_SQL}, coalesce(state, ''), max(coalesce(state_name, '')), coalesce(country, ''), count(*)
     FROM trails
     WHERE trim(coalesce(location, '')) <> ''
       AND lower(trim(location)) <> lower(trim(coalesce(state_name, '')))
       AND id NOT IN (SELECT trail_id FROM trail_parts)
-    GROUP BY trim(location), coalesce(state, ''), coalesce(country, '')`,
+    GROUP BY ${PLACE_LABEL_SQL}, coalesce(state, ''), coalesce(country, '')`,
   `INSERT INTO search_places (kind, label, state, state_name, country, trail_count)
     SELECT 'region', max(trim(state_name)), state, max(trim(state_name)), coalesce(country, ''), count(*)
     FROM trails

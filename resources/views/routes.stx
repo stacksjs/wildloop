@@ -42,6 +42,7 @@
   import { routeShapeFor } from '../composables/useRouteShape'
   import { createTrailMap, ensureTsMaps, runWhenMapReady } from '../composables/useTrailMap'
   import { encodePolyline } from '../functions/polyline'
+  import { whereLocation } from '../functions/trail-page'
   import { planDirections } from '../functions/trip-plans'
 
   useHead({ title: 'Route Planner — Wildloop' })
@@ -338,7 +339,8 @@
         const { trails, geometryById } = normalizeTrailsPayload(payload)
         path = (geometryById[trailId] ?? []) as [number, number][]
         name = trails[0]?.name ? `${trails[0].name} (my version)` : ''
-        townName.set(trails[0]?.location?.split(',')[0] ?? '')
+        // A trail "Near Republic, WA" is not in Republic: no town in its name.
+        townName.set(whereLocation(trails[0]?.location).startsWith('in ') ? String(trails[0].location).split(',')[0] : '')
       }
     }
     else if (Number.isInteger(openId) && openId > 0) {

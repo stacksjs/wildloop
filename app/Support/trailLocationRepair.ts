@@ -1,7 +1,9 @@
 import type { LocationDecision, ManagedNeighbour, NearbyTown, TrailPlace } from './trailLocation'
+import process from 'node:process'
 import { db } from '@stacksjs/orm'
+import { ValhallaElevation } from 'ts-maps/services'
 import { openGazetteer } from './gazetteer'
-import { betterLocation, MANAGED_SEARCH_KM, namesOnlyRegion } from './trailLocation'
+import { betterLocation, crossesRidge, kmBetween, MANAGED_SEARCH_KM, namesOnlyRegion, pointsBetween, TOWN_SEARCH_KM, unitKey } from './trailLocation'
 import { inWriteTransaction } from './writeTransaction'
 
 /**
@@ -13,15 +15,35 @@ import { inWriteTransaction } from './writeTransaction'
  * `trails:repair-locations`, which names the ones written before it did.
  */
 
-/** Towns asked of the gazetteer per trail: enough to step past a few over the border. */
-const TOWN_CANDIDATES = 8
+/**
+ * Towns kept per trail, nearest first: enough to step past every one over the
+ * border. Eight was not. On the Swiss and Austrian borders and between small
+ * cantons the eight nearest places were all on the other side, and 764
+ * trails with a town of their own region within 25 km were left unnamed.
+ */
+const TOWN_CANDIDATES = 60
 
 /**
- * Agency trails read per lookup. A park's densest corner has a few hundred
- * within the search box; this only stops a pathological one reading
- * thousands.
+ * Agency trails read per lookup. A park's densest corner has a few thousand
+ * within the 10 km search box; this only stops a pathological one reading
+ * tens of thousands.
  */
-const MANAGED_CANDIDATES = 2000
+const MANAGED_CANDIDATES = 5000
+
+/** How long the list of agency units is trusted before it is read again. */
+const UNITS_TTL_MS = 60 * 60 * 1000
+
+/** Our routing server answers a height profile in tens of milliseconds; this is for when it does not. */
+const HEIGHTS_TIMEOUT_MS = 3500
+
+/**
+ * Failures in a row after which the routing server is left alone for
+ * `HEIGHTS_PAUSE_MS`. A night's run asks some 15,000 times; at the timeout
+ * each, a server that is down would hold the job for half a day. The pause
+ * ends, rather than lasting the process, for the long-lived ingest worker.
+ */
+const HEIGHTS_MAX_FAILURES = 5
+const HEIGHTS_PAUSE_MS = 10 * 60 * 1000
 
 /** Where the answer for one trail came from, or why there is none. */
 export type LocationOutcome
@@ -30,7 +52,11 @@ export type LocationOutcome
     | { status: 'specific' }
     /** Looked, and nothing near enough to name it by. */
     | { status: 'unnamed' }
-    /** The gazetteer is not built, so a town could not be asked for. Not an answer. */
+    /**
+     * The gazetteer is not built, so a town could not be asked for, or the
+     * routing server could not say whether a ridge lies between a trail and
+     * the town it would be near. Not an answer.
+     */
     | { status: 'unavailable' }
 
 /**
@@ -60,39 +86,140 @@ export async function managedNeighbours(point: { lat: number, lng: number }): Pr
   }))
 }
 
-/** The nearest gazetteer places, or null when the gazetteer is not built. */
+/**
+ * The gazetteer places within `TOWN_SEARCH_KM`, nearest first, or null when
+ * the gazetteer is not built.
+ *
+ * Read from its table rather than through `reverseSync()`, which returns 25
+ * at most and not the feature code — and the code is what tells a town from
+ * a section of a city, which is no place to be "near".
+ */
 export function townsNear(point: { lat: number, lng: number }): NearbyTown[] | null {
   const gazetteer = openGazetteer()
   if (!gazetteer)
     return null
   try {
-    const hits = gazetteer.reverseSync(point, { limit: TOWN_CANDIDATES }) as Array<{
-      center?: { lat?: number, lng?: number }
-      properties?: { name?: string, distanceKm?: number }
+    const dLat = TOWN_SEARCH_KM / 110.57
+    const dLng = TOWN_SEARCH_KM / (111.32 * Math.max(0.05, Math.cos(point.lat * Math.PI / 180)))
+    const rows = gazetteer.db.query(`
+      SELECT name, lat, lng, feature, country, region_code FROM gazetteer_places
+      WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+    `).all(point.lat - dLat, point.lat + dLat, point.lng - dLng, point.lng + dLng) as Array<{
+      name: string
+      lat: number
+      lng: number
+      feature: string | null
+      country: string | null
+      region_code: string | null
     }>
-    return hits
-      .map(hit => ({
-        name: String(hit.properties?.name ?? ''),
-        lat: Number(hit.center?.lat),
-        lng: Number(hit.center?.lng),
-        distanceKm: Number(hit.properties?.distanceKm),
+    return rows
+      .map(row => ({
+        name: String(row.name ?? '').trim(),
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        feature: row.feature ?? null,
+        country: row.country ?? null,
+        regionCode: row.region_code ?? null,
+        distanceKm: kmBetween(point, { lat: Number(row.lat), lng: Number(row.lng) }),
       }))
-      .filter(town => town.name && Number.isFinite(town.lat) && Number.isFinite(town.lng) && Number.isFinite(town.distanceKm))
+      .filter(town => town.name && Number.isFinite(town.distanceKm) && town.distanceKm <= TOWN_SEARCH_KM)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, TOWN_CANDIDATES)
   }
   catch {
     return null
   }
 }
 
+let units: { at: number, byKey: Map<string, string> } | null = null
+
+/**
+ * Every unit the agency rows name, by `unitKey()`, each to its own spelling:
+ * "mount baker snoqualmie national forest" to "Mt. Baker-Snoqualmie National
+ * Forest". What an operator tag naming a federal unit is checked against.
+ *
+ * Some 500 labels from 56,000 rows, read through the `(source, source_id)`
+ * index and kept for an hour, so a night's run and a long-lived ingest
+ * worker read it once or twice.
+ */
+export async function agencyUnits(): Promise<Map<string, string>> {
+  if (units && Date.now() - units.at < UNITS_TTL_MS)
+    return units.byKey
+  const rows = await db.sql`
+    SELECT DISTINCT location FROM trails WHERE source IN ('nps', 'usfs')
+  `.execute() as Array<{ location: string | null }>
+  const byKey = new Map<string, string>()
+  for (const row of rows ?? []) {
+    // "Colville National Forest, WA": the unit is everything before the state.
+    const label = String(row.location ?? '').trim()
+    const unit = label.replace(/,\s*[A-Z]{2}$/, '').trim()
+    if (unit && unit !== label && !byKey.has(unitKey(unit)))
+      byKey.set(unitKey(unit), unit)
+  }
+  units = { at: Date.now(), byKey }
+  return byKey
+}
+
+let heightFailures = 0
+let heightsPausedUntil = 0
+
+/**
+ * Ground heights in metres at each point, from our own routing server, or
+ * null when it cannot be asked.
+ *
+ * Only `VALHALLA_URL`, never the public fallback the route builder uses: this
+ * runs for thousands of trails a night, and that server is somebody else's
+ * (see `trails:repair-elevation`). Without our own, no town more than
+ * `RIDGE_CHECK_FROM_KM` off is named.
+ */
+export async function heightsAlong(points: Array<{ lat: number, lng: number }>): Promise<Array<number | null> | null> {
+  const baseUrl = process.env.VALHALLA_URL?.trim()
+  if (!baseUrl || Date.now() < heightsPausedUntil)
+    return null
+  try {
+    const heights = await new ValhallaElevation({ baseUrl })
+      .getElevations(points, { signal: AbortSignal.timeout(HEIGHTS_TIMEOUT_MS) })
+    heightFailures = 0
+    return heights
+  }
+  catch {
+    heightFailures++
+    if (heightFailures >= HEIGHTS_MAX_FAILURES) {
+      heightFailures = 0
+      heightsPausedUntil = Date.now() + HEIGHTS_PAUSE_MS
+    }
+    return null
+  }
+}
+
 /** Decide one trail's location, looking up what is around it. */
-export async function locateTrail(row: TrailPlace): Promise<LocationOutcome> {
+export async function locateTrail(
+  row: TrailPlace,
+  ask: { heights?: typeof heightsAlong } = {},
+): Promise<LocationOutcome> {
   if (!namesOnlyRegion(row))
     return { status: 'specific' }
 
   const point = { lat: row.latitude, lng: row.longitude }
   const towns = townsNear(point)
-  const managed = row.country === 'US' ? await managedNeighbours(point) : []
-  const decision = betterLocation(row, { managed, towns: towns ?? [] })
+  const isUS = row.country === 'US'
+  const managed = isUS ? await managedNeighbours(point) : []
+  const known = isUS && String(row.managedBy ?? '').trim() ? await agencyUnits() : undefined
+  const decision = betterLocation(row, { managed, towns: towns ?? [], units: known })
+
+  // A town some way off is only where the trail is, or near it, if no ridge
+  // stands between: Lunch Meadow is 36 km from Bridgeport, and the Sierra
+  // crest is in the way. `betterLocation()` gives the town's point when the
+  // ground has to be looked at.
+  if (decision?.town) {
+    const heights = await (ask.heights ?? heightsAlong)(pointsBetween(point, decision.town))
+    const ridge = heights ? crossesRidge(heights) : null
+    // Not known: ask again on a night the routing server answers.
+    if (ridge === null)
+      return { status: 'unavailable' }
+    if (ridge)
+      return { status: 'unnamed' }
+  }
 
   if (decision)
     return { status: 'better', decision }

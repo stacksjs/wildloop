@@ -1,3 +1,4 @@
+import { placeOfLocation } from '../../resources/functions/trail-page'
 import { openGazetteer } from './gazetteer'
 
 export interface PlacePoint {
@@ -260,7 +261,7 @@ const PARK_PREFIX = /^(?:nationalpark|naturpark|naturschutzgebiet|biosph(?:a|ä|
  * place, is not a park. Null when neither names one.
  */
 export function parkOf(trail: TrailPlaceFields): string | null {
-  const candidates = [trail.managed_by, String(trail.location ?? '').split(',')[0]]
+  const candidates = [trail.managed_by, placeOfLocation(trail.location).split(',')[0]]
   for (const raw of candidates) {
     const name = String(raw ?? '').replace(/\s+/g, ' ').trim()
     if (!name || !PARK_WORDS.test(name))
