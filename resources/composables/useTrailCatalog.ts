@@ -5,6 +5,7 @@ import {
   normalizeTrailsPayload,
   routesFromTrails,
 } from '../assets/scripts/trail-data'
+import { milesFromOrigin, shareableCoordinate } from '../functions/shared-origin'
 
 interface TrailStoreLike {
   trails: () => unknown[]
@@ -246,9 +247,14 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
     params.set('accessible', 'true')
   if (query.nationalTrail)
     params.set('nationalTrail', 'true')
-  if (Number.isFinite(query.lat) && Number.isFinite(query.lng)) {
-    params.set('lat', String(query.lat))
-    params.set('lng', String(query.lng))
+  // Rounded so the neighbourhood shares one cached answer at the edge; the
+  // distances are put back to precise below (resources/functions/shared-origin.ts).
+  const origin = Number.isFinite(query.lat) && Number.isFinite(query.lng)
+    ? { lat: Number(query.lat), lng: Number(query.lng) }
+    : null
+  if (origin) {
+    params.set('lat', String(shareableCoordinate(origin.lat)))
+    params.set('lng', String(shareableCoordinate(origin.lng)))
     if (query.radius)
       params.set('radius', String(query.radius))
   }
@@ -262,6 +268,14 @@ export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> 
 
   const payload = await res.json()
   const { trails, geometryById } = normalizeTrailsPayload(payload)
+
+  // The server measured from the rounded point; the page knows the real one.
+  if (origin) {
+    for (const trail of trails) {
+      if (trail.milesAway !== null && Number.isFinite(trail.lat) && Number.isFinite(trail.lng))
+        trail.milesAway = milesFromOrigin(origin, trail.lat, trail.lng)
+    }
+  }
 
   const radius = Number(payload?.meta?.radius)
 

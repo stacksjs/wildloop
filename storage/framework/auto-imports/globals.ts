@@ -208,6 +208,9 @@ declare global {
   const matchSegment: typeof autoImports.matchSegment
   const CORRIDOR_METRES: typeof autoImports.CORRIDOR_METRES
   const MIN_SEGMENT_POINTS: typeof autoImports.MIN_SEGMENT_POINTS
+  const shareableCoordinate: typeof autoImports.shareableCoordinate
+  const milesFromOrigin: typeof autoImports.milesFromOrigin
+  const SHARED_ORIGIN_DECIMALS: typeof autoImports.SHARED_ORIGIN_DECIMALS
   const totalElevationGainFt: typeof autoImports.totalElevationGainFt
   const computeSplitsFromSamples: typeof autoImports.computeSplitsFromSamples
   const ELEVATION_NOISE_FLOOR_FT: typeof autoImports.ELEVATION_NOISE_FLOOR_FT

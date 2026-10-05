@@ -81,6 +81,7 @@ export { segmentDraft, cumulativeMiles, MIN_SEGMENT_MILES, MAX_SEGMENT_POINTS } 
 export type { DraftSample, SegmentDraft, DraftRefusal, DraftResult } from '../../../resources/functions/segment-draft'
 export { distanceMetres, matchSegment, CORRIDOR_METRES, MIN_SEGMENT_POINTS } from '../../../resources/functions/segment-matching'
 export type { TrackPoint, LatLngPoint, SegmentEffort } from '../../../resources/functions/segment-matching'
+export { shareableCoordinate, milesFromOrigin, SHARED_ORIGIN_DECIMALS } from '../../../resources/functions/shared-origin'
 export { totalElevationGainFt, computeSplitsFromSamples, ELEVATION_NOISE_FLOOR_FT, METERS_TO_FEET } from '../../../resources/functions/splits'
 export type { RecorderSample, MileSplit } from '../../../resources/functions/splits'
 export { isStockTrailPhoto, STOCK_TRAIL_PHOTOS } from '../../../resources/functions/stock-photos'
