@@ -28,6 +28,7 @@ export const actions = {
   'Actions/Auth/AppleRedirectAction': '../../../app/Actions/Auth/AppleRedirectAction.ts',
   'Actions/Auth/AppleSessionAction': '../../../app/Actions/Auth/AppleSessionAction.ts',
   'Actions/Auth/AuthUserAction': '../../../app/Actions/Auth/AuthUserAction.ts',
+  'Actions/Auth/CsrfCookieAction': '../../../app/Actions/Auth/CsrfCookieAction.ts',
   'Actions/Auth/GoogleCallbackAction': '../../../app/Actions/Auth/GoogleCallbackAction.ts',
   'Actions/Auth/GoogleRedirectAction': '../../../app/Actions/Auth/GoogleRedirectAction.ts',
   'Actions/Auth/GoogleSessionAction': '../../../app/Actions/Auth/GoogleSessionAction.ts',

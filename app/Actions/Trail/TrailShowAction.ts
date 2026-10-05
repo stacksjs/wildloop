@@ -1,5 +1,6 @@
 import { decodeRouteParts } from '../../../resources/functions/trail-geometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
+import { withEdgeCache } from '../../Support/edgeCache'
 
 export default new Action({
   name: 'Trail Show',
@@ -21,7 +22,8 @@ export default new Action({
       SELECT p.part_of FROM trail_parts p JOIN trails c ON c.id = p.part_of WHERE p.trail_id = ${trailId}
     `.execute().catch(() => []) as Array<{ part_of: number }>
     const partOf = Number(parts?.[0]?.part_of ?? 0) || null
-    return response.json({
+    // The same for every visitor, so the edge may keep it (app/Support/edgeCache.ts).
+    return withEdgeCache(request, response.json({
       success: true,
       trail: {
         ...trailWithCover,
@@ -30,6 +32,6 @@ export default new Action({
         hasGeometry: decodeRouteParts(trail.geometry).length > 0,
         partOf,
       },
-    })
+    }), 'detail')
   },
 })

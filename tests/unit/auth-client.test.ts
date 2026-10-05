@@ -136,6 +136,28 @@ describe('signIn', () => {
     expect(calls[0].init.credentials).toBe('same-origin')
   })
 
+  it('fetches a CSRF cookie first when the page arrived without one', async () => {
+    // A page served from Cloudflare's edge carries no Set-Cookie, so the form
+    // can be the first thing on this visit to need the token.
+    const page = (globalThis as any).document
+    page.cookie = ''
+    const calls: any[] = []
+    globalThis.fetch = mock(async (url: any, init: any) => {
+      calls.push({ url, init })
+      if (url === '/api/csrf') {
+        page.cookie = 'X-CSRF-Token=fresh-456'
+        return Response.json({ success: true })
+      }
+      return Response.json({ token: 't' })
+    }) as any
+
+    await signIn('a@b.c', 'password123')
+
+    expect(calls.map(call => call.url)).toEqual(['/api/csrf', '/api/login'])
+    expect(calls[0].init.cache).toBe('no-store')
+    expect(calls[1].init.headers['X-CSRF-Token']).toBe('fresh-456')
+  })
+
   it('shows the API sentence on bad credentials', async () => {
     stubFetch({ status: 401, body: { success: false, message: 'Incorrect email or password' } })
 

@@ -15,6 +15,8 @@
  * (`trail_parts`, #1002) is part of that trail's count, not one of its own.
  */
 
+import { withEdgeCache } from '../../Support/edgeCache'
+
 const CACHE_TTL_MS = 60_000
 
 interface CoverageStats {
@@ -42,10 +44,10 @@ export default new Action({
   description: 'Trail catalog coverage by state and source',
   method: 'GET',
 
-  async handle() {
+  async handle(request) {
     try {
       if (cache && Date.now() - cache.at < CACHE_TTL_MS)
-        return response.json({ success: true, ...cache.value })
+        return withEdgeCache(request, response.json({ success: true, ...cache.value }), 'reference')
 
       // Grouped by country as well as region: region codes are only unique
       // within a country, so `BE` alone is both Berlin and canton Bern.
@@ -94,7 +96,7 @@ export default new Action({
 
       cache = { at: Date.now(), value }
 
-      return response.json({ success: true, ...value })
+      return withEdgeCache(request, response.json({ success: true, ...value }), 'reference')
     }
     catch (error) {
       console.error('[trails] stats failed:', error)

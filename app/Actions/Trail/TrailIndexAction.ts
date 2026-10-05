@@ -12,6 +12,7 @@ import { athleteTaste } from '../../Support/trailTaste'
 import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
 import type { RankMode } from '../../Support/trailRanking'
 import { difficultyIsEstimated } from '../../../resources/functions/trail-difficulty'
+import { withEdgeCache } from '../../Support/edgeCache'
 
 const DIFFICULTIES = new Set(['easy', 'moderate', 'hard'])
 const ROUTE_TYPES = new Set(['loop', 'out-and-back', 'point-to-point', 'network'])
@@ -185,7 +186,20 @@ export default new Action({
         difficultyEstimated: difficultyIsEstimated(row.elevation),
       }))
 
-      return response.json({
+      /*
+       * Shareable at the edge only when the URL alone decided the answer.
+       *
+       * Without a location or an explicit `?country=`, the rows were filtered
+       * to a country guessed from `CF-IPCountry` or `Accept-Language` — a
+       * header the edge's cache key does not include, so a copy kept for a
+       * visitor in Munich would be served to one in Denver. A personalized
+       * "you may like" is only ever computed for a signed-in request, which
+       * `withEdgeCache` keeps private anyway; it is named here so that stays
+       * true if that ever changes.
+       */
+      const answeredFromUrlAlone = (origin !== null || readString(request, 'country') !== null) && personalized !== true
+
+      return withEdgeCache(request, response.json({
         success: true,
         trails,
         meta: {
@@ -204,7 +218,7 @@ export default new Action({
           // is nothing to steer by yet. The page names the shelf from it.
           ...(personalized !== undefined ? { personalized } : {}),
         },
-      })
+      }), 'list', answeredFromUrlAlone)
     }
     catch (error) {
       console.error('[trails] index failed:', error)

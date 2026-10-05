@@ -443,6 +443,9 @@ route.get('/trail-photos/{trailId}/{file}', 'Actions/TrailPhoto/TrailPhotoFileAc
 route.get('/activity-photos/{activityId}/{file}', 'Actions/Activity/ActivityPhotoFileAction')
 // Profile photos, served the same way: only a user's current photo answers.
 route.get('/avatars/{userId}/{file}', 'Actions/Profile/AvatarFileAction')
+// The CSRF cookie on demand, for a visitor whose page and trail lists came
+// from the edge cache and so arrived without one (app/Support/edgeCache.ts).
+route.get('/csrf', 'Actions/Auth/CsrfCookieAction')
 /*
  * Signing in with Google (#970). Public by necessity — somebody using these
  * has no session yet — and outside the CSRF-guarded block because the callback

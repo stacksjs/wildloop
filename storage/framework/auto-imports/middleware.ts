@@ -6,12 +6,12 @@
 // would make every compilation that touches a name resolve every module.
 export const middleware = {
   'Auth': '../../../app/Middleware/Auth.ts',
+  'Csrf': '../../../app/Middleware/Csrf.ts',
   'Abilities': '../defaults/app/Middleware/Abilities.ts',
   'Api': '../defaults/app/Middleware/Api.ts',
   'Can': '../defaults/app/Middleware/Can.ts',
   'Compress': '../defaults/app/Middleware/Compress.ts',
   'Cors': '../defaults/app/Middleware/Cors.ts',
-  'Csrf': '../defaults/app/Middleware/Csrf.ts',
   'EnsureEmailIsVerified': '../defaults/app/Middleware/EnsureEmailIsVerified.ts',
   'Env': '../defaults/app/Middleware/Env.ts',
   'EnvDevelopment': '../defaults/app/Middleware/EnvDevelopment.ts',

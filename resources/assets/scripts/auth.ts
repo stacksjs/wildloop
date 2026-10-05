@@ -237,6 +237,36 @@ function headers(): Record<string, string> {
   return out
 }
 
+/**
+ * The CSRF cookie, fetched first when this visit has none yet.
+ *
+ * Pages and trail lists can be served from Cloudflare's edge, and a shared
+ * answer never sets a cookie (app/Middleware/Csrf.ts), so somebody can land on
+ * the sign-in form without one. Without it a signed-out request — signing in,
+ * signing up, asking for a reset — fails the double-submit check with a 403.
+ * `/api/csrf` is never cached and always plants it.
+ *
+ * Signed-in writes do not need this: a bearer token exempts them.
+ */
+export async function ensureCsrfToken(): Promise<string | null> {
+  const existing = csrfToken()
+  if (existing || typeof document === 'undefined')
+    return existing
+  try {
+    await fetch('/api/csrf', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+  }
+  catch {
+    // The request that follows reports the failure in its own words.
+  }
+  return csrfToken()
+}
+
+/** `headers()`, for a request that has no bearer token to stand in for CSRF. */
+async function signedOutHeaders(): Promise<Record<string, string>> {
+  await ensureCsrfToken()
+  return headers()
+}
+
 export function token(): string | null {
   if (session.token) return session.token
   if (typeof sessionStorage !== 'undefined') {
@@ -489,7 +519,7 @@ export async function requestPasswordReset(email: string): Promise<{ ok: boolean
     const response = await apiFetch('/api/password/forgot', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: headers(),
+      headers: await signedOutHeaders(),
       body: JSON.stringify({ email: email.trim() }),
     })
     if (response.status === 429)
@@ -612,7 +642,7 @@ async function submit(path: string, body: Record<string, unknown>, context: stri
       method: 'POST',
       // The CSRF cookie has to ride along for the double-submit check.
       credentials: 'same-origin',
-      headers: headers(),
+      headers: await signedOutHeaders(),
       body: JSON.stringify(body),
     })
 

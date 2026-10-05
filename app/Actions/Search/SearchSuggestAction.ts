@@ -6,6 +6,7 @@
 
 import { db } from '@stacksjs/orm'
 import { buildSuggestions, placeSuggestionsSql, suggestMatch, trailSuggestionsSql } from '../../Support/searchSuggest'
+import { withEdgeCache } from '../../Support/edgeCache'
 
 export default new Action({
   name: 'Search Suggest',
@@ -17,8 +18,10 @@ export default new Action({
     const match = suggestMatch(query)
     const nameMatch = suggestMatch(query, 'name')
 
+    // Every answer here is a function of `q` alone, so the edge may keep it
+    // (app/Support/edgeCache.ts): the same prefixes are typed all day.
     if (!match || !nameMatch)
-      return response.json({ success: true, query, suggestions: [] })
+      return withEdgeCache(request, response.json({ success: true, query, suggestions: [] }), 'reference')
 
     // Each half fails on its own. A place list that has not been built yet, on
     // an environment whose migration ran before its first rebuild, must not
@@ -34,10 +37,10 @@ export default new Action({
       }),
     ])
 
-    return response.json({
+    return withEdgeCache(request, response.json({
       success: true,
       query,
       suggestions: buildSuggestions(places as any[], trails as any[]),
-    })
+    }), 'reference')
   },
 })
