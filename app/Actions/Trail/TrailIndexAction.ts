@@ -3,6 +3,7 @@
 import { Auth } from '@stacksjs/auth'
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
+import { FEATURED_ORDER } from '../../Support/catalogOrder'
 import { listGeometry } from '../../Support/listGeometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { trailEngagement } from '../../Support/trailEngagement'
@@ -568,9 +569,9 @@ const LENGTH_BAND = 'browse_band'
 /**
  * Apply the ordering to a query.
  *
- * Every column named below is a literal in this file — the sort is matched
- * against `SORTS` before it reaches here, so nothing from the request is ever
- * passed to `orderBy`.
+ * Every column named below is a literal, here or in `FEATURED_ORDER` — the
+ * sort is matched against `SORTS` before it reaches here, so nothing from the
+ * request is ever passed to `orderBy`.
  */
 // eslint-disable-next-line pickier/no-unused-vars -- names in a type signature, not bindings
 function applyOrder<Q extends { orderBy: (column: string, direction: 'asc' | 'desc') => Q }>(
@@ -603,19 +604,9 @@ function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | '
     case 'name':
       return [['name', 'asc']]
     default:
-      return [
-        [LENGTH_BAND, 'asc'],
-        ['rating', 'desc'],
-        ['review_count', 'desc'],
-        ['national_trail', 'desc'],
-        // Within a day-hike length, the longer walk is the bigger day out.
-        // Below the band this would surface epics, which is why it comes
-        // after the banding rather than instead of it.
-        ['distance', 'desc'],
-        // Stable: two pages of the same list must not disagree about which
-        // trail is 60th, or paging repeats and skips rows.
-        ['id', 'asc'],
-      ]
+      // Walked in order through trails_browse_order_index, or the one led by
+      // country, and stopped at the end of the page (migration 0000000199).
+      return FEATURED_ORDER.map(([column, direction]) => [column, direction])
   }
 }
 
