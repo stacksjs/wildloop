@@ -86,6 +86,17 @@ describe('the check list itself', () => {
     expect(catalog.verify(json({ success: true, trails: [] }), context)).toContain('no trails')
   })
 
+  it('passes a refused write and fails a crashed one', () => {
+    const write = SMOKE_CHECKS.find(check => check.method === 'POST')!
+    const context: SmokeContext = { trailIds: [] }
+    const answer = (status: number) => ({ status, contentType: 'application/json', body: '{}' })
+    expect(write.path(context)).toBe('/api/login')
+    expect(write.verify(answer(403), context)).toBeNull()
+    expect(write.verify(answer(422), context)).toBeNull()
+    expect(write.verify(answer(502), context)).toContain('got 502')
+    expect(write.verify(answer(200), context)).toContain('got 200')
+  })
+
   it('covers the pages and endpoints a release can break', () => {
     expect(SMOKE_CHECKS.map(check => check.name)).toEqual([
       'home page',
@@ -94,6 +105,7 @@ describe('the check list itself', () => {
       'recent reviewers API',
       'trails page, with its filter bar',
       'trail page shell',
+      'API write path (an empty sign-in is refused, not crashed on)',
       'search suggestions',
     ])
   })

@@ -34,6 +34,10 @@ export interface SmokeCheck {
   name: string
   /** Built from the context, so a later check can follow an earlier answer. */
   path: (context: SmokeContext) => string
+  /** GET unless said otherwise. */
+  method?: 'GET' | 'POST'
+  /** JSON body for a POST. */
+  body?: unknown
   /** Returns the reason it failed, or null when it passed. */
   verify: (response: SmokeResponse, context: SmokeContext) => string | null
 }
@@ -156,6 +160,20 @@ export const SMOKE_CHECKS: SmokeCheck[] = [
     verify: response => expectHtmlContaining(response, ['trail-map']),
   },
   {
+    // Every GET above can pass while every write fails: the routes behind a
+    // POST load more middleware (CSRF, auth), and a release whose middleware
+    // cannot load crash-loops its API only once a route needs it. An empty
+    // sign-in is refused by a working API (CSRF or validation, 4xx) and
+    // answered 5xx or not at all by a broken one.
+    name: 'API write path (an empty sign-in is refused, not crashed on)',
+    path: () => '/api/login',
+    method: 'POST',
+    body: {},
+    verify: response => (response.status >= 400 && response.status < 500
+      ? null
+      : `expected a 4xx refusal, got ${response.status}`),
+  },
+  {
     name: 'search suggestions',
     path: () => '/api/search/suggest?q=la',
     verify: (response) => {
@@ -178,10 +196,16 @@ export const SMOKE_CHECKS: SmokeCheck[] = [
  */
 const REQUEST_TIMEOUT_MS = 15_000
 
-async function fetchOnce(url: string): Promise<SmokeResponse> {
+async function fetchOnce(url: string, options: { method?: 'GET' | 'POST', body?: unknown } = {}): Promise<SmokeResponse> {
+  const post = options.method === 'POST'
   const response = await fetch(url, {
+    method: options.method ?? 'GET',
     redirect: 'follow',
-    headers: { 'user-agent': 'wildloop-smoke/1.0' },
+    headers: {
+      'user-agent': 'wildloop-smoke/1.0',
+      ...(post ? { 'content-type': 'application/json', 'accept': 'application/json' } : {}),
+    },
+    ...(post ? { body: JSON.stringify(options.body ?? {}) } : {}),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
@@ -230,7 +254,7 @@ export async function runSmokeChecks(base: string): Promise<number> {
     const started = Date.now()
 
     try {
-      const response = await fetchOnce(url)
+      const response = await fetchOnce(url, { method: check.method, body: check.body })
       const failure = check.verify(response, context)
       const ms = Date.now() - started
 
