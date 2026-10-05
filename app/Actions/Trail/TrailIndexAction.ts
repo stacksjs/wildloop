@@ -3,7 +3,7 @@
 import { Auth } from '@stacksjs/auth'
 import { readPageParams } from '../../../resources/functions/pagination'
 import { visitorCountry } from '../../Helpers/visitorCountry'
-import { FEATURED_ORDER } from '../../Support/catalogOrder'
+import { FEATURED_ORDER, NAME_ORDER, POPULAR_ORDER, RATING_ORDER } from '../../Support/catalogOrder'
 import { listGeometry } from '../../Support/listGeometry'
 import { withBestTrailCovers } from '../../Support/trailCovers'
 import { trailEngagement } from '../../Support/trailEngagement'
@@ -564,30 +564,6 @@ function originBox(request: { get: (key: string) => any }, radiusOverride?: numb
 }
 
 /**
- * The band a trail's length puts it in, lowest first.
- *
- * The catalog is imported from OpenStreetMap, where a "way" is whatever a
- * mapper drew between two junctions — so most rows are not trails anybody
- * would set out to walk. A representative slice of production is 57% under
- * four tenths of a mile and has a median length of 0.32 miles.
- *
- * That is why the list used to open on the longest routes: it was the only
- * ordering that kept quarter-mile path stubs off the first screen. It bought
- * that at the cost of opening on thousand-mile thru-hikes instead, which is
- * the opposite extreme of the same mistake.
- *
- * Banding asks the question directly. A day hike comes first, then things
- * that are plausibly a walk or an expedition, then fragments and epics
- * together at the back.
- *
- * A generated column, defined in migration 0000000175, rather than a CASE in
- * the ORDER BY: ordering half a million rows by an expression cannot use an
- * index, and the ORM query builder offers no raw ordering anyway. Nothing
- * writes it — it is a function of distance, so imports get it for free.
- */
-const LENGTH_BAND = 'browse_band'
-
-/**
  * How the catalog is ordered.
  *
  * Returned as a list because the default is a composite: no single column
@@ -625,17 +601,15 @@ function sortColumns(request: { get: (key: string) => any }): [string, 'asc' | '
       return [['distance', 'asc']]
     case 'longest':
       return [['distance', 'desc']]
+    // Each walked in order through an index of its own, everywhere or led by
+    // country, and stopped at the end of the page, as the default is
+    // (migration 0000000202, app/Support/catalogOrder.ts).
     case 'rating':
-      // An explicit "top rated" still ranks on length once the ratings run
-      // out, rather than handing back whatever order the table happens to be
-      // in — which is what it does today, at 0% rated.
-      return [['rating', 'desc'], ['review_count', 'desc'], [LENGTH_BAND, 'asc'], ['distance', 'desc']]
+      return RATING_ORDER.map(([column, direction]) => [column, direction])
     case 'popular':
-      // Without a location there is no "near" to break ties with, so it is
-      // reviews, then rating, then the same day-hike-first order as the default.
-      return [['review_count', 'desc'], ['rating', 'desc'], [LENGTH_BAND, 'asc'], ['distance', 'desc'], ['id', 'asc']]
+      return POPULAR_ORDER.map(([column, direction]) => [column, direction])
     case 'name':
-      return [['name', 'asc']]
+      return NAME_ORDER.map(([column, direction]) => [column, direction])
     default:
       // Walked in order through trails_browse_order_index, or the one led by
       // country, and stopped at the end of the page (migration 0000000199).
