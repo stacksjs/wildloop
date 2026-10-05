@@ -179,9 +179,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # lockfileVersion 2 is canary-only; stable Bun silently ignores the
-          # lockfile and re-resolves. Same pin as ci.yml.
-          bun-version: canary
+          # The Bun pantry pins in deps.yaml. These jobs run `bun install` and
+          # commit what it writes, so they must write what every other install
+          # reads: canary, pinned while the lockfile was format 2, may move it
+          # to a format the pinned Bun cannot read.
+          bun-version: '1.4.2'
 
       - name: Setup PHP and Composer (if needed)
         if: ${{ hashFiles('composer.json') != '' }}
@@ -221,9 +223,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # lockfileVersion 2 is canary-only; stable Bun silently ignores the
-          # lockfile and re-resolves. Same pin as ci.yml.
-          bun-version: canary
+          # The Bun pantry pins in deps.yaml. These jobs run `bun install` and
+          # commit what it writes, so they must write what every other install
+          # reads: canary, pinned while the lockfile was format 2, may move it
+          # to a format the pinned Bun cannot read.
+          bun-version: '1.4.2'
 
       - name: Install dependencies
         run: bun install
@@ -307,9 +311,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # lockfileVersion 2 is canary-only; stable Bun silently ignores the
-          # lockfile and re-resolves. Same pin as ci.yml.
-          bun-version: canary
+          # The Bun pantry pins in deps.yaml. These jobs run `bun install` and
+          # commit what it writes, so they must write what every other install
+          # reads: canary, pinned while the lockfile was format 2, may move it
+          # to a format the pinned Bun cannot read.
+          bun-version: '1.4.2'
 
       - name: Setup PHP and Composer (if needed)
         if: ${{ hashFiles('composer.json') != '' }}
@@ -419,9 +425,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # lockfileVersion 2 is canary-only; stable Bun silently ignores the
-          # lockfile and re-resolves. Same pin as ci.yml.
-          bun-version: canary
+          # The Bun pantry pins in deps.yaml. These jobs run `bun install` and
+          # commit what it writes, so they must write what every other install
+          # reads: canary, pinned while the lockfile was format 2, may move it
+          # to a format the pinned Bun cannot read.
+          bun-version: '1.4.2'
 
       - name: Install dependencies
         run: bun install

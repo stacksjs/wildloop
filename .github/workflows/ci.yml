@@ -32,12 +32,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # The Bun production runs (1.4.2; dependencies install with
-          # 1.3.14). This was canary while the lockfile was format 2, which
-          # stable could not read. It is format 1 now, and a canary runner
-          # tested a runtime nothing ships on: its bun test killed the QA
-          # servers as dangling and hung the dashboard, failures 1.4.2 and
-          # production do not have.
+          # The Bun deps.yaml pins for pantry, which production runs too. This
+          # was canary while the lockfile was format 2, which stable could not
+          # read. It is format 1 now, and a canary runner tested a runtime
+          # nothing ships on: its bun test killed the QA servers as dangling
+          # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
       - name: Use cached node_modules
@@ -69,12 +68,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # The Bun production runs (1.4.2; dependencies install with
-          # 1.3.14). This was canary while the lockfile was format 2, which
-          # stable could not read. It is format 1 now, and a canary runner
-          # tested a runtime nothing ships on: its bun test killed the QA
-          # servers as dangling and hung the dashboard, failures 1.4.2 and
-          # production do not have.
+          # The Bun deps.yaml pins for pantry, which production runs too. This
+          # was canary while the lockfile was format 2, which stable could not
+          # read. It is format 1 now, and a canary runner tested a runtime
+          # nothing ships on: its bun test killed the QA servers as dangling
+          # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
       - name: Use cached node_modules
@@ -129,12 +127,11 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # The Bun production runs (1.4.2; dependencies install with
-          # 1.3.14). This was canary while the lockfile was format 2, which
-          # stable could not read. It is format 1 now, and a canary runner
-          # tested a runtime nothing ships on: its bun test killed the QA
-          # servers as dangling and hung the dashboard, failures 1.4.2 and
-          # production do not have.
+          # The Bun deps.yaml pins for pantry, which production runs too. This
+          # was canary while the lockfile was format 2, which stable could not
+          # read. It is format 1 now, and a canary runner tested a runtime
+          # nothing ships on: its bun test killed the QA servers as dangling
+          # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
       - name: Use cached node_modules
@@ -229,12 +226,11 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
         with:
-          # The Bun production runs (1.4.2; dependencies install with
-          # 1.3.14). This was canary while the lockfile was format 2, which
-          # stable could not read. It is format 1 now, and a canary runner
-          # tested a runtime nothing ships on: its bun test killed the QA
-          # servers as dangling and hung the dashboard, failures 1.4.2 and
-          # production do not have.
+          # The Bun deps.yaml pins for pantry, which production runs too. This
+          # was canary while the lockfile was format 2, which stable could not
+          # read. It is format 1 now, and a canary runner tested a runtime
+          # nothing ships on: its bun test killed the QA servers as dangling
+          # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
       - name: Use cached node_modules

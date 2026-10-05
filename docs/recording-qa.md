@@ -38,7 +38,7 @@ Keep the web recorder visible with the screen unlocked. Use one recording tab.
 
 ## Repeatable local checks
 
-Use the repository-pinned Bun (`./pantry/.bin/bun`, 1.3.14 for this verification).
+Use the repository-pinned Bun (`./pantry/.bin/bun`, the version `deps.yaml` pins).
 No test harness should be deployed or pointed at a production database.
 
 1. Create a temporary SQLite database with the app migrations. Launch `buddy dev`

@@ -14,7 +14,7 @@ export const config: PantryConfig = {
    * These are binary tools and system packages required for development
    */
   dependencies: {
-    'bun.com': '^1.3.0',
+    'bun.com': '1.4.2',
     'sqlite.org': '^3.47.2',
     'info-zip.org/zip': '^3.0.0',
     'info-zip.org/unzip': '^6.0.0',
