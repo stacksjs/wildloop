@@ -65,6 +65,7 @@ interface GroupRow {
   distance: number | null
   elevation: number | null
   elevation_checked_at: string | null
+  difficulty: string | null
   review_count: number | null
   latitude: number | null
   longitude: number | null
@@ -102,12 +103,13 @@ function placeOf(row: { country?: string | null, latitude?: number | null, longi
   }
 }
 
-/** A row read for its length: its distance, ascent and line. */
+/** A row read for its length: its distance, ascent and line, and the grade a kept row has. */
 interface LengthRow {
   id: number
   distance: number | null
   elevation: number | null
   elevation_checked_at: string | null
+  difficulty?: string | null
   geometry: string | null
 }
 
@@ -122,6 +124,7 @@ function memberOf(row: LengthRow, parts: Array<Array<[number, number]>> = decode
     // elevation backfill looked up.
     elevationMeasured: elevation > 0 || Boolean(row.elevation_checked_at),
     lines: parts.map(part => part.map(([lat, lng]) => ({ lat, lng }))),
+    difficulty: row.difficulty ?? null,
   }
 }
 
@@ -139,7 +142,7 @@ function idList(ids: Iterable<number>): string {
  */
 export async function readNameGroup(name: string, store: FoldStore = ormStore): Promise<NameGroup> {
   const rows = await store.sql`
-    SELECT id, name, country, source, distance, elevation, elevation_checked_at, review_count, latitude, longitude, geometry
+    SELECT id, name, country, source, distance, elevation, elevation_checked_at, difficulty, review_count, latitude, longitude, geometry
     FROM trails
     WHERE name = ${name}
   ` as GroupRow[]
@@ -307,9 +310,9 @@ async function writeTotals(
   }
 
   const current = await store.sql`
-    SELECT trail_id, distance, elevation, pieces, country, latitude, longitude FROM trail_totals
+    SELECT trail_id, distance, elevation, pieces, difficulty, country, latitude, longitude FROM trail_totals
     WHERE trail_id IN (SELECT value FROM json_each(${list}))
-  ` as Array<{ trail_id: number, distance: number, elevation: number | null, pieces: number } & TrailPlace>
+  ` as Array<{ trail_id: number, distance: number, elevation: number | null, pieces: number, difficulty: string | null } & TrailPlace>
   const now = new Map(current.map(row => [Number(row.trail_id), row]))
 
   const gone = [...[...now.keys()].filter(id => !totals.has(id)), ...outside]
@@ -320,7 +323,8 @@ async function writeTotals(
     const place = places.get(trailId) ?? NOWHERE
     const was = now.get(trailId)
     if (was && Number(was.distance) === whole.distance && (was.elevation ?? null) === whole.elevation
-      && Number(was.pieces) === whole.pieces && (was.country ?? null) === place.country
+      && Number(was.pieces) === whole.pieces && (was.difficulty ?? null) === whole.difficulty
+      && (was.country ?? null) === place.country
       && (was.latitude ?? null) === place.latitude && (was.longitude ?? null) === place.longitude)
       continue
     await writeTotal(trailId, whole, place, at, store)
@@ -329,11 +333,11 @@ async function writeTotals(
 
 async function writeTotal(trailId: number, whole: WholeTrail, place: TrailPlace, at: string, store: FoldStore): Promise<void> {
   await store.sql`
-    INSERT INTO trail_totals (trail_id, distance, elevation, pieces, country, latitude, longitude, computed_at)
-    VALUES (${trailId}, ${whole.distance}, ${whole.elevation}, ${whole.pieces}, ${place.country}, ${place.latitude}, ${place.longitude}, ${at})
+    INSERT INTO trail_totals (trail_id, distance, elevation, pieces, difficulty, country, latitude, longitude, computed_at)
+    VALUES (${trailId}, ${whole.distance}, ${whole.elevation}, ${whole.pieces}, ${whole.difficulty}, ${place.country}, ${place.latitude}, ${place.longitude}, ${at})
     ON CONFLICT(trail_id) DO UPDATE SET
       distance = excluded.distance, elevation = excluded.elevation, pieces = excluded.pieces,
-      country = excluded.country, latitude = excluded.latitude, longitude = excluded.longitude,
+      difficulty = excluded.difficulty, country = excluded.country, latitude = excluded.latitude, longitude = excluded.longitude,
       computed_at = excluded.computed_at
   `
 }
@@ -515,8 +519,9 @@ export interface FillOutcome {
  *
  * The walk writes a trail's total whenever it decides the trail's name, but a
  * pass over every shared name takes several nights, and a trail can lose its
- * total in between (`writeTotals`, `releaseStaleFolds`). This fills those, and
- * every trail folded before `trail_totals` existed, a batch at a time: the
+ * total in between (`writeTotals`, `releaseStaleFolds`). This fills those,
+ * every trail folded before `trail_totals` existed, and every total written
+ * before it carried a grade (migration 0000000203), a batch at a time: the
  * kept rows in id order through `trail_parts_part_of_index`, each batch read
  * first and written in one short transaction. What it is up to needs no
  * record of its own, because a filled trail is no longer missing; a run
@@ -538,7 +543,8 @@ export async function fillWholeTrails(
     const take = limit > 0 ? Math.min(batch, limit - filled) : batch
     const missing = await store.sql`
       SELECT DISTINCT part_of FROM trail_parts
-      WHERE part_of > ${after} AND part_of NOT IN (SELECT trail_id FROM trail_totals)
+      WHERE part_of > ${after}
+        AND NOT EXISTS (SELECT 1 FROM trail_totals WHERE trail_id = part_of AND difficulty IS NOT NULL)
       ORDER BY part_of
       LIMIT ${take}
     ` as Array<{ part_of: number }>
@@ -549,7 +555,7 @@ export async function fillWholeTrails(
 
     const list = idList(keptIds)
     const kept = await store.sql`
-      SELECT id, distance, elevation, elevation_checked_at, geometry, country, latitude, longitude FROM trails
+      SELECT id, distance, elevation, elevation_checked_at, difficulty, geometry, country, latitude, longitude FROM trails
       WHERE id IN (SELECT value FROM json_each(${list}))
     ` as Array<LengthRow & TrailPlace>
     const pieces = await store.sql`

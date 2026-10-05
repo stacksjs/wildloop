@@ -11,7 +11,7 @@ import { NOT_FOLDED_SQL } from '../../Support/trailFragments'
 import { trailStreetShares } from '../../Support/trailStreetShares'
 import { athleteTaste } from '../../Support/trailTaste'
 import { milesBetween, RANK_COLUMNS, rankTrails } from '../../Support/trailRanking'
-import { WHOLE_AT_LEAST_SQL, WHOLE_AT_MOST_SQL, wholeTrails, withWholeTrail } from '../../Support/wholeTrail'
+import { WHOLE_AT_LEAST_SQL, WHOLE_AT_MOST_SQL, WHOLE_DIFFICULTY_SQL, wholeTrails, withWholeTrail } from '../../Support/wholeTrail'
 import type { RankMode } from '../../Support/trailRanking'
 import { difficultyIsEstimated } from '../../../resources/functions/trail-difficulty'
 import { withEdgeCache } from '../../Support/edgeCache'
@@ -305,10 +305,12 @@ async function fetchRankedPage(
   const candidateIds = unknown.map(row => Number(row.id))
   const [engagement, streets, wholes] = await Promise.all([trailEngagement(candidateIds), trailStreetShares(candidateIds), wholeTrails(candidateIds)])
   // Ranked on the whole trail it shows: a trail folded from pieces is as
-  // long as its pieces together, not as its own row (app/Support/wholeTrail.ts).
+  // long, and as hard, as its pieces together, not as its own row
+  // (app/Support/wholeTrail.ts).
   const candidates = unknown.map(row => ({
     ...row,
     distance: wholes.get(Number(row.id))?.distance ?? row.distance,
+    difficulty: wholes.get(Number(row.id))?.difficulty ?? row.difficulty,
     street_share: streets.get(Number(row.id)) ?? null,
   }))
 
@@ -477,9 +479,11 @@ function applyFilters(
   if (state && /^[a-z]{2}(?:-[a-z0-9]{1,3})?$/i.test(state))
     query = query.where('state', state.toUpperCase())
 
+  // On the whole trail's grade, as the list shows it (`trail_totals`,
+  // app/Support/wholeTrail.ts).
   const difficulty = readString(request, 'difficulty')
   if (difficulty && DIFFICULTIES.has(difficulty))
-    query = query.where('difficulty', difficulty)
+    query = query.whereRaw(WHOLE_DIFFICULTY_SQL, difficulty, difficulty, difficulty)
 
   const routeType = readString(request, 'routeType') ?? readString(request, 'route_type')
   if (routeType && ROUTE_TYPES.has(routeType))

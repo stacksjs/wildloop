@@ -27,6 +27,9 @@ const TASTE_WINDOW = 60
  * kind of trail I want", which is the question being answered. A failed read
  * answers "no taste", so the list falls back to best match rather than
  * failing.
+ *
+ * Read on the whole trail, pieces included (`trail_totals`,
+ * app/Support/wholeTrail.ts), as the candidates it is matched against are.
  */
 export async function athleteTaste(userId: number | null | undefined): Promise<AthleteTaste> {
   const id = Number(userId)
@@ -35,8 +38,9 @@ export async function athleteTaste(userId: number | null | undefined): Promise<A
 
   try {
     const rows = await db.sql`
-      SELECT t.id, t.distance, t.difficulty, t.route_type
+      SELECT t.id, COALESCE(w.distance, t.distance) AS distance, COALESCE(w.difficulty, t.difficulty) AS difficulty, t.route_type
       FROM trails t
+      LEFT JOIN trail_totals w ON w.trail_id = t.id
       JOIN (
         SELECT trail_id, MAX(at) AS at FROM (
           SELECT trail_id, COALESCE(updated_at, created_at) AS at

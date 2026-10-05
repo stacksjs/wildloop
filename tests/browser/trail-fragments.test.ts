@@ -201,5 +201,14 @@ describe.skipIf(!qa)('the URL of a piece', () => {
     // come beside it, for the map.
     expect(JSON.parse(trail.geometry)[0]).toEqual([35.699, -82.38])
     expect(trail.pieceRoutes).toHaveLength(2)
+    // Graded on the whole trail, which the fold worked out with its length;
+    // 2.1 miles and no climb is as easy as the 1.6 of its own row.
+    expect(trail.difficulty).toBe('easy')
+    expect(trail.ownDifficulty).toBe('easy')
+  })
+
+  it('is filtered by the grade of the whole trail', async () => {
+    expect(craggy(await trails(`${HERE}&difficulty=easy&limit=50`)).map(t => t.source_id)).toEqual(['qa/craggy-gardens'])
+    expect(craggy(await trails(`${HERE}&difficulty=moderate&limit=50`))).toEqual([])
   })
 })

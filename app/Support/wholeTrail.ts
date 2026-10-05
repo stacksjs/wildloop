@@ -1,5 +1,7 @@
 import type { Coordinate } from '../../resources/functions/geo'
+import type { TrailDifficulty } from '../Ingest/types'
 import { db } from '@stacksjs/orm'
+import { deriveDifficulty } from '../Ingest/normalize'
 
 /**
  * How long a folded trail is, pieces included.
@@ -30,6 +32,8 @@ export interface WholeTrailMember {
   elevationMeasured: boolean
   /** The row line, one array per part. */
   lines: Coordinate[][]
+  /** The grade the row stores. Only the kept row's is read. */
+  difficulty?: string | null
 }
 
 /** The whole trail, as `trail_totals` keeps it. */
@@ -40,6 +44,12 @@ export interface WholeTrail {
   elevation: number | null
   /** How many pieces folded into the trail. */
   pieces: number
+  /**
+   * How hard the whole trail is (`wholeDifficulty`). Null only for a total
+   * written before it was graded (migration 0000000203), which reads as the
+   * kept row's own grade until the fold works it out again.
+   */
+  difficulty: TrailDifficulty | null
 }
 
 /**
@@ -198,11 +208,51 @@ export function wholeTrail(kept: WholeTrailMember, pieces: WholeTrailMember[]): 
       counted.add(line)
   }
 
+  const whole = Math.round(distance * 100) / 100
   return {
-    distance: Math.round(distance * 100) / 100,
+    distance: whole,
     elevation: measured ? Math.round(elevation) : null,
     pieces: pieces.length,
+    difficulty: wholeDifficulty(kept, whole, elevation),
   }
+}
+
+const GRADES: readonly TrailDifficulty[] = ['easy', 'moderate', 'hard']
+
+function isGrade(value: unknown): value is TrailDifficulty {
+  return GRADES.includes(value as TrailDifficulty)
+}
+
+function harder(a: TrailDifficulty, b: TrailDifficulty): TrailDifficulty {
+  return GRADES.indexOf(a) >= GRADES.indexOf(b) ? a : b
+}
+
+/**
+ * How hard the whole trail is.
+ *
+ * The grade `deriveDifficulty` gives the whole length and ascent, the same
+ * rule that graded every row at ingest and that `trails:regrade-difficulty`
+ * applies, so a trail folded from pieces is graded as if it had been one row.
+ * The ascent is what the measured rows add up to, counted as the length is:
+ * where some rows are unmeasured that is less than the whole climb, so the
+ * grade can only be too easy, never too hard, and a measured climb on the
+ * kept row is never thrown away for the pieces that lack one.
+ *
+ * A source can grade a trail harder than its length and ascent say: a Forest
+ * Service trail class sets a floor (app/Ingest/sources/usfs.ts). The kept
+ * row's stored grade is that floor when its own length and ascent give an
+ * easier one, and the whole trail never grades below it. Otherwise the
+ * stored grade is the row's own length speaking, and the whole trail's
+ * replaces it, so a short steep stub that folded into a long gentle trail
+ * does not make the whole trail hard.
+ */
+export function wholeDifficulty(kept: WholeTrailMember, distance: number, ascent: number): TrailDifficulty {
+  const whole = deriveDifficulty(Math.max(0, Number(distance) || 0), Math.max(0, Number(ascent) || 0)).difficulty
+  const stored = kept.difficulty
+  if (!isGrade(stored))
+    return whole
+  const own = deriveDifficulty(Math.max(0, Number(kept.distance) || 0), kept.elevationMeasured ? Math.max(0, Number(kept.elevation) || 0) : null).difficulty
+  return GRADES.indexOf(stored) > GRADES.indexOf(own) ? harder(whole, stored) : whole
 }
 
 /**
@@ -225,6 +275,16 @@ export const WHOLE_AT_MOST_SQL = {
   elevation: 'elevation <= ? AND id NOT IN (SELECT trail_id FROM trail_totals WHERE trail_totals.elevation > ?)',
 } as const
 
+/**
+ * The catalog filters on difficulty on the whole trail too.
+ *
+ * A trail is graded by its total where it has a graded one, and by its row
+ * otherwise. So it matches when its total has that grade, or when its row
+ * has it and no total grades it differently. Both read `trail_totals` once,
+ * never a grade per row. Takes the grade three times.
+ */
+export const WHOLE_DIFFICULTY_SQL = '(id IN (SELECT trail_id FROM trail_totals WHERE trail_totals.difficulty = ?) OR (difficulty = ? AND id NOT IN (SELECT trail_id FROM trail_totals WHERE trail_totals.difficulty <> ?)))'
+
 /** Positive integer ids, once each, as the JSON `json_each` reads. */
 function idList(ids: Iterable<number>): string {
   return JSON.stringify([...new Set([...ids].map(Number).filter(id => Number.isInteger(id) && id > 0))])
@@ -243,27 +303,29 @@ export async function wholeTrails(trailIds: Iterable<number>): Promise<Map<numbe
     return found
 
   const rows = await db.sql`
-    SELECT trail_id, distance, elevation, pieces FROM trail_totals
+    SELECT trail_id, distance, elevation, pieces, difficulty FROM trail_totals
     WHERE trail_id IN (SELECT value FROM json_each(${list}))
-  `.execute().catch(() => []) as Array<{ trail_id: number, distance: number, elevation: number | null, pieces: number }>
+  `.execute().catch(() => []) as Array<{ trail_id: number, distance: number, elevation: number | null, pieces: number, difficulty: string | null }>
 
   for (const row of rows ?? []) {
     found.set(Number(row.trail_id), {
       distance: Number(row.distance),
       elevation: row.elevation === null || row.elevation === undefined ? null : Number(row.elevation),
       pieces: Number(row.pieces) || 0,
+      difficulty: isGrade(row.difficulty) ? row.difficulty : null,
     })
   }
   return found
 }
 
 /**
- * A trail row as the catalog shows it: the whole trail length and ascent
- * where it has pieces, and its own beside them.
+ * A trail row as the catalog shows it: the whole trail length, ascent and
+ * grade where it has pieces, and its own beside them.
  *
- * `distance` and `elevation` are what every card, page and filter reads, so
- * they carry the whole trail. `ownDistance` and `ownElevation` are the row,
- * which its `geometry` measures. A row without pieces comes back unchanged.
+ * `distance`, `elevation` and `difficulty` are what every card, page and
+ * filter reads, so they carry the whole trail. `ownDistance`, `ownElevation`
+ * and `ownDifficulty` are the row, which its `geometry` measures. A row
+ * without pieces comes back unchanged.
  */
 export function withWholeTrail<T extends Record<string, any>>(row: T, whole: WholeTrail | undefined): T {
   if (!whole)
@@ -272,8 +334,10 @@ export function withWholeTrail<T extends Record<string, any>>(row: T, whole: Who
     ...row,
     distance: whole.distance,
     elevation: whole.elevation ?? row.elevation,
+    difficulty: whole.difficulty ?? row.difficulty,
     ownDistance: row.distance,
     ownElevation: row.elevation,
+    ownDifficulty: row.difficulty,
     pieces: whole.pieces,
   }
 }
