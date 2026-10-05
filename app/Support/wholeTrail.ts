@@ -1,6 +1,7 @@
 import type { Coordinate } from '../../resources/functions/geo'
 import type { TrailDifficulty } from '../Ingest/types'
 import { db } from '@stacksjs/orm'
+import { wholeTrailFigures } from '../../resources/functions/trail-page'
 import { deriveDifficulty } from '../Ingest/normalize'
 
 /**
@@ -320,7 +321,7 @@ export async function wholeTrails(trailIds: Iterable<number>): Promise<Map<numbe
 
 /**
  * A trail row as the catalog shows it: the whole trail length, ascent and
- * grade where it has pieces, and its own beside them.
+ * grade where it has pieces (`wholeTrailFigures`), and its own beside them.
  *
  * `distance`, `elevation` and `difficulty` are what every card, page and
  * filter reads, so they carry the whole trail. `ownDistance`, `ownElevation`
@@ -332,9 +333,8 @@ export function withWholeTrail<T extends Record<string, any>>(row: T, whole: Who
     return row
   return {
     ...row,
-    distance: whole.distance,
-    elevation: whole.elevation ?? row.elevation,
-    difficulty: whole.difficulty ?? row.difficulty,
+    // The same figures the trail page states before it hydrates.
+    ...wholeTrailFigures(row, whole),
     ownDistance: row.distance,
     ownElevation: row.elevation,
     ownDifficulty: row.difficulty,

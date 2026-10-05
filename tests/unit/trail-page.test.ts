@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { exploreNearLinks, forecastBar, forecastDayLabel, placeOfLocation, ratingSummary, trailBreadcrumbs, trailFaq, whereLocation } from '../../resources/functions/trail-page'
+import { exploreNearLinks, forecastBar, forecastDayLabel, placeOfLocation, ratingSummary, trailBreadcrumbs, trailFacts, trailFaq, whereLocation, wholeTrailFigures } from '../../resources/functions/trail-page'
 
 const ROCK_RIDGE = {
   id: 6139,
@@ -117,5 +117,32 @@ describe('forecast helpers', () => {
   it('places each day on the week\'s scale', () => {
     expect(forecastBar({ low: 60, high: 80 }, 60, 100)).toEqual({ left: 0, width: 50 })
     expect(forecastBar({ low: 90, high: 90 }, 60, 100)).toEqual({ left: 75, width: 4 })
+  })
+})
+
+describe('the figures a trail page states', () => {
+  // Mesa Trail in Boulder: 1.14 miles on its own row, folded from pieces.
+  const own = { distance: 1.14, elevation: 300, difficulty: 'easy' }
+
+  it('are the whole trail where it was folded from pieces', () => {
+    expect(wholeTrailFigures(own, { distance: 4.2, elevation: 900, difficulty: 'moderate' }))
+      .toEqual({ distance: 4.2, elevation: 900, difficulty: 'moderate' })
+  })
+
+  it('keep the row climb and grade where the whole ones are not known yet', () => {
+    expect(wholeTrailFigures(own, { distance: 4.2, elevation: null, difficulty: null }))
+      .toEqual({ distance: 4.2, elevation: 300, difficulty: 'easy' })
+  })
+
+  it('are the row own figures for a trail with no pieces', () => {
+    expect(wholeTrailFigures(own, null)).toEqual(own)
+    expect(wholeTrailFigures(own, undefined)).toEqual(own)
+  })
+
+  it('read as a search result reads them, leaving out what is not known', () => {
+    expect(trailFacts({ distance: 4.2, elevation: 1234, difficulty: 'moderate' })).toBe('Moderate · 4.2 mi · 1,234 ft elevation gain')
+    expect(trailFacts(wholeTrailFigures(own, { distance: 4.2, elevation: null, difficulty: null }))).toBe('Easy · 4.2 mi · 300 ft elevation gain')
+    expect(trailFacts({ distance: 0, elevation: 0, difficulty: '' })).toBe('')
+    expect(trailFacts({ distance: 14.2 })).toBe('14.2 mi')
   })
 })

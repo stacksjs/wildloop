@@ -52,6 +52,55 @@ export interface PageTrail {
   lng?: number
 }
 
+/** How long, how high and how hard: what a trail page states first. */
+export interface TrailFigures {
+  /** Miles. */
+  distance?: number | null
+  /** Feet of ascent. */
+  elevation?: number | null
+  difficulty?: string | null
+}
+
+/**
+ * The figures a page states for a trail folded from pieces: the whole
+ * trail's, pieces included (`trail_totals`, app/Support/wholeTrail.ts).
+ *
+ * The length is always the whole one, which is never shorter than the row's.
+ * A whole ascent that was not measured, or a whole grade not worked out yet,
+ * leaves the row's own in place, so a page never states less than it did.
+ * With no whole trail, the row's own figures stand.
+ *
+ * Here rather than in app/Support so that the API, through `withWholeTrail`,
+ * and the trail page's server-rendered metadata, which cannot import from
+ * app/, state the same figures.
+ */
+export function wholeTrailFigures(own: TrailFigures, whole: TrailFigures | null | undefined): TrailFigures {
+  if (!whole)
+    return { distance: own.distance, elevation: own.elevation, difficulty: own.difficulty }
+  return {
+    distance: whole.distance ?? own.distance,
+    elevation: whole.elevation ?? own.elevation,
+    difficulty: whole.difficulty ?? own.difficulty,
+  }
+}
+
+/**
+ * "Moderate · 3.2 mi · 1,200 ft elevation gain": how hard, how far, how much
+ * climbing, in the order a search result reads them. Each is left out when
+ * the catalog does not know it. Miles, which the column is: calling it km
+ * restated the number in a unit it is not.
+ */
+export function trailFacts(trail: TrailFigures): string {
+  const grade = String(trail.difficulty ?? '').trim()
+  const distance = Number(trail.distance ?? 0)
+  const elevation = Number(trail.elevation ?? 0)
+  return [
+    grade ? `${grade.charAt(0).toUpperCase()}${grade.slice(1)}` : '',
+    distance > 0 ? `${distance.toFixed(1)} mi` : '',
+    elevation > 0 ? `${Math.round(elevation).toLocaleString('en-US')} ft elevation gain` : '',
+  ].filter(Boolean).join(' · ')
+}
+
 export interface Crumb {
   label: string
   href: string

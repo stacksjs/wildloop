@@ -211,4 +211,18 @@ describe.skipIf(!qa)('the URL of a piece', () => {
     expect(craggy(await trails(`${HERE}&difficulty=easy&limit=50`)).map(t => t.source_id)).toEqual(['qa/craggy-gardens'])
     expect(craggy(await trails(`${HERE}&difficulty=moderate&limit=50`))).toEqual([])
   })
+
+  /*
+   * A scraper reads the description the page is served with and never runs
+   * its script, so that has to be the whole trail too, not the 1.6 miles of
+   * the park's own row that the client used to correct after hydration.
+   */
+  it('is described as the whole trail in the page as served', async () => {
+    const html = await (await fetch(`${APP}/trail/${ids['qa/craggy-gardens']}`)).text()
+    const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
+
+    expect(description).toContain('Easy · 2.1 mi')
+    expect(description).not.toContain('1.6 mi')
+    expect(html.match(/<meta property="og:description" content="([^"]*)"/)?.[1]).toBe(description)
+  })
 })

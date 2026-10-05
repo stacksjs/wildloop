@@ -4,6 +4,8 @@
 
 @section('content')
 <script server>
+  import { trailFacts, wholeTrailFigures } from '../../functions/trail-page'
+
   /*
    * This trail's own metadata, in the HTML rather than applied after hydration.
    *
@@ -92,14 +94,36 @@
   if (ssrTrailMissing)
     notFound()
 
+  /*
+   * A trail folded from pieces is described as the whole trail (#1002).
+   *
+   * Its row carries only its own length, so the served description said
+   * Mesa Trail was 1.14 miles until the page hydrated and the client said
+   * otherwise, and a scraper, which never hydrates, kept the 1.14. The whole
+   * length, ascent and grade are in `trail_totals` (app/Support/wholeTrail.ts),
+   * one primary-key read, and `wholeTrailFigures` states them as the API does.
+   * A piece redirects above, so only a trail that is not one is looked up. No
+   * answer leaves the row's own figures, which is what the page said before.
+   */
+  let ssrWhole: { distance?: number, elevation?: number | null, difficulty?: string | null } | null = null
+  if (ssrTrail && ssrPartOf === 0) {
+    try {
+      const ssrTotals = await db.sql`
+        SELECT distance, elevation, difficulty FROM trail_totals WHERE trail_id = ${ssrTrailId}
+      `.execute() as Array<{ distance: number, elevation: number | null, difficulty: string | null }>
+      ssrWhole = ssrTotals?.[0] ?? null
+    }
+    catch {
+      ssrWhole = null
+    }
+  }
+  const ssrFigures = wholeTrailFigures(ssrTrail ?? {}, ssrWhole)
+
   const ssrName = String(ssrTrail?.name ?? '').trim()
   // `location` is the readable one — "Monschau, Nordrhein-Westfalen". `state`
   // holds the ISO subdivision, so a description built from it reads
   // "… in DE-NW", which is worse than saying nothing.
   const ssrWhere = String(ssrTrail?.location ?? '').trim()
-  const ssrDistance = Number(ssrTrail?.distance ?? 0)
-  const ssrDifficulty = String(ssrTrail?.difficulty ?? '').trim()
-  const ssrElevation = Number(ssrTrail?.elevation ?? 0)
 
   /*
    * `recordTitle(name, context)` — the same shape the page's own `setPageSeo`
@@ -114,13 +138,7 @@
 
   // What a search result should say about this trail, in the order the page's own
   // `trailDescription` puts them: how hard, how far, how much climbing.
-  const ssrFacts = [
-    ssrDifficulty ? `${ssrDifficulty.charAt(0).toUpperCase()}${ssrDifficulty.slice(1)}` : '',
-    // Miles. The column is miles and the page labels it so — calling it km
-    // restated the number in a unit it is not: Half Dome's 14.2 is miles.
-    ssrDistance > 0 ? `${ssrDistance.toFixed(1)} mi` : '',
-    ssrElevation > 0 ? `${Math.round(ssrElevation).toLocaleString()} ft elevation gain` : '',
-  ].filter(Boolean).join(' · ')
+  const ssrFacts = trailFacts(ssrFigures)
 
   // The sentence the page's own `trailDescription` builds, so the preview a
   // scraper takes and the description the client sets are the same string.
