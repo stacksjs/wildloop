@@ -10,10 +10,10 @@
     "@bughq/stacks": "^0.2.2",
     "@iconify-json/lucide": "^1.2.137",
     "@loghq/stacks": "^0.2.6",
-    "@stacksjs/mobile": "^0.75.63",
+    "@stacksjs/mobile": "^0.75.67",
     "@ts-analytics/tracking": "^0.1.17",
     "bun-query-builder": "0.3.3",
-    "stacks": "^0.75.63",
+    "stacks": "^0.75.67",
     "ts-health": "^0.1.0",
     "ts-maps": "^0.3.15",
     "ts-qr-codes": "^0.1.8",
@@ -118,7 +118,7 @@
   "overrides": {
     "craft-native": "0.0.92",
     "@stacksjs/ts-cloud": "^0.16.35",
-    "@stacksjs/stx": "^0.2.368",
-    "bun-plugin-stx": "^0.2.368"
+    "@stacksjs/stx": "^0.2.372",
+    "bun-plugin-stx": "^0.2.372"
   }
 }
