@@ -1,3 +1,4 @@
+import { Database } from 'bun:sqlite'
 import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import process from 'node:process'
@@ -19,17 +20,56 @@ import process from 'node:process'
 
 export const SNAPSHOT_PREFIX = 'stacks-'
 
+/**
+ * A snapshot taken for a reason other than the night, kept in its own
+ * rotation: `stacks-pre-migration-2026-10-05T03-20-00Z.sqlite.zst`. Nightly
+ * snapshots have no label, so a busy day of deploys cannot push last night's
+ * copy out, and the nightly job cannot prune the copy taken before a deploy.
+ */
+export type SnapshotLabel = 'pre-migration'
+
 /** `stacks-2026-10-04T03-20-00Z.sqlite.zst`: sortable, and safe in any filesystem. */
-export function snapshotName(at: Date, extension: string): string {
-  return `${SNAPSHOT_PREFIX}${at.toISOString().slice(0, 19).replace(/:/g, '-')}Z.sqlite.${extension}`
+export function snapshotName(at: Date, extension: string, label?: SnapshotLabel): string {
+  return `${SNAPSHOT_PREFIX}${label ? `${label}-` : ''}${at.toISOString().slice(0, 19).replace(/:/g, '-')}Z.sqlite.${extension}`
 }
 
-/** Snapshots past the newest `keep`, oldest first. Anything not ours is never touched. */
-export function snapshotsToPrune(files: string[], keep: number): string[] {
+/** Snapshots of one rotation past the newest `keep`, oldest first. Anything not ours is never touched. */
+export function snapshotsToPrune(files: string[], keep: number, label?: SnapshotLabel): string[] {
+  const rotation = label
+    ? new RegExp(`^${SNAPSHOT_PREFIX}${label}-\\d{4}-`)
+    : new RegExp(`^${SNAPSHOT_PREFIX}\\d{4}-`)
   const ours = files
-    .filter(file => file.startsWith(SNAPSHOT_PREFIX) && /\.sqlite\.(?:zst|gz)$/.test(file))
+    .filter(file => rotation.test(file) && /\.sqlite\.(?:zst|gz)$/.test(file))
     .sort()
   return ours.slice(0, Math.max(0, ours.length - Math.max(1, keep)))
+}
+
+/**
+ * Migrations on disk the database has not run, by file name: the same ledger
+ * `buddy migrate` keeps (the `migrations` table, one row per file run).
+ *
+ * A deploy migrates before its new release has proven anything, and a
+ * release that is then rolled back leaves the database migrated. When there
+ * is something to migrate, the deploy takes a snapshot first (`db:snapshot
+ * --before-migrations`), so there is a copy from before the schema moved.
+ */
+export function pendingMigrations(databaseFile: string, migrationsDir: string): string[] {
+  if (!existsSync(migrationsDir))
+    return []
+  const onDisk = readdirSync(migrationsDir).filter(file => file.endsWith('.sql')).sort()
+  if (!existsSync(databaseFile))
+    return onDisk
+  const db = new Database(databaseFile, { readonly: true })
+  try {
+    const hasLedger = db.query(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'migrations'`).get()
+    if (!hasLedger)
+      return onDisk
+    const ran = new Set((db.query('SELECT migration FROM migrations').all() as Array<{ migration: string }>).map(row => row.migration))
+    return onDisk.filter(file => !ran.has(file))
+  }
+  finally {
+    db.close()
+  }
 }
 
 export interface SnapshotReport {
@@ -55,7 +95,7 @@ export function databasePath(): string {
 }
 
 /** Take, check, compress and rotate one snapshot. */
-export function snapshotDatabase(options: { keep?: number, directory?: string, at?: Date } = {}): SnapshotReport {
+export function snapshotDatabase(options: { keep?: number, directory?: string, at?: Date, label?: SnapshotLabel } = {}): SnapshotReport {
   const source = databasePath()
   if (!existsSync(source))
     throw new Error(`No database at ${source}`)
@@ -70,7 +110,7 @@ export function snapshotDatabase(options: { keep?: number, directory?: string, a
 
   const zstd = has('zstd')
   const extension = zstd ? 'zst' : 'gz'
-  const name = snapshotName(options.at ?? new Date(), extension)
+  const name = snapshotName(options.at ?? new Date(), extension, options.label)
   const raw = join(directory, `.${name}.partial.sqlite`)
   const finished = join(directory, name)
 
@@ -94,7 +134,7 @@ export function snapshotDatabase(options: { keep?: number, directory?: string, a
     }
   }
 
-  const pruned = snapshotsToPrune(readdirSync(directory), options.keep ?? 7)
+  const pruned = snapshotsToPrune(readdirSync(directory), options.keep ?? 7, options.label)
   for (const file of pruned)
     unlinkSync(join(directory, file))
 

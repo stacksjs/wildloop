@@ -2,7 +2,8 @@ import type { CLI } from '@stacksjs/types'
 import process from 'node:process'
 import { intro, log, outro } from '@stacksjs/cli'
 import { ExitCode } from '@stacksjs/types'
-import { snapshotDatabase } from '../Support/databaseSnapshot'
+import { join } from 'node:path'
+import { databasePath, pendingMigrations, snapshotDatabase } from '../Support/databaseSnapshot'
 import { sendSnapshotOffsite } from '../Support/snapshotOffsite'
 
 /**
@@ -21,11 +22,35 @@ export default function (cli: CLI) {
   cli
     .command('db:snapshot', 'Snapshot the database to DB_SNAPSHOT_DIR, keeping the newest N')
     .option('--keep [count]', 'Snapshots to keep', { default: 7 })
-    .action(async (options: { keep: number }) => {
+    .option('--before-migrations', 'Deploy mode: snapshot only when migrations are waiting, kept in their own rotation', { default: false })
+    .action(async (options: { keep: number, beforeMigrations?: boolean }) => {
       const perf = await intro('buddy db:snapshot')
       try {
-        const report = snapshotDatabase({ keep: Math.max(1, Number(options.keep) || 7) })
+        // A deploy migrates before its release has proven anything. When it
+        // has something to migrate, keep a copy from before the schema moves.
+        // Nothing waiting, nothing to protect: the deploy is not slowed down.
+        if (options.beforeMigrations) {
+          const pending = pendingMigrations(databasePath(), join(process.cwd(), 'database/migrations'))
+          if (pending.length === 0) {
+            await outro('No migrations waiting, so no pre-migration snapshot', { startTime: perf, useSeconds: true })
+            process.exit(ExitCode.Success)
+          }
+          log.info(`${pending.length} migration(s) waiting (${pending.slice(0, 3).join(', ')}${pending.length > 3 ? ', …' : ''}): snapshotting first`)
+        }
+
+        const report = snapshotDatabase({
+          keep: Math.max(1, Number(options.keep) || 7),
+          ...(options.beforeMigrations ? { label: 'pre-migration' as const } : {}),
+        })
         log.info(`Wrote ${report.file} (${Math.round(report.bytes / 1048576)} MB), removed ${report.pruned.length} old`)
+
+        // Pre-migration copies stay on the box: they are for undoing this
+        // deploy within minutes, the nightly copy is the one that leaves, and
+        // uploading the whole database would slow every migrating deploy.
+        if (options.beforeMigrations) {
+          await outro(`Pre-migration snapshot ${report.file} (on this box)`, { startTime: perf, useSeconds: true })
+          process.exit(ExitCode.Success)
+        }
 
         const offsite = await sendSnapshotOffsite(report.path, process.env)
         if (offsite.status === 'not configured')

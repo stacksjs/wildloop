@@ -243,6 +243,11 @@ export const tsCloud: TsCloudConfig = {
         // The database lives OUTSIDE the release, so create its directory
         // before migrate runs — on a fresh box nothing else would.
         'mkdir -p /var/www/wildloop-shared/database',
+        // A copy from before the schema moves, when there is anything to move:
+        // the release that migrates has not proven itself yet, and a rollback
+        // takes back the code, not the schema. Fails the deploy if it cannot
+        // be taken, rather than migrating with no way back.
+        './buddy db:snapshot --before-migrations --keep 5',
         './buddy migrate --no-generate',
         // Place search (GeoNames, ~60 MB beside the database). Built once per
         // server and never fatal: an unreachable GeoNames leaves search
