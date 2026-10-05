@@ -142,6 +142,10 @@ export const tsCloud: TsCloudConfig = {
       domain: 'wildloop.org',
       start: './buddy serve',
       port: 3049,
+      // What the deploy asks before and after it retires the previous release
+      // (ts-cloud's zero-downtime cutover). The homepage renders from cache in
+      // a few milliseconds, and a release that cannot serve it is not live.
+      healthCheck: { path: '/' },
       /*
        * Memory, declared rather than left to defaults and hand-made drop-ins.
        *
@@ -294,6 +298,10 @@ export const tsCloud: TsCloudConfig = {
       deploy: 'server',
       start: './buddy serve:api',
       port: 3050,
+      // Answers only once routes are registered and the database and cache
+      // respond, so a release that boots but cannot serve never replaces the
+      // one that can.
+      healthCheck: { path: '/api/health' },
       /*
        * Memory, declared rather than left to defaults and hand-made drop-ins.
        *
