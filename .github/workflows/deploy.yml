@@ -143,6 +143,7 @@ jobs:
           chmod 644 ~/.ssh/id_ed25519.pub
 
       - name: Deploy
+        id: deploy
         run: ./buddy deploy --${{ github.event.inputs.environment == 'staging' && 'staging' || github.event.inputs.environment == 'development' && 'dev' || 'prod' }} --yes
         env:
           # Decrypts .env.production. Without it the encrypted values silently
@@ -184,14 +185,7 @@ jobs:
         if: github.event.inputs.environment == '' || github.event.inputs.environment == 'production'
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
-        run: |
-          token=$(./buddy env:get CLOUDFLARE_API_TOKEN --file .env.production 2>/dev/null | tail -1)
-          echo "::add-mask::$token"
-          zone=$(curl -fsS -H "Authorization: Bearer $token" 'https://api.cloudflare.com/client/v4/zones?name=wildloop.org' | jq -r '.result[0].id')
-          curl -fsS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
-            "https://api.cloudflare.com/client/v4/zones/$zone/purge_cache" \
-            -d '{"hosts":["wildloop.org","www.wildloop.org"]}' | jq -e '.success' > /dev/null
-          echo "Purged wildloop.org at the edge"
+        run: scripts/purge-edge-cache.sh
 
       # Ask the site whether the deploy worked, rather than trusting that the
       # deploy command exiting 0 means it did.
@@ -209,5 +203,37 @@ jobs:
       # to hosts this runner cannot name, so they skip rather than fail on a
       # URL that was never going to answer.
       - name: Smoke check the deployed site
+        id: smoke
         if: github.event.inputs.environment == '' || github.event.inputs.environment == 'production'
         run: bun scripts/smoke.ts https://wildloop.org
+
+      # A deploy or smoke check that failed must not leave the failure live.
+      #
+      # Each site's cutover already refuses a release that crashes, never takes
+      # its port or fails its health path, and puts the previous release back
+      # (ts-cloud's zero-downtime cutover). What it cannot see is a release
+      # that is healthy by those measures and still wrong, which is what the
+      # smoke check is for; or a deploy that switched `main` and then failed
+      # on `api`, leaving the two on different commits. Both are answered
+      # here: every site whose live release is this commit goes back to the
+      # release it replaced, the edge cache is dropped, and the site is
+      # smoke-checked again. The job still fails, and says what it restored.
+      #
+      # Until this step existed, the c3e435d API release crash-looped, the
+      # smoke check failed the job, and the site answered 502 until somebody
+      # started the previous release by hand.
+      - name: Roll back to the previous release
+        if: failure() && (steps.deploy.outcome == 'failure' || steps.smoke.outcome == 'failure') && (github.event.inputs.environment == '' || github.event.inputs.environment == 'production')
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+        run: |
+          rolled=0
+          scripts/rollback-this-deploy.sh "$GITHUB_SHA" production || rolled=$?
+          scripts/purge-edge-cache.sh || echo "::warning::could not purge the edge cache after rolling back"
+          if bun scripts/smoke.ts https://wildloop.org; then
+            echo "::error::Deploy of ${GITHUB_SHA::7} failed and was rolled back. The previous release passes the smoke check."
+          else
+            echo "::error::Deploy of ${GITHUB_SHA::7} failed, and the site still fails the smoke check after rolling back. Look now."
+          fi
+          [ "$rolled" -eq 0 ] || echo "::error::At least one site could not be rolled back; see above."
+          exit 1
