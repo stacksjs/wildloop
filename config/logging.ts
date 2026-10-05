@@ -4,6 +4,21 @@ import { loghqTransport } from '@loghq/stacks'
 import { storagePath } from '@stacksjs/path'
 
 /**
+ * Whether errors from this process should become issues somebody is emailed about.
+ *
+ * Not under `bun test`. `environment` on each transport below labels an event;
+ * it does not withhold one, so a test that deliberately throws still filed an
+ * issue and mailed the owner. `tests/unit/google-callback.test.ts` injects a
+ * UNIQUE violation on `user_identities` to prove the Google callback refuses a
+ * sign-in it cannot record — working as intended, and indistinguishable in the
+ * inbox from the same constraint failing in production.
+ *
+ * A suite that pages people is a suite people learn to ignore, and the issue
+ * it buries is the real one.
+ */
+const REPORTS_ISSUES = process.env.APP_ENV !== 'test' && process.env.NODE_ENV !== 'test'
+
+/**
  * **Logging Configuration**
  *
  * This configuration defines all of your logging options. Because Stacks is fully-typed, you
@@ -40,15 +55,17 @@ export default {
   //
   // Never add a top-level `level` here: it breaks the transports array. Set
   // severity per transport instead (loghq `minLevel`, bughq `eventLevel`).
-  transports: [
-    loghqTransport({
-      key: 'loghq_208c4a438f864ead9868ca74a8b1fd46e2093257d820441a90802c5bee49106b',
-      environment: process.env.APP_ENV,
-      release: process.env.APP_VERSION,
-    }),
-    bughqTransport({
-      key: 'bughq_de5b1dcd73d04d9b978431db956d50224ebe8a72f5644eb18438777293377171',
-      environment: process.env.APP_ENV,
-    }),
-  ],
+  transports: REPORTS_ISSUES
+    ? [
+        loghqTransport({
+          key: 'loghq_208c4a438f864ead9868ca74a8b1fd46e2093257d820441a90802c5bee49106b',
+          environment: process.env.APP_ENV,
+          release: process.env.APP_VERSION,
+        }),
+        bughqTransport({
+          key: 'bughq_de5b1dcd73d04d9b978431db956d50224ebe8a72f5644eb18438777293377171',
+          environment: process.env.APP_ENV,
+        }),
+      ]
+    : [],
 } satisfies LoggingConfig
