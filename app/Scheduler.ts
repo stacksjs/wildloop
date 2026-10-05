@@ -66,6 +66,20 @@ export default function () {
     .onOneServer()
     .withName('wildloop-db-snapshot')
 
+  /**
+   * Restore the newest off-box snapshot to a scratch file and check it
+   * (app/Support/restoreDrill.ts): a backup nobody has restored is a
+   * hypothesis. Sundays at 05:40 UTC, after the 03:20 snapshot has landed.
+   */
+  // onDays() before at(): onDays sets the time to midnight, at() keeps the day.
+  reported('./buddy db:restore-drill', 'HEARTBEAT_RESTORE_DRILL')
+    .onDays([0])
+    .at('05:40')
+    .setTimeZone('UTC')
+    .withoutOverlapping(120)
+    .onOneServer()
+    .withName('wildloop-restore-drill')
+
   reported('./buddy counters:recompute', 'HEARTBEAT_COUNTERS')
     .at('04:10')
     .setTimeZone('UTC')

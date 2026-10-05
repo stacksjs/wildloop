@@ -68,6 +68,10 @@ export default {
     file: 'SnapshotDatabase',
     enabled: true,
   },
+  'db:restore-drill': {
+    file: 'RestoreDrill',
+    enabled: true,
+  },
   'trails:source-photos': {
     file: 'SourceTrailPhotos',
     enabled: true,
