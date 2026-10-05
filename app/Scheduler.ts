@@ -135,11 +135,17 @@ export default function () {
    *
    * Resumable the same way as the elevation slice: it selects on
    * `location_checked_at`, so each night carries on from the last and a
-   * finished catalog costs one indexed COUNT. Unlike that job it needs
-   * nothing off the box — the gazetteer and the agency trails are local — so
-   * the slice is bounded by the database alone. 50,000 trails ran in 106s on
-   * a 600,000-row copy on a laptop; allow the box several times that and the
-   * catalog is done in about twelve nights.
+   * finished catalog costs one indexed COUNT. Unlike that job it mostly needs
+   * nothing off the box — the gazetteer and the agency trails are local. Only
+   * a trail whose town is more than 10 km off asks our routing server for the
+   * heights between, to keep a town across a ridge off its card, and waits
+   * for another night when that server does not answer. 50,000 trails ran
+   * in 106s on a 600,000-row copy on a laptop; allow the box several times
+   * that and the catalog is done in about twelve nights.
+   *
+   * Migration 201 handed the 30,833 trails a full pass had left naming only
+   * their region back to this job, to be asked again under the wider rules
+   * (see `betterLocation()`): one night's slice covers them.
    *
    * 09:40 UTC is the small hours across the US (02:40 Pacific), and clear of
    * the 02:10 elevation slice, which can hold the box past 04:00.
