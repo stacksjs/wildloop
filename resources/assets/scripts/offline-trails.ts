@@ -1,5 +1,6 @@
 import type { LatLng, UiTrail } from './trail-data'
 import { resolveVectorTiles } from '../../composables/useTrailMap'
+import { withDifficultyLabel } from './trail-data'
 
 const DATABASE_NAME = 'wildloop-offline'
 const STORE_NAME = 'trail-routes'
@@ -82,7 +83,11 @@ export async function removeOfflineTrail(id: number): Promise<void> {
 }
 
 export async function offlineTrail(id: number): Promise<OfflineTrail | null> {
-  return await request<OfflineTrail>('readonly', store => store.get(id))
+  const saved = await request<OfflineTrail>('readonly', store => store.get(id))
+  // Filled in on the way out rather than on the way in: records already in
+  // somebody's browser were written by an older build, and this is the only
+  // place they are read.
+  return saved ? { ...saved, trail: withDifficultyLabel(saved.trail) } : saved
 }
 
 export async function isTrailOffline(id: number): Promise<boolean> {

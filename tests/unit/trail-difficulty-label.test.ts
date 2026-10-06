@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { normalizeTrailsPayload } from '../../resources/assets/scripts/trail-data'
+import { normalizeTrailsPayload, withDifficultyLabel } from '../../resources/assets/scripts/trail-data'
 import {
   difficultyIsEstimated,
   difficultyTitle,
@@ -127,5 +127,81 @@ describe('the label survives the trip to a template', () => {
     const { trails } = normalizeTrailsPayload(payload(0))
     expect(trails[0].difficultyLabel).toBe('~moderate')
     expect(trails[0].difficultyEstimated).toBe(true)
+  })
+})
+
+describe('the trail page reads the label, not the grade', () => {
+  /*
+   * A trail's own page was the last place still rendering `trail.difficulty`
+   * straight out of the row, so a trail whose ascent has never been measured
+   * showed a flat "Easy" a few rows above "Elevation gain — Not recorded".
+   *
+   * Measured against production on 6 Oct 2026: of 400 trails sampled evenly by
+   * id, 351 carry no ascent, and only 74 have been looked at by the elevation
+   * backfill at all. So this is what almost every trail page shows.
+   *
+   * Source text, because these are stx client bindings. A client template
+   * interpolates properties and not calls, so the honest string has to be on
+   * the object already — which is what `difficultyLabel` is for — and whether
+   * a template reached for it is only answerable by reading the template.
+   */
+  const RAW_RENDER = /\{\{\s*[\w.]*\.difficulty\s*\}\}/
+
+  const VIEWS = [
+    'resources/views/trail/[id].stx',
+    'resources/views/trails.stx',
+  ]
+
+  for (const view of VIEWS) {
+    it(`${view} renders no bare grade`, async () => {
+      const source = await Bun.file(view).text()
+      const offender = source.match(RAW_RENDER)
+
+      expect(offender?.[0] ?? null, `${view} interpolates a raw grade — use difficultyLabel, which marks an unmeasured one`)
+        .toBeNull()
+    })
+  }
+
+  /*
+   * And the guard has to recognise what it is guarding against, or it passes
+   * because its pattern is wrong.
+   */
+  it('recognises a bare grade, and accepts the label', () => {
+    expect(RAW_RENDER.test('<span>{{ trail.difficulty }}</span>')).toBe(true)
+    expect(RAW_RENDER.test('<span>{{ candidate.difficulty }}</span>')).toBe(true)
+    expect(RAW_RENDER.test('<span>{{ trail.difficultyLabel }}</span>')).toBe(false)
+    // The colour class still keys off the raw grade, and should.
+    expect(RAW_RENDER.test(`x-class="'difficulty-' + trail.difficulty"`)).toBe(false)
+  })
+})
+
+describe('withDifficultyLabel', () => {
+  /*
+   * A trail downloaded for offline use is stored as the `UiTrail` it was when
+   * it was saved, so one saved before the badge learned to mark an estimate
+   * carries no `difficultyLabel` — and `{{ trail.difficultyLabel }}` renders
+   * an empty badge for it. Filled in where those records are read.
+   */
+  it('derives the missing label from the stored elevation', () => {
+    const stale = { id: 7, difficulty: 'moderate', elevation: 0 } as any
+
+    expect(withDifficultyLabel(stale).difficultyLabel).toBe('~moderate')
+    expect(withDifficultyLabel(stale).difficultyEstimated).toBe(true)
+    expect(withDifficultyLabel({ ...stale, elevation: 1800 }).difficultyLabel).toBe('moderate')
+  })
+
+  it('leaves a trail that already carries one alone', () => {
+    const fresh = { id: 7, difficulty: 'moderate', elevation: 0, difficultyLabel: '~moderate', difficultyEstimated: true } as any
+
+    expect(withDifficultyLabel(fresh)).toBe(fresh)
+  })
+
+  /*
+   * An ungraded trail still gets no lone tilde, and nothing here throws on a
+   * record that is missing more than the label.
+   */
+  it('survives a record with nothing useful in it', () => {
+    expect(withDifficultyLabel({} as any).difficultyLabel).toBe('')
+    expect(withDifficultyLabel({ difficulty: '', elevation: 0 } as any).difficultyLabel).toBe('')
   })
 })

@@ -8,6 +8,8 @@
  * one answering "0 ft" — which reads as flat, and is a guess.
  */
 
+import { difficultyIsEstimated } from './trail-difficulty'
+
 /**
  * How a location says a trail is near a town rather than in it: "Near
  * Republic, WA". The catalog writes that for a trail in the back country,
@@ -89,13 +91,21 @@ export function wholeTrailFigures(own: TrailFigures, whole: TrailFigures | null 
  * climbing, in the order a search result reads them. Each is left out when
  * the catalog does not know it. Miles, which the column is: calling it km
  * restated the number in a unit it is not.
+ *
+ * A grade with no measured ascent behind it is marked, because this string is
+ * the page's meta description — the one claim the trail makes in a search
+ * result, where there is no elevation row beside it saying "Not recorded".
+ * 82% of the catalog is still waiting on the elevation backfill, so most of
+ * these grades come from length alone (#1004). The parenthesis spells it out
+ * rather than using the badge's tilde, which means nothing out of context.
  */
 export function trailFacts(trail: TrailFigures): string {
   const grade = String(trail.difficulty ?? '').trim()
   const distance = Number(trail.distance ?? 0)
   const elevation = Number(trail.elevation ?? 0)
+  const named = grade ? `${grade.charAt(0).toUpperCase()}${grade.slice(1)}` : ''
   return [
-    grade ? `${grade.charAt(0).toUpperCase()}${grade.slice(1)}` : '',
+    named && difficultyIsEstimated(elevation) ? `${named} (estimated)` : named,
     distance > 0 ? `${distance.toFixed(1)} mi` : '',
     elevation > 0 ? `${Math.round(elevation).toLocaleString('en-US')} ft elevation gain` : '',
   ].filter(Boolean).join(' · ')

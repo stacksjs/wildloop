@@ -143,6 +143,11 @@ describe('the figures a trail page states', () => {
     expect(trailFacts({ distance: 4.2, elevation: 1234, difficulty: 'moderate' })).toBe('Moderate · 4.2 mi · 1,234 ft elevation gain')
     expect(trailFacts(wholeTrailFigures(own, { distance: 4.2, elevation: null, difficulty: null }))).toBe('Easy · 4.2 mi · 300 ft elevation gain')
     expect(trailFacts({ distance: 0, elevation: 0, difficulty: '' })).toBe('')
+    // A grade with no ascent behind it says so: this string is the page's meta
+    // description, where there is no elevation row beside it reading "Not
+    // recorded" (#1004).
+    expect(trailFacts({ distance: 0.4, elevation: 0, difficulty: 'easy' })).toBe('Easy (estimated) · 0.4 mi')
+    expect(trailFacts({ distance: 2.67, elevation: 1000, difficulty: 'moderate' })).toBe('Moderate · 2.7 mi · 1,000 ft elevation gain')
     expect(trailFacts({ distance: 14.2 })).toBe('14.2 mi')
   })
 })

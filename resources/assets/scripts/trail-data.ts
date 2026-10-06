@@ -223,6 +223,27 @@ export function extractApiTrailRows(payload: unknown): Record<string, unknown>[]
   return []
 }
 
+/**
+ * The derived difficulty fields, filled in for a trail that did not come from
+ * the API just now.
+ *
+ * A downloaded trail is stored as the `UiTrail` it was on the day it was
+ * saved, so one saved before the badge learned to mark an estimate has no
+ * `difficultyLabel` at all — and a template reading that property renders an
+ * empty badge, which is how #1004 failed the first time. Derived from the
+ * stored elevation, the same input the normalizer above uses.
+ */
+export function withDifficultyLabel(trail: UiTrail): UiTrail {
+  if (typeof trail?.difficultyLabel === 'string' && trail.difficultyLabel !== '')
+    return trail
+
+  return {
+    ...trail,
+    difficultyLabel: trailDifficultyLabel(trail?.difficulty, trail?.elevation),
+    difficultyEstimated: difficultyIsEstimated(trail?.elevation),
+  }
+}
+
 export function normalizeTrailsPayload(payload: unknown): {
   trails: UiTrail[]
   /** Each trail's main line. */
