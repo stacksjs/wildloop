@@ -221,7 +221,9 @@ describe.skipIf(!qa)('the URL of a piece', () => {
     const html = await (await fetch(`${APP}/trail/${ids['qa/craggy-gardens']}`)).text()
     const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
 
-    expect(description).toContain('Easy · 2.1 mi')
+    // The fixture has no recorded climb, so its grade comes from length alone
+    // and the description says so (f0b18420).
+    expect(description).toContain('Easy (estimated) · 2.1 mi')
     expect(description).not.toContain('1.6 mi')
     expect(html.match(/<meta property="og:description" content="([^"]*)"/)?.[1]).toBe(description)
   })
