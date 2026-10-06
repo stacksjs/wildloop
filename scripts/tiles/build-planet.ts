@@ -48,6 +48,12 @@ const ROLE = 'tiles-build'
 const MAX_AGE_HOURS = 24
 /** A server whose status has not moved in this long has stopped reporting. */
 const SILENCE_MINUTES = 60
+/**
+ * Working space for a planet build, attached as a volume: the 80 GB planet
+ * download, planetiler's node map and feature storage, and the 80-90 GB
+ * archive. No server disk holds it all once the node map goes to disk.
+ */
+const VOLUME_GB = 1000
 
 const [command = 'launch', ...rest] = process.argv.slice(2)
 const args = new Map(rest.map((arg) => {
@@ -119,6 +125,8 @@ interface BuildStatus {
   state: 'RUNNING' | 'DONE' | 'FAILED'
   version: string
   line: string
+  tail?: string[]
+  machine?: { disk?: string, memory?: string, load?: string }
   updatedAt: string
 }
 
@@ -192,6 +200,21 @@ async function launch(smoke: boolean): Promise<string> {
       throw new Error(`could not rent a build server:\n  ${refusals.join('\n  ')}`)
     for (const refusal of refusals) console.log(`  (skipped ${refusal})`)
 
+    {
+      // The smoke run attaches a small one, so the mount is rehearsed too.
+      const location = (await hetzner<{ server: { datacenter?: { location: { name: string } }, location?: { name: string } } }>('GET', `/servers/${serverId}`)).server
+      await hetzner('POST', '/volumes', {
+        name: `tiles-build-${version}`,
+        size: smoke ? 10 : VOLUME_GB,
+        location: location.location?.name ?? location.datacenter?.location.name,
+        server: serverId,
+        automount: true,
+        format: 'ext4',
+        labels: { 'wildloop-role': ROLE, 'tiles-version': version },
+      })
+      console.log(`attached a ${smoke ? 10 : VOLUME_GB} GB build volume`)
+    }
+
     // SSH answers a minute or so after the API says running.
     for (let attempt = 0; ; attempt++) {
       if (ssh(ip, keyPath, 'true').code === 0)
@@ -213,7 +236,10 @@ async function launch(smoke: boolean): Promise<string> {
     ssh(ip, keyPath, 'mkdir -p /root/tiles && umask 077 && cat > /root/tiles/tiles.env', `${env}\n`)
     for (const file of ['remote-build.sh', 'report.ts', 'publish.ts'])
       ssh(ip, keyPath, `cat > /root/tiles/${file}`, readFileSync(join(import.meta.dir, file), 'utf8'))
-    const started = ssh(ip, keyPath, 'cd /root/tiles && chmod +x remote-build.sh && nohup ./remote-build.sh > build.log 2>&1 < /dev/null & echo launched')
+    // `;`, not `&&`, before the `&`: an and-list backgrounded as a whole runs
+    // in a subshell that keeps this SSH session's output open until the build
+    // ends, which is how the first launch held a CI job for half an hour.
+    const started = ssh(ip, keyPath, 'cd /root/tiles; chmod +x remote-build.sh; setsid nohup ./remote-build.sh > build.log 2>&1 < /dev/null & echo launched')
     if (!started.out.includes('launched'))
       throw new Error(`could not start the build: ${started.out}`)
     launched = true
@@ -224,9 +250,33 @@ async function launch(smoke: boolean): Promise<string> {
     // The key only ever let us in to start the build. Gone either way.
     if (sshKeyId)
       await hetzner('DELETE', `/ssh_keys/${sshKeyId}`).catch(() => {})
-    if (serverId && !launched)
+    if (serverId && !launched) {
       await hetzner('DELETE', `/servers/${serverId}`).then(() => console.log('build server deleted (launch failed)')).catch(() => {})
+      await deleteBuildVolumes()
+    }
     rmSync(keyDir, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Delete build volumes whose server is gone. A volume outlives its server
+ * (deleting the server only detaches it) and bills by the gigabyte until it
+ * is deleted too, so every check sweeps for them.
+ */
+async function deleteBuildVolumes(): Promise<void> {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const { volumes } = await hetzner<{ volumes: Array<{ id: number, name: string, server: number | null }> }>('GET', `/volumes?label_selector=${encodeURIComponent(`wildloop-role=${ROLE}`)}`)
+    const live = new Set((await buildServers()).map(server => server.id))
+    const orphans = volumes.filter(volume => !volume.server || !live.has(volume.server))
+    const detaching = orphans.filter(volume => volume.server)
+    for (const volume of orphans.filter(volume => !volume.server)) {
+      await hetzner('DELETE', `/volumes/${volume.id}`)
+      console.log(`  volume ${volume.name} deleted`)
+    }
+    if (detaching.length === 0)
+      return
+    // The server's deletion detaches its volume a few seconds later.
+    await sleep(5_000)
   }
 }
 
@@ -234,6 +284,7 @@ async function launch(smoke: boolean): Promise<string> {
 async function check(): Promise<boolean> {
   const servers = await buildServers()
   if (servers.length === 0) {
+    await deleteBuildVolumes()
     console.log('no build in flight')
     return true
   }
@@ -259,6 +310,8 @@ async function check(): Promise<boolean> {
 
     if (!reason)
       continue
+    if (status?.tail?.length && reason !== 'finished')
+      console.log(`  last lines:\n    ${status.tail.slice(-25).join('\n    ')}\n  machine:\n    ${[status.machine?.disk, status.machine?.memory].filter(Boolean).join('\n').split('\n').join('\n    ')}`)
     await hetzner('DELETE', `/servers/${server.id}`)
     console.log(`  deleted (${reason})`)
     if (reason !== 'finished')
@@ -266,6 +319,7 @@ async function check(): Promise<boolean> {
     else if (!server.labels['tiles-smoke'])
       console.log(`  published ${PUBLIC_URL}/tiles.json → planet/${version}.pmtiles`)
   }
+  await deleteBuildVolumes()
   return ok
 }
 
