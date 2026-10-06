@@ -118,7 +118,7 @@
   },
   "overrides": {
     "craft-native": "0.0.118",
-    "@stacksjs/ts-cloud": "^0.16.40",
+    "@stacksjs/ts-cloud": "^0.16.41",
     "@stacksjs/stx": "^0.2.373",
     "bun-plugin-stx": "^0.2.373"
   }

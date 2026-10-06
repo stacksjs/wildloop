@@ -8,12 +8,13 @@
 # Nothing waits on this machine. It reports to the bucket instead: a heartbeat,
 # independent of this script, writes _builds/<version>/status.json every five
 # minutes with the state, the log's tail and the machine's disk and memory.
-# The hourly `check` job reads that through tiles.wildloop.org and deletes this
-# machine (and its volume) once the state is final.
+# The hourly `check` job reads that through tiles.wildloop.org. The machine
+# terminates itself once it has reported a final state (EC2 is told to treat
+# a shutdown as termination), and the check terminates it if it never does.
 #
 # Expects /root/tiles/tiles.env (written over SSH, never in user data) with:
 #   R2_ENDPOINT R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET
-#   TILES_PUBLIC_URL VERSION [SMOKE]
+#   TILES_PUBLIC_URL VERSION [SMOKE] [OSM_URL]
 set -euo pipefail
 
 cd /root/tiles
@@ -23,10 +24,9 @@ source ./tiles.env
 set +a
 echo $$ > build.pid
 
-# A machine whose check job never comes powers itself off a day in. Powered
-# off still bills until it is deleted, but it stops the CPU hours, and the next
-# check deletes it.
-shutdown -P +1440 >/dev/null 2>&1 || true
+# Whatever happens, this machine is gone within twelve hours: a shutdown from
+# inside terminates it. The check job terminates it far sooner.
+shutdown -P +720 >/dev/null 2>&1 || true
 
 # Packages first: Bun's installer needs unzip, which the cloud image lacks, and
 # apt is locked until cloud-init has finished its own first-boot run. Until Bun
@@ -36,29 +36,36 @@ echo "==> packages"
 cloud-init status --wait >/dev/null 2>&1 || true
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq unzip curl openjdk-21-jre-headless >/dev/null
+apt-get install -y -qq unzip curl mdadm openjdk-21-jre-headless >/dev/null
 if ! command -v bun >/dev/null; then
   curl -fsSL https://bun.sh/install | bash >/dev/null
 fi
 export PATH="$HOME/.bun/bin:$PATH"
 BUN="$(command -v bun)"
 
-# The work goes on the attached volume when there is one: the planet download,
+# The work goes on the instance's own NVMe drives: the planet download,
 # planetiler's node map and feature storage, and the archive are several
-# hundred gigabytes together, more than any server disk holds. The first build
-# ran on the server disk alone and went silent when it filled.
-volume=''
-for _ in $(seq 1 24); do
-  volume=$(ls -d /mnt/HC_Volume_* 2>/dev/null | head -1 || true)
-  [ -n "$volume" ] && break
-  sleep 5
-done
-if [ -z "$volume" ]; then
-  echo "no build volume mounted under /mnt" >&2
-  exit 1
+# hundred gigabytes together, and the node map is read at random billions of
+# times. Two drives are striped into one. A machine without instance storage
+# works on its root disk.
+mapfile -t drives < <(lsblk -dn -o NAME,MODEL | awk '/Instance Storage/ { print "/dev/" $1 }')
+if [ "${#drives[@]}" -ge 2 ]; then
+  mdadm --create /dev/md0 --level=0 --raid-devices="${#drives[@]}" "${drives[@]}" --force --run >/dev/null 2>&1
+  device=/dev/md0
+elif [ "${#drives[@]}" -eq 1 ]; then
+  device="${drives[0]}"
+else
+  device=''
 fi
-WORKDIR="$volume/tiles"
-echo "==> working in $WORKDIR ($(df -h "$volume" | awk 'NR==2 { print $2 }'))"
+if [ -n "$device" ]; then
+  mkfs.ext4 -q -F -E nodiscard "$device"
+  mkdir -p /mnt/work
+  mount -o noatime "$device" /mnt/work
+  WORKDIR=/mnt/work/tiles
+else
+  WORKDIR=/root/tiles/work
+fi
+echo "==> working in $WORKDIR ($(df -h "$(dirname "$WORKDIR")" | awk 'NR==2 { print $2 }'))"
 mkdir -p "$WORKDIR/tmp"
 export WORKDIR
 
@@ -70,6 +77,8 @@ setsid nohup bash -c "while true; do '$BUN' /root/tiles/report.ts auto >/dev/nul
 finish() {
   echo "$1" > STATUS 2>/dev/null || true
   "$BUN" report.ts "$1" || true
+  # Reported; nothing left for this machine to do. Terminates it.
+  shutdown -h +1 >/dev/null 2>&1 || true
 }
 trap 'echo "build failed at line $LINENO"; finish FAILED' ERR
 "$BUN" report.ts RUNNING || true
@@ -107,18 +116,25 @@ fi
 # archive, several times slower. Either way the downloads (planet.osm.pbf and
 # the ocean, Natural Earth and lake side sources) are chunked in parallel.
 memory=$(awk '/MemTotal/ { print int($2 / 1024 / 1024) }' /proc/meminfo)
-if [ "$memory" -ge 100 ]; then
+if [ "$memory" -ge 200 ]; then
+  # The node map (~100 GB) lives in the page cache, not the heap.
+  heap=110
+  storage=(--nodemap-type=array --storage=mmap)
+elif [ "$memory" -ge 100 ]; then
   heap=$(( memory * 3 / 4 ))
   storage=(--nodemap-type=array --storage=mmap)
 else
   heap=$(( memory / 2 ))
   storage=(--nodemap-type=sparsearray --nodemap-storage=mmap --storage=mmap)
 fi
+osm=()
+[ -n "${OSM_URL:-}" ] && osm=(--osm_url="$OSM_URL")
 echo "==> planetiler planet build (${memory}g RAM, heap ${heap}g, ${storage[*]}, work in ${WORKDIR})"
 cd "$WORKDIR"
 java -Xmx"${heap}g" -Djava.io.tmpdir="$WORKDIR/tmp" -jar planetiler.jar \
   --area=planet --bounds=world \
-  --download --download-threads=10 --download-chunk-size-mb=1000 \
+  --download --download-threads=16 --download-chunk-size-mb=1000 \
+  "${osm[@]}" \
   --fetch-wikidata \
   "${storage[@]}" \
   --tmpdir="$WORKDIR/tmp" \
