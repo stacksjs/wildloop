@@ -591,7 +591,7 @@
               </span>
               <span aria-hidden="true">·</span>
               <span class="inline-flex items-center gap-1.5 capitalize">
-                <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>{{ trail.difficulty }}
+                <span x-class="'h-2.5 w-2.5 rounded-[3px] difficulty-' + trail.difficulty" aria-hidden="true"></span>{{ trail.difficultyLabel }}
               </span>
               <span aria-hidden="true">·</span>
               <span class="tabular-nums">{{ trail.distance.toFixed(1) + ' mi' }}</span>

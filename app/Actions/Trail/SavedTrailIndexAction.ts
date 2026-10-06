@@ -1,8 +1,11 @@
-// No imports needed - everything is auto-imported!
-//
 // GET /api/users/{id}/saved-trails - a user's saved trails with the trail
 // summary joined in (#969). Public read, like follows/achievements; the
 // profile's Saved tab renders straight from this.
+//
+// Everything else here is auto-imported; the grade shaper is not, because
+// `app/Support` is not in the API server bundle's auto-imports.
+
+import { trailGradeFields } from '../../Support/trailGrade'
 
 export default new Action({
   name: 'Saved Trail Index',
@@ -40,7 +43,7 @@ export default new Action({
               id: t.id,
               name: t.name,
               location: t.location,
-              difficulty: t.difficulty,
+              ...trailGradeFields(t),
               distance: t.distance,
               elevation: t.elevation,
               rating: t.rating,

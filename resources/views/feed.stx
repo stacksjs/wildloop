@@ -486,7 +486,7 @@
                   <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ activity.trail.place }}</span>
                   <span class="mt-0.5 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
                     <span :if="activity.trail.difficulty" x-class="'h-2 w-2 rounded-[2px] difficulty-' + activity.trail.difficulty" aria-hidden="true"></span>
-                    <span :if="activity.trail.difficulty" class="capitalize">{{ activity.trail.difficulty }}</span>
+                    <span :if="activity.trail.difficulty" class="capitalize">{{ activity.trail.difficultyLabel }}</span>
                     <span :if="activity.trail.difficulty && activity.trail.distance > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                     <span :if="activity.trail.distance > 0" class="tabular-nums">{{ activity.trail.distance + ' mi' }}</span>
                   </span>

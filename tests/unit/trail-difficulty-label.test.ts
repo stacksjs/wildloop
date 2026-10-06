@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trailGradeFields } from '../../app/Support/trailGrade'
 import { normalizeTrailsPayload, withDifficultyLabel } from '../../resources/assets/scripts/trail-data'
 import {
   difficultyIsEstimated,
@@ -147,20 +148,16 @@ describe('the trail page reads the label, not the grade', () => {
    */
   const RAW_RENDER = /\{\{\s*[\w.]*\.difficulty\s*\}\}/
 
-  const VIEWS = [
-    'resources/views/trail/[id].stx',
-    'resources/views/trails.stx',
-  ]
+  it('no view interpolates a bare grade', async () => {
+    const offenders: string[] = []
+    for await (const view of new Bun.Glob('resources/views/**/*.stx').scan()) {
+      const found = (await Bun.file(view).text()).match(RAW_RENDER)
+      if (found)
+        offenders.push(`${view}: ${found[0]}`)
+    }
 
-  for (const view of VIEWS) {
-    it(`${view} renders no bare grade`, async () => {
-      const source = await Bun.file(view).text()
-      const offender = source.match(RAW_RENDER)
-
-      expect(offender?.[0] ?? null, `${view} interpolates a raw grade — use difficultyLabel, which marks an unmeasured one`)
-        .toBeNull()
-    })
-  }
+    expect(offenders, 'a view interpolates a raw grade — use difficultyLabel, which marks an unmeasured one').toEqual([])
+  })
 
   /*
    * And the guard has to recognise what it is guarding against, or it passes
@@ -203,5 +200,36 @@ describe('withDifficultyLabel', () => {
   it('survives a record with nothing useful in it', () => {
     expect(withDifficultyLabel({} as any).difficultyLabel).toBe('')
     expect(withDifficultyLabel({ difficulty: '', elevation: 0 } as any).difficultyLabel).toBe('')
+  })
+})
+
+describe('trailGradeFields', () => {
+  /*
+   * The feed card and the saved list are built from allow-lists in their
+   * actions rather than from the catalog normalizer, so they need the label
+   * handed to them as a string — a client template interpolates properties,
+   * not calls, so holding `elevation` is not enough.
+   */
+  it('names all three fields from one row', () => {
+    expect(trailGradeFields({ difficulty: 'moderate', elevation: 0 })).toEqual({
+      difficulty: 'moderate',
+      difficultyLabel: '~moderate',
+      difficultyEstimated: true,
+    })
+
+    expect(trailGradeFields({ difficulty: 'hard', elevation: 3200 })).toEqual({
+      difficulty: 'hard',
+      difficultyLabel: 'hard',
+      difficultyEstimated: false,
+    })
+  })
+
+  /*
+   * A row with no grade keeps an empty string rather than becoming "null" or a
+   * lone tilde: the card renders the field as it is given.
+   */
+  it('survives a row with nothing in it', () => {
+    expect(trailGradeFields({})).toEqual({ difficulty: '', difficultyLabel: '', difficultyEstimated: true })
+    expect(trailGradeFields(null)).toEqual({ difficulty: '', difficultyLabel: '', difficultyEstimated: true })
   })
 })

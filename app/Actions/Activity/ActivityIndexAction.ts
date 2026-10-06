@@ -10,6 +10,7 @@
 import { Auth } from '@stacksjs/auth'
 import { db } from '@stacksjs/orm'
 
+import { trailGradeFields } from '../../Support/trailGrade'
 import { toActivityPhotoPayload } from '../../Support/activityPhotoPayload'
 import { activityRoutePreview, hiddenEndMetres } from '../../Support/activityRoutePreview'
 import { withBestTrailCovers } from '../../Support/trailCovers'
@@ -131,7 +132,7 @@ export default new Action({
         id: t.id,
         name: t.name,
         place: t.managed_by || t.location || '',
-        difficulty: t.difficulty ?? '',
+        ...trailGradeFields(t),
         distance: Number(t.distance) || 0,
         image: typeof t.image === 'string' && t.image ? t.image : null,
       }]))
