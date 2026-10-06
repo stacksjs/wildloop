@@ -16,7 +16,7 @@
     "stacks": "^0.75.84",
     "ts-health": "^0.1.0",
     "ts-images": "^0.2.29",
-    "ts-maps": "^0.3.21",
+    "ts-maps": "^0.3.22",
     "ts-qr-codes": "^0.1.8",
     "ts-web-scraper": "^0.1.10"
   },
@@ -118,7 +118,7 @@
   },
   "overrides": {
     "craft-native": "0.0.118",
-    "@stacksjs/ts-cloud": "^0.16.42",
+    "@stacksjs/ts-cloud": "^0.16.43",
     "@stacksjs/stx": "^0.2.373",
     "bun-plugin-stx": "^0.2.373"
   }

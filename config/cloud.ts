@@ -545,6 +545,14 @@ export const tsCloud: TsCloudConfig = {
          * without the headers the application was written against.
          */
         visitorLocationHeaders: true,
+
+        /*
+         * A data center that misses asks an upper tier before the origin, so
+         * the origin answers once per region rather than once per city. For
+         * map tiles that is the difference between R2 answering a tile once
+         * and answering it in every city that first shows it.
+         */
+        tieredCache: 'smart',
       },
     },
 
@@ -568,8 +576,12 @@ export const tsCloud: TsCloudConfig = {
           name: 'wildloop-tiles',
           // Most of the map's readers are in North America.
           locationHint: 'wnam',
-          // No custom domain of its own: tiles.wildloop.org belongs to the
-          // tiles Worker below, which reads this bucket through its binding.
+          // tiles.wildloop.org belongs to the tiles Worker below, which reads
+          // this bucket through its binding. tiles-origin.wildloop.org is the
+          // bucket's own public face, for one reason: the Worker fetches
+          // stored tiles from it through the CDN, where tiered cache applies,
+          // which a binding read never does.
+          customDomains: [{ domain: 'tiles-origin.wildloop.org', minTLS: '1.2' }],
           cors: [{
             allowed: {
               origins: ['*'],
@@ -590,6 +602,9 @@ export const tsCloud: TsCloudConfig = {
             { id: 'abort-stale-uploads', abortMultipartUploadsAfterDays: 2 },
             // Each build's progress reports, which the hourly check reads.
             { id: 'retire-build-status', prefix: '_builds/', expireAfterDays: 30 },
+            // Tiles the Worker cut and stored for every data center. Their keys
+            // name a build, so a tile outlives its build by a few weeks at most.
+            { id: 'retire-stored-tiles', prefix: '_tiles/', expireAfterDays: 35 },
           ],
           publicDevUrl: false,
         },

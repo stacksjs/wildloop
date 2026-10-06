@@ -13,4 +13,10 @@
  */
 import { createTileWorker } from 'ts-maps/worker'
 
-export default createTileWorker({ binding: 'TILES' })
+// A tile cut once is stored back in the bucket, and every other data center
+// fetches it from tiles-origin through the CDN (tiered cache) rather than
+// cutting it out of the archive again.
+export default createTileWorker({
+  binding: 'TILES',
+  tileStore: { origin: 'https://tiles-origin.wildloop.org' },
+})
