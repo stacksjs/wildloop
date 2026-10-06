@@ -1,0 +1,60 @@
+name: Tiles
+
+# Rebuild the planet basemap behind https://tiles.wildloop.org.
+#
+# Weekly, so the map keeps up with OpenStreetMap the way the hosted basemaps it
+# replaced did. The build itself runs on a server scripts/tiles/build-planet.ts
+# rents for the afternoon; this job only orchestrates it, which is why a
+# hosted runner is enough. It publishes by rewriting tiles.json only after the
+# new archive is fully uploaded and checked, so a failed week leaves last
+# week's map in place.
+on:
+  schedule:
+    # Sunday 03:00 UTC: the quietest hour on the map, and after Geofabrik's and
+    # the planet mirrors' weekly refresh.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: tiles
+  # A second run would delete the first one's build server on start.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  planet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 420
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build and publish the planet
+        env:
+          # The one secret, as in deploy.yml: everything else (HCLOUD_TOKEN,
+          # CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID) is decrypted from
+          # .env.production with it.
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+        run: bun scripts/tiles/build-planet.ts
+
+      # build-planet.ts deletes its server in a finally block, and the server
+      # powers itself off after eight hours. This is the third net: a runner
+      # cancelled mid-build never reaches the finally.
+      - name: Remove any build server left behind
+        if: always()
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+        run: |
+          token=$(./buddy env:get HCLOUD_TOKEN --file .env.production 2>/dev/null | tail -1)
+          for id in $(curl -fsS -H "Authorization: Bearer $token" "https://api.hetzner.cloud/v1/servers?label_selector=wildloop-role%3Dtiles-build" | bun -e 'const j = await Bun.stdin.json(); console.log(j.servers.map(s => s.id).join(" "))'); do
+            curl -fsS -X DELETE -H "Authorization: Bearer $token" "https://api.hetzner.cloud/v1/servers/$id" >/dev/null && echo "deleted build server $id"
+          done

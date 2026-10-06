@@ -547,6 +547,52 @@ export const tsCloud: TsCloudConfig = {
         visitorLocationHeaders: true,
       },
     },
+
+    /*
+     * Our own basemap, on R2 at https://tiles.wildloop.org.
+     *
+     * One PMTiles archive of the whole planet, rebuilt weekly by
+     * .github/workflows/tiles.yml (scripts/tiles/build-planet.ts) and published
+     * by rewriting tiles.json once the new archive is fully uploaded. The map
+     * reads the archive tile by tile with range requests, straight from the
+     * bucket: no tile server, nothing on the shared box.
+     *
+     * Deploy provisions all of this (ts-cloud's R2 reconcile, run by `buddy
+     * deploy`): the bucket, the CORS a browser's range requests need, the
+     * lifecycle that retires old builds, and the custom domain. Attaching the
+     * domain is what creates tiles.wildloop.org's DNS record, proxied, so there
+     * is nothing to add to the zone by hand or to config/dns.ts.
+     */
+    r2: {
+      buckets: {
+        tiles: {
+          name: 'wildloop-tiles',
+          // Most of the map's readers are in North America.
+          locationHint: 'wnam',
+          customDomains: [{ domain: 'tiles.wildloop.org', minTLS: '1.2' }],
+          cors: [{
+            allowed: {
+              origins: ['*'],
+              methods: ['GET', 'HEAD'],
+              headers: ['range', 'if-match', 'if-none-match'],
+            },
+            // The PMTiles reader checks the archive's ETag to notice a rebuild
+            // mid-session, and needs Content-Range to read a range back.
+            exposeHeaders: ['etag', 'content-range', 'content-length', 'accept-ranges'],
+            maxAgeSeconds: 86400,
+          }],
+          lifecycle: [
+            // tiles.json always names the newest build. Three weeks keeps the
+            // one before it for any session that loaded tiles.json just before
+            // a rebuild, and for rolling back by hand.
+            { id: 'retire-old-planets', prefix: 'planet/', expireAfterDays: 21 },
+            // A build that died mid-upload leaves its parts behind.
+            { id: 'abort-stale-uploads', abortMultipartUploadsAfterDays: 2 },
+          ],
+          publicDevUrl: false,
+        },
+      },
+    },
   },
 }
 

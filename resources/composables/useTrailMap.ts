@@ -26,8 +26,18 @@ type TsMapsModule = typeof import('ts-maps')
  * `RASTER_FALLBACK` is the same style skeleton over pre-rendered images, used
  * when the vector service cannot be reached — an offline WebView, a locked-down
  * network. It looks worse, and it is still a map.
+ *
+ * The vector tiles are our own: a planet archive built weekly and served from
+ * R2 at tiles.wildloop.org (scripts/tiles/build-planet.ts, config/cloud.ts
+ * `infrastructure.r2`). Its TileJSON names a `pmtiles://` archive, which ts-maps
+ * reads tile by tile with range requests, so there is no tile server to run.
+ * OpenFreeMap, the same OpenMapTiles schema, stays behind it as the fallback:
+ * if ours cannot be reached the map still draws, in the same style.
  */
-const VECTOR_TILEJSON = 'https://tiles.openfreemap.org/planet'
+const VECTOR_TILEJSON_SOURCES = [
+  { tilejson: 'https://tiles.wildloop.org/tiles.json', attribution: '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
+  { tilejson: 'https://tiles.openfreemap.org/planet', attribution: '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
+] as const
 
 const RASTER_FALLBACK = {
   light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
@@ -68,7 +78,10 @@ const TERRAIN_MAX_NATIVE_ZOOM = 16
  */
 const TERRAIN_MIN_ZOOM = 9
 
-const VECTOR_ATTRIBUTION = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+/** The credit for whichever vector source the tile URL came from. */
+export function vectorAttribution(tiles: string): string {
+  return tiles.includes('tiles.wildloop.org') ? VECTOR_TILEJSON_SOURCES[0].attribution : VECTOR_TILEJSON_SOURCES[1].attribution
+}
 const RASTER_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
 const TERRAIN_ATTRIBUTION = 'Terrain: Esri'
 
@@ -136,16 +149,35 @@ export async function ensureTsMaps(): Promise<TsMapsModule> {
 }
 
 /**
- * OpenFreeMap publishes its current tile URL through a TileJSON, and the path
- * carries a dated version that changes when the planet is rebuilt. Reading it
- * once per session means a rebuild on their side does not blank every map here.
+ * Both vector sources publish their current tile URL through a TileJSON, and
+ * the URL carries a dated version that changes when the planet is rebuilt.
+ * Reading it once per session means a rebuild does not blank every map here.
  *
- * The answer is cached in `sessionStorage` so only the first page load of a
- * session pays for it, and the lookup is raced against a timeout: a hanging
- * request must fall through to raster rather than leave the map empty.
+ * The sources are tried in order, ours first, each raced against a timeout so a
+ * hanging request falls through to the next rather than leaving the map empty;
+ * if neither answers, every caller falls back to raster. The answer is cached
+ * in `sessionStorage` so only the first page load of a session pays for it.
  */
-const TILE_URL_CACHE_KEY = 'wildloop:vector-tiles'
+const TILE_URL_CACHE_KEY = 'wildloop:vector-tiles:v2'
 let tileUrlPromise: Promise<string | null> | null = null
+
+async function tileUrlFrom(tilejson: string): Promise<string | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 6000)
+  try {
+    const response = await fetch(tilejson, { signal: controller.signal })
+    if (!response.ok)
+      return null
+    const body = await response.json() as { tiles?: string[] }
+    return body?.tiles?.[0] ?? null
+  }
+  catch {
+    return null
+  }
+  finally {
+    clearTimeout(timer)
+  }
+}
 
 export async function resolveVectorTiles(): Promise<string | null> {
   if (typeof fetch !== 'function')
@@ -160,26 +192,17 @@ export async function resolveVectorTiles(): Promise<string | null> {
       }
       catch { /* private mode; just fetch */ }
 
-      try {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 6000)
-        const response = await fetch(VECTOR_TILEJSON, { signal: controller.signal })
-        clearTimeout(timer)
-        if (!response.ok)
-          throw new Error(`HTTP ${response.status}`)
-        const tilejson = await response.json() as { tiles?: string[] }
-        const url = tilejson?.tiles?.[0] ?? null
-        if (url) {
-          try { sessionStorage?.setItem(TILE_URL_CACHE_KEY, url) }
-          catch { /* not fatal */ }
-        }
+      for (const source of VECTOR_TILEJSON_SOURCES) {
+        const url = await tileUrlFrom(source.tilejson)
+        if (!url)
+          continue
+        try { sessionStorage?.setItem(TILE_URL_CACHE_KEY, url) }
+        catch { /* not fatal */ }
         return url
       }
-      catch {
-        // Every caller falls back to raster. Not worth a console error on a
-        // page whose map still works.
-        return null
-      }
+      // Every caller falls back to raster. Not worth a console error on a
+      // page whose map still works.
+      return null
     })()
   }
   return tileUrlPromise
@@ -276,7 +299,7 @@ export function buildStyle(
 
   const spec = build({
     tiles,
-    attribution: VECTOR_ATTRIBUTION,
+    attribution: vectorAttribution(tiles),
     palette: { ...PALETTE[theme] },
   }) as StyleSpec
 
