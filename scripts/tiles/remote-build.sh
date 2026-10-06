@@ -115,6 +115,11 @@ fi
 # map goes sparse and to disk as well, and half of RAM is heap: the same
 # archive, several times slower. Either way the downloads (planet.osm.pbf and
 # the ocean, Natural Earth and lake side sources) are chunked in parallel.
+#
+# No --fetch-wikidata: it asks Wikidata's public query service for every
+# place's name in other languages, which is rate-limited and takes over an
+# hour on any machine, and the map's labels only ever use OpenStreetMap's own
+# `name`.
 memory=$(awk '/MemTotal/ { print int($2 / 1024 / 1024) }' /proc/meminfo)
 if [ "$memory" -ge 200 ]; then
   # The node map (~100 GB) lives in the page cache, not the heap.
@@ -135,7 +140,6 @@ java -Xmx"${heap}g" -Djava.io.tmpdir="$WORKDIR/tmp" -jar planetiler.jar \
   --area=planet --bounds=world \
   --download --download-threads=16 --download-chunk-size-mb=1000 \
   "${osm[@]}" \
-  --fetch-wikidata \
   "${storage[@]}" \
   --tmpdir="$WORKDIR/tmp" \
   --output="$WORKDIR/planet.pmtiles" --force
