@@ -89,6 +89,7 @@
     "PaymentMethod": true,
     "PaymentProduct": true,
     "PaymentTransaction": true,
+    "PaymentWebhookEvent": true,
     "PersonalAccessToken": true,
     "Pledge": true,
     "Post": true,

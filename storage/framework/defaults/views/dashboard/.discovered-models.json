@@ -1,23 +1,6 @@
 {
   "models": [
     {
-      "id": "achievement",
-      "name": "Achievement",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "activity-comment",
-      "name": "ActivityComment",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
       "id": "analytics-event",
       "name": "AnalyticsEvent",
       "icon": "tablecells.fill",
@@ -55,20 +38,6 @@
       "dashboard": {
         "highlight": true
       }
-    },
-    {
-      "id": "automation",
-      "name": "Automation",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "automation-run",
-      "name": "AutomationRun",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
     },
     {
       "id": "bid",
@@ -116,13 +85,6 @@
       "category": "data"
     },
     {
-      "id": "campaign-variant",
-      "name": "CampaignVariant",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
       "id": "card",
       "name": "Card",
       "icon": "tablecells.fill",
@@ -163,13 +125,6 @@
       }
     },
     {
-      "id": "categorizable",
-      "name": "Categorizable",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "content"
-    },
-    {
       "id": "category",
       "name": "Category",
       "icon": "tag.fill",
@@ -180,66 +135,11 @@
       }
     },
     {
-      "id": "challenge",
-      "name": "Challenge",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "club",
-      "name": "Club",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "club-invite",
-      "name": "ClubInvite",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "club-member",
-      "name": "ClubMember",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
       "id": "comment",
       "name": "Comment",
       "icon": "bubble.left.fill",
       "hasDedicatedPage": true,
       "category": "content"
-    },
-    {
-      "id": "communication-suppression",
-      "name": "CommunicationSuppression",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "consent-event",
-      "name": "ConsentEvent",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "content-report",
-      "name": "ContentReport",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
     },
     {
       "id": "coupon",
@@ -254,7 +154,7 @@
     {
       "id": "courier",
       "name": "Courier",
-      "icon": "tablecells.fill",
+      "icon": "car.fill",
       "hasDedicatedPage": false,
       "category": "commerce",
       "dashboard": {
@@ -277,13 +177,6 @@
       "dashboard": {
         "highlight": true
       }
-    },
-    {
-      "id": "custom-route",
-      "name": "CustomRoute",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
     },
     {
       "id": "delivery-route",
@@ -314,13 +207,6 @@
       "dashboard": {
         "highlight": true
       }
-    },
-    {
-      "id": "device-push-token",
-      "name": "DevicePushToken",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
     },
     {
       "id": "digital-delivery",
@@ -377,65 +263,6 @@
       }
     },
     {
-      "id": "event",
-      "name": "Event",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "event-entrant",
-      "name": "EventEntrant",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "event-lap",
-      "name": "EventLap",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "follow",
-      "name": "Follow",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "form",
-      "name": "Form",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "form-field",
-      "name": "FormField",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "form-submission",
-      "name": "FormSubmission",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "gdpr-request",
-      "name": "GdprRequest",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
       "id": "gift-card",
       "name": "GiftCard",
       "icon": "giftcard.fill",
@@ -451,13 +278,6 @@
       "icon": "briefcase.fill",
       "hasDedicatedPage": true,
       "category": "system"
-    },
-    {
-      "id": "kudos",
-      "name": "Kudos",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
     },
     {
       "id": "label",
@@ -507,13 +327,6 @@
       }
     },
     {
-      "id": "magic-link-token",
-      "name": "MagicLinkToken",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
       "id": "mail-preference",
       "name": "MailPreference",
       "icon": "tablecells.fill",
@@ -529,20 +342,6 @@
       "dashboard": {
         "highlight": true
       }
-    },
-    {
-      "id": "menu",
-      "name": "Menu",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "content"
-    },
-    {
-      "id": "menu-item",
-      "name": "MenuItem",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "content"
     },
     {
       "id": "notification",
@@ -593,13 +392,6 @@
       "category": "content"
     },
     {
-      "id": "page-revision",
-      "name": "PageRevision",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "content"
-    },
-    {
       "id": "payment",
       "name": "Payment",
       "icon": "creditcard.fill",
@@ -629,13 +421,6 @@
       "icon": "creditcard.fill",
       "hasDedicatedPage": false,
       "category": "commerce"
-    },
-    {
-      "id": "personal-access-token",
-      "name": "PersonalAccessToken",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
     },
     {
       "id": "pledge",
@@ -713,27 +498,6 @@
       }
     },
     {
-      "id": "redirect",
-      "name": "Redirect",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "content"
-    },
-    {
-      "id": "referral",
-      "name": "Referral",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "referral-code",
-      "name": "ReferralCode",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
       "id": "release",
       "name": "Release",
       "icon": "tablecells.fill",
@@ -748,34 +512,10 @@
       "name": "Review",
       "icon": "star.fill",
       "hasDedicatedPage": true,
-      "category": "userland",
+      "category": "commerce",
       "dashboard": {
         "highlight": true
       }
-    },
-    {
-      "id": "route-effort",
-      "name": "RouteEffort",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "saved-trail",
-      "name": "SavedTrail",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "sender-domain",
-      "name": "SenderDomain",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
     },
     {
       "id": "shipping-method",
@@ -808,30 +548,6 @@
       }
     },
     {
-      "id": "site",
-      "name": "Site",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "site-domain",
-      "name": "SiteDomain",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
-      "id": "sms-opt-out",
-      "name": "SmsOptOut",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
       "id": "social-account",
       "name": "SocialAccount",
       "icon": "tablecells.fill",
@@ -844,26 +560,6 @@
       "icon": "bubble.left.and.bubble.right.fill",
       "hasDedicatedPage": false,
       "category": "marketing"
-    },
-    {
-      "id": "storage-item",
-      "name": "StorageItem",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data",
-      "dashboard": {
-        "enabled": false
-      }
-    },
-    {
-      "id": "storage-item-task",
-      "name": "StorageItemTask",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data",
-      "dashboard": {
-        "enabled": false
-      }
     },
     {
       "id": "subscriber",
@@ -934,50 +630,6 @@
       }
     },
     {
-      "id": "territory",
-      "name": "Territory",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "territory-history",
-      "name": "TerritoryHistory",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "territory-stats",
-      "name": "TerritoryStats",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "trail",
-      "name": "Trail",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": true
-      }
-    },
-    {
-      "id": "trail-ingest-shard",
-      "name": "TrailIngestShard",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland",
-      "dashboard": {
-        "highlight": false
-      }
-    },
-    {
       "id": "transaction",
       "name": "Transaction",
       "icon": "arrow.left.arrow.right.circle.fill",
@@ -988,60 +640,14 @@
       }
     },
     {
-      "id": "trip-plan",
-      "name": "TripPlan",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "usage-event",
-      "name": "UsageEvent",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "data"
-    },
-    {
       "id": "user",
       "name": "User",
       "icon": "person.fill",
       "hasDedicatedPage": true,
-      "category": "userland"
-    },
-    {
-      "id": "user-achievement",
-      "name": "UserAchievement",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "user-block",
-      "name": "UserBlock",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "user-notification",
-      "name": "UserNotification",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "user-privacy-setting",
-      "name": "UserPrivacySetting",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
-    },
-    {
-      "id": "user-stats",
-      "name": "UserStats",
-      "icon": "tablecells.fill",
-      "hasDedicatedPage": false,
-      "category": "userland"
+      "category": "data",
+      "dashboard": {
+        "highlight": true
+      }
     },
     {
       "id": "waitlist-product",

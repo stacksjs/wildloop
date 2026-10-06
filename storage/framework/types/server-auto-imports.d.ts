@@ -189,6 +189,7 @@ declare global {
   const Page: typeof import('@stacksjs/orm')['Page']
   const PageRevision: typeof import('@stacksjs/orm')['PageRevision']
   const Payment: typeof import('@stacksjs/orm')['Payment']
+  const PaymentWebhookEvent: typeof import('@stacksjs/orm')['PaymentWebhookEvent']
   const Pledge: typeof import('@stacksjs/orm')['Pledge']
   const Post: typeof import('@stacksjs/orm')['Post']
   const PrintDevice: typeof import('@stacksjs/orm')['PrintDevice']
