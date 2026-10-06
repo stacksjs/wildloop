@@ -588,6 +588,8 @@ export const tsCloud: TsCloudConfig = {
             { id: 'retire-old-planets', prefix: 'planet/', expireAfterDays: 21 },
             // A build that died mid-upload leaves its parts behind.
             { id: 'abort-stale-uploads', abortMultipartUploadsAfterDays: 2 },
+            // Each build's progress reports, which the hourly check reads.
+            { id: 'retire-build-status', prefix: '_builds/', expireAfterDays: 30 },
           ],
           publicDevUrl: false,
         },
