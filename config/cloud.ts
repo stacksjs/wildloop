@@ -558,10 +558,9 @@ export const tsCloud: TsCloudConfig = {
      * bucket: no tile server, nothing on the shared box.
      *
      * Deploy provisions all of this (ts-cloud's R2 reconcile, run by `buddy
-     * deploy`): the bucket, the CORS a browser's range requests need, the
-     * lifecycle that retires old builds, and the custom domain. Attaching the
-     * domain is what creates tiles.wildloop.org's DNS record, proxied, so there
-     * is nothing to add to the zone by hand or to config/dns.ts.
+     * deploy`): the bucket, the CORS a browser's range requests need, and the
+     * lifecycle that retires old builds. The public face is the tiles Worker
+     * below, not the bucket.
      */
     r2: {
       buckets: {
@@ -569,7 +568,8 @@ export const tsCloud: TsCloudConfig = {
           name: 'wildloop-tiles',
           // Most of the map's readers are in North America.
           locationHint: 'wnam',
-          customDomains: [{ domain: 'tiles.wildloop.org', minTLS: '1.2' }],
+          // No custom domain of its own: tiles.wildloop.org belongs to the
+          // tiles Worker below, which reads this bucket through its binding.
           cors: [{
             allowed: {
               origins: ['*'],
@@ -593,6 +593,30 @@ export const tsCloud: TsCloudConfig = {
           ],
           publicDevUrl: false,
         },
+      },
+    },
+
+    /*
+     * https://tiles.wildloop.org, served by a Worker in front of the bucket.
+     *
+     * Straight from R2 every tile was a range read of the 84 GB archive, and
+     * no cache keeps pieces of a file that size: 160-600 ms a tile, wherever
+     * the reader was. The Worker (cloud/workers/tiles.ts, ts-maps/worker) cuts
+     * each tile out of the archive once and caches it at Cloudflare's edge,
+     * under a URL with the archive's build date in it, so it never goes stale.
+     * Every other path passes through to the bucket unchanged.
+     *
+     * Deploy bundles it, uploads it when it changed, binds the bucket as
+     * TILES, and attaches the domain, which creates its DNS record.
+     */
+    workers: {
+      tiles: {
+        name: 'wildloop-tiles',
+        entry: 'cloud/workers/tiles.ts',
+        bindings: {
+          r2Buckets: { TILES: 'wildloop-tiles' },
+        },
+        customDomains: ['tiles.wildloop.org'],
       },
     },
   },

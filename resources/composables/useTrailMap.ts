@@ -27,10 +27,11 @@ type TsMapsModule = typeof import('ts-maps')
  * when the vector service cannot be reached — an offline WebView, a locked-down
  * network. It looks worse, and it is still a map.
  *
- * The vector tiles are our own: a planet archive built weekly and served from
- * R2 at tiles.wildloop.org (scripts/tiles/build-planet.ts, config/cloud.ts
- * `infrastructure.r2`). Its TileJSON names a `pmtiles://` archive, which ts-maps
- * reads tile by tile with range requests, so there is no tile server to run.
+ * The vector tiles are our own: a planet archive built weekly into R2
+ * (scripts/tiles/build-planet.ts) and served at tiles.wildloop.org by a Worker
+ * that cuts each tile out of it and caches it at Cloudflare's edge
+ * (cloud/workers/tiles.ts, config/cloud.ts `infrastructure.workers`). Its
+ * TileJSON hands out plain `{z}/{x}/{y}.pbf` URLs with the build date in them.
  * OpenFreeMap, the same OpenMapTiles schema, stays behind it as the fallback:
  * if ours cannot be reached the map still draws, in the same style.
  */
@@ -158,14 +159,17 @@ export async function ensureTsMaps(): Promise<TsMapsModule> {
  * if neither answers, every caller falls back to raster. The answer is cached
  * in `sessionStorage` so only the first page load of a session pays for it.
  */
-const TILE_URL_CACHE_KEY = 'wildloop:vector-tiles:v2'
+const TILE_URL_CACHE_KEY = 'wildloop:vector-tiles:v3'
 let tileUrlPromise: Promise<string | null> | null = null
 
 async function tileUrlFrom(tilejson: string): Promise<string | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 6000)
   try {
-    const response = await fetch(tilejson, { signal: controller.signal })
+    // Revalidated, never taken from the HTTP cache as is: a weekly rebuild
+    // changes which archive it names, and a browser holding last week's copy
+    // would keep asking for tiles by last week's URLs.
+    const response = await fetch(tilejson, { signal: controller.signal, cache: 'no-cache' })
     if (!response.ok)
       return null
     const body = await response.json() as { tiles?: string[] }
