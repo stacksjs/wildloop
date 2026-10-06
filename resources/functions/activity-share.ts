@@ -1,4 +1,5 @@
-import { ACTIVITY_SHARE_CARD_PRESETS, activityShareCardFileName, activityShareCardSvg, type ActivityShareCardOptions, type ActivityShareCardPreset, type ActivitySharePoint } from 'ts-images/activity-card'
+import { ACTIVITY_SHARE_CARD_PRESETS, ACTIVITY_SHARE_MAP_BOXES, activityShareCardFileName, activityShareCardSvg, activityShareMapReserve, activityShareProjection, type ActivityShareBasemap, type ActivityShareCardOptions, type ActivityShareCardPreset, type ActivitySharePoint, type ActivityShareProjection } from 'ts-images/activity-card'
+import { buildStyle, ensureTsMaps, resolveVectorTiles } from '../composables/useTrailMap'
 
 export interface ShareableActivity {
   activityType: string
@@ -23,10 +24,70 @@ function completedAtLabel(value: string | undefined): string | undefined {
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(date)
 }
 
-export function activityShareOptions(activity: ShareableActivity, route: ActivitySharePoint[], preset: ActivityShareCardPreset): ActivityShareCardOptions {
+/**
+ * The card's map is Wildloop's own: the same vector tiles and the same style
+ * the map screens draw, rendered by ts-maps as SVG paths and text. It stays
+ * sharp at any size, it looks like the run did in the app, and it borrows no
+ * one else's raster tiles. Places the route passes are named first, and no
+ * label sits under the line.
+ */
+const basemapCache = new Map<string, Promise<ActivityShareBasemap | null>>()
+
+/** The route's line, in the map box's own pixels, for labels to keep clear of. */
+function routeInBox(route: ActivitySharePoint[], projection: ActivityShareProjection): Array<[number, number]> {
+  const toY = (lat: number) => {
+    const radians = Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI / 180
+    return (1 - Math.log(Math.tan(Math.PI / 4 + radians / 2)) / Math.PI) / 2
+  }
+  return route.map(point => [((point.lng + 180) / 360 - projection.left) * projection.scale, (toY(point.lat) - projection.top) * projection.scale])
+}
+
+async function drawActivityShareBasemap(route: ActivitySharePoint[], preset: ActivityShareCardPreset): Promise<ActivityShareBasemap | null> {
+  const projection = activityShareProjection(route, preset)
+  const tiles = await resolveVectorTiles()
+  if (!projection || !tiles)
+    return null
+  const maps = await ensureTsMaps()
+  const box = ACTIVITY_SHARE_MAP_BOXES[preset]
+  const map = await maps.renderStaticMap({
+    style: buildStyle(maps, 'dark', tiles),
+    width: box.width,
+    height: box.height,
+    view: projection,
+    avoid: [routeInBox(route, projection)],
+    // The card's line is 10px over an 18px shadow.
+    avoidPadding: 10,
+    // The corner the card draws the map's credit in.
+    reserve: [activityShareMapReserve(preset)],
+    idPrefix: `share-${preset}`,
+  })
+  return { attribution: map.attribution, markup: map.markup, preset, projection }
+}
+
+/**
+ * The map for a route in one preset, drawn once and kept, so switching
+ * presets back and forth or sharing after previewing costs nothing. A failure
+ * resolves to null, which draws the card without a map.
+ */
+export function loadActivityShareBasemap(route: ActivitySharePoint[], preset: ActivityShareCardPreset): Promise<ActivityShareBasemap | null> {
+  if (route.length < 2)
+    return Promise.resolve(null)
+  const first = route[0]!
+  const last = route[route.length - 1]!
+  const key = `${preset}:${route.length}:${first.lat},${first.lng}:${last.lat},${last.lng}`
+  let pending = basemapCache.get(key)
+  if (!pending) {
+    pending = drawActivityShareBasemap(route, preset).catch(() => null)
+    basemapCache.set(key, pending)
+  }
+  return pending
+}
+
+export function activityShareOptions(activity: ShareableActivity, route: ActivitySharePoint[], preset: ActivityShareCardPreset, basemap?: ActivityShareBasemap | null): ActivityShareCardOptions {
   return {
     activityType: activity.activityType,
     athlete: activity.userName,
+    basemap,
     brand: 'Wildloop',
     completedAt: completedAtLabel(activity.created_at),
     distance: `${activity.distance.toFixed(2)} mi`,
@@ -39,12 +100,12 @@ export function activityShareOptions(activity: ShareableActivity, route: Activit
   }
 }
 
-export function activityShareSvg(activity: ShareableActivity, route: ActivitySharePoint[], preset: ActivityShareCardPreset): string {
-  return activityShareCardSvg(activityShareOptions(activity, route, preset))
+export function activityShareSvg(activity: ShareableActivity, route: ActivitySharePoint[], preset: ActivityShareCardPreset, basemap?: ActivityShareBasemap | null): string {
+  return activityShareCardSvg(activityShareOptions(activity, route, preset, basemap))
 }
 
-export function activitySharePreview(activity: ShareableActivity, route: ActivitySharePoint[], preset: ActivityShareCardPreset): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(activityShareSvg(activity, route, preset))}`
+export function activitySharePreview(activity: ShareableActivity, route: ActivitySharePoint[], preset: ActivityShareCardPreset, basemap?: ActivityShareBasemap | null): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(activityShareSvg(activity, route, preset, basemap))}`
 }
 
 function downloadBlob(blob: Blob, fileName: string): void {
@@ -63,7 +124,8 @@ export async function renderActivitySharePng(activity: ShareableActivity, route:
     throw new TypeError('Activity images can only be rendered in a browser')
 
   const size = ACTIVITY_SHARE_CARD_PRESETS[preset]
-  const source = new Blob([activityShareSvg(activity, route, preset)], { type: 'image/svg+xml;charset=utf-8' })
+  const basemap = await loadActivityShareBasemap(route, preset)
+  const source = new Blob([activityShareSvg(activity, route, preset, basemap)], { type: 'image/svg+xml;charset=utf-8' })
   const sourceUrl = URL.createObjectURL(source)
   try {
     const image = new Image()

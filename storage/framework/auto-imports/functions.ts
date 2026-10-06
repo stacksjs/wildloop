@@ -12,7 +12,7 @@ export { isLiveGpsSource, parseTrackSamples, withoutFixes, evaluateTrackIntegrit
 export type { RecordingSource, TrackSample, TrackIntegrityResult, IntegrityColumns } from '../../../resources/functions/activity-integrity'
 export { activityKind, maxSustainableSpeed, maxBurstSpeed, worstSustainedWindow, MAX_ACCELERATION, MAX_VERTICAL_SPEED } from '../../../resources/functions/activity-physics'
 export type { ActivityKind, SpeedSegment } from '../../../resources/functions/activity-physics'
-export { renderActivitySharePng, downloadActivityShareImage, shareActivityImage, activityShareOptions, activityShareSvg, activitySharePreview } from '../../../resources/functions/activity-share'
+export { renderActivitySharePng, downloadActivityShareImage, shareActivityImage, loadActivityShareBasemap, activityShareOptions, activityShareSvg, activitySharePreview } from '../../../resources/functions/activity-share'
 export type { ShareableActivity, ActivityShareOutcome } from '../../../resources/functions/activity-share'
 export { appShortcut, appShortcutRoute, appShortcutDeepLink, craftShortcutItems, APP_SHORTCUTS } from '../../../resources/functions/app-shortcuts'
 export type { AppShortcut, CraftShortcutItem } from '../../../resources/functions/app-shortcuts'

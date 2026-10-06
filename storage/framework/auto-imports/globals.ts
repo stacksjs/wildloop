@@ -43,6 +43,7 @@ declare global {
   const renderActivitySharePng: typeof autoImports.renderActivitySharePng
   const downloadActivityShareImage: typeof autoImports.downloadActivityShareImage
   const shareActivityImage: typeof autoImports.shareActivityImage
+  const loadActivityShareBasemap: typeof autoImports.loadActivityShareBasemap
   const activityShareOptions: typeof autoImports.activityShareOptions
   const activityShareSvg: typeof autoImports.activityShareSvg
   const activitySharePreview: typeof autoImports.activitySharePreview

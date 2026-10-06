@@ -95,7 +95,7 @@ function reliefOpacity(theme: BasemapTheme): number {
 /** The green a route is drawn in, and the green a mapped trail is drawn in. */
 const ROUTE_GREEN = '#059669'
 
-type BasemapTheme = 'light' | 'dark'
+export type BasemapTheme = 'light' | 'dark'
 
 function currentTheme(): BasemapTheme {
   if (typeof document === 'undefined')
@@ -252,7 +252,12 @@ function insertBefore(spec: StyleSpec, beforeId: string, layers: StyleSpec['laye
 
 const TRAIL_CLASSES = ['path', 'track', 'bridleway'] as const
 
-function buildStyle(
+/**
+ * Wildloop's basemap style in `theme`, over `tiles` (or the raster fallback
+ * when there are none). Exported because the share card draws its map from
+ * this same style, so a shared run looks like the run in the app.
+ */
+export function buildStyle(
   maps: TsMapsModule,
   theme: BasemapTheme,
   tiles: string | null,
