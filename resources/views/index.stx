@@ -4,6 +4,8 @@
 
 @section('content')
 <script server>
+  import { qrBrandedMarkup } from '../functions/qr'
+
   /*
    * SEO for this page.
    *
@@ -35,10 +37,6 @@
     twitterDescription: 'Half a million trails, live GPS tracking, segments and a social feed — and every closed loop you run claims territory somebody else can take back.',
     twitterImage: 'https://wildloop.org/images/social/og-default.jpg',
   })
-</script>
-
-<script server>
-  import { qrBrandedMarkup } from '../functions/qr'
 
   // Built once at render time. The address never changes, so there is nothing
   // for the browser to compute and no encoder to ship to it.

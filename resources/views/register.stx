@@ -96,7 +96,7 @@
   }
 
   onMount(async () => {
-    const params = new URLSearchParams(location.search)
+    const params = useSearchParams()
 
     // Back from Google or Apple, on the page the flow started from, with a
     // session waiting in a one-minute cookie.
@@ -105,7 +105,13 @@
       loading.set(true)
       const result = provider === 'google' ? await completeGoogleSignIn() : await completeAppleSignIn()
       loading.set(false)
-      history.replaceState({}, '', location.pathname)
+      // Only the provider marker goes, and through `useSearchParams` so the
+      // router keeps its own view of the URL in step. Wiping the whole query
+      // here — which is what `replaceState(…, location.pathname)` did — also
+      // threw away `?redirect=`, read a line later by `postAuthDestination`,
+      // so anybody sent to this page from a trail signed up and landed on the
+      // home page instead of the trail.
+      params.delete(provider, { replace: true })
       if (result.ok) {
         navigate(postAuthDestination('/'))
         return
@@ -117,7 +123,7 @@
     const problem = params.get('error')
     if (problem && SOCIAL_PROBLEMS[problem]) {
       error.set(SOCIAL_PROBLEMS[problem])
-      history.replaceState({}, '', location.pathname)
+      params.delete('error', { replace: true })
     }
 
     // Already signed in: nothing to do on a sign-up page.

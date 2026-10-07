@@ -109,6 +109,7 @@
   import { useLiveEvent } from '../../composables/useLiveEvent'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { shareLink, shareNote } from '../../composables/useShareLink'
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { formatClock } from '../../functions/backyard'
 
@@ -124,7 +125,6 @@
     toggleEntry, changeStatus, recordLap,
   } = useLiveEvent(eventId > 0 ? eventId : null)
 
-  const copied = state(false)
   const consoleOpen = state(false)
 
   const TYPE_LABELS = {
@@ -180,17 +180,18 @@
 
   // Sharing the board is the point of live reporting, so make the link one tap
   // away rather than something to select out of the address bar.
-  async function copyLink() {
-    if (typeof navigator === 'undefined') return
-    const url = window.location.href
-    if (navigator.share) {
-      await navigator.share({ title: event()?.name ?? 'Wildloop event', url }).catch(() => {})
-      return
-    }
-    await navigator.clipboard?.writeText(url).catch(() => {})
-    copied.set(true)
-    setTimeout(() => copied.set(false), 2000)
+  //
+  // Through `useShareLink` rather than `navigator.share` directly: it already
+  // handles the native shell, a phone browser and a desktop one that has no
+  // share sheet, and it says which happened. Sharing the canonical path also
+  // beats sharing the address bar, which in development is a localhost URL and
+  // in the browser can carry whatever query a visitor arrived with.
+  function shareBoard(): void {
+    void shareLink({ title: event()?.name ?? 'Wildloop event', url: `/event/${eventId()}` })
   }
+
+  /** What the share did, for the line under the button. Clears itself. */
+  const shareMessage = derived(() => shareNote())
 
   let loopMap: TrailMapHandle | null = null
 
@@ -331,13 +332,14 @@
           </div>
 
           <div class="flex shrink-0 flex-wrap items-center gap-2">
-            <button @click="copyLink()" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/25 active:scale-[0.98]">
-              <i x-class="copied ? 'i-lucide-check' : 'i-lucide-share-2'" class="h-4 w-4" aria-hidden="true"></i>
-              {{ copied ? 'Link copied' : 'Share the board' }}
+            <button @click="shareBoard()" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/25 active:scale-[0.98]">
+              <i class="i-lucide-share-2 h-4 w-4" aria-hidden="true"></i>
+              Share the board
             </button>
             <button :if="!me.entered && event.status !== 'finished' && event.status !== 'cancelled'" @click="toggleEntry()" x-disabled="working()" class="min-h-11 rounded-full bg-white px-6 text-sm font-bold text-emerald-800 shadow-lg transition hover:bg-emerald-50 active:scale-[0.98] disabled:opacity-60">Enter</button>
             <button :if="me.entered && event.status === 'scheduled'" @click="toggleEntry()" x-disabled="working()" class="min-h-11 rounded-full bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/25 disabled:opacity-60">Withdraw</button>
           </div>
+          <p :if="shareMessage()" role="status" class="basis-full text-sm text-white/80">{{ shareMessage() }}</p>
         </div>
 
         <!-- The corral clock. The single most important number on the page for
