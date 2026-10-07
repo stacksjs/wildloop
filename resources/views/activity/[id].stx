@@ -291,10 +291,12 @@
   // The tab bar comes back where the sheet was, under the same finger, and the
   // tap that closed the sheet then landed on the Feed tab. It stays away a
   // moment longer than the sheet.
+  const endSheetClose = useTimeout(() => sheetClosing.set(false), 450)
+
   function dismissSheet(): void {
     actionsOpen.set(false)
     sheetClosing.set(true)
-    setTimeout(() => sheetClosing.set(false), 450)
+    endSheetClose.start()
   }
   function closeActions(): void {
     dismissSheet()

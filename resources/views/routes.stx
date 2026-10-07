@@ -105,7 +105,6 @@
   let editor: any = null
   /** Room above and below a fitted route, so the stats pill never covers its start or end. */
   const FIT_PADDING: [number, number] = [32, 80]
-  let climbTimer: ReturnType<typeof setTimeout> | null = null
   let climbToken = 0
 
   const followPaths = state(true)
@@ -187,37 +186,46 @@
     scheduleClimb()
   }
 
-  /** The climb, a moment after drawing stops: one lookup per pause, not per tap. */
+  /*
+   * The climb, a moment after drawing stops: one lookup per pause, not per tap.
+   *
+   * `useTimeout` owns the handle — `start()` stops a pending run before
+   * scheduling the next — so nothing here holds a timer or clears one.
+   * `climbToken` still guards the answer: a run already in flight when drawing
+   * resumes cannot be stopped, only ignored.
+   */
+  const pendingClimb = useTimeout(async () => {
+    const token = climbToken
+    if (!builder || builder.pending > 0)
+      return
+    const { services } = await ensureTsMaps() as any
+    const encoded = encodePolyline(toPairs(services.resamplePath(builder.path, 200)))
+    try {
+      const res = await fetch(`/api/geo/climb?path=${encodeURIComponent(encoded)}`)
+      const body = await res.json()
+      if (token === climbToken)
+        climbFt.set(typeof body.gainFt === 'number' ? body.gainFt : null)
+    }
+    catch {
+      if (token === climbToken)
+        climbFt.set(null)
+    }
+    finally {
+      if (token === climbToken)
+        climbing.set(false)
+    }
+  }, 700)
+
   function scheduleClimb(): void {
-    if (climbTimer)
-      clearTimeout(climbTimer)
-    const token = ++climbToken
+    // Invalidate any answer still in flight for the previous shape.
+    climbToken++
     if (!builder || builder.waypoints.length < 2) {
       climbFt.set(null)
       climbing.set(false)
       return
     }
     climbing.set(true)
-    climbTimer = setTimeout(async () => {
-      if (!builder || builder.pending > 0)
-        return
-      const { services } = await ensureTsMaps() as any
-      const encoded = encodePolyline(toPairs(services.resamplePath(builder.path, 200)))
-      try {
-        const res = await fetch(`/api/geo/climb?path=${encodeURIComponent(encoded)}`)
-        const body = await res.json()
-        if (token === climbToken)
-          climbFt.set(typeof body.gainFt === 'number' ? body.gainFt : null)
-      }
-      catch {
-        if (token === climbToken)
-          climbFt.set(null)
-      }
-      finally {
-        if (token === climbToken)
-          climbing.set(false)
-      }
-    }, 700)
+    pendingClimb.start()
   }
 
   async function mountBuilder(): Promise<void> {
@@ -419,8 +427,7 @@
   })
 
   onDestroy(() => {
-    if (climbTimer)
-      clearTimeout(climbTimer)
+    pendingClimb.stop()
     builderMap?.destroy()
     editor = null
     builderMap = null

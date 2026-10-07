@@ -107,15 +107,12 @@
     gateIsOpen.set(true)
   }
 
-  onMount(() => {
-    globalThis.addEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
-    globalThis.addEventListener('keydown', onGateKeydown)
-  })
-
-  onDestroy(() => {
-    globalThis.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
-    globalThis.removeEventListener('keydown', onGateKeydown)
-  })
+  // `useEventListener` registers the matching `onDestroy` itself, so the pair
+  // cannot drift — which is the failure these two blocks invite: a listener
+  // added under one name and removed under another leaks for the life of the
+  // page, and nothing says so.
+  useEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
+  useEventListener('keydown', onGateKeydown)
 </script>
 
 <div x-cloak role="dialog" aria-modal="true" aria-labelledby="auth-gate-title" x-class="gateIsOpen() ? 'flex' : 'hidden'" class="fixed inset-0 z-[100] items-end justify-center p-0 sm:items-center sm:p-4">

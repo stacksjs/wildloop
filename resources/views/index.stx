@@ -130,7 +130,6 @@
     return `${count} ${count === 1 ? 'suggestion' : 'suggestions'}. Use the up and down arrows to choose.`
   })
 
-  let suggestTimer = null
   let suggestToken = 0
   let heroFocused = false
   /** The text the stored suggestions were fetched for. */
@@ -159,8 +158,7 @@
   function onHeroInput(value) {
     search.set(value)
     activeSuggestion.set(-1)
-    if (suggestTimer)
-      clearTimeout(suggestTimer)
+    pendingSuggestions.stop()
 
     if (value.trim().length < 2) {
       // Invalidate any request still in flight so it cannot reopen the list.
@@ -171,8 +169,16 @@
       return
     }
 
-    suggestTimer = setTimeout(() => refreshSuggestions(value), 200)
+    pendingSuggestions.start()
   }
+
+  /*
+   * One pending lookup, a pause after the last keystroke. `useTimeout` owns the
+   * handle and its `start()` stops a pending run first, so this file holds no
+   * timer. The callback reads the `search` signal rather than a captured value,
+   * because the callback is fixed when the timer is made.
+   */
+  const pendingSuggestions = useTimeout(() => refreshSuggestions(search()), 200)
 
   async function refreshSuggestions(value) {
     const token = ++suggestToken
@@ -191,9 +197,7 @@
 
   /** Stop a debounced or in-flight lookup from reopening a list just closed. */
   function cancelSuggestionLookup() {
-    if (suggestTimer)
-      clearTimeout(suggestTimer)
-    suggestTimer = null
+    pendingSuggestions.stop()
     suggestToken++
   }
 
@@ -275,11 +279,13 @@
   // Skipped if focus came straight back, so it cannot cancel new typing.
   function onHeroBlur() {
     heroFocused = false
-    setTimeout(() => {
-      if (!heroFocused)
-        closeSuggestions()
-    }, 150)
+    pendingBlurClose.start()
   }
+
+  const pendingBlurClose = useTimeout(() => {
+    if (!heroFocused)
+      closeSuggestions()
+  }, 150)
 
   /** Bound with `.prevent` on mousedown, which keeps focus in the input on desktop. */
   function keepHeroFocus() {}
@@ -432,25 +438,29 @@
 
     // Keep the catalog refresh behind the hero/runtime critical path. The
     // snapshot above is already useful and the live value is supplementary.
-    setTimeout(() => {
-      void fetchCoverage().then((value) => {
-        if (value.total > 0)
-          coverage.set(value)
-      })
-      // Around the visitor when the page knows where that is — the same fix
-      // the shelf above opened on, already resolved and remembered, so this
-      // costs no second lookup. The national list is for somebody nowhere.
-      void resolveNearby()
-        .then(place => queryTrails(place
-          ? { lat: place.lat, lng: place.lng, radius: 60, sort: 'popular', limit: 14 }
-          : { sort: 'rating', limit: 14 })
-          .then((result) => {
-            topTrails.set(result.trails)
-            topTrailsHeading.set(place ? `Top trails near ${place.source === 'gps' ? 'you' : place.label}` : 'Top trails')
-          }))
-        .catch(() => {})
-    }, 600)
+    // Through `useTimeout` rather than a bare `setTimeout`, so the pending run
+    // has a handle the page can stop.
+    deferredCatalogRefresh.start()
   })
+
+  const deferredCatalogRefresh = useTimeout(() => {
+    void fetchCoverage().then((value) => {
+      if (value.total > 0)
+        coverage.set(value)
+    })
+    // Around the visitor when the page knows where that is — the same fix the
+    // shelf above opened on, already resolved and remembered, so this costs no
+    // second lookup. The national list is for somebody nowhere.
+    void resolveNearby()
+      .then(place => queryTrails(place
+        ? { lat: place.lat, lng: place.lng, radius: 60, sort: 'popular', limit: 14 }
+        : { sort: 'rating', limit: 14 })
+        .then((result) => {
+          topTrails.set(result.trails)
+          topTrailsHeading.set(place ? `Top trails near ${place.source === 'gps' ? 'you' : place.label}` : 'Top trails')
+        }))
+      .catch(() => {})
+  }, 600)
 </script>
 
 <div class="marketing-page">

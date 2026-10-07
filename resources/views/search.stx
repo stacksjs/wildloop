@@ -64,7 +64,6 @@
     return avatarTint(row?.label)
   }
 
-  let timer: ReturnType<typeof setTimeout> | undefined
   let latest = 0
 
   async function runSearch(text: string): Promise<void> {
@@ -105,19 +104,37 @@
     }
   }
 
+  /*
+   * Wait for a pause in typing rather than asking on every key.
+   *
+   * `useTimeout` owns the handle, and its `start()` stops a pending run before
+   * scheduling the next one — which is the debounce, so nothing here holds a
+   * timer or clears one. The callback reads `query()` rather than closing over
+   * a value, because the callback is fixed when the timer is created.
+   *
+   * Not `useDebounceFn`: it is declared in `browser-auto-imports.d.ts` but is
+   * not injected into a client block, so calling it threw
+   * `useDebounceFn is not defined` at hydration and took the whole page's
+   * setup down with it. Only what stx itself injects is really there.
+   */
+  const pendingSearch = useTimeout(() => {
+    const trimmed = query().trim()
+    if (trimmed.length >= 2)
+      void runSearch(trimmed)
+  }, 250)
+
   function onInput(event: any): void {
     const text = String(event?.target?.value ?? '')
     query.set(text)
-    clearTimeout(timer)
     const trimmed = text.trim()
     if (trimmed.length < 2) {
+      pendingSearch.stop()
       latest++
       loading.set(false)
       groups.set(null)
       return
     }
-    // Wait for a pause in typing rather than asking on every key.
-    timer = setTimeout(() => void runSearch(trimmed), 250)
+    pendingSearch.start()
   }
 
   function clearQuery(): void {

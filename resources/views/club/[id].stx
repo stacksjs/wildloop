@@ -225,11 +225,16 @@
     inviteError.set(res?.fields ? Object.values(res.fields)[0] as string : (res?.error ?? 'Could not create the invite.'))
   }
 
+  /** Clears the "copied" tick on its own. */
+  const resetCopiedCode = useTimeout(() => copiedCode.set(null), 2000)
+
   async function copyInvite(code) {
+    // `copyLink` resolves what it is given against the page origin, so an
+    // invite code would arrive as a URL. This one writes the code itself.
     if (typeof navigator === 'undefined') return
     await navigator.clipboard?.writeText(code).catch(() => {})
     copiedCode.set(code)
-    setTimeout(() => copiedCode.set(null), 2000)
+    resetCopiedCode.start()
   }
 
   /* ── Redeeming ───────────────────────────────────────────────────────── */

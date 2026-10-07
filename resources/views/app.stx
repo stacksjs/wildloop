@@ -36,6 +36,7 @@
 
 <script client>
   import { useAppInstall } from '../composables/useAppInstall'
+  import { copyLink } from '../composables/useShareLink'
 
   useHead({ title: 'Get the Wildloop App — Wildloop' })
 
@@ -43,11 +44,14 @@
 
   const copied = state(false)
 
-  async function copyAddress() {
-    if (typeof navigator === 'undefined') return
-    await navigator.clipboard?.writeText('https://wildloop.org').catch(() => {})
-    copied.set(true)
-    setTimeout(() => copied.set(false), 2000)
+  /** Back to "Copy" on its own, so the confirmation is not permanent. */
+  const resetCopied = useTimeout(() => copied.set(false), 2000)
+
+  async function copyAddress(): Promise<void> {
+    // `copyLink` is the house clipboard path: one place that knows what to do
+    // when a browser refuses, and it says so rather than failing silently.
+    copied.set(await copyLink('https://wildloop.org'))
+    resetCopied.start()
   }
 </script>
 

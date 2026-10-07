@@ -55,8 +55,6 @@
   const searched = state(false)
   const error = state('')
 
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null
-
   async function runSearch(q: string) {
     searching.set(true)
     error.set('')
@@ -78,11 +76,29 @@
     void runSearch(query().trim())
   }
 
+  // `useTimeout.start()` stops a pending run before scheduling the next, which
+  // is the debounce; the callback reads the signal rather than a captured value
+  // because it is fixed when the timer is made.
+  const pendingSearch = useTimeout(() => { void runSearch(query().trim()) }, 250)
+
   function onQueryInput(value: string) {
     query.set(value)
-    if (debounceTimer) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => { void runSearch(query().trim()) }, 250)
+    pendingSearch.start()
   }
+
+  /*
+   * The whole line in one derived signal, interpolated as a call — the shape
+   * every other page uses for text from a signal.
+   *
+   * It used to be assembled in the template as `'… for “' + query + '”'`, which
+   * stringifies the signal object itself: the heading read
+   * `One match for “[object Object]”`. Concatenating `query()` instead rendered
+   * nothing at all, so the fix is to build the string where the signals are.
+   */
+  const matchLine = derived(() => {
+    const count = athletes().length
+    return `${count === 1 ? 'One match' : `${count} matches`} for “${query().trim()}”`
+  })
 
   // Load the discover list (most active athletes) on first visit.
   onMount(() => { void runSearch('') })
@@ -103,7 +119,7 @@
       <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Athletes</h1>
       <p class="mt-1 text-slate-600 dark:text-slate-400">
         <span :if="!query">The most active people on Wildloop right now.</span>
-        <span :else>{{ athletes.length === 1 ? 'One match' : athletes.length + ' matches' }}{{ ' for “' + query + '”' }}</span>
+        <span :else>{{ matchLine() }}</span>
       </p>
     </div>
 

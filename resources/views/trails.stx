@@ -729,7 +729,10 @@
   function toggleMobileView(): void {
     mobileView.set(mobileView() === 'map' ? 'list' : 'map')
   }
-  let debounce: ReturnType<typeof setTimeout> | null = null
+  // One pending search, restarted on each keystroke: `useTimeout.start()` stops
+  // the previous one first, so this is the debounce and there is no handle to
+  // hold or clear.
+  const pendingSearch = useTimeout(() => runSearch(), 250)
 
   async function runSearch() {
     const token = ++searchToken
@@ -830,9 +833,7 @@
     search.set(value)
     placeSearch.onInput(value)
     suggestionsOpen.set(true)
-    if (debounce)
-      clearTimeout(debounce)
-    debounce = setTimeout(() => runSearch(), 250)
+    pendingSearch.start()
   }
 
   function onSearchKey(event: any): void {
@@ -1148,8 +1149,7 @@
   })
 
   onDestroy(() => {
-    if (debounce)
-      clearTimeout(debounce)
+    pendingSearch.stop()
     stopUserMoves?.()
     stopUserMoves = null
     exploreMap?.destroy()

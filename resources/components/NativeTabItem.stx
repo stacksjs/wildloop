@@ -66,13 +66,17 @@ function followTab(event: MouseEvent): void {
     settled = true
   })
 
-  setTimeout(() => {
+  // `useTimeout` rather than a bare `setTimeout`, so the pending run has a
+  // handle. The address is read from `location` and not from the store on
+  // purpose: this path exists for a router that never answered, which is
+  // exactly when the store's idea of where we are cannot be trusted.
+  useTimeout(() => {
     if (settled)
       return
     const here = globalThis.location?.pathname ?? ''
     if (here !== to && !here.startsWith(`${to}/`))
-      globalThis.location.assign(to)
-  }, ROUTER_STALL_MS)
+      navigate(to, { reload: true })
+  }, ROUTER_STALL_MS).start()
 }
 
 /**
