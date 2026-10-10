@@ -8,15 +8,15 @@
   },
   "dependencies": {
     "@bughq/stacks": "^0.2.2",
-    "@iconify-json/lucide": "^1.2.137",
+    "@iconify-json/lucide": "^1.2.142",
     "@loghq/stacks": "^0.2.6",
-    "@stacksjs/mobile": "^0.75.84",
+    "@stacksjs/mobile": "^0.75.120",
     "@ts-analytics/tracking": "^0.1.17",
-    "bun-query-builder": "0.3.3",
+    "bun-query-builder": "0.3.5",
     "stacks": "^0.75.84",
-    "ts-health": "^0.1.0",
+    "ts-health": "^0.1.4",
     "ts-images": "^0.2.29",
-    "ts-maps": "^0.3.22",
+    "ts-maps": "^0.5.0",
     "ts-qr-codes": "^0.1.8",
     "ts-web-scraper": "^0.1.10"
   },
@@ -114,7 +114,7 @@
   "type": "module",
   "devDependencies": {
     "@types/bun": "^1.4.2",
-    "very-happy-dom": "^0.3.5"
+    "very-happy-dom": "^0.4.0"
   },
   "overrides": {
     "craft-native": "0.0.118",
