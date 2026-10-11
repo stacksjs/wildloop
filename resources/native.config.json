@@ -1,0 +1,7 @@
+{
+  "initialScreen": "manual",
+  "screens": {
+    "manual": "native/ManualActivity.stx",
+    "activity": "native/ActivitySaved.stx"
+  }
+}

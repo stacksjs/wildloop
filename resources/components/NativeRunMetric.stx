@@ -1,0 +1,9 @@
+<script server>
+const label = $props.label ?? ''
+const testID = $props.testID ?? ''
+</script>
+
+<View class="rounded-xl bg-emerald-950 p-3" testID="{{ testID }}">
+  <Text class="text-xs text-emerald-300">{{ label }}</Text>
+  <slot />
+</View>
