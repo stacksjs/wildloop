@@ -2,6 +2,7 @@
   "initialScreen": "manual",
   "screens": {
     "manual": "native/ManualActivity.stx",
-    "activity": "native/ActivitySaved.stx"
+    "activity": "native/ActivitySaved.stx",
+    "records": "native/Records.stx"
   }
 }

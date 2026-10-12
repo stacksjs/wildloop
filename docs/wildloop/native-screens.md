@@ -1,28 +1,48 @@
 # Native screens
 
-Wildloop's first ordinary STX native flow lives in `resources/native/`. It logs a
-manual activity through the same payload builder and `/api/activities` endpoint
-as the web UI, then opens the saved-activity screen with the returned id. The
-screens are compiled to Craft's native document protocol; they do not use a
-WebView or a second layout engine.
+Wildloop's native screens live in `resources/native/`. Two flows so far:
+
+- **Manual activity** — logs an activity through the same payload builder and
+  `/api/activities` endpoint as the web UI, then opens the saved-activity screen
+  with the returned id.
+- **Records** — the public fastest-known-times board, the first list screen.
+  `FlatList` with `:for`, filtered server-side by style, and a row hands off to
+  the web effort page through `craft.navigation.open` because that page is a map
+  (craft-native/craft#340).
+
+The screens are compiled to Craft's native document protocol; they do not use a
+WebView or a second layout engine. Shared numbers come from
+`resources/functions` — `manual-activity.ts` and `route-records.ts` — so a
+native screen and its web counterpart cannot drift on a value. They diverge on
+presentation; never on data.
 
 ## Build and test
 
 ```bash
 bun install
 bun run build:native-screens --debug
-bun test tests/unit/manual-activity.test.ts tests/unit/native-manual-activity-flow.test.ts
+bun test tests/unit/manual-activity.test.ts tests/unit/native-manual-activity-flow.test.ts tests/unit/native-records-screen.test.ts
 bun run typecheck
 ```
 
 The build writes `storage/framework/native/native-screen.js`. This is generated
-output and must not be committed.
+output and is gitignored.
+
+`tests/fixtures/nativeScreen.ts` compiles that bundle once and drives it through
+a fake Craft bridge: `start(screen, params)`, `event(testID, name)`,
+`waitForRequest`, `waitForText`. A list row does not exist in the first
+`RENDER` — it arrives as a `createNode` and its handler as an `updateNode`
+after that — so `event()` looks in both places, and text is read from
+`patch.children` rather than a `text` prop.
 
 ## Host contract
 
 The `manual` route requires these maintained Craft capabilities:
 
-- `secureStorage` reads the existing `auth_token`.
+- `secureStorage` reads the existing `auth_token`. The records board is public
+  and reads none: identity for a write comes from the token, and
+  `ActivityStoreAction` derives the actor from the session, so a screen never
+  sends a `user_id` of its own.
 - `fetch` sends an absolute HTTPS request to `https://wildloop.org/api/activities`.
 - `haptics` confirms a successful save.
 - `lifecycle` runs teardown and cancels in-flight capability requests when the

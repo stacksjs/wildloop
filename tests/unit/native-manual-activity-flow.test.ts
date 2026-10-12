@@ -1,107 +1,15 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import vm from 'node:vm'
-import { runNativeCompile } from '@stacksjs/stx/native'
+import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, start, waitForRequest } from '../fixtures/nativeScreen'
 
 const ROOT = join(import.meta.dir, '../..')
-let bundle = ''
 
-beforeAll(async () => {
-  bundle = (await runNativeCompile(undefined, {
-    cwd: join(ROOT, 'resources'),
-    config: 'native.config.json',
-    format: 'bundle',
-  })).output
-})
-
-interface NativeSession {
-  sent: any[]
-  scope: Record<string, any>
-  receive: (message: Record<string, unknown>) => void
-  event: (testID: string, name: string, nativeEvent?: Record<string, unknown>) => Promise<void>
-}
-
-function nodesByTestId(node: any, found = new Map<string, string>()): Map<string, string> {
-  if (node?.props?.testID) found.set(String(node.props.testID), String(node.props.__stxId))
-  for (const child of node?.children ?? []) {
-    if (child && typeof child === 'object') nodesByTestId(child, found)
-  }
-  return found
-}
-
-async function start(route: 'manual' | 'activity', params: Record<string, unknown> = {}): Promise<NativeSession> {
-  const sent: any[] = []
-  let callback: (raw: string) => void = () => {}
-  const scope: Record<string, any> = {
-    console,
-    setTimeout,
-    clearTimeout,
-    Promise,
-    Date,
-    Map,
-    Set,
-    WeakMap,
-    WeakSet,
-    __stxNativeRoute: route,
-    __stxNativeParams: params,
-    __stxNativeBridge: {
-      platform: 'ios',
-      capabilityProtocolVersion: 1,
-      capabilities: ['fetch', 'secureStorage', 'haptics', 'lifecycle'],
-      postMessage: (raw: string) => sent.push(JSON.parse(raw)),
-      onMessage: (receiver: typeof callback) => { callback = receiver },
-    },
-  }
-  vm.runInNewContext(bundle, scope)
-  await Bun.sleep(0)
-  const rendered = sent.find(message => message.type === 'RENDER')?.payload.document
-  const nodes = nodesByTestId(rendered)
-  const receive = (message: Record<string, unknown>) => callback(JSON.stringify(message))
-  return {
-    sent,
-    scope,
-    receive,
-    event: async (testID, name, nativeEvent = {}) => {
-      const id = nodes.get(testID)
-      const operations = sent.filter(message => message.type === 'MUTATE')
-        .flatMap(message => message.payload.operations)
-      const handlerId = operations.find(operation => operation.id === id && operation.patch?.events?.[name])?.patch.events[name]
-      expect(handlerId).toBeTruthy()
-      receive({ type: 'EVENT', payload: { handlerId, nativeEvent } })
-      await Bun.sleep(0)
-    },
-  }
-}
-
-function answer(session: NativeSession, request: any, data: unknown): void {
-  session.receive({
-    type: 'API_RESPONSE',
-    correlationId: request.id,
-    payload: { version: 1, requestId: request.id, data },
-  })
-}
-
-function requests(session: NativeSession): any[] {
-  return session.sent.filter(message => message.type === 'API_REQUEST')
-}
-
-async function waitForRequest(
-  session: NativeSession,
-  after: number,
-  predicate: (request: any) => boolean,
-): Promise<any> {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const request = requests(session).slice(after).find(predicate)
-    if (request) return request
-    await Bun.sleep(1)
-  }
-  throw new Error('Timed out waiting for a native capability request')
-}
+beforeAll(compileNativeBundle)
 
 describe('Wildloop native manual activity flow', () => {
   it('uses app components and sends the real activity payload through the Craft protocol', async () => {
-    expect(bundle).not.toContain('WebView')
+    expect(nativeBundle()).not.toContain('WebView')
     expect(readFileSync(join(ROOT, 'resources/native/ManualActivity.stx'), 'utf8')).toContain('<NativeRunMetric')
     const manual = await start('manual', { userId: 12 })
     const render = manual.sent.find(message => message.type === 'RENDER').payload.document
