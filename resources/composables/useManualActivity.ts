@@ -78,7 +78,10 @@ export function useManualActivity(wl: ManualStoreLike | null) {
 
     submitting.set(true)
     manualError.set(null)
-    const created = await createActivity(payload).catch((error) => {
+    // The id is spelled out here rather than carried in the payload: the
+    // builder leaves it out when a caller does not know it (a native screen
+    // with only a token), and this one does know it.
+    const created = await createActivity({ ...payload, user_id: wl.currentUserId() }).catch((error) => {
       manualError.set(error instanceof Error ? error.message : 'Could not save the activity')
       return null
     })

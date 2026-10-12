@@ -15,7 +15,16 @@ export interface ManualActivityInput {
 }
 
 export interface ManualActivityPayload {
-  user_id: number
+  /**
+   * Omitted when the caller does not know it.
+   *
+   * `ActivityStoreAction` takes the actor from `Auth.user()` and ignores this
+   * field — "the authenticated session is the only source of actor identity" —
+   * so a client that holds a token but no id has nothing to prove and should
+   * not be stopped. The web feed passes the id it already has; a native screen
+   * entered without one passes null.
+   */
+  user_id?: number
   trail_id: number | null
   activity_type: string
   distance: number
@@ -42,7 +51,7 @@ export function todayLocal(now: Date = new Date()): string {
 /** Build the canonical GPS-free activity request used by web and native entry. */
 export function buildManualActivity(
   input: ManualActivityInput,
-  userId: number,
+  userId: number | null,
   options: { now?: Date, uploadId?: string } = {},
 ): ManualActivityResult {
   const now = options.now ?? new Date()
@@ -53,7 +62,9 @@ export function buildManualActivity(
 
   if (!(MANUAL_ACTIVITY_TYPES as readonly string[]).includes(input.type))
     return { ok: false, error: 'Pick an activity type' }
-  if (!Number.isFinite(userId) || userId <= 0)
+  // `null` means "the session decides"; a number means the caller claims to
+  // know, and a bad one is a signed-out web form rather than a missing param.
+  if (userId !== null && (!Number.isFinite(userId) || userId <= 0))
     return { ok: false, error: 'Sign in before saving an activity' }
   if (!Number.isFinite(distance) || distance <= 0)
     return { ok: false, error: 'Distance must be a positive number of miles' }
@@ -87,7 +98,7 @@ export function buildManualActivity(
     ok: true,
     movingSeconds,
     payload: {
-      user_id: userId,
+      ...(userId === null ? {} : { user_id: userId }),
       trail_id: trailId,
       activity_type: input.type,
       distance: Number(distance.toFixed(2)),

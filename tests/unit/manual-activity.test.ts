@@ -59,10 +59,31 @@ describe('buildManualActivity', () => {
     expect(buildManualActivity(candidate, 12, { uploadId: 'manual:invalid' })).toEqual({ ok: false, error })
   })
 
-  it('requires an authenticated Wildloop user', () => {
+  /*
+   * A signed-out web form passes the id it has, which is 0, and that is a real
+   * refusal: the page knows nobody is signed in.
+   */
+  it('requires an authenticated Wildloop user when the caller claims an id', () => {
     expect(buildManualActivity(input, 0, { uploadId: 'manual:no-user' })).toEqual({
       ok: false,
       error: 'Sign in before saving an activity',
     })
+  })
+
+  /*
+   * `null` is the other case: a caller that holds a token but no id, which is
+   * every native screen entered without route params. `ActivityStoreAction`
+   * takes the actor from `Auth.user()` and ignores the field, so there is
+   * nothing to refuse — and refusing it blocked a save the server would have
+   * accepted.
+   */
+  it('omits the user id when the session is the one that knows it', () => {
+    const built = buildManualActivity(input, null, { uploadId: 'manual:session' })
+
+    expect(built.ok).toBe(true)
+    if (built.ok === false)
+      return
+    expect('user_id' in built.payload, 'a field the server discards must not be sent').toBe(false)
+    expect(built.payload.activity_type).toBe(input.type)
   })
 })

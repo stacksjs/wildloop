@@ -1,13 +1,11 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { buildManualActivity, MANUAL_ACTIVITY_TYPES, todayLocal } from '../functions/manual-activity'
+import { ACTIVITY_VISIBILITIES, buildManualActivity, MANUAL_ACTIVITY_TYPES, todayLocal } from '../functions/manual-activity'
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const types = [...MANUAL_ACTIVITY_TYPES]
-const visibilities = ['public', 'followers', 'private']
-const routeUserId = Number(craft.route.params.userId ?? 0)
+const visibilities = [...ACTIVITY_VISIBILITIES]
 
-const userId = state(Number.isFinite(routeUserId) ? routeUserId : 0)
 const typeIndex = state(0)
 const visibilityIndex = state(1)
 const distance = state('')
@@ -56,7 +54,11 @@ async function submit() {
     date: date(),
     notes: notes(),
     visibility: visibilities[visibilityIndex()],
-  }, userId())
+    // No id: the token below is the only identity this screen has, and the API
+    // takes the actor from the session regardless. Reading one from
+    // `route.params` refused a save on a cold start, where `initialScreen`
+    // passes no params — with a valid token sitting in secureStorage.
+  }, null)
   if (built.ok === false) {
     error.set(built.error)
     return
@@ -85,7 +87,8 @@ async function submit() {
     if (!active) return
     craft.navigation.push('activity', {
       id: created.id,
-      userId: built.payload.user_id,
+      // The server's answer, not a guess carried in from the route.
+      userId: created.userId ?? 0,
       activityType: built.payload.activity_type,
       distance: built.payload.distance,
       duration: built.payload.duration,

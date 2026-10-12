@@ -126,8 +126,10 @@ describe('Wildloop native manual activity flow', () => {
     expect(request.method).toBe('POST')
     expect(request.headers.authorization).toBe('Bearer native-token')
     expect(typeof request.body).toBe('string')
+    // No `user_id`: `ActivityStoreAction` takes the actor from `Auth.user()`
+    // and ignores the field, so the screen does not claim one.
+    expect('user_id' in JSON.parse(request.body)).toBe(false)
     expect(JSON.parse(request.body)).toMatchObject({
-      user_id: 12,
       trail_id: 7,
       activity_type: 'Trail Run',
       distance: 5.13,
@@ -145,7 +147,9 @@ describe('Wildloop native manual activity flow', () => {
       status: 201,
       statusText: 'Created',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ activity: { id: 42 } }),
+      // Shaped like `activityResponse`: the owner comes back from the server,
+      // which is what the saved screen then shows.
+      body: JSON.stringify({ activity: { id: 42, userId: 12 } }),
     })
     const haptic = await waitForRequest(manual, postRequestCount, request => request.payload?.module === 'Haptics')
     expect(haptic.payload).toMatchObject({ module: 'Haptics', method: 'impact', args: ['light'] })
@@ -155,6 +159,37 @@ describe('Wildloop native manual activity flow', () => {
       type: 'NAVIGATE',
       payload: { screen: 'activity', params: expect.objectContaining({ id: 42, userId: 12, distance: 5.13 }) },
     })
+  })
+
+  /*
+   * The screen as the host actually opens it: `native.config.json` names
+   * `manual` as `initialScreen`, which passes no params.
+   *
+   * It used to read its user id from `route.params.userId` and refuse the save
+   * when there was none — before reading the token, so a signed-in athlete on a
+   * cold start got "Sign in before saving an activity" and no request left the
+   * device. The API takes the actor from `Auth.user()` and ignores the field, so
+   * the token is the only identity this screen needs.
+   */
+  it('saves on a cold start, with no route params and no user id in the body', async () => {
+    const manual = await start('manual')
+
+    await manual.event('distance-input', 'onChangeText', { text: '3.1' })
+    await manual.event('duration-input', 'onChangeText', { text: '28:00' })
+    await manual.event('save-activity', 'onPress')
+
+    const tokenRequest = requests(manual).at(-1)
+    expect(tokenRequest.payload, 'the token is read before anything is refused')
+      .toMatchObject({ module: 'SecureStorage', method: 'get', args: ['auth_token'] })
+
+    const before = requests(manual).length
+    answer(manual, tokenRequest, 'native-token')
+    const post = await waitForRequest(manual, before, request => request.payload?.module === 'Network')
+    const body = JSON.parse(post.payload.args[0].body)
+
+    expect(post.payload.args[0].headers.authorization).toBe('Bearer native-token')
+    expect('user_id' in body, 'the session owns identity; the body must not claim it').toBe(false)
+    expect(body).toMatchObject({ activity_type: 'Trail Run', distance: 3.1, recording_source: 'manual' })
   })
 
   it('keeps route state isolated and supports back, replace, and teardown cancellation', async () => {
