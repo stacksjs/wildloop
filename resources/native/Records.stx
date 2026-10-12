@@ -13,7 +13,7 @@ import {
  * Fastest known times, as a native screen.
  *
  * The first promotion that is a list rather than a form, so it is the one that
- * exercises `FlatList` and `:for` over the keyed mutation protocol. Everything
+ * exercises a keyed `:for` over the shared mutation protocol. Everything
  * it computes — the labels, the elapsed time, the pace — comes from
  * `resources/functions/route-records.ts`, the same module the web screen reads
  * through `useRouteRecords`. The two screens diverge on presentation and must
@@ -141,20 +141,23 @@ onDestroy(() => {
     <ActivityIndicator :if="loading" testID="records-loading" class="mt-6" />
     <Text :if="error" testID="records-error" class="mt-4 text-rose-300" :text="error" />
 
-    <FlatList testID="records-list" class="mt-5 gap-3">
-      <template :for="row in rows()">
-        <Pressable testID="record-row" class="rounded-xl bg-slate-900 p-3" @click="openEffort(row.id)">
-          <Text class="text-base font-semibold text-white" :text="row.trailName" />
-          <Text :if="row.where" class="text-xs text-slate-400" :text="row.where" />
-          <View class="mt-2 flex-row items-baseline gap-2">
-            <Text class="text-xl font-bold text-emerald-300" :text="row.elapsed" />
-            <Text :if="row.pace" class="text-xs text-slate-400" :text="row.pace" />
-          </View>
-          <Text class="mt-1 text-xs text-slate-300" :text="row.who + ' · ' + row.kind" />
-          <Text class="text-xs text-slate-500" :text="row.status" />
-        </Pressable>
-      </template>
-    </FlatList>
+    <!--
+      Keep this as a keyed :for inside ScrollView. FlatList's legacy item
+      template expansion is host-specific; the shared STX runtime guarantees
+      keyed identity, event scope, and scroll preservation on this path.
+    -->
+    <View testID="records-list" class="mt-5 gap-3">
+      <Pressable :for="row in rows()" :key="row.id" testID="record-row" class="rounded-xl bg-slate-900 p-3" @click="openEffort(row.id)">
+        <Text class="text-base font-semibold text-white" :text="row.trailName" />
+        <Text :if="row.where" class="text-xs text-slate-400" :text="row.where" />
+        <View class="mt-2 flex-row items-baseline gap-2">
+          <Text class="text-xl font-bold text-emerald-300" :text="row.elapsed" />
+          <Text :if="row.pace" class="text-xs text-slate-400" :text="row.pace" />
+        </View>
+        <Text class="mt-1 text-xs text-slate-300" :text="row.who + ' · ' + row.kind" />
+        <Text class="text-xs text-slate-500" :text="row.status" />
+      </Pressable>
+    </View>
 
     <Text :if="!loading && !error && rows().length === 0" testID="records-empty" class="mt-6 text-sm text-slate-400">
       No claims match this style yet.

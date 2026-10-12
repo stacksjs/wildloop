@@ -6,9 +6,9 @@ Wildloop's native screens live in `resources/native/`. Two flows so far:
   `/api/activities` endpoint as the web UI, then opens the saved-activity screen
   with the returned id.
 - **Records** — the public fastest-known-times board, the first list screen.
-  `FlatList` with `:for`, filtered server-side by style, and a row hands off to
-  the web effort page through `craft.navigation.open` because that page is a map
-  (craft-native/craft#340).
+  A keyed `:for` inside a `ScrollView`, filtered server-side by style, and a
+  row hands off to the web effort page through `craft.navigation.open` because
+  that page is a map (craft-native/craft#340).
 
 The screens are compiled to Craft's native document protocol; they do not use a
 WebView or a second layout engine. Shared numbers come from
@@ -58,8 +58,12 @@ The native compiler resolves application components before framework fallbacks;
   GPS recording, maps, media upload, authentication, or the full activity feed.
 - Network requests require an absolute `http://` or `https://` URL. Response
   bodies are text/JSON and are limited by the maintained host.
-- Native `:for` renders the shared keyed STX mutation protocol. It is not a
-  React Native `FlatList`; large virtualized feeds remain host-owned work.
+- Native `:for` renders the shared keyed STX mutation protocol and is the
+  portable list boundary used by Records. It preserves row identity, event
+  scope, and the scroll host across updates. It is not a React Native
+  `FlatList`; `FlatList` item-template expansion remains host-specific, so
+  large virtualized feeds remain host-owned work until that capability is
+  explicitly advertised by every selected host.
 - Browser-only DOM APIs, CSS layout assumptions, and web component behavior are
   unsupported in native screens.
 

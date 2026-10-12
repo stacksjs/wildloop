@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { answer, compileNativeBundle, nodesByTestId, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { CATEGORY_LABELS, formatElapsed, recordPace, STATUS_LABELS, STYLE_LABELS } from '../../resources/functions/route-records'
 
@@ -41,8 +43,16 @@ const EFFORTS = [
   },
 ]
 
+const RECORDS_SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Records.stx'), 'utf8')
+
 describe('Wildloop native records screen', () => {
   beforeAll(compileNativeBundle)
+
+  it('uses the portable keyed :for boundary rather than FlatList template expansion', () => {
+    expect(RECORDS_SOURCE).toContain('<Pressable :for="row in rows()" :key="row.id"')
+    expect(RECORDS_SOURCE).not.toContain('<FlatList')
+    expect(RECORDS_SOURCE).toContain('FlatList\'s legacy item')
+  })
 
   it('asks the public board for the latest claims and draws a row for each', async () => {
     const screen = await start('records')
