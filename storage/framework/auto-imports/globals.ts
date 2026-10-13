@@ -52,6 +52,15 @@ declare global {
   const appShortcutDeepLink: typeof autoImports.appShortcutDeepLink
   const craftShortcutItems: typeof autoImports.craftShortcutItems
   const APP_SHORTCUTS: typeof autoImports.APP_SHORTCUTS
+  const athleteRowsFrom: typeof autoImports.athleteRowsFrom
+  const areaKm2: typeof autoImports.areaKm2
+  const athleteActivityText: typeof autoImports.athleteActivityText
+  const athleteFollowerText: typeof autoImports.athleteFollowerText
+  const athleteTerritoryText: typeof autoImports.athleteTerritoryText
+  const athleteStatsLine: typeof autoImports.athleteStatsLine
+  const athleteMatchLine: typeof autoImports.athleteMatchLine
+  const followRequest: typeof autoImports.followRequest
+  const athleteSearchPath: typeof autoImports.athleteSearchPath
   const AUTH_REQUIRED_EVENT: typeof autoImports.AUTH_REQUIRED_EVENT
   const AUTH_READY_EVENT: typeof autoImports.AUTH_READY_EVENT
   const avatarUrl: typeof autoImports.avatarUrl

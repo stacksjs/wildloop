@@ -16,6 +16,8 @@ export { renderActivitySharePng, downloadActivityShareImage, shareActivityImage,
 export type { ShareableActivity, ActivityShareOutcome } from '../../../resources/functions/activity-share'
 export { appShortcut, appShortcutRoute, appShortcutDeepLink, craftShortcutItems, APP_SHORTCUTS } from '../../../resources/functions/app-shortcuts'
 export type { AppShortcut, CraftShortcutItem } from '../../../resources/functions/app-shortcuts'
+export { athleteRowsFrom, areaKm2, athleteActivityText, athleteFollowerText, athleteTerritoryText, athleteStatsLine, athleteMatchLine, followRequest, athleteSearchPath } from '../../../resources/functions/athletes'
+export type { AthleteRow } from '../../../resources/functions/athletes'
 export { AUTH_REQUIRED_EVENT, AUTH_READY_EVENT } from '../../../resources/functions/auth-events'
 export { avatarUrl, avatarInitial, avatarTint, newReviewsLabel, overflowLabel } from '../../../resources/functions/avatars'
 export type { AvatarVariant } from '../../../resources/functions/avatars'

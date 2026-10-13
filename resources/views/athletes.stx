@@ -41,6 +41,7 @@
   import { searchAthletes } from '../assets/scripts/game-api'
   import { followAthlete } from '../composables/useSocialActions'
   import { avatarUrl } from '../functions/avatars'
+  import { athleteActivityText, athleteFollowerText, athleteMatchLine, athleteTerritoryText } from '../functions/athletes'
 
 
   const wl = useStore('wl')
@@ -95,10 +96,12 @@
    * `One match for “[object Object]”`. Concatenating `query()` instead rendered
    * nothing at all, so the fix is to build the string where the signals are.
    */
-  const matchLine = derived(() => {
-    const count = athletes().length
-    return `${count === 1 ? 'One match' : `${count} matches`} for “${query().trim()}”`
-  })
+  /*
+   * The line in one derived signal, interpolated as a call (stacksjs/stx#2069),
+   * with the wording from `resources/functions/athletes.ts` so the native
+   * directory says the same thing.
+   */
+  const matchLine = derived(() => athleteMatchLine(athletes().length, query()))
 
   // Load the discover list (most active athletes) on first visit.
   onMount(() => { void runSearch('') })
@@ -109,9 +112,6 @@
     void followAthlete(wl, userId)
   }
 
-  function areaKm2(m2: number): string {
-    return (m2 / 1000000).toFixed(2)
-  }
 </script>
 
   <div class="mx-auto max-w-2xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
@@ -178,13 +178,13 @@
                    run tracker, so it earns a place on the row whenever the
                    athlete holds any. -->
               <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <span class="tabular-nums">{{ athlete.activityCount === 1 ? '1 activity' : athlete.activityCount + ' activities' }}</span>
+                <span class="tabular-nums">{{ athleteActivityText(athlete) }}</span>
                 <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-                <span class="tabular-nums">{{ athlete.followerCount === 1 ? '1 follower' : athlete.followerCount + ' followers' }}</span>
+                <span class="tabular-nums">{{ athleteFollowerText(athlete) }}</span>
                 <span :if="athlete.territoriesOwned > 0" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                 <span :if="athlete.territoriesOwned > 0" class="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400">
                   <i class="i-lucide-flag h-3 w-3" aria-hidden="true"></i>
-                  {{ athlete.territoriesOwned + ' held · ' + areaKm2(athlete.totalAreaOwned) + ' km²' }}
+                  {{ athleteTerritoryText(athlete) }}
                 </span>
               </p>
             </div>

@@ -1,0 +1,230 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import {
+  athleteRowsFrom,
+  athleteSearchPath,
+  athleteStatsLine,
+  followRequest,
+} from '../functions/athletes'
+import { avatarInitial, avatarUrl } from '../functions/avatars'
+
+/*
+ * The athlete directory, natively.
+ *
+ * Fourth list screen, and the first that writes *per row* — following somebody
+ * is a button on each one, optimistic, and rolled back if the API refuses. Who
+ * is in the list, how each record reads, and which verb follows somebody all
+ * come from `resources/functions/athletes.ts`, the module the web page reads:
+ * a native screen guessing POST where the API wants PUT is a button that looks
+ * like it worked.
+ *
+ * Knowing who the viewer already follows takes two reads the web app gets from
+ * its store — `/api/me` for the id, then `/api/users/{id}/follows` for the set.
+ * Without them every row would offer to follow somebody the viewer follows
+ * already.
+ *
+ * Searching is a button rather than a debounce. The web page waits for a pause
+ * in typing with `useTimeout`, which the browser can do; the native runtime
+ * does not promise a timer — the bridge's own timeout is written
+ * `typeof globalThis.setTimeout === 'function' ? … : null` — so a screen that
+ * depended on one would work in a test and not on a phone.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+
+const query = state('')
+const rows = state<any[]>([])
+const following = state<number[]>([])
+const viewerId = state(0)
+const loading = state(true)
+const error = state('')
+const signedOut = state(false)
+const bearer = state('')
+let active = true
+
+function eventText(event: { text?: unknown }): string {
+  return event?.text == null ? '' : String(event.text)
+}
+
+function heading(): string {
+  const count = rows().length
+  const trimmed = query().trim()
+  const matches = count === 1 ? 'One athlete' : `${count} athletes`
+  return trimmed ? `${matches} matching “${trimmed}”` : 'The most active people on Wildloop right now.'
+}
+
+function stats(row: any): string {
+  return athleteStatsLine(row)
+}
+
+function photo(row: any): string {
+  return avatarUrl(row?.avatar ?? null)
+}
+
+function initial(row: any): string {
+  return avatarInitial(row?.name ?? '')
+}
+
+function follows(row: any): boolean {
+  return following().includes(Number(row?.id))
+}
+
+function followLabel(row: any): string {
+  return follows(row) ? 'Following' : 'Follow'
+}
+
+/*
+ * Read once, and shared while it is in flight.
+ *
+ * The screen starts two reads at mount — the follow set and the list — and both
+ * want the token. Caching only the resolved value is not enough: the second
+ * caller arrives before the first answer and issues its own
+ * `secureStorage.get`, so the host sees two requests for one key. The pending
+ * promise is what gets shared.
+ */
+let reading: Promise<string> | null = null
+
+async function readToken(): Promise<string> {
+  if (bearer())
+    return bearer()
+
+  reading ??= Promise.resolve(craft.secureStorage.get('auth_token')).then((value) => {
+    const token = typeof value === 'string' ? value : ''
+    bearer.set(token)
+    return token
+  })
+
+  return reading
+}
+
+async function json(path: string, init: Record<string, unknown> = {}): Promise<any> {
+  const token = await readToken()
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token)
+    headers.Authorization = `Bearer ${token}`
+  const response = await fetch(`https://wildloop.org${path}`, { ...init, headers })
+  const body = await response.json().catch(() => null)
+  return { ok: response.ok, status: response.status, body }
+}
+
+/** The viewer's own follow set, so a row does not offer what it already has. */
+async function loadFollowing(): Promise<void> {
+  const me = await json('/api/me')
+  if (!me.ok || !me.body?.user?.id) {
+    if (active)
+      signedOut.set(true)
+    return
+  }
+  const id = Number(me.body.user.id)
+  if (active)
+    viewerId.set(id)
+
+  const follows = await json(`/api/users/${id}/follows`)
+  if (active && follows.ok && Array.isArray(follows.body?.followingIds))
+    following.set(follows.body.followingIds.map(Number))
+}
+
+async function search(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  try {
+    const result = await json(athleteSearchPath(query()))
+    if (!active)
+      return
+    if (!result.ok)
+      throw new Error('Could not load athletes')
+    rows.set(athleteRowsFrom(result.body))
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load athletes')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+/*
+ * Optimistic, then corrected by the answer. The API replies with what it
+ * recorded, so a refused write puts the button back rather than leaving it
+ * claiming something that did not happen.
+ */
+async function toggleFollow(row: any): Promise<void> {
+  const id = Number(row?.id)
+  if (!id || id === viewerId())
+    return
+
+  const token = await readToken()
+  if (!token) {
+    signedOut.set(true)
+    return
+  }
+
+  const was = follows(row)
+  following.set(was ? following().filter(other => other !== id) : [...following(), id])
+
+  const { path, method } = followRequest(id, !was)
+  const result = await json(path, { method, body: JSON.stringify({}) })
+  if (!active)
+    return
+
+  const confirmed = result.ok && typeof result.body?.following === 'boolean'
+    ? Boolean(result.body.following)
+    : was
+  following.set(confirmed ? [...new Set([...following(), id])] : following().filter(other => other !== id))
+}
+
+function openAthlete(row: any): void {
+  if (!row?.id)
+    return
+  craft.navigation.open(`/athlete/${row.id}`)
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Athletes', largeTitle: true })
+  void loadFollowing()
+  void search()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="athletes-scroll">
+    <Text class="text-3xl font-bold text-white">Athletes</Text>
+    <Text testID="athletes-heading" class="mt-1 text-sm text-slate-400" :text="heading()" />
+
+    <View class="mt-4 gap-2">
+      <TextInput testID="athlete-search" placeholder="Search by name" :value="query" @input="query.set(eventText($event))" />
+      <Button testID="run-search" @click="search()">Search</Button>
+    </View>
+
+    <ActivityIndicator :if="loading" testID="athletes-loading" class="mt-6" />
+    <Text :if="error" testID="athletes-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :if="signedOut" testID="athletes-signed-out" class="mt-3 text-xs text-slate-500">
+      Sign in to follow athletes and see their runs in your feed.
+    </Text>
+
+    {{-- Keyed `:for` on the element: the portable list boundary (093ef1ac). --}}
+    <View testID="athletes-list" class="mt-5 gap-3">
+      <View :for="row in rows()" :key="row.id" testID="athlete-row" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3">
+        <Pressable testID="athlete-open" class="flex-1 flex-row items-center gap-3" @click="openAthlete(row)">
+          <Image :if="photo(row)" testID="athlete-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
+          <Text :if="!photo(row)" testID="athlete-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
+          <View class="flex-1">
+            <Text class="text-base font-semibold text-white" :text="row.name" />
+            <Text testID="athlete-stats" class="text-xs text-slate-400" :text="stats(row)" />
+          </View>
+        </Pressable>
+        <Button testID="follow-toggle" @click="toggleFollow(row)" :title="followLabel(row)">{{ followLabel(row) }}</Button>
+      </View>
+    </View>
+
+    <Text :if="!loading && !error && rows().length === 0" testID="athletes-empty" class="mt-6 text-sm text-slate-400">
+      Nobody matches that name.
+    </Text>
+  </ScrollView>
+</SafeAreaView>

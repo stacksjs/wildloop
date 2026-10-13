@@ -50,6 +50,7 @@ export default {
      * those paths on the web.
      */
     nativeScreens: {
+      '/athletes': 'Athletes',
       '/records': 'Records',
       '/notifications': 'Notifications',
       '/leaderboard': 'Leaderboard',

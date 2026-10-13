@@ -5,6 +5,7 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 
 ```ts
 nativeScreens: {
+  '/athletes': 'Athletes',
   '/records': 'Records',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',
@@ -106,6 +107,15 @@ The native compiler resolves application components before framework fallbacks;
   through the bridge. The missing request came from the `:if` case above, where
   the tap never ran. Screens still read a token once and keep it, because that
   is one round trip rather than two, not because a second one fails.
+- No timer is promised. The bridge's own timeout is written
+  `typeof globalThis.setTimeout === 'function' ? … : null`, so the framework does
+  not assume one exists. A debounce that works in the test harness — which
+  provides `setTimeout` — can fail on a phone, which is why the athlete search
+  is a button rather than a pause in typing.
+- Share the in-flight token read, not just the resolved value. Two reads started
+  at mount both wanted it, and caching only the value meant the second caller
+  issued its own `secureStorage.get` before the first answered. Memoize the
+  promise (`resources/native/Athletes.stx`).
 - A module shared with a native screen cannot use a web API. JavaScriptCore has
   no `URLSearchParams`, `URL`, `document` or `localStorage`; a shared helper
   that reaches for one throws on the phone and passes in the browser. Build
