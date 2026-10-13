@@ -93,6 +93,14 @@ declare global {
   const paceString: typeof autoImports.paceString
   const elevationProfile: typeof autoImports.elevationProfile
   const PROFILE_POINTS: typeof autoImports.PROFILE_POINTS
+  const eventRowsFrom: typeof autoImports.eventRowsFrom
+  const eventTypeLabel: typeof autoImports.eventTypeLabel
+  const eventWhenLabel: typeof autoImports.eventWhenLabel
+  const eventSections: typeof autoImports.eventSections
+  const eventStandingLine: typeof autoImports.eventStandingLine
+  const eventsPath: typeof autoImports.eventsPath
+  const EVENT_TYPES: typeof autoImports.EVENT_TYPES
+  const EVENT_TYPE_LABELS: typeof autoImports.EVENT_TYPE_LABELS
   const garminCardState: typeof autoImports.garminCardState
   const garminConnectedLabel: typeof autoImports.garminConnectedLabel
   const garminImportSummary: typeof autoImports.garminImportSummary

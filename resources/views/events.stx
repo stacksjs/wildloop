@@ -33,6 +33,7 @@
 
 <script client>
   import { useEvents } from '../composables/useEvents'
+  import { eventSections, eventTypeLabel, eventWhenLabel } from '../functions/events'
 
   useHead({ title: 'Events — Wildloop' })
 
@@ -45,31 +46,21 @@
     openCreate, closeCreate, submitCreate,
   } = useEvents()
 
-  const TYPE_LABELS = {
-    backyard: 'Backyard ultra',
-    race: 'Race',
-    group_run: 'Group run',
-    time_trial: 'Time trial',
-  }
-
+  /* Both from `resources/functions/events.ts`, which the native screen reads. */
   function typeLabel(type) {
-    return TYPE_LABELS[type] ?? type
+    return eventTypeLabel(type)
   }
 
   function whenLabel(iso) {
-    const date = new Date(iso)
-    if (Number.isNaN(date.getTime())) return 'Date to be confirmed'
-    return date.toLocaleString(undefined, {
-      weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    })
+    return eventWhenLabel(iso)
   }
 
   // `shownEvents` is already closest-first when the visitor's area is known,
   // and already cut to the radius and the search. Splitting it by status keeps
   // live events in their own section at the top, nearest first within it.
-  const liveEvents = derived(() => shownEvents().filter(e => e.status === 'live'))
-  const upcoming = derived(() => shownEvents().filter(e => e.status === 'scheduled'))
-  const past = derived(() => shownEvents().filter(e => e.status === 'finished' || e.status === 'cancelled'))
+  const liveEvents = derived(() => eventSections(shownEvents()).live)
+  const upcoming = derived(() => eventSections(shownEvents()).upcoming)
+  const past = derived(() => eventSections(shownEvents()).past)
 
   const radiusMiles = derived(() => Number.parseInt(radiusChoice(), 10) || 0)
   const narrowed = derived(() => radiusMiles() > 0 || searchText().trim() !== '')

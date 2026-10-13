@@ -6,6 +6,7 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 ```ts
 nativeScreens: {
   '/athletes': 'Athletes',
+  '/events': 'Events',
   '/records': 'Records',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',

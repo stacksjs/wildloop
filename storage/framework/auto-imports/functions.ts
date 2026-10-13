@@ -36,6 +36,8 @@ export type { DecayTerritoryRow, DecayPlan } from '../../../resources/functions/
 export { parseDurationToSeconds, paceString } from '../../../resources/functions/duration'
 export { elevationProfile, PROFILE_POINTS } from '../../../resources/functions/elevation-profile'
 export type { ProfilePoint, ElevationProfile } from '../../../resources/functions/elevation-profile'
+export { eventRowsFrom, eventTypeLabel, eventWhenLabel, eventSections, eventStandingLine, eventsPath, EVENT_TYPES, EVENT_TYPE_LABELS } from '../../../resources/functions/events'
+export type { EventType, EventRow, EventSections } from '../../../resources/functions/events'
 export { garminCardState, garminConnectedLabel, garminImportSummary } from '../../../resources/functions/garmin-status'
 export type { GarminCardState, GarminStatusPayload } from '../../../resources/functions/garmin-status'
 export { haversineDistance, isClosedLoop, calculatePolygonArea, ringSelfIntersects, calculatePerimeter, simplifyTrack, pointInPolygon, distanceToRingMeters, lineIntersectsPolygon, routeIntersectsPolygon, getBoundingBox, parseBoundingBox, boundingBoxesOverlap, polygonsOverlap, getCentroid, coordinatesToGeoJson, geoJsonToCoordinates, findLinePolygonIntersections, splitPolygonByRoute, generateLoopCoordinates } from '../../../resources/functions/geo'
