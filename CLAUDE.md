@@ -26,6 +26,12 @@
     but are **not** injected: calling one threw `useDebounceFn is not defined` at hydration and
     took the whole page's setup down, with tsc and the linter silent. `useTimeout`,
     `useInterval`, `useEventListener`, `useSearchParams` are injected and verified working
+  - a shared `resources/functions` module must not touch a web API. The native
+    runtime is JavaScriptCore with no platform globals, so `URLSearchParams` in
+    `leaderboard.ts` threw `URLSearchParams is not defined` on the phone while
+    passing every browser test. `encodeURIComponent`, `JSON` and the rest of the
+    language are fine; `URL`, `URLSearchParams`, `document` and `localStorage`
+    are not
   - a native screen must not put `:if` on an interactive node. A `Button` behind
     `:if="unread() > 0"` shipped in the first RENDER, no `createNode` ever arrived
     when the condition turned true, and the handler the host held belonged to a

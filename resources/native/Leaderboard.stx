@@ -1,0 +1,216 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { avatarInitial, avatarUrl } from '../functions/avatars'
+import {
+  LEADERBOARD_METRICS,
+  LEADERBOARD_PERIODS,
+  leaderboardQuery,
+  leaderMetricText,
+  leaderRowsFrom,
+  leaderSecondaryText,
+  metricPhrase,
+  periodPhrase,
+} from '../functions/leaderboard'
+
+/*
+ * The leaderboard, natively.
+ *
+ * Third list screen, and the first with a remote image on every row, so this
+ * is where `Image` earns its place. The period, the measure, the query they
+ * build and the way a row's figures are put into words all come from
+ * `resources/functions/leaderboard.ts` — the module the web page reads. The two
+ * screens choose differently between a row of pills and a cycling button, and
+ * must not choose differently about what "this week" covers.
+ *
+ * Two of the web page's three scopes are here. `following` needs the token, so
+ * it asks for one and says what signing in would get. `local` needs a
+ * coordinate, and geolocation is not in the native capability set
+ * (fetch, secureStorage, haptics, lifecycle), so it stays on the web side.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+
+const SCOPES = ['global', 'following'] as const
+
+const periodIndex = state(0)
+const metricIndex = state(0)
+const scopeIndex = state(0)
+const rows = state<any[]>([])
+const loading = state(true)
+const error = state('')
+const needsSignIn = state(false)
+const bearer = state('')
+let active = true
+
+function period(): any {
+  return LEADERBOARD_PERIODS[periodIndex()]
+}
+
+function metric(): any {
+  return LEADERBOARD_METRICS[metricIndex()]
+}
+
+function scope(): any {
+  return SCOPES[scopeIndex()]
+}
+
+/** "Who covered the most ground this week." */
+function headline(): string {
+  return `Who ${metricPhrase(metric())} ${periodPhrase(period())}.`
+}
+
+function periodName(): string {
+  return periodPhrase(period())
+}
+
+function metricName(): string {
+  return metricPhrase(metric())
+}
+
+function scopeName(): string {
+  return scope() === 'following' ? 'People you follow' : 'Everyone'
+}
+
+function figure(row: any): string {
+  return leaderMetricText(row, metric())
+}
+
+function secondary(row: any): string {
+  return leaderSecondaryText(row, metric())
+}
+
+/*
+ * The thumbnail, not the full photo: `avatarUrl` answers the `-thumb` variant
+ * by default, which is the whole point of asking for it on a list row over
+ * mobile data. An account with no photo answers '' and gets its initial.
+ */
+function photo(row: any): string {
+  return avatarUrl(row?.userAvatar ?? null)
+}
+
+function initial(row: any): string {
+  return avatarInitial(row?.userName ?? '')
+}
+
+/** Read once and kept: a second `secureStorage.get` for the same key never answers. */
+async function readToken(): Promise<string> {
+  if (bearer())
+    return bearer()
+  const value = await craft.secureStorage.get('auth_token')
+  const token = typeof value === 'string' ? value : ''
+  bearer.set(token)
+  return token
+}
+
+async function load(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  needsSignIn.set(false)
+  try {
+    const headers: Record<string, string> = { Accept: 'application/json' }
+    if (scope() === 'following') {
+      const token = await readToken()
+      if (!token) {
+        if (active) {
+          needsSignIn.set(true)
+          rows.set([])
+          loading.set(false)
+        }
+        return
+      }
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const query = leaderboardQuery({ period: period(), metric: metric(), scope: scope() })
+    const response = await fetch(`https://wildloop.org/api/activities/leaderboard?${query}`, { headers })
+    const body = await response.json().catch(() => null)
+    if (!active)
+      return
+    if (!response.ok)
+      throw new Error('Could not load the leaderboard')
+    rows.set(leaderRowsFrom(body))
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load the leaderboard')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+function cyclePeriod(): void {
+  periodIndex.set((periodIndex() + 1) % LEADERBOARD_PERIODS.length)
+  void load()
+}
+
+function cycleMetric(): void {
+  metricIndex.set((metricIndex() + 1) % LEADERBOARD_METRICS.length)
+  void load()
+}
+
+function cycleScope(): void {
+  scopeIndex.set((scopeIndex() + 1) % SCOPES.length)
+  void load()
+}
+
+/*
+ * A row with no athlete behind it goes nowhere. The board aggregates anonymous
+ * activity under one "Athlete", and that row has no profile to open.
+ */
+function openAthlete(row: any): void {
+  if (!row?.userId)
+    return
+  craft.navigation.open(`/athlete/${row.userId}`)
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Leaderboard', largeTitle: true })
+  void load()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="leaderboard-scroll">
+    <Text class="text-3xl font-bold text-white">Leaderboard</Text>
+    <Text testID="headline" class="mt-1 text-sm text-slate-400" :text="headline()" />
+
+    <View class="mt-4 gap-2">
+      <Text testID="scope-label" class="text-sm text-slate-300" :text="scopeName()" />
+      <Button testID="cycle-scope" @click="cycleScope()">Change who is ranked</Button>
+      <Text testID="period-label" class="text-sm text-slate-300" :text="periodName()" />
+      <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
+      <Text testID="metric-label" class="text-sm text-slate-300" :text="metricName()" />
+      <Button testID="cycle-metric" @click="cycleMetric()">Change the measure</Button>
+    </View>
+
+    <ActivityIndicator :if="loading" testID="leaderboard-loading" class="mt-6" />
+    <Text :if="error" testID="leaderboard-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :if="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-slate-400">
+      Sign in to see how you rank against the people you follow.
+    </Text>
+
+    {{-- Keyed `:for` on the element: the portable list boundary (093ef1ac). --}}
+    <View testID="leaderboard-list" class="mt-5 gap-3">
+      <Pressable :for="row in rows()" :key="row.rank" testID="leader-row" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3" @click="openAthlete(row)">
+        <Text testID="leader-rank" class="w-7 text-center text-base font-bold text-slate-400" :text="row.rank" />
+        <Image :if="photo(row)" testID="leader-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
+        <Text :if="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
+        <View class="flex-1">
+          <Text class="text-base font-semibold text-white" :text="row.userName" />
+          <Text class="text-xs text-slate-400" :text="secondary(row)" />
+        </View>
+        <Text class="text-lg font-bold text-emerald-300" :text="figure(row)" />
+      </Pressable>
+    </View>
+
+    <Text :if="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" class="mt-6 text-sm text-slate-400">
+      Nobody has logged anything in this period yet.
+    </Text>
+  </ScrollView>
+</SafeAreaView>

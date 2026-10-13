@@ -74,6 +74,10 @@ The native compiler resolves application components before framework fallbacks;
   handler. `:if` on `Text` behaves.
 - `secureStorage.get` appears to cache by argument: a second
   `get('auth_token')` never answered. Read a token once and keep it.
+- A module shared with a native screen cannot use a web API. JavaScriptCore has
+  no `URLSearchParams`, `URL`, `document` or `localStorage`; a shared helper
+  that reaches for one throws on the phone and passes in the browser. Build
+  query strings with `encodeURIComponent`.
 
 The integration test exercises the compiled bundle itself: app-component
 precedence, input mutations, the exact API payload, response handling,

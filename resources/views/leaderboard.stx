@@ -34,6 +34,14 @@
 <script client>
   import { apiFetch } from '../assets/scripts/auth'
   import { avatarUrl } from '../functions/avatars'
+  import {
+    leaderboardQuery,
+    leaderMetricText,
+    leaderRowsFrom,
+    leaderSecondaryText,
+    metricPhrase,
+    periodPhrase,
+  } from '../functions/leaderboard'
   import { resolveNearby } from '../composables/useNearby'
   useHead({ title: 'Leaderboard — Wildloop' })
 
@@ -61,16 +69,10 @@
 
   async function loadLeaderboard() {
     loading.set(true)
-    const query = new URLSearchParams({ period: period(), metric: metric(), scope: scope() })
-    const here = area()
-    if (scope() === 'local' && here) {
-      query.set('lat', String(Math.round(here.lat * 100) / 100))
-      query.set('lng', String(Math.round(here.lng * 100) / 100))
-    }
-    const res = await apiFetch(`/api/activities/leaderboard?${query}`, {
-    }).catch(() => null)
+    const query = leaderboardQuery({ period: period(), metric: metric(), scope: scope(), area: area() })
+    const res = await apiFetch(`/api/activities/leaderboard?${query}`).catch(() => null)
     const payload = await res?.json().catch(() => null)
-    leaders.set(res?.ok && Array.isArray(payload?.leaderboard) ? payload.leaderboard : [])
+    leaders.set(res?.ok ? leaderRowsFrom(payload) : [])
     loading.set(false)
   }
 
@@ -85,20 +87,13 @@
     return () => stop()
   })
 
-  /** Format an entry's value for the currently-selected metric. */
+  /** Both figures come from `resources/functions/leaderboard.ts`. */
   function metricText(entry: LeaderEntry | undefined): string {
-    if (!entry) return ''
-    const m = metric()
-    if (m === 'elevation') return entry.totalElevation.toLocaleString() + ' ft'
-    if (m === 'activities') return entry.trailsCompleted === 1 ? '1 activity' : entry.trailsCompleted + ' activities'
-    return entry.totalDistance.toFixed(1) + ' mi'
+    return leaderMetricText(entry as any, metric())
   }
 
-  /** The secondary figure on a row — whichever of distance/elevation the metric is not. */
   function secondaryText(entry: LeaderEntry | undefined): string {
-    if (!entry) return ''
-    if (metric() === 'distance') return entry.totalElevation.toLocaleString() + ' ft'
-    return entry.totalDistance.toFixed(1) + ' mi'
+    return leaderSecondaryText(entry as any, metric())
   }
 
   function photoOf(entry: LeaderEntry | undefined): string {
@@ -121,19 +116,8 @@
     return 'text-slate-400 dark:text-slate-500'
   }
 
-  const periodLabel = derived(() => {
-    const p = period()
-    if (p === 'monthly') return 'this month'
-    if (p === 'alltime') return 'of all time'
-    return 'this week'
-  })
-
-  const metricLabel = derived(() => {
-    const m = metric()
-    if (m === 'elevation') return 'climbed the most'
-    if (m === 'activities') return 'logged the most activities'
-    return 'covered the most ground'
-  })
+  const periodLabel = derived(() => periodPhrase(period()))
+  const metricLabel = derived(() => metricPhrase(metric()))
 </script>
 
   <div class="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">

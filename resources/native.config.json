@@ -4,6 +4,7 @@
     "manual": "native/ManualActivity.stx",
     "activity": "native/ActivitySaved.stx",
     "records": "native/Records.stx",
-    "notifications": "native/Notifications.stx"
+    "notifications": "native/Notifications.stx",
+    "leaderboard": "native/Leaderboard.stx"
   }
 }
