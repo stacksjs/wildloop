@@ -25,6 +25,8 @@ const isNativeAndroid = state(isNativeMobile() && device.isAndroid())
 const tabHref = useReactiveProp<string>('href', '')
 const wl = useStore('wl')
 const isActive = derived(() => {
+  // stx-strict-ignore-next-line location -- SSR-safe fallback for the first
+  // paint, before the store has a path; the store is the source everywhere else.
   const path = wl?.currentPath?.() || (typeof location === 'undefined' ? '' : location.pathname)
   return Boolean(path) && activeTabFor(path) === tabHref()
 })
@@ -99,8 +101,14 @@ function followLongPress(event: MouseEvent): void {
   if (!to) return
 
   event.preventDefault()
+  // stx-strict-ignore-next-line location -- the address has to come from the
+  // document here: this runs when the router has not answered, which is
+  // exactly when the store's idea of where we are cannot be trusted.
   if (globalThis.location?.pathname !== to)
-    globalThis.location.assign(to)
+    // A document navigation, which is the point on Android — through
+    // `navigate(…, { reload: true })`, which assigns `location.href`, rather
+    // than calling `location.assign` and bypassing the one sanctioned way.
+    navigate(to, { reload: true })
 }
 </script>
 

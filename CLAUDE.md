@@ -45,16 +45,24 @@
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
-  - no `<style>` block in a `.stx` file — **1,804 lines across 15 views** (re-counted
-    13 Oct). Tokens and `@keyframes` belong in `config/crosswind.ts`, repeated shapes
-    in its `shortcuts`
-  - comment with `{{-- --}}`, never `<!-- -->` — **344 HTML comments** left. They ship
-    to the browser as content, and one mentioning `<html>`, `<!DOCTYPE` or `</script`
-    makes `hasDocumentShell` skip the shell, which turns every in-app navigation into
-    a full reload. None currently carry those tokens; 35 carry a backtick
-  - at most two script blocks per file — **clear**, re-counted 13 Oct. One server block
-    plus one client block is the shape, and prose quoting `<script server>` inflates a
-    naive count
+  - no `<style>` block in a `.stx` file — **2,326 lines** across `resources/**`. An
+    earlier count of 1,804 looked only at `resources/views/**` and missed what the
+    components carry. Tokens and `@keyframes` belong in `config/crosswind.ts`,
+    repeated shapes in its `shortcuts`
+  - comment with `{{-- --}}`, never `<!-- -->` — **352 HTML comments** left, over the
+    same wider scope. They ship to the browser as content, and one mentioning
+    `<html>`, `<!DOCTYPE` or `</script` makes `hasDocumentShell` skip the shell, which
+    turns every in-app navigation into a full reload. None currently carry those
+    tokens; 35 carry a backtick
+  - at most two script blocks per file — **clear**. One server block plus one client
+    block is the shape, and prose quoting `<script server>` inflates a naive count
+
+**Do not count any of this by hand.** `bun run gate:stx` is the counter, and it found
+two of the numbers above wrong within a minute of existing. It runs stx's own DOM
+validator (which `config/stx.ts` now enables with `strict`), the native-screen rules,
+the comment and `</script` landmines, the script-block limit, and it ratchets the two
+backlog counts so a new file cannot add to them. Blocking rules are the ones already
+cleared; the backlog fails only on an increase.
 
 ## Dependencies
 

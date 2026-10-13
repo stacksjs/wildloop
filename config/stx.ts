@@ -17,6 +17,29 @@ const DESCRIPTION = 'Find and track trails for running and hiking, with live GPS
 const OG_IMAGE = `${SITE_URL}/images/social/og-default.jpg`
 
 export default {
+  /**
+   * stx's own DOM-API guard, which ships as executable code and is discarded
+   * unless this key is set.
+   *
+   * `dist/script-validation.js` is a table of prohibited browser APIs, each
+   * carrying the replacement to use, and `dist/process.js` runs it over every
+   * non-server script block on every render. With no `strict` key it defaults
+   * to `{ enabled: false }` and every finding is thrown away — which is how a
+   * `location.assign` in `NativeTabItem.stx` survived a hand audit that found
+   * four other sites and missed it.
+   *
+   * Warning-first on purpose. `failOnViolation` throws at render time, which on
+   * the SSR path is a 500 per request, so it goes on once the list has stayed
+   * empty for a while. `allowPatterns` stays empty because it is rule-global:
+   * one entry turns a rule off everywhere. Per-line exemptions carry a reason
+   * instead — `// stx-strict-ignore-next-line location -- why`.
+   */
+  strict: {
+    enabled: true,
+    failOnViolation: false,
+    allowPatterns: [],
+  },
+
   root: '.',
   pagesDir: 'resources/views',
   componentsDir: 'resources/components',

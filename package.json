@@ -111,7 +111,8 @@
     "test:coverage": "./buddy test:coverage",
     "test:types": "./buddy test:types",
     "bud": "./buddy",
-    "stx": "./buddy"
+    "stx": "./buddy",
+    "gate:stx": "bun scripts/stx-gate.ts"
   },
   "type": "module",
   "devDependencies": {
