@@ -26,25 +26,35 @@
     but are **not** injected: calling one threw `useDebounceFn is not defined` at hydration and
     took the whole page's setup down, with tsc and the linter silent. `useTimeout`,
     `useInterval`, `useEventListener`, `useSearchParams` are injected and verified working
-  - a shared `resources/functions` module must not touch a web API. The native
-    runtime is JavaScriptCore with no platform globals, so `URLSearchParams` in
-    `leaderboard.ts` threw `URLSearchParams is not defined` on the phone while
-    passing every browser test. `encodeURIComponent`, `JSON` and the rest of the
-    language are fine; `URL`, `URLSearchParams`, `document` and `localStorage`
-    are not
-  - a native screen must not put `:if` on an interactive node (stacksjs/stx#2067). A `Button` behind
-    `:if="unread() > 0"` shipped in the first RENDER, no `createNode` ever arrived
-    when the condition turned true, and the handler the host held belonged to a
-    node that was no longer live — so the tap did nothing, silently. Render it
-    always and decide inside the handler. `:if` on `Text` is fine
-    (`resources/native/Notifications.stx`)
+  - a shared `resources/functions` module must not touch a web API. A native screen
+    runs with the language intrinsics (`JSON`, `Intl`, `encodeURIComponent`) plus
+    what the runtime assigns — `fetch`, bridged to the Network capability, and
+    `craft`. Nothing assigns `URLSearchParams`, `URL` or `TextEncoder`, so
+    `leaderboardQuery` building its string with `URLSearchParams` made the screen
+    issue no request at all while passing every browser test. Verified in the
+    native test context, which is a bare JS context as JavaScriptCore is; stx
+    installs no shims
+  - a native screen must not put `:if` on an interactive node whose condition is
+    false at first render (stacksjs/stx#2067). True at mount is fine, and so is
+    `:if` on a `Text`. The broken case is a condition that *turns* true: the node
+    is already in the first RENDER, nothing re-creates it, and the handler the
+    host holds never fires — the tap does nothing and says nothing. Measured with
+    three buttons: no `:if` ran, true-at-mount ran, flipped-later did not. Since
+    the useful conditions (`unread() > 0`) are false until data arrives, render
+    buttons always and decide inside the handler
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
-  - no `<style>` block in a `.stx` file — **1,804 lines across 15 views**. Tokens and
-    `@keyframes` belong in `config/crosswind.ts`, repeated shapes in its `shortcuts`
-  - at most two script blocks per file — clear as of this count, and the reason to keep
-    counting: one server block plus one client block is the shape
+  - no `<style>` block in a `.stx` file — **1,804 lines across 15 views** (re-counted
+    13 Oct). Tokens and `@keyframes` belong in `config/crosswind.ts`, repeated shapes
+    in its `shortcuts`
+  - comment with `{{-- --}}`, never `<!-- -->` — **344 HTML comments** left. They ship
+    to the browser as content, and one mentioning `<html>`, `<!DOCTYPE` or `</script`
+    makes `hasDocumentShell` skip the shell, which turns every in-app navigation into
+    a full reload. None currently carry those tokens; 35 carry a backtick
+  - at most two script blocks per file — **clear**, re-counted 13 Oct. One server block
+    plus one client block is the shape, and prose quoting `<script server>` inflates a
+    naive count
 
 ## Dependencies
 

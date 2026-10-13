@@ -68,10 +68,13 @@ The native compiler resolves application components before framework fallbacks;
   explicitly advertised by every selected host.
 - Browser-only DOM APIs, CSS layout assumptions, and web component behavior are
   unsupported in native screens.
-- `:if` on an interactive node does not work: the node ships in the first
-  `RENDER`, nothing re-creates it when the condition turns true, and the handler
-  the host holds is dead. Render buttons unconditionally and decide in the
-  handler. `:if` on `Text` behaves.
+- `:if` on an interactive node works only when the condition holds at the first
+  render (stacksjs/stx#2067). It breaks when the condition *turns* true: the node
+  is already in that first `RENDER`, nothing re-creates it, and the handler the
+  host holds never fires. Measured with three buttons — no `:if` ran,
+  true-at-mount ran, flipped-later did not. The useful conditions are false until
+  data arrives, so render buttons unconditionally and decide in the handler.
+  `:if` on `Text` behaves in every case.
 - A capability request that never answers is more likely a dead handler than a
   hung bridge. `secureStorage.get` was blamed for exactly this and is innocent:
   every `request()` carries a new message id and the protocol holds no cache, so
