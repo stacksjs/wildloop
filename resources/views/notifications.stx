@@ -21,6 +21,7 @@
 
 <script client>
   import { markNotificationsRead } from '../assets/scripts/game-api'
+  import { groupNotificationsByDay, matchesNotificationFilter, NOTIFICATION_FILTERS } from '../functions/notifications'
   import { openAuthGate } from '../composables/useAuthGate'
 
   useHead({ title: 'Notifications — Wildloop' })
@@ -31,13 +32,7 @@
   const unreadCount = derived(() => wl ? wl.unreadCount() : 0)
   const signedIn = derived(() => Boolean(wl && wl.currentUserId() > 0))
 
-  const FILTERS = [
-    { key: 'all', label: 'All' },
-    { key: 'unread', label: 'Unread' },
-    { key: 'conquest', label: 'Conquests' },
-    { key: 'kudos', label: 'Kudos' },
-    { key: 'challenge', label: 'Challenges' },
-  ] as const
+  const FILTERS = NOTIFICATION_FILTERS
 
   function openLogin(): void {
     openAuthGate('Sign in to see your notifications.', 'login')
@@ -57,30 +52,11 @@
 
   const filtered = derived(() => {
     if (!wl) return []
-    const f = filter()
-    if (f === 'all') return wl.notifications()
-    if (f === 'unread') return wl.notifications().filter((n: any) => !n.read)
-    if (f === 'conquest') return wl.notifications().filter((n: any) => n.type.startsWith('conquest'))
-    return wl.notifications().filter((n: any) => n.type === f)
+    const chosen = filter()
+    return wl.notifications().filter((n: any) => matchesNotificationFilter(n, chosen))
   })
 
-  const groupedByDay = derived(() => {
-    const now = Date.now()
-    const dayMs = 86400000
-    const buckets: { label: string, items: any[] }[] = [
-      { label: 'Today', items: [] },
-      { label: 'Yesterday', items: [] },
-      { label: 'Earlier', items: [] },
-    ]
-    for (const n of filtered()) {
-      const age = now - new Date(n.created_at).getTime()
-      if (age < dayMs) buckets[0].items.push(n)
-      else if (age < dayMs * 2) buckets[1].items.push(n)
-      else buckets[2].items.push(n)
-    }
-    return buckets.filter(b => b.items.length > 0)
-  })
-
+  const groupedByDay = derived(() => groupNotificationsByDay(filtered()))
 
   const iconTheme = (type: string): string => {
     if (type === 'kudos') return 'bg-red-100 dark:bg-red-500/15 text-red-500'

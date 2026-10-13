@@ -1,5 +1,6 @@
 import { onMount } from 'stx'
 import { fetchNotifications } from '../assets/scripts/game-api'
+import { notificationRowsFrom } from '../functions/notifications'
 
 /**
  * Hydrate the current user's notifications from the API into the `wl` store so
@@ -29,17 +30,9 @@ export async function hydrateNotifications(wl: NotificationStoreLike | null): Pr
     const data = await fetchNotifications()
     if (!data || !Array.isArray(data.notifications))
       return
-    // Map the API shape to the store's Notification shape.
-    const mapped = data.notifications.map((n: any) => ({
-      id: n.id,
-      type: n.type,
-      title: n.actorName || 'Wildloop',
-      message: n.body,
-      link: n.link || '#',
-      read: !!n.read,
-      created_at: n.createdAt,
-    }))
-    wl.hydrateNotifications(mapped)
+    // The API shape as the row both screens render, from the one module that
+    // decides it (resources/functions/notifications.ts).
+    wl.hydrateNotifications(notificationRowsFrom(data))
   }
   catch {
     // keep seed notifications

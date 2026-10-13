@@ -21,7 +21,9 @@ presentation; never on data.
 ```bash
 bun install
 bun run build:native-screens --debug
-bun test tests/unit/manual-activity.test.ts tests/unit/native-manual-activity-flow.test.ts tests/unit/native-records-screen.test.ts
+bun test tests/unit/manual-activity.test.ts tests/unit/native-manual-activity-flow.test.ts \
+  tests/unit/native-records-screen.test.ts tests/unit/notification-rows.test.ts \
+  tests/unit/native-notifications-screen.test.ts
 bun run typecheck
 ```
 
@@ -66,6 +68,12 @@ The native compiler resolves application components before framework fallbacks;
   explicitly advertised by every selected host.
 - Browser-only DOM APIs, CSS layout assumptions, and web component behavior are
   unsupported in native screens.
+- `:if` on an interactive node does not work: the node ships in the first
+  `RENDER`, nothing re-creates it when the condition turns true, and the handler
+  the host holds is dead. Render buttons unconditionally and decide in the
+  handler. `:if` on `Text` behaves.
+- `secureStorage.get` appears to cache by argument: a second
+  `get('auth_token')` never answered. Read a token once and keep it.
 
 The integration test exercises the compiled bundle itself: app-component
 precedence, input mutations, the exact API payload, response handling,

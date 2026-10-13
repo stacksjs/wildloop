@@ -171,3 +171,28 @@ export async function waitForText(session: NativeSession, text: string): Promise
   }
   throw new Error(`The screen never displayed ${JSON.stringify(text)}`)
 }
+
+/**
+ * The strings the screen has displayed *since* a point in the conversation.
+ *
+ * `shownText` harvests the whole history, which makes it useless for "did this
+ * tap change the screen": the text a screen showed before data arrived is
+ * still in there, so the assertion passes without the tap doing anything. Take
+ * `session.sent.length` before the interaction and pass it here.
+ */
+export function shownTextSince(session: NativeSession, from: number): string[] {
+  const found: string[] = []
+  const harvest = (value: unknown): void => {
+    if (typeof value === 'string')
+      found.push(value)
+    else if (Array.isArray(value))
+      value.forEach(harvest)
+    else if (value && typeof value === 'object')
+      Object.values(value as Record<string, unknown>).forEach(harvest)
+  }
+  for (const message of session.sent.slice(from)) {
+    if (message.type === 'MUTATE')
+      harvest(message.payload.operations)
+  }
+  return found
+}

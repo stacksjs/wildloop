@@ -26,6 +26,12 @@
     but are **not** injected: calling one threw `useDebounceFn is not defined` at hydration and
     took the whole page's setup down, with tsc and the linter silent. `useTimeout`,
     `useInterval`, `useEventListener`, `useSearchParams` are injected and verified working
+  - a native screen must not put `:if` on an interactive node. A `Button` behind
+    `:if="unread() > 0"` shipped in the first RENDER, no `createNode` ever arrived
+    when the condition turned true, and the handler the host held belonged to a
+    node that was no longer live — so the tap did nothing, silently. Render it
+    always and decide inside the handler. `:if` on `Text` is fine
+    (`resources/native/Notifications.stx`)
   - text from a signal is interpolated as its own call — `{{ heading() }}`. Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
