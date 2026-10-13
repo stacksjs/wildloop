@@ -116,6 +116,19 @@ declare global {
   const validateTrackRealism: typeof autoImports.validateTrackRealism
   const formatHealthSummary: typeof autoImports.formatHealthSummary
   const createHealthWorkout: typeof autoImports.createHealthWorkout
+  const periodPhrase: typeof autoImports.periodPhrase
+  const metricPhrase: typeof autoImports.metricPhrase
+  const leaderboardQuery: typeof autoImports.leaderboardQuery
+  const leaderRowsFrom: typeof autoImports.leaderRowsFrom
+  const leaderMetricText: typeof autoImports.leaderMetricText
+  const leaderSecondaryText: typeof autoImports.leaderSecondaryText
+  const LEADERBOARD_PERIODS: typeof autoImports.LEADERBOARD_PERIODS
+  const LEADERBOARD_METRICS: typeof autoImports.LEADERBOARD_METRICS
+  const LEADERBOARD_SCOPES: typeof autoImports.LEADERBOARD_SCOPES
+  const todayLocal: typeof autoImports.todayLocal
+  const buildManualActivity: typeof autoImports.buildManualActivity
+  const MANUAL_ACTIVITY_TYPES: typeof autoImports.MANUAL_ACTIVITY_TYPES
+  const ACTIVITY_VISIBILITIES: typeof autoImports.ACTIVITY_VISIBILITIES
   const mapArea: typeof autoImports.mapArea
   const mapBoundsFromQuery: typeof autoImports.mapBoundsFromQuery
   const mapBoundsAround: typeof autoImports.mapBoundsAround
@@ -135,6 +148,11 @@ declare global {
   const nativeShellReady: typeof autoImports.nativeShellReady
   const whenNativeShell: typeof autoImports.whenNativeShell
   const activeTabFor: typeof autoImports.activeTabFor
+  const notificationRowsFrom: typeof autoImports.notificationRowsFrom
+  const matchesNotificationFilter: typeof autoImports.matchesNotificationFilter
+  const groupNotificationsByDay: typeof autoImports.groupNotificationsByDay
+  const timeAgo: typeof autoImports.timeAgo
+  const NOTIFICATION_FILTERS: typeof autoImports.NOTIFICATION_FILTERS
   const readPageParams: typeof autoImports.readPageParams
   const paginate: typeof autoImports.paginate
   const passwordChangeError: typeof autoImports.passwordChangeError

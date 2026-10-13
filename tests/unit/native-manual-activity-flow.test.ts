@@ -11,7 +11,7 @@ describe('Wildloop native manual activity flow', () => {
   it('uses app components and sends the real activity payload through the Craft protocol', async () => {
     expect(nativeBundle()).not.toContain('WebView')
     expect(readFileSync(join(ROOT, 'resources/native/ManualActivity.stx'), 'utf8')).toContain('<NativeRunMetric')
-    const manual = await start('manual', { userId: 12 })
+    const manual = await start('ManualActivity', { userId: 12 })
     const render = manual.sent.find(message => message.type === 'RENDER').payload.document
     expect(nodesByTestId(render).has('distance-preview')).toBe(true)
 
@@ -65,13 +65,13 @@ describe('Wildloop native manual activity flow', () => {
     await Bun.sleep(0)
     expect(manual.sent.at(-1)).toMatchObject({
       type: 'NAVIGATE',
-      payload: { screen: 'activity', params: expect.objectContaining({ id: 42, userId: 12, distance: 5.13 }) },
+      payload: { screen: 'ActivitySaved', params: expect.objectContaining({ id: 42, userId: 12, distance: 5.13 }) },
     })
   })
 
   /*
-   * The screen as the host actually opens it: `native.config.json` names
-   * `manual` as `initialScreen`, which passes no params.
+   * The screen as the host opens it from a path: `ios.nativeScreens` maps
+   * `/activity/new` to this screen, and a path carries no params.
    *
    * It used to read its user id from `route.params.userId` and refuse the save
    * when there was none — before reading the token, so a signed-in athlete on a
@@ -80,7 +80,7 @@ describe('Wildloop native manual activity flow', () => {
    * the token is the only identity this screen needs.
    */
   it('saves on a cold start, with no route params and no user id in the body', async () => {
-    const manual = await start('manual')
+    const manual = await start('ManualActivity')
 
     await manual.event('distance-input', 'onChangeText', { text: '3.1' })
     await manual.event('duration-input', 'onChangeText', { text: '28:00' })
@@ -101,7 +101,7 @@ describe('Wildloop native manual activity flow', () => {
   })
 
   it('keeps route state isolated and supports back, replace, and teardown cancellation', async () => {
-    const saved = await start('activity', {
+    const saved = await start('ActivitySaved', {
       id: 42,
       userId: 12,
       activityType: 'Trail Run',
@@ -113,9 +113,9 @@ describe('Wildloop native manual activity flow', () => {
     await saved.event('activity-back', 'onPress')
     expect(saved.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_BACK' })
     await saved.event('log-another', 'onPress')
-    expect(saved.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_REPLACE', payload: { screen: 'manual', params: { userId: 12 } } })
+    expect(saved.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_REPLACE', payload: { screen: 'ManualActivity', params: { userId: 12 } } })
 
-    const pending = await start('manual', { userId: 12 })
+    const pending = await start('ManualActivity', { userId: 12 })
     await pending.event('distance-input', 'onChangeText', { text: '3' })
     await pending.event('duration-input', 'onChangeText', { text: '30:00' })
     await pending.event('save-activity', 'onPress')
@@ -129,7 +129,7 @@ describe('Wildloop native manual activity flow', () => {
       payload: { version: 1, requestId: post.id, reason: 'screen-closed' },
     }))
 
-    const fresh = await start('manual', { userId: 12 })
+    const fresh = await start('ManualActivity', { userId: 12 })
     const operations = fresh.sent.filter(message => message.type === 'MUTATE').flatMap(message => message.payload.operations)
     expect(operations.some(operation => operation.patch?.children?.includes('3 mi'))).toBe(false)
   })

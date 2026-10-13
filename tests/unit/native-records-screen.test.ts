@@ -55,7 +55,7 @@ describe('Wildloop native records screen', () => {
   })
 
   it('asks the public board for the latest claims and draws a row for each', async () => {
-    const screen = await start('records')
+    const screen = await start('Records')
 
     const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
     expect(request.payload.args[0].url).toBe('https://wildloop.org/api/route-efforts?limit=40')
@@ -87,7 +87,7 @@ describe('Wildloop native records screen', () => {
    * `formatElapsed(null)` is the shared answer for the first.
    */
   it('shows an unfinished claim without inventing a time or a pace', async () => {
-    const screen = await start('records')
+    const screen = await start('Records')
     const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
     answer(screen, request, {
       status: 200,
@@ -100,7 +100,7 @@ describe('Wildloop native records screen', () => {
   })
 
   it('refilters on the server when the style changes, and hands a row to the web screen', async () => {
-    const screen = await start('records')
+    const screen = await start('Records')
     const first = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
     answer(screen, first, {
       status: 200,
@@ -122,7 +122,7 @@ describe('Wildloop native records screen', () => {
   })
 
   it('reports a board it could not reach, rather than an empty one', async () => {
-    const screen = await start('records')
+    const screen = await start('Records')
     const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
     answer(screen, request, { status: 500, statusText: 'Server Error', headers: {}, body: '{}' })
     await waitForText(screen, 'Could not reach the records service')

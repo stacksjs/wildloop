@@ -85,7 +85,7 @@ async function submit() {
     if (!active) return
     await craft.haptics.notification('success')
     if (!active) return
-    craft.navigation.push('activity', {
+    craft.navigation.push('ActivitySaved', {
       id: created.id,
       // The server's answer, not a guess carried in from the route.
       userId: created.userId ?? 0,

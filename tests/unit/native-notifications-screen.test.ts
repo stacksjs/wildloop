@@ -44,7 +44,7 @@ function ok(body: unknown) {
 }
 
 async function signedInScreen() {
-  const screen = await start('notifications')
+  const screen = await start('Notifications')
   const tokenRequest = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
   expect(tokenRequest.payload).toMatchObject({ method: 'get', args: ['auth_token'] })
   const before = requests(screen).length
@@ -65,14 +65,6 @@ describe('Wildloop native notifications screen', () => {
     expect(SOURCE).toContain('<View :for="day in sections()" :key="day.label"')
     expect(SOURCE).toContain('<Pressable :for="row in day.items" :key="row.id"')
     expect(SOURCE).not.toContain('<FlatList')
-  })
-
-  /*
-   * And no `:if` on anything tappable — see the comment on the mark-all button.
-   */
-  it('puts no :if on an interactive node', () => {
-    const interactive = SOURCE.match(/<(?:Button|Pressable|TouchableOpacity)[^>]*:if=/g)
-    expect(interactive).toBeNull()
   })
 
   it('reads the token before asking, and sends it', async () => {
@@ -138,7 +130,7 @@ describe('Wildloop native notifications screen', () => {
    * nothing to show yet, and it says what signing in would get you.
    */
   it('asks a signed-out visitor to sign in rather than reporting a failure', async () => {
-    const screen = await start('notifications')
+    const screen = await start('Notifications')
     const tokenRequest = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
     answer(screen, tokenRequest, null)
 

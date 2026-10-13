@@ -28,6 +28,34 @@ export default {
     backgroundColor: '#003c2f',
     darkMode: true,
     urlSchemes: ['wildloop'],
+
+    /**
+     * The paths the app renders as native views instead of loading in the web
+     * view, one screen per entry (stacksjs/stx#1992).
+     *
+     * This is the promotion mechanism: a path listed here is drawn from
+     * `resources/native/<name>.stx` as real UIViews, and everything not listed
+     * stays the website in one warm web view, sharing the same navigation
+     * stack. A half-migrated app is the end state rather than a transition, and
+     * any line here is reversible by deleting it.
+     *
+     * The three promoted paths are the ones whose screens need nothing that is
+     * missing: no map (craft-native/craft#340), no route thumbnail
+     * (craft-native/craft#338), no upload (craft-native/craft#341).
+     *
+     * `/activity/new` and `/activity/saved` have no web page behind them — the
+     * web app logs a manual activity in a modal on the feed. They are listed
+     * because the native manual-entry flow pushes `ActivitySaved` by name, and
+     * only screens named here are compiled into the bundle. Nothing links to
+     * those paths on the web.
+     */
+    nativeScreens: {
+      '/records': 'Records',
+      '/notifications': 'Notifications',
+      '/leaderboard': 'Leaderboard',
+      '/activity/new': 'ManualActivity',
+      '/activity/saved': 'ActivitySaved',
+    },
     orientations: ['portrait'],
     deviceFamilies: ['iphone'],
     privacy: {

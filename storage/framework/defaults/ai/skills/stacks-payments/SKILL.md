@@ -1,6 +1,6 @@
 ---
 name: stacks-payments
-description: Use when implementing payment processing in Stacks - Stripe charges, subscriptions, checkout sessions, customer management, payment methods, invoices, coupons, promo codes, products, prices, webhooks, or the Payment facade. Covers @stacksjs/payments and config/payment.ts.
+description: Use when implementing Stacks payment drivers, charges, subscriptions, checkout, customer methods, Stripe billing/catalog/Connect, provider webhooks, or the Payment facade. Covers @stacksjs/payments and config/payment.ts.
 license: MIT
 compatibility: Bun >= 1.3.0, TypeScript
 allowed-tools: Read Edit Write Bash Grep Glob
@@ -12,12 +12,14 @@ Full Stripe integration via the Payment facade. Uses Stripe API version `2026-01
 
 ## Payment Drivers (provider-neutral)
 
-`paymentDriver()` (also `Payment.driver()`) returns the driver `config.payment.driver` selects: `stripe` (default) or `adyen`, or one added with `registerPaymentDriver(name, factory)`. Source: `storage/framework/core/payments/src/driver/`.
+`paymentDriver()` (also `Payment.driver()`) returns the driver `config.payment.driver` selects: `stripe` (default), `adyen`, `paddle` or `lemonsqueezy`, or one added with `registerPaymentDriver(name, factory)`. Source: `storage/framework/core/payments/src/driver/`.
 
 - Money is `{ amount, currency }` in minor units; `assertMoney` refuses floats before a request leaves.
 - Methods: `customer`, `charge(payer, money, paymentMethodId)`, `createPayment` (browser completes: `clientConfirmation` is a Stripe client secret or an Adyen session), `refund`, `checkout(payer, { mode, lines, successUrl, ... })`, `paymentMethods`, `removePaymentMethod`, `subscribe`, `cancelSubscription`, `subscriptions`, `verifyWebhook({ payload, headers })` -> `PaymentEvent[]`, `acknowledgeWebhook()`.
 - `checkout` copies `reference` and `metadata` onto the payment / subscription / setup intent it creates (Stripe: `payment_intent_data`, `subscription_data`, `setup_intent_data`), so their webhooks can be attributed. `allowPromotionCodes` and `automaticTax` are Stripe only; Adyen refuses them.
-- Unsupported operations throw `PaymentUnsupportedError` (driver + operation). Adyen has no catalog, subscriptions, invoices, coupons or portal.
+- Unsupported operations throw `PaymentUnsupportedError` (driver + operation). Adyen has no catalog, subscriptions, invoices, coupons or portal; Paddle has no server-side charge, server-side subscribe, setup checkout, promotion-code or trial option on a checkout, or separate cancel URL.
+- Paddle (`driver: 'paddle'`, Billing API v1, merchant of record): customers found or created by email; every payment is a transaction completed in Paddle.js (`clientConfirmation: { provider: 'paddle', transactionId, successUrl? }`), so `charge` and `subscribe` are unsupported and subscriptions start at `checkout` in `subscription` mode with catalog prices; refunds are adjustments Paddle reviews (`pending`, settled by `adjustment.updated`; a refund's event id is the adjustment's, so a created-and-updated approval counts once); webhooks `Paddle-Signature` = HMAC-SHA256 hex of `<ts>:<raw body>` under the secret, 5 s tolerance. Paddle has no hosted page: `GET /payments/checkout` (mounted while the driver is `paddle`) is the default payment link page, reading `stacks_success_url` from the transaction for Paddle.js. Env: `PADDLE_API_KEY`, `PADDLE_ENVIRONMENT`, `PADDLE_CLIENT_TOKEN`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_TAX_CATEGORY`.
+- Lemon Squeezy (`driver: 'lemonsqueezy'`, API v1, merchant of record): customers found or created by email in the store; `checkout` sells exactly one variant (a `price` line is a variant id; a line priced here sells as `LEMONSQUEEZY_VARIANT_ID` at a custom price in the store's currency); `charge`, `createPayment`, `subscribe` and payment methods are unsupported; refunds are immediate against the order; `cancelSubscription` needs `{ atPeriodEnd: true }`; webhooks `X-Signature` = HMAC-SHA256 hex of the raw body, event id = digest of the bytes, `order_refunded` carries `refundedTotal` (the order's running total), which commerce applies as a difference. Env: `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_ID`, `LEMONSQUEEZY_TEST_MODE`.
 - Adyen: Checkout API v72, `X-API-Key`; shopper reference `user-<id>` (no PII); full refunds go to `/reversals`; webhooks verified per item with HMAC-SHA256 over 8 colon-joined fields under the hex key, acknowledged with 202.
 - `PaymentEvent` carries `provider` and `id` (together, the retry key), `reference` (the payment; for a refund, the payment refunded), `amount` (for a refund, that one refund - Stripe's cumulative `amount_refunded` is turned into a delta from `previous_attributes`) and `reason`. Adyen's id is `eventCode:pspReference:success`, since Adyen may resend a pair with the outcome changed.
 - The Stripe driver delegates to the existing billable modules, so idempotency keys and `stripe_id` handling are unchanged.
@@ -115,7 +117,7 @@ const changed = await Payment.changeSubscription(user, 'enterprise-monthly')
 
 `isValid()` returns `true` if the subscription status is `'active'` or `'trialing'`. `isIncomplete()` checks for `'incomplete'` status.
 
-`cancelSubscription(id, immediately)` is gone: its `false` also cancelled at once, only with a proration. For Stripe's `prorate` / `invoice_now`, call `manageSubscription.cancel(id, params)`.
+`cancelSubscription(id, immediately)` is gone: its `false` also cancelled at once, only with a proration. For Stripe's `prorate` / `invoice_now`, call `manageSubscription.cancel(id, params)`. To undo a cancel at period end before the period ends, call `manageSubscription.resume(id)`: Stripe renews again and the stored `ends_at` is cleared. Both use a fresh idempotency key per attempt, so cancel → resume → cancel within Stripe's 24-hour key window still reaches Stripe each time.
 
 ### Customers
 
@@ -551,6 +553,14 @@ The instance methods are exactly the keys of `createBillableMethods` in
   `transactionHistory()`.
 
 ## Gotchas
+- A provider name in config is not a claim that every operation or live
+  environment is supported. Check the selected driver implementation and
+  retained provider tests, and test sandbox completion/webhook behavior for
+  the configured account. Unsupported operations must remain explicit errors.
+- Payment records, provider state and entitlement state are distinct. Use
+  `subscriptionGrantsAccess` and `subscriptionPeriod` rather than inferring
+  access from a catalog price id alone. A webhook signature is verified against
+  its original raw payload before applying domain events.
 - Stripe API keys MUST be in `.env` as `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` -- never hardcode them in config files
 - The Stripe client is created lazily, on first use: importing `@stacksjs/payments` without `STRIPE_SECRET_KEY` (or without the opt-in `stripe` package) is fine, and the first Stripe call throws naming what is missing
 - All amounts are in cents -- use `toCents()` and `toDollars()` for conversion

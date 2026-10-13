@@ -161,14 +161,12 @@ onDestroy(() => {
     <View class="mt-4 gap-2">
       <Text testID="filter-label" class="text-sm text-slate-300" :text="filterLabel()" />
       <Button testID="cycle-filter" @click="cycleFilter()">Change filter</Button>
-      {{-- Always rendered, never behind an `:if`.
-
-           A Button inside `:if="unread() > 0"` appeared in the first RENDER and
-           was then never re-created: no `createNode` arrived when the condition
-           turned true, so the handler the host held belonged to a node that was
-           no longer live and the tap did nothing. Tapping with nothing unread
-           is handled where it belongs, in `markAllRead`. --}}
-      <Button testID="mark-all" @click="markAllRead()">Mark all read</Button>
+      {{-- Behind an `:if` again. It was rendered unconditionally while
+           stacksjs/stx#2067 was open: a Button revealed by a condition that
+           turned true kept the handler from the first RENDER, and the tap did
+           nothing. Fixed in stx 0.2.504, which hydrates a revealed handler in
+           the same batch; `scripts/stx-gate.ts` holds the floor. --}}
+      <Button :if="unread() > 0" testID="mark-all" @click="markAllRead()">Mark all read</Button>
     </View>
 
     <ActivityIndicator :if="loading" testID="notifications-loading" class="mt-6" />

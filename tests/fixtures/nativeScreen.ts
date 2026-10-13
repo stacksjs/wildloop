@@ -1,15 +1,18 @@
 import { expect } from 'bun:test'
 import { join } from 'node:path'
 import vm from 'node:vm'
-import { runNativeCompile } from '@stacksjs/stx/native'
+import { nativeScreenFiles } from '@stacksjs/actions/build/native-screens'
+import { compileNativeBundle as compileBundle } from '@stacksjs/stx/native'
+import mobile from '../../config/mobile'
 
 /**
  * One compiled native bundle, driven through a fake Craft bridge.
  *
  * Lifted out of `tests/unit/native-manual-activity-flow.test.ts` when the
- * records screen became the second thing that needs it. The bundle is the real
- * output of `runNativeCompile` over `resources/native.config.json`, so a test
- * that passes here passes against what the host would be given.
+ * records screen became the second thing that needs it. The screens come from
+ * `ios.nativeScreens` in config/mobile.ts — the same map the generated
+ * craft.config.json carries — so a test cannot pass against a screen list the
+ * app does not ship.
  */
 
 const ROOT = join(import.meta.dir, '../..')
@@ -19,11 +22,11 @@ export async function compileNativeBundle(): Promise<void> {
   if (bundle)
     return
 
-  bundle = (await runNativeCompile(undefined, {
-    cwd: join(ROOT, 'resources'),
-    config: 'native.config.json',
-    format: 'bundle',
-  })).output
+  // The screens come from `ios.nativeScreens` in config/mobile.ts, which is
+  // also what the generated craft.config.json carries — so a test cannot pass
+  // against a screen list the app does not ship.
+  const screens = nativeScreenFiles(mobile.ios, ROOT)
+  bundle = (await compileBundle({ screens, root: ROOT })).code
 }
 
 /** The compiled bundle itself, for assertions about what it does not contain. */

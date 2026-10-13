@@ -32,7 +32,7 @@ function ok(body: unknown) {
 }
 
 async function board() {
-  const screen = await start('leaderboard')
+  const screen = await start('Leaderboard')
   const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
   return { screen, request }
 }
@@ -103,7 +103,7 @@ describe('Wildloop native leaderboard screen', () => {
     await Bun.sleep(0)
     expect(screen.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_OPEN', payload: { path: '/athlete/9' } })
 
-    const anonymous = await start('leaderboard')
+    const anonymous = await start('Leaderboard')
     const only = await waitForRequest(anonymous, 0, r => r.payload?.module === 'Network')
     answer(anonymous, only, ok({ leaderboard: [BOARD.leaderboard[0]] }))
     await waitForText(anonymous, 'Athlete')

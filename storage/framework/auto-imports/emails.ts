@@ -7,6 +7,7 @@
 export const emails = {
   'Welcome': '../../../resources/emails/Welcome.stx',
   'email-verification': '../defaults/resources/emails/email-verification.stx',
+  'notification': '../defaults/resources/emails/notification.stx',
   'password-changed': '../defaults/resources/emails/password-changed.stx',
   'password-reset': '../defaults/resources/emails/password-reset.stx',
   'subscription-confirmation': '../defaults/resources/emails/subscription-confirmation.stx',

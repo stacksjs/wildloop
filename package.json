@@ -10,11 +10,11 @@
     "@bughq/stacks": "^0.2.2",
     "@iconify-json/lucide": "^1.2.137",
     "@loghq/stacks": "^0.2.6",
-    "@stacksjs/mobile": "^0.75.84",
-    "@stacksjs/stx": "^0.2.448",
+    "@stacksjs/mobile": "^0.75.159",
+    "@stacksjs/stx": "0.2.504",
     "@ts-analytics/tracking": "^0.1.17",
     "bun-query-builder": "0.3.3",
-    "stacks": "^0.75.84",
+    "stacks": "^0.75.159",
     "ts-health": "^0.1.0",
     "ts-images": "^0.2.29",
     "ts-maps": "^0.3.22",
@@ -120,9 +120,9 @@
     "very-happy-dom": "^0.3.5"
   },
   "overrides": {
-    "craft-native": "0.0.118",
+    "craft-native": "0.0.158",
     "@stacksjs/ts-cloud": "^0.16.43",
-    "@stacksjs/stx": "^0.2.448",
-    "bun-plugin-stx": "^0.2.448"
+    "@stacksjs/stx": "0.2.504",
+    "bun-plugin-stx": "0.2.504"
   }
 }

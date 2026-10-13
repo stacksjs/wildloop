@@ -34,14 +34,11 @@
     issue no request at all while passing every browser test. Verified in the
     native test context, which is a bare JS context as JavaScriptCore is; stx
     installs no shims
-  - a native screen must not put `:if` on an interactive node whose condition is
-    false at first render (stacksjs/stx#2067). True at mount is fine, and so is
-    `:if` on a `Text`. The broken case is a condition that *turns* true: the node
-    is already in the first RENDER, nothing re-creates it, and the handler the
-    host holds never fires — the tap does nothing and says nothing. Measured with
-    three buttons: no `:if` ran, true-at-mount ran, flipped-later did not. Since
-    the useful conditions (`unread() > 0`) are false until data arrives, render
-    buttons always and decide inside the handler
+  - `:if` on an interactive node was a silent dead button when the condition
+    *turned* true (stacksjs/stx#2067) — **fixed in stx 0.2.504**, re-measured with
+    the three-button probe (flipped-later now runs). `bun run gate:stx` holds
+    0.2.504 as the floor instead of banning the pattern, so this comes back as a
+    failure only if the framework goes backwards
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that

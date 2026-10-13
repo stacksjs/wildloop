@@ -88,14 +88,24 @@ for (const file of await files())
     fail('stx DOM guard', `${reported} prohibited browser API call(s) above. Exempt one line with \`// stx-strict-ignore-next-line <rule> -- why\`.`)
 }
 
-// ── 2. `:if` on an interactive node (stacksjs/stx#2067) ──────────────────────
-// Fine when the condition holds at first render, dead when it turns true: the
-// node is already in the first RENDER, nothing re-creates it, the handler never
-// fires, and the tap says nothing. Render it always, decide in the handler.
-for (const [file, source] of sources) {
-  const offenders = source.match(/<(?:Button|Pressable|TouchableOpacity|TouchableHighlight)[^>]*:if=/g)
-  if (offenders)
-    fail(`${file}: \`:if\` on an interactive node`, `${offenders.length} found. See stacksjs/stx#2067; \`:if\` on a Text is fine.`)
+// ── 2. The stx floor for a revealed `:if` handler (stacksjs/stx#2067) ───────
+// A Button revealed by a condition that turns true kept the handler from the
+// first RENDER, so the tap did nothing and said nothing. Fixed in 0.2.504,
+// which hydrates the revealed handler in the same batch. Below that, `:if` on
+// anything tappable is a silent dead button, so the floor is the rule.
+{
+  const FIXED_IN = [0, 2, 504]
+  const installed = (await import('@stacksjs/stx/package.json', { with: { type: 'json' } })).default.version as string
+  const parts = installed.split('.').map(Number)
+  const older = FIXED_IN.some((floor, index) => (parts[index] ?? 0) !== floor
+    ? (parts[index] ?? 0) < floor
+    : false)
+
+  if (older) {
+    const offenders = [...sources].filter(([, source]) => /<(?:Button|Pressable|TouchableOpacity|TouchableHighlight)[^>]*:if=/.test(source))
+    if (offenders.length > 0)
+      fail(`stx ${installed} predates the \`:if\` handler fix`, `${offenders.length} file(s) put \`:if\` on an interactive node. Fixed in 0.2.504 (stacksjs/stx#2067).`)
+  }
 }
 
 // ── 3. The portable list boundary (093ef1ac) ─────────────────────────────────

@@ -1,6 +1,31 @@
 # Native screens
 
-Wildloop's native screens live in `resources/native/`. Two flows so far:
+Wildloop's native screens live in `resources/native/` and are promoted **per
+path** in `ios.nativeScreens` (`config/mobile.ts`):
+
+```ts
+nativeScreens: {
+  '/records': 'Records',
+  '/notifications': 'Notifications',
+  '/leaderboard': 'Leaderboard',
+  '/activity/new': 'ManualActivity',
+  '/activity/saved': 'ActivitySaved',
+}
+```
+
+A path listed there is drawn as real UIViews; everything else stays the website
+in one warm web view, sharing the same navigation stack. A half-migrated app is
+the end state rather than a transition, and any line is reversible by deleting
+it. The last two paths have no web page behind them — the web app logs a manual
+activity in a modal — and are listed because only named screens are compiled
+and the native flow pushes `ActivitySaved` by name.
+
+That map is the single source of truth: `resources/native.config.json` held a
+second copy and is gone. The generated `craft.config.json` carries the same map,
+`bun run build:native-screens` compiles from it, and the test fixture compiles
+from it too, so a test cannot pass against a screen list the app does not ship.
+
+Four flows so far:
 
 - **Manual activity** — logs an activity through the same payload builder and
   `/api/activities` endpoint as the web UI, then opens the saved-activity screen
@@ -68,13 +93,12 @@ The native compiler resolves application components before framework fallbacks;
   explicitly advertised by every selected host.
 - Browser-only DOM APIs, CSS layout assumptions, and web component behavior are
   unsupported in native screens.
-- `:if` on an interactive node works only when the condition holds at the first
-  render (stacksjs/stx#2067). It breaks when the condition *turns* true: the node
-  is already in that first `RENDER`, nothing re-creates it, and the handler the
-  host holds never fires. Measured with three buttons — no `:if` ran,
-  true-at-mount ran, flipped-later did not. The useful conditions are false until
-  data arrives, so render buttons unconditionally and decide in the handler.
-  `:if` on `Text` behaves in every case.
+- `:if` on an interactive node was dead when the condition *turned* true
+  (stacksjs/stx#2067) — the node shipped in the first `RENDER`, nothing
+  re-created it, and the handler never fired. **Fixed in stx 0.2.504**, which
+  hydrates a revealed handler in the same batch; re-measured here with the same
+  three-button probe, where flipped-later now runs. `scripts/stx-gate.ts` holds
+  0.2.504 as the floor rather than banning the pattern.
 - A capability request that never answers is more likely a dead handler than a
   hung bridge. `secureStorage.get` was blamed for exactly this and is innocent:
   every `request()` carries a new message id and the protocol holds no cache, so
