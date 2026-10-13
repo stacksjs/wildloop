@@ -1,6 +1,10 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { timeAgo } from '../../resources/functions/notifications'
+
+const SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Notifications.stx'), 'utf8')
 
 /**
  * Notifications, natively.
@@ -51,6 +55,25 @@ async function signedInScreen() {
 
 describe('Wildloop native notifications screen', () => {
   beforeAll(compileNativeBundle)
+
+  /*
+   * The same list boundary Records was moved onto in 093ef1ac: a keyed `:for`
+   * on the element rather than a `<template>` inside a `FlatList`, whose item
+   * expansion is host-specific. Nested, because this list has day headings.
+   */
+  it('renders its rows through the portable keyed :for boundary', () => {
+    expect(SOURCE).toContain('<View :for="day in sections()" :key="day.label"')
+    expect(SOURCE).toContain('<Pressable :for="row in day.items" :key="row.id"')
+    expect(SOURCE).not.toContain('<FlatList')
+  })
+
+  /*
+   * And no `:if` on anything tappable — see the comment on the mark-all button.
+   */
+  it('puts no :if on an interactive node', () => {
+    const interactive = SOURCE.match(/<(?:Button|Pressable|TouchableOpacity)[^>]*:if=/g)
+    expect(interactive).toBeNull()
+  })
 
   it('reads the token before asking, and sends it', async () => {
     const { read } = await signedInScreen()

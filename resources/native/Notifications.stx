@@ -178,23 +178,24 @@ onDestroy(() => {
       Sign in to hear when somebody gives you kudos, challenges you, or takes your ground.
     </Text>
 
-    <FlatList testID="notifications-list" class="mt-5 gap-5">
-      <template :for="day in sections()">
-        <View class="gap-2">
-          <Text testID="day-heading" class="text-xs font-semibold uppercase text-slate-500" :text="day.label" />
-          <template :for="row in day.items">
-            <Pressable testID="notification-row" class="rounded-xl bg-slate-900 p-3" @click="openRow(row)">
-              <View class="flex-row items-baseline gap-2">
-                <Text class="text-base font-semibold text-white" :text="row.title" />
-                <Text class="text-xs text-slate-500" :text="timeAgo(row.created_at)" />
-              </View>
-              <Text class="mt-1 text-sm text-slate-300" :text="row.message" />
-              <Text :if="!row.read" testID="row-unread" class="mt-1 text-xs text-emerald-300">New</Text>
-            </Pressable>
-          </template>
-        </View>
-      </template>
-    </FlatList>
+    {{-- A keyed `:for` on the element, not a `<template>` inside a FlatList:
+         FlatList's item-template expansion is host-specific, while `:for`
+         renders the shared keyed mutation protocol and keeps row identity and
+         event scope across updates (093ef1ac, which moved Records onto it).
+         Nested here because the list has day headings. --}}
+    <View testID="notifications-list" class="mt-5 gap-5">
+      <View :for="day in sections()" :key="day.label" class="gap-2">
+        <Text testID="day-heading" class="text-xs font-semibold uppercase text-slate-500" :text="day.label" />
+        <Pressable :for="row in day.items" :key="row.id" testID="notification-row" class="rounded-xl bg-slate-900 p-3" @click="openRow(row)">
+          <View class="flex-row items-baseline gap-2">
+            <Text class="text-base font-semibold text-white" :text="row.title" />
+            <Text class="text-xs text-slate-500" :text="timeAgo(row.created_at)" />
+          </View>
+          <Text class="mt-1 text-sm text-slate-300" :text="row.message" />
+          <Text :if="!row.read" testID="row-unread" class="mt-1 text-xs text-emerald-300">New</Text>
+        </Pressable>
+      </View>
+    </View>
 
     <Text :if="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-slate-400">
       Nothing under this filter.
