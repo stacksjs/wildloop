@@ -92,7 +92,7 @@ function initial(row: any): string {
   return avatarInitial(row?.userName ?? '')
 }
 
-/** Read once and kept: a second `secureStorage.get` for the same key never answers. */
+/** Read once and kept: one round trip rather than two, not a bridge limitation. */
 async function readToken(): Promise<string> {
   if (bearer())
     return bearer()

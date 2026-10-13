@@ -72,8 +72,13 @@ The native compiler resolves application components before framework fallbacks;
   `RENDER`, nothing re-creates it when the condition turns true, and the handler
   the host holds is dead. Render buttons unconditionally and decide in the
   handler. `:if` on `Text` behaves.
-- `secureStorage.get` appears to cache by argument: a second
-  `get('auth_token')` never answered. Read a token once and keep it.
+- A capability request that never answers is more likely a dead handler than a
+  hung bridge. `secureStorage.get` was blamed for exactly this and is innocent:
+  every `request()` carries a new message id and the protocol holds no cache, so
+  a second `get('auth_token')` resolves normally — checked by driving two reads
+  through the bridge. The missing request came from the `:if` case above, where
+  the tap never ran. Screens still read a token once and keep it, because that
+  is one round trip rather than two, not because a second one fails.
 - A module shared with a native screen cannot use a web API. JavaScriptCore has
   no `URLSearchParams`, `URL`, `document` or `localStorage`; a shared helper
   that reaches for one throws on the phone and passes in the browser. Build

@@ -21,7 +21,7 @@
     unused `SearchFilter.stx`. Timers go through `useTimeout`/`useInterval`, navigation
     through `navigate()`, listeners through `useEventListener`, which registers its own
     teardown. Count by stripping comments first — prose about `document.` matches a naive grep
-  - only what stx itself injects is really available in a client block. `useDebounceFn`,
+  - only what stx itself injects is really available in a client block (stacksjs/stx#2068). `useDebounceFn`,
     `useTimeoutFn` and friends are declared in `storage/framework/types/browser-auto-imports.d.ts`
     but are **not** injected: calling one threw `useDebounceFn is not defined` at hydration and
     took the whole page's setup down, with tsc and the linter silent. `useTimeout`,
@@ -32,13 +32,13 @@
     passing every browser test. `encodeURIComponent`, `JSON` and the rest of the
     language are fine; `URL`, `URLSearchParams`, `document` and `localStorage`
     are not
-  - a native screen must not put `:if` on an interactive node. A `Button` behind
+  - a native screen must not put `:if` on an interactive node (stacksjs/stx#2067). A `Button` behind
     `:if="unread() > 0"` shipped in the first RENDER, no `createNode` ever arrived
     when the condition turned true, and the handler the host held belonged to a
     node that was no longer live — so the tap did nothing, silently. Render it
     always and decide inside the handler. `:if` on `Text` is fine
     (`resources/native/Notifications.stx`)
-  - text from a signal is interpolated as its own call — `{{ heading() }}`. Concatenating a
+  - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
   - no `<style>` block in a `.stx` file — **1,804 lines across 15 views**. Tokens and

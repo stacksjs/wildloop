@@ -50,13 +50,12 @@ function unread(): number {
 }
 
 /*
- * Read once and kept.
+ * Read once and kept: one round trip rather than two for a value that cannot
+ * change while the screen is open.
  *
- * Not re-read before the write: a second `secureStorage.get('auth_token')`
- * never answered — the capability call looks to be cached by its arguments, so
- * the second caller waits on a promise whose answer has already been consumed.
- * One read is also one fewer round trip for a value that cannot change while
- * the screen is open.
+ * Not because a second read fails. It was blamed for a write that hung here,
+ * and it is innocent — the bridge gives every request a new id and holds no
+ * cache. The hang was a tap that never ran, from an `:if` on the button.
  */
 const bearer = state('')
 
