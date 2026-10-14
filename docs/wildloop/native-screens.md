@@ -6,6 +6,7 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 ```ts
 nativeScreens: {
   '/athletes': 'Athletes',
+  '/challenges': 'Challenges',
   '/clubs': 'Clubs',
   '/events': 'Events',
   '/records': 'Records',
@@ -42,6 +43,10 @@ The flows so far:
   carries its route as a real SVG polyline, projected by the same
   `routeShapeFor` the website uses, so a line is never a square thumbnail
   stretched into a strip.
+- **Challenges** — who is challenging whom for which ground. Every line depends
+  on which side of it the viewer is on, so the screen asks `/api/me` before it
+  asks for anything else: a finished challenge reads Won or Lost, not
+  "completed", and only the defender of a pending one gets an Accept.
 - **Clubs** — the crew directory, and the second screen that writes per row.
   Join and leave are one endpoint the server decides, so the row moves
   optimistically and is then put back from the response rather than from what
@@ -99,6 +104,15 @@ The native compiler resolves application components before framework fallbacks;
 
 - The native routes cover manual activity entry and its saved confirmation, not
   GPS recording, maps, media upload, authentication, or the full activity feed.
+- **`:if` does nothing here — use `:show`.** The native runtime never applies
+  it (stacksjs/stx#2074): the compiler puts the binding in the manifest,
+  nothing reads it, and `setVisible` is never called, so every branch renders.
+  Seven screens shipped that way before it was noticed, because every earlier
+  `:if` sat on a `Text` whose bound text was empty anyway — the one that gave
+  it away was a Button. `:show` is correct, inside a `:for` as well as outside,
+  and `bun run gate:stx` fails on an `:if` under `resources/native/`. It hides
+  rather than unmounts, so a test that a control is *not* offered reads
+  `style.display` rather than the text.
 - **The map renders but cannot be fed.** craft-native 0.0.174 draws `Map` with
   `MapPolyline`, `MapMarker` and `fitToBounds` on both hosts, and stx 0.2.520
   compiles all three. A bound `:geometry` is dropped by the compiler, though —

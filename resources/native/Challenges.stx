@@ -1,0 +1,237 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import {
+  CHALLENGE_TAB_LABELS,
+  CHALLENGE_TABS,
+  canRespondToChallenge,
+  challengeEmptyText,
+  challengeRespondRequest,
+  challengeRowsFrom,
+  challengesPath,
+  challengeStakeText,
+  challengeStatusText,
+  challengeVersusLine,
+  challengeWaitingText,
+  filterChallenges,
+  territoryPath,
+} from '../functions/challenges'
+
+/*
+ * Challenges, natively. Eighth screen.
+ *
+ * Every line on a row depends on which side of it the viewer is on — who is
+ * "You", whether a finished challenge reads Won or Lost, whether there is an
+ * Accept to press. So the screen asks `/api/me` for the viewer's id before it
+ * asks for anything else, and a row with no id would be a card about two
+ * strangers fighting over nothing.
+ *
+ * Accepting and declining are the same endpoint, told apart by the body. The
+ * row is replaced from the challenge the server sends back rather than from
+ * the button that was pressed: declining something already accepted elsewhere
+ * should show what actually happened.
+ *
+ * Narrower than the web page: no new-challenge sheet. Picking a rival
+ * territory means reading the map, and the map is the one thing a native
+ * screen still cannot draw from data (stacksjs/stx#2073). The territory at
+ * stake opens the web page for the same reason.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+
+const tabIndex = state(0)
+const rows = state<any[]>([])
+const viewerId = state(0)
+const loading = state(true)
+const error = state('')
+const signedOut = state(false)
+const busyId = state(0)
+const bearer = state('')
+let active = true
+let reading: Promise<string> | null = null
+
+async function readToken(): Promise<string> {
+  if (bearer())
+    return bearer()
+
+  reading ??= Promise.resolve(craft.secureStorage.get('auth_token')).then((value) => {
+    const token = typeof value === 'string' ? value : ''
+    bearer.set(token)
+    return token
+  })
+
+  return reading
+}
+
+async function json(path: string, init: Record<string, unknown> = {}): Promise<any> {
+  const token = await readToken()
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token)
+    headers.Authorization = `Bearer ${token}`
+  if (init.body)
+    headers['Content-Type'] = 'application/json'
+  const response = await fetch(`https://wildloop.org${path}`, { ...init, headers })
+  const body = await response.json().catch(() => null)
+  return { ok: response.ok, status: response.status, body }
+}
+
+function currentTab(): any {
+  return CHALLENGE_TABS[tabIndex()]
+}
+
+function tabName(): string {
+  return CHALLENGE_TAB_LABELS[currentTab()]
+}
+
+function shown(): any[] {
+  return filterChallenges(rows(), currentTab(), viewerId())
+}
+
+function emptyText(): string {
+  return challengeEmptyText(currentTab())
+}
+
+function sides(row: any): string {
+  return challengeVersusLine(row, viewerId())
+}
+
+function standing(row: any): string {
+  return challengeStatusText(row, viewerId())
+}
+
+function stake(row: any): string {
+  return `${row?.territoryName} · ${challengeStakeText(row?.areaAtStake)}`
+}
+
+function canAnswer(row: any): boolean {
+  return canRespondToChallenge(row, viewerId()) && busyId() !== row?.id
+}
+
+function waiting(row: any): string {
+  return challengeWaitingText(row, viewerId())
+}
+
+async function load(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  try {
+    const token = await readToken()
+    if (!token) {
+      if (active)
+        signedOut.set(true)
+      return
+    }
+
+    /*
+     * The id first: without it every row is a card about two strangers, and
+     * the tabs that mean "mine" cannot mean anything.
+     */
+    const me = await json('/api/me')
+    if (!me.ok || !me.body?.user?.id) {
+      if (active)
+        signedOut.set(true)
+      return
+    }
+    if (active)
+      viewerId.set(Number(me.body.user.id))
+
+    const result = await json(challengesPath())
+    if (!active)
+      return
+    if (!result.ok)
+      throw new Error('Could not load challenges')
+    rows.set(challengeRowsFrom(result.body))
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load challenges')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+function cycleTab(): void {
+  tabIndex.set((tabIndex() + 1) % CHALLENGE_TABS.length)
+}
+
+async function respond(row: any, action: 'accept' | 'decline'): Promise<void> {
+  const rowId = Number(row?.id)
+  if (!rowId || busyId() === rowId)
+    return
+
+  busyId.set(rowId)
+  const { path, method, body } = challengeRespondRequest(rowId, action)
+  const result = await json(path, { method, body: JSON.stringify(body) })
+  if (!active)
+    return
+
+  /*
+   * Replaced from the challenge the server sends back, not from the button:
+   * declining one that was accepted from another device should show what
+   * actually happened rather than what was asked for.
+   */
+  if (result.ok && result.body?.challenge) {
+    const [settled] = challengeRowsFrom({ challenges: [result.body.challenge] })
+    if (settled)
+      rows.set(rows().map(entry => (entry.id === rowId ? { ...entry, ...settled } : entry)))
+  }
+  else {
+    error.set('Could not answer that challenge')
+  }
+
+  busyId.set(0)
+}
+
+function openTerritory(row: any): void {
+  if (!row?.territoryId)
+    return
+  craft.navigation.open(territoryPath(row.territoryId))
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Challenges', largeTitle: true })
+  void load()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="challenges-scroll">
+    <Text class="text-3xl font-bold text-white">Challenges</Text>
+    <Text class="mt-1 text-sm text-slate-400">Other athletes, for the ground they hold.</Text>
+
+    <View class="mt-4 gap-2">
+      <Text testID="challenges-tab" class="text-sm text-slate-300" :text="tabName()" />
+      <Button testID="cycle-tab" @click="cycleTab()">Change the tab</Button>
+    </View>
+
+    <ActivityIndicator :show="loading" testID="challenges-loading" class="mt-6" />
+    <Text :show="error" testID="challenges-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your challenges.</Text>
+
+    <View class="mt-4 gap-2">
+      <View :for="row in shown()" :key="row.id" class="rounded-xl bg-slate-900 p-3">
+        <Text testID="challenge-status" class="text-xs font-semibold uppercase text-amber-300" :text="standing(row)" />
+        <Text testID="challenge-sides" class="mt-1 text-base font-semibold text-white" :text="sides(row)" />
+
+        <Pressable testID="challenge-territory" class="mt-2" @click="openTerritory(row)">
+          <Text class="text-xs text-slate-300" :text="stake(row)" />
+        </Pressable>
+
+        <Text :show="waiting(row)" testID="challenge-waiting" class="mt-2 text-xs text-slate-500" :text="waiting(row)" />
+
+        {{-- Only the defender answers, and only while it is still being asked. --}}
+        <View :show="canAnswer(row)" testID="challenge-answer" class="mt-3 flex-row gap-2">
+          <Button testID="challenge-accept" @click="respond(row, 'accept')">Accept</Button>
+          <Button testID="challenge-decline" @click="respond(row, 'decline')">Decline</Button>
+        </View>
+      </View>
+    </View>
+
+    <Text :show="!loading && !error && !signedOut && shown().length === 0" testID="challenges-empty" class="mt-6 text-sm text-slate-400" :text="emptyText()" />
+  </ScrollView>
+</SafeAreaView>
