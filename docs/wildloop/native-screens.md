@@ -12,6 +12,7 @@ nativeScreens: {
   '/events': 'Events',
   '/records': 'Records',
   '/search': 'Search',
+  '/stats': 'Stats',
   '/trails': 'Trails',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',
@@ -46,6 +47,12 @@ The flows so far:
   ticket so a slow answer to an older query cannot replace a newer one. Its
   quick links `push` the native screen where we have one rather than opening a
   web view onto a page the app already draws.
+- **Stats** — the training summary. There is no endpoint for these numbers —
+  `user_stats` has no weekly or monthly split — so both screens fold them from
+  the athlete's activities with `computeTrainingStats`. The web page does it in
+  the store; the native screen asks the API and translates the rows first,
+  because that function reads snake_case and the API answers camelCase. Feed it
+  the API's shape untranslated and every number is zero, silently.
 - **Trails** — the catalog, and the first screen that draws something. Each row
   carries its route as a real SVG polyline, projected by the same
   `routeShapeFor` the website uses, so a line is never a square thumbnail

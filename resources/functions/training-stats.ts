@@ -14,6 +14,9 @@
  * Pure, and unit-testable without a store or a browser.
  */
 
+import type { Bar, BarBox } from './bar-chart'
+import { barGeometry } from './bar-chart'
+
 const DAY_MS = 86_400_000
 const WEEK_MS = 7 * DAY_MS
 
@@ -211,4 +214,133 @@ export function computeTrainingStats(
     },
     weeklyHistory: history,
   }
+}
+
+/*
+ * Below: what a screen needs around `computeTrainingStats`, added when
+ * `/stats` was promoted to a native screen.
+ *
+ * The web page reads these numbers out of the store, which holds rows the
+ * activity catalog has already translated. A native screen has no store, so
+ * it asks the API and translates here — and the translation is the point.
+ */
+
+/**
+ * The API's activity rows, as `computeTrainingStats` reads them.
+ *
+ * `/api/activities` answers in camelCase (`userId`, `elevationGain`,
+ * `movingTime`, `completedAt`); every field this module reads is snake_case,
+ * because those names came from the database rows the store used to hold. Feed
+ * the API's shape in untranslated and every number comes back zero, silently
+ * and plausibly — a real athlete with an empty week.
+ */
+export function trainingActivitiesFrom(payload: unknown): TrainingActivity[] {
+  const source = payload as { activities?: unknown } | unknown[] | null
+  const rows = Array.isArray(source)
+    ? source
+    : Array.isArray((source as { activities?: unknown })?.activities)
+      ? (source as { activities: unknown[] }).activities
+      : []
+
+  return rows.map((entry) => {
+    const row = entry as Record<string, any>
+    return {
+      user_id: Number(row.userId ?? row.user_id) || 0,
+      distance: Number(row.distance) || 0,
+      elevation_gain: Number(row.elevationGain ?? row.elevation_gain) || 0,
+      trail_id: row.trailId ?? row.trail_id ?? null,
+      duration: row.duration ?? null,
+      moving_time: row.movingTime ?? row.moving_time ?? row.duration ?? null,
+      splits: Array.isArray(row.splits) ? row.splits : [],
+      // `?? null`, not `?? 0`: the estimator returns null when it cannot
+      // estimate, and zero is a claim that nothing was burned.
+      calories: row.calories ?? null,
+      created_at: row.createdAt ?? row.created_at ?? row.completedAt ?? row.completed_at ?? null,
+    }
+  })
+}
+
+/** What each activity is, for the breakdown, in whichever spelling arrived. */
+export function activityTypeOf(row: unknown): string {
+  const activity = row as Record<string, unknown> | null
+  return String(activity?.activityType ?? activity?.activity_type ?? '')
+}
+
+export const STATS_PERIODS = ['weekly', 'monthly', 'alltime'] as const
+
+export type StatsPeriod = typeof STATS_PERIODS[number]
+
+export const STATS_PERIOD_LABELS: Record<StatsPeriod, string> = {
+  weekly: 'This week',
+  monthly: 'This month',
+  alltime: 'All time',
+}
+
+/**
+ * The three numbers a period shows.
+ *
+ * There is no monthly activity count — `user_stats` never split one — so the
+ * month borrows the all-time count, which is what the web page does. Saying
+ * so here keeps the two screens from disagreeing about which number that is.
+ */
+export function periodStats(stats: TrainingStats | null | undefined, period: StatsPeriod): {
+  distance: number
+  elevation: number
+  activities: number
+} {
+  if (!stats)
+    return { distance: 0, elevation: 0, activities: 0 }
+
+  if (period === 'weekly') {
+    return {
+      distance: stats.weeklyDistance,
+      elevation: stats.weeklyElevation,
+      activities: stats.weeklyActivities,
+    }
+  }
+  if (period === 'monthly') {
+    return {
+      distance: stats.monthlyDistance,
+      elevation: stats.monthlyElevation,
+      activities: stats.totalActivities,
+    }
+  }
+  return {
+    distance: stats.totalDistance,
+    elevation: stats.totalElevation,
+    activities: stats.totalActivities,
+  }
+}
+
+export const ACTIVITY_KINDS = [
+  { label: 'Trail runs', type: 'Trail Run' },
+  { label: 'Hikes', type: 'Hike' },
+  { label: 'Walks', type: 'Walk' },
+  { label: 'Bike rides', type: 'Bike' },
+] as const
+
+export interface BreakdownRow {
+  label: string
+  type: string
+  count: number
+  /** Percent of all activities, 0-100. */
+  share: number
+}
+
+/** How the athlete's activities split by kind. */
+export function activityBreakdown(activities: unknown[]): BreakdownRow[] {
+  const total = Math.max(activities.length, 1)
+  return ACTIVITY_KINDS.map((kind) => {
+    const count = activities.filter(row => activityTypeOf(row) === kind.type).length
+    return { label: kind.label, type: kind.type, count, share: Math.round((count / total) * 100) }
+  })
+}
+
+/** The weekly-history chart's box, in the units the screen's viewBox declares. */
+export const WEEK_CHART: BarBox = { width: 312, height: 72, gap: 6 }
+
+/** One bar per week of history, tallest for the biggest week. */
+export function weekBars(history: TrainingStats['weeklyHistory'], box: BarBox = WEEK_CHART): Array<Bar & { week: string, distance: number }> {
+  const bars = barGeometry((history ?? []).map(week => week.distance), box)
+  return (history ?? []).map((week, index) => ({ week: week.week, distance: week.distance, ...bars[index] }))
 }

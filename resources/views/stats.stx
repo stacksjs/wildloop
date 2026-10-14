@@ -21,6 +21,7 @@
 
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
+  import { activityBreakdown, periodStats } from '../functions/training-stats'
 
   useHead({ title: 'Training Stats — Wildloop' })
 
@@ -40,20 +41,28 @@
     return Math.max(...hist.map((w: any) => w.distance), 1)
   })
 
+  // The tones are this page's; the counts and shares are shared with the
+  // native screen, which has no CSS width to put them in.
+  const TONES: Record<string, string> = {
+    'Trail Run': 'bg-emerald-600',
+    'Hike': 'bg-emerald-500',
+    'Walk': 'bg-emerald-400',
+    'Bike': 'bg-emerald-300',
+  }
+
   /** Share of activities by type, for the breakdown bars. */
-  const breakdown = derived(() => {
-    const all = myActivities()
-    const total = Math.max(all.length, 1)
-    return [
-      { label: 'Trail runs', type: 'Trail Run', tone: 'bg-emerald-600' },
-      { label: 'Hikes', type: 'Hike', tone: 'bg-emerald-500' },
-      { label: 'Walks', type: 'Walk', tone: 'bg-emerald-400' },
-      { label: 'Bike rides', type: 'Bike', tone: 'bg-emerald-300' },
-    ].map((row) => {
-      const count = all.filter((a: any) => a.activityType === row.type).length
-      return { ...row, count, width: `${Math.round((count / total) * 100)}%` }
-    })
-  })
+  const breakdown = derived(() => activityBreakdown(myActivities()).map(row => ({
+    ...row,
+    tone: TONES[row.type] ?? 'bg-emerald-300',
+    width: `${row.share}%`,
+  })))
+
+  /*
+   * The three numbers a period shows, shared with the native screen. The month
+   * borrows the all-time activity count because `user_stats` never split one —
+   * a rule that belongs in one place rather than in two sets of ternaries.
+   */
+  const shown = derived(() => periodStats(userStats(), period()))
 
   function barHeight(week: any): string {
     return `${Math.max(week.distance > 0 ? 4 : 0, Math.round((week.distance / maxWeeklyDistance()) * 100))}%`
@@ -92,15 +101,15 @@
       <dl class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-route h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Miles</dt>
-          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ period === 'weekly' ? userStats.weeklyDistance : period === 'monthly' ? userStats.monthlyDistance : userStats.totalDistance }}</dd>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ shown().distance }}</dd>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-mountain h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Elev ft</dt>
-          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ (period === 'weekly' ? userStats.weeklyElevation : period === 'monthly' ? userStats.monthlyElevation : userStats.totalElevation).toLocaleString() }}</dd>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ shown().elevation.toLocaleString() }}</dd>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-activity h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Activities</dt>
-          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ period === 'weekly' ? userStats.weeklyActivities : userStats.totalActivities }}</dd>
+          <dd class="mt-1.5 font-display text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{{ shown().activities }}</dd>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-flame h-3.5 w-3.5 text-orange-500" aria-hidden="true"></i>Day streak</dt>

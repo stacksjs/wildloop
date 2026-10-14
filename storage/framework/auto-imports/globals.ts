@@ -89,6 +89,7 @@ declare global {
   const formatClock: typeof autoImports.formatClock
   const STANDARD_YARD_MILES: typeof autoImports.STANDARD_YARD_MILES
   const STANDARD_YARD_MINUTES: typeof autoImports.STANDARD_YARD_MINUTES
+  const barGeometry: typeof autoImports.barGeometry
   const estimateCalories: typeof autoImports.estimateCalories
   const REFERENCE_WEIGHT_KG: typeof autoImports.REFERENCE_WEIGHT_KG
   const shapeChallenge: typeof autoImports.shapeChallenge
@@ -358,6 +359,15 @@ declare global {
   const TRAIL_ROUTE_BOX: typeof autoImports.TRAIL_ROUTE_BOX
   const durationSeconds: typeof autoImports.durationSeconds
   const computeTrainingStats: typeof autoImports.computeTrainingStats
+  const trainingActivitiesFrom: typeof autoImports.trainingActivitiesFrom
+  const activityTypeOf: typeof autoImports.activityTypeOf
+  const periodStats: typeof autoImports.periodStats
+  const activityBreakdown: typeof autoImports.activityBreakdown
+  const weekBars: typeof autoImports.weekBars
+  const STATS_PERIODS: typeof autoImports.STATS_PERIODS
+  const STATS_PERIOD_LABELS: typeof autoImports.STATS_PERIOD_LABELS
+  const ACTIVITY_KINDS: typeof autoImports.ACTIVITY_KINDS
+  const WEEK_CHART: typeof autoImports.WEEK_CHART
   const isCalendarDate: typeof autoImports.isCalendarDate
   const isClockTime: typeof autoImports.isClockTime
   const isTimeZone: typeof autoImports.isTimeZone

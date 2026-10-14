@@ -12,6 +12,7 @@
  */
 
 import type { MonthProgress } from './personal-bests'
+import { barGeometry } from './bar-chart'
 import { formatMiles } from './personal-bests'
 
 /** Longest run of consecutive calendar days (UTC) with at least one date. */
@@ -260,28 +261,10 @@ export interface MonthBar {
 /** The chart's box, in the units the screen's viewBox declares. */
 export const YEAR_CHART = { width: 312, height: 72, gap: 4 } as const
 
-/**
- * Twelve bars across the box, each as tall as its share of the best month.
- *
- * A month with miles in it always gets a sliver — a bar of zero height and a
- * month that was not run look the same otherwise, and only one of them is
- * true. A month with nothing gets nothing.
- */
+/** Twelve bars across the box, each as tall as its share of the best month. */
 export function monthBars(months: MonthProgress[], box = YEAR_CHART): MonthBar[] {
-  const best = Math.max(1, ...months.map(month => month.miles))
-  const width = Math.max(1, (box.width - box.gap * 11) / 12)
-
-  return months.map((month, index) => {
-    const share = month.miles > 0 ? Math.max(2, Math.round((month.miles / best) * box.height)) : 0
-    return {
-      month: month.month,
-      label: month.label,
-      x: Math.round(index * (width + box.gap)),
-      y: box.height - share,
-      width: Math.round(width),
-      height: share,
-    }
-  })
+  const bars = barGeometry(months.map(month => month.miles), box)
+  return months.map((month, index) => ({ month: month.month, label: month.label, ...bars[index] }))
 }
 
 /** The year's total, as the caption under the chart. */

@@ -57,6 +57,7 @@ export default {
       '/events': 'Events',
       '/records': 'Records',
       '/search': 'Search',
+      '/stats': 'Stats',
       '/trails': 'Trails',
       '/notifications': 'Notifications',
       '/leaderboard': 'Leaderboard',
