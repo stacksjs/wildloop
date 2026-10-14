@@ -5,7 +5,8 @@ import {
   normalizeTrailsPayload,
   routesFromTrails,
 } from '../assets/scripts/trail-data'
-import { milesFromOrigin, shareableCoordinate } from '../functions/shared-origin'
+import { milesFromOrigin } from '../functions/shared-origin'
+import { trailsPath } from '../functions/trails'
 
 interface TrailStoreLike {
   trails: () => unknown[]
@@ -217,52 +218,21 @@ export async function fetchSearchSuggestions(query: string): Promise<SearchSugge
 }
 
 export async function queryTrails(query: TrailQuery): Promise<TrailQueryResult> {
-  const params = new URLSearchParams()
+  /*
+   * The query string is built in `resources/functions/trails.ts`, which the
+   * native trails screen also calls. It used to be assembled here with
+   * `URLSearchParams` — fine in a browser, absent in JavaScriptCore, and two
+   * builders for one API is how the website and the app come to ask the same
+   * question two different ways.
+   */
+  const path = trailsPath(query)
 
-  if (query.q)
-    params.set('q', query.q)
-  if (query.country)
-    params.set('country', query.country)
-  if (query.state)
-    params.set('state', query.state)
-  if (query.difficulty && query.difficulty !== 'all')
-    params.set('difficulty', query.difficulty)
-  if (query.routeType && query.routeType !== 'all')
-    params.set('routeType', query.routeType)
-  if (query.sort)
-    params.set('sort', query.sort)
-  if (Number.isFinite(query.minDistance))
-    params.set('minDistance', String(query.minDistance))
-  if (Number.isFinite(query.maxDistance))
-    params.set('maxDistance', String(query.maxDistance))
-  if (Number.isFinite(query.minElevation))
-    params.set('minElevation', String(query.minElevation))
-  if (Number.isFinite(query.maxElevation))
-    params.set('maxElevation', String(query.maxElevation))
-  if (Number.isFinite(query.minRating) && (query.minRating ?? 0) > 0)
-    params.set('minRating', String(query.minRating))
-  if (query.dogsAllowed)
-    params.set('dogsAllowed', 'true')
-  if (query.accessible)
-    params.set('accessible', 'true')
-  if (query.nationalTrail)
-    params.set('nationalTrail', 'true')
-  // Rounded so the neighbourhood shares one cached answer at the edge; the
-  // distances are put back to precise below (resources/functions/shared-origin.ts).
+  // The server measured from the rounded point; the page knows the real one.
   const origin = Number.isFinite(query.lat) && Number.isFinite(query.lng)
     ? { lat: Number(query.lat), lng: Number(query.lng) }
     : null
-  if (origin) {
-    params.set('lat', String(shareableCoordinate(origin.lat)))
-    params.set('lng', String(shareableCoordinate(origin.lng)))
-    if (query.radius)
-      params.set('radius', String(query.radius))
-  }
 
-  params.set('limit', String(query.limit ?? 60))
-  params.set('offset', String(query.offset ?? 0))
-
-  const res = await apiFetch(`/api/trails?${params}`)
+  const res = await apiFetch(path)
   if (!res.ok)
     throw new Error(`Trails API returned ${res.status}`)
 

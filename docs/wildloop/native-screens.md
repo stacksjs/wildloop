@@ -8,6 +8,7 @@ nativeScreens: {
   '/athletes': 'Athletes',
   '/events': 'Events',
   '/records': 'Records',
+  '/trails': 'Trails',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',
   '/activity/new': 'ManualActivity',
@@ -27,7 +28,7 @@ second copy and is gone. The generated `craft.config.json` carries the same map,
 `bun run build:native-screens` compiles from it, and the test fixture compiles
 from it too, so a test cannot pass against a screen list the app does not ship.
 
-Four flows so far:
+The flows so far:
 
 - **Manual activity** — logs an activity through the same payload builder and
   `/api/activities` endpoint as the web UI, then opens the saved-activity screen
@@ -36,10 +37,15 @@ Four flows so far:
   A keyed `:for` inside a `ScrollView`, filtered server-side by style, and a
   row hands off to the web effort page through `craft.navigation.open` because
   that page is a map (craft-native/craft#340).
+- **Trails** — the catalog, and the first screen that draws something. Each row
+  carries its route as a real SVG polyline, projected by the same
+  `routeShapeFor` the website uses, so a line is never a square thumbnail
+  stretched into a strip.
 
 The screens are compiled to Craft's native document protocol; they do not use a
 WebView or a second layout engine. Shared numbers come from
-`resources/functions` — `manual-activity.ts` and `route-records.ts` — so a
+`resources/functions` — `manual-activity.ts`, `route-records.ts`, `trails.ts`
+and the rest — so a
 native screen and its web counterpart cannot drift on a value. They diverge on
 presentation; never on data.
 
@@ -87,6 +93,14 @@ The native compiler resolves application components before framework fallbacks;
 
 - The native routes cover manual activity entry and its saved confirmation, not
   GPS recording, maps, media upload, authentication, or the full activity feed.
+- **The map renders but cannot be fed.** craft-native 0.0.174 draws `Map` with
+  `MapPolyline`, `MapMarker` and `fitToBounds` on both hosts, and stx 0.2.520
+  compiles all three. A bound `:geometry` is dropped by the compiler, though —
+  no prop, no binding, no manifest entry, no diagnostic (stacksjs/stx#2073) —
+  so a route that comes from the API never reaches the map. Only a
+  compile-time-constant geometry survives. The trails screen draws its line as
+  an SVG polyline instead, where `:points` does bind; when #2073 lands, that is
+  the screen to move onto a real map.
 - Network requests require an absolute `http://` or `https://` URL. Response
   bodies are text/JSON and are limited by the maintained host.
 - Native `:for` renders the shared keyed STX mutation protocol and is the

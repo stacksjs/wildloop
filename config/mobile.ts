@@ -53,6 +53,7 @@ export default {
       '/athletes': 'Athletes',
       '/events': 'Events',
       '/records': 'Records',
+      '/trails': 'Trails',
       '/notifications': 'Notifications',
       '/leaderboard': 'Leaderboard',
       '/activity/new': 'ManualActivity',
