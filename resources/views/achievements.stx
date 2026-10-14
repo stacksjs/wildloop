@@ -151,7 +151,7 @@
     <button type="button" @click="openLogin()" x-class="slide().button" class="mt-6 min-h-11 rounded-full px-6 text-sm font-semibold shadow-sm transition active:scale-[0.98]">Log in</button>
   </div>
 
-  <!-- Loading: the badge outline and its caption, pulsing where they will land. -->
+  {{-- Loading: the badge outline and its caption, pulsing where they will land. --}}
   <div :if="signedIn && loading" class="mt-10 flex flex-col items-center px-8" role="status" aria-label="Loading your records">
     <div class="grid h-52 place-items-center"><div class="h-44 w-44 animate-pulse rounded-full bg-white/30"></div></div>
     <div class="mt-10 h-4 w-28 animate-pulse rounded-full bg-white/30"></div>
@@ -159,8 +159,8 @@
   </div>
   <p :if="signedIn && failed" role="alert" class="pt-24 text-center opacity-80">Your records could not be loaded. Check your connection and try again.</p>
 
-  <!-- Swipe between records. Scroll-snap does the paging; the scroll position
-       picks the colour. -->
+  {{-- Swipe between records. Scroll-snap does the paging; the scroll position
+       picks the colour. --}}
   <div :if="signedIn && !loading && !failed" @scroll="onCarouselScroll($event)" class="mt-10 flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none]">
     <template :for="record in records">
       <section class="flex w-full shrink-0 snap-center flex-col items-center px-8">
@@ -183,7 +183,7 @@
   <p :if="shareNote" role="status" class="mt-4 text-center text-sm opacity-80">{{ shareNote }}</p>
 </div>
 
-<!-- The year so far, on a sheet that rises over the carousel. -->
+{{-- The year so far, on a sheet that rises over the carousel. --}}
 <section :if="signedIn && !loading && !failed" class="relative rounded-t-[2.5rem] bg-white px-6 pb-12 pt-10 sm:px-10 dark:bg-slate-900">
   <div class="mx-auto max-w-3xl">
   <h2 class="font-display text-3xl font-semibold tracking-tight text-slate-500 dark:text-slate-400">Progress</h2>
@@ -206,7 +206,7 @@
     </template>
   </div>
 
-  <!-- Badges: what you have unlocked, and how close the next ones are. -->
+  {{-- Badges: what you have unlocked, and how close the next ones are. --}}
   <h2 class="mt-12 font-display text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Badges</h2>
   <div :if="badges().length > 0" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
     <template :for="badge in badges">

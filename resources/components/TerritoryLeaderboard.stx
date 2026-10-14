@@ -49,7 +49,7 @@ const typeLabels = {
 
 <template>
   <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
-    <!-- Header -->
+    {{-- Header --}}
     <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-4">
       <h3 class="flex items-center gap-2 font-display text-lg font-bold text-white">
         <Icon name="award" size="20" />
@@ -58,7 +58,7 @@ const typeLabels = {
       <p class="mt-0.5 text-sm text-emerald-100">Ranked by {{ typeLabels[props.type].toLowerCase() }}</p>
     </div>
 
-    <!-- Type Tabs -->
+    {{-- Type Tabs --}}
     <div class="flex border-b border-slate-100 dark:border-slate-700">
       <button class="min-h-11 flex-1 border-b-2 text-sm font-semibold transition" x-class="props.type === 'area' ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400'">
         By area
@@ -71,16 +71,16 @@ const typeLabels = {
       </button>
     </div>
 
-    <!-- Leaderboard Entries -->
+    {{-- Leaderboard Entries --}}
     <div class="divide-y divide-slate-100 dark:divide-slate-700/70">
       @foreach(props.entries as entry)
         <div class="flex min-h-14 items-center gap-3 px-4 py-2.5 transition hover:bg-slate-50 dark:hover:bg-slate-700/40" x-class="entry.userId === props.currentUserId ? 'bg-emerald-50 dark:bg-emerald-500/10' : ''">
-          <!-- Rank -->
+          {{-- Rank --}}
           <div class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums" x-class="getRankBadge(entry.rank)">
             {{ entry.rank }}
           </div>
 
-          <!-- User Info -->
+          {{-- User Info --}}
           <div class="flex min-w-0 flex-1 items-center gap-3">
             <Image x-src="entry.userAvatar" x-alt="entry.userName" width="32" height="32" sizes="32px" placeholder="blur" class="h-8 w-8 shrink-0 rounded-full object-cover" />
             <div class="min-w-0">
@@ -89,7 +89,7 @@ const typeLabels = {
             </div>
           </div>
 
-          <!-- Stats -->
+          {{-- Stats --}}
           <div class="shrink-0 text-right">
             @if(props.type === 'area')
               <p class="font-bold tabular-nums text-slate-900 dark:text-white">{{ formatArea(entry.totalAreaOwned) }}</p>
@@ -110,7 +110,7 @@ const typeLabels = {
       @endif
     </div>
 
-    <!-- View All Link -->
+    {{-- View All Link --}}
     <div class="border-t border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
       <StxLink to="/leaderboard" class="flex min-h-11 items-center justify-center gap-1 text-sm font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400">
         View full leaderboard

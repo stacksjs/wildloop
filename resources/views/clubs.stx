@@ -153,8 +153,8 @@
       </button>
     </header>
 
-    <!-- Filter chips. They bleed to the screen edge on phones and scroll
-         without a visible scrollbar, the way a native chip row does. -->
+    {{-- Filter chips. They bleed to the screen edge on phones and scroll
+         without a visible scrollbar, the way a native chip row does. --}}
     <div class="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
       <button @click="filter.set('all')" x-class="filter === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">All clubs</button>
       <button @click="filter.set('mine')" x-class="filter === 'mine' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">My clubs</button>
@@ -163,8 +163,8 @@
       <button @click="filter.set('Territory Game')" x-class="filter === 'Territory Game' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]">Territory</button>
     </div>
 
-    <!-- Said rather than left to the visitor to work out from a list of
-         other cities: there is nobody here yet, and that is an opening. -->
+    {{-- Said rather than left to the visitor to work out from a list of
+         other cities: there is nobody here yet, and that is an opening. --}}
     <div :if="noCrewNearby()" class="mb-6 flex flex-col items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-500/20 dark:bg-emerald-500/10">
       <p class="text-sm text-emerald-900 dark:text-emerald-200">
         <span class="font-semibold">{{ 'No crew near ' + (here()?.label ?? 'you') + ' yet.' }}</span>
@@ -175,9 +175,9 @@
       </button>
     </div>
 
-    <!-- A grid, not a stack of full-width rows. A directory is scanned, and
+    {{-- A grid, not a stack of full-width rows. A directory is scanned, and
          two columns of equal cards is what lets somebody compare four crews at
-         once instead of scrolling past them one at a time. -->
+         once instead of scrolling past them one at a time. --}}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <template :for="club in filtered">
         <article class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
@@ -204,9 +204,9 @@
 
           <p class="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400 line-clamp-3">{{ club.description }}</p>
 
-          <!-- Badges say what kind of door this club has. The Join control
+          {{-- Badges say what kind of door this club has. The Join control
                below states the same thing as an action, so the badge is only
-               shown where the two are not the same sentence. -->
+               shown where the two are not the same sentence. --}}
           <div :if="club.isPrivate || club.joinPolicy !== 'open'" class="mt-3 flex flex-wrap gap-1.5">
             <span :if="club.joinPolicy === 'invite_only'" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
               <i class="i-lucide-lock h-3 w-3" aria-hidden="true"></i>Invite only
@@ -220,8 +220,8 @@
           </div>
 
           <div class="mt-auto pt-4"><div class="flex items-end justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-700/70">
-            <!-- Real numbers, aggregated from members' activities in the last
-                 seven days. A club with a quiet week says so. -->
+            {{-- Real numbers, aggregated from members' activities in the last
+                 seven days. A club with a quiet week says so. --}}
             <dl class="flex gap-6">
               <div>
                 <dd class="font-semibold text-slate-900 dark:text-white tabular-nums">{{ club.weeklyDistance.toLocaleString() }}<span class="ml-0.5 font-normal text-slate-400">mi</span></dd>
@@ -258,8 +258,8 @@
     </div>
   </div>
 
-  <!-- Create-club modal (#964). A bottom sheet on phones, where the thumb
-       is, and a centred dialog from `sm` up. -->
+  {{-- Create-club modal (#964). A bottom sheet on phones, where the thumb
+       is, and a centred dialog from `sm` up. --}}
   <div :if="createOpen" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="create-club-title">
     <div @click="closeCreate()" class="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]"></div>
     <div class="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-200 bg-white px-5 pb-8 pt-3 shadow-2xl sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-800">

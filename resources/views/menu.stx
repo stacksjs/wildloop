@@ -78,7 +78,7 @@
 <div class="mx-auto max-w-2xl px-4 pb-12 pt-6 sm:px-6">
   <h1 class="mb-5 font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Menu</h1>
 
-  <!-- Who you are, first, as Facebook's Menu opens on your profile. -->
+  {{-- Who you are, first, as Facebook's Menu opens on your profile. --}}
   <StxLink :if="account" to="/profile" class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:shadow-none dark:hover:border-slate-600">
     <Image :if="accountFace()" x-src="accountFace()" x-alt="account()?.name || 'Your profile photo'" width="56" height="56" sizes="56px" class="h-14 w-14 shrink-0 rounded-full object-cover ring-4 ring-emerald-50 dark:ring-emerald-500/10" />
     <span :if="!accountFace()" class="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-100 font-display text-2xl font-bold text-emerald-700 ring-4 ring-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/10">{{ accountInitial }}</span>

@@ -112,11 +112,11 @@ function followLongPress(event: MouseEvent): void {
 }
 </script>
 
-<!--
+{{--
   Native tabs deliberately use document navigation. Craft's Android WebView
   loads each bundled fallback page reliably, while an SPA fragment swap can
   leave a client module unexecuted after a cold start.
--->
+--}}
 <a
   href="{{ href }}"
   aria-label="{{ label }}"

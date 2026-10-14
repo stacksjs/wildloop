@@ -445,7 +445,7 @@
     <p class="mt-1.5 max-w-[60ch] text-sm text-slate-600 dark:text-slate-400">Tap the map to add points — the line follows real paths and trails. Drag it into shape, save it, then plan it for a day.</p>
   </header>
 
-  <!-- Start somewhere: any town. -->
+  {{-- Start somewhere: any town. --}}
   <div class="relative mb-3">
     <label for="route-place" class="sr-only">Start in a town or city</label>
     <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800">
@@ -467,12 +467,12 @@
     </ul>
   </div>
 
-  <!-- The map you draw on. -->
+  {{-- The map you draw on. --}}
   <div id="route-planner" class="relative scroll-mt-20 overflow-hidden rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700">
     <div id="route-builder-map" data-stx-ignore class="ts-map-container h-[58vh] min-h-[320px] w-full sm:h-[480px]"></div>
 
-    <!-- What the line adds up to, over the map where the eye already is. -->
-    <!-- z-[500]: above the map's own panes, which stack from 400. -->
+    {{-- What the line adds up to, over the map where the eye already is. --}}
+    {{-- z-[500]: above the map's own panes, which stack from 400. --}}
     <div class="pointer-events-none absolute inset-x-0 bottom-8 z-[500] flex justify-center px-3">
       <p :if="pointCount() === 0" class="rounded-full bg-slate-900/85 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">Tap the map to set your start</p>
       <p :if="pointCount() === 1" class="rounded-full bg-slate-900/85 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">Now tap where you want to go</p>
@@ -485,14 +485,14 @@
 
   <p :if="hint()" class="mt-2 text-sm text-slate-600 dark:text-slate-300" role="status">{{ hint() }}</p>
 
-  <!-- How to reshape it, once there is a line to reshape. -->
+  {{-- How to reshape it, once there is a line to reshape. --}}
   <ul :if="hasRoute()" class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400" aria-label="Editing the route">
     <li class="inline-flex items-center gap-1.5"><i class="i-lucide-move h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Drag a point to move it</li>
     <li class="inline-flex items-center gap-1.5"><i class="i-lucide-spline h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Hold and drag the line, or drag a <span class="font-bold text-emerald-600">+</span>, to go through somewhere new</li>
     <li class="inline-flex items-center gap-1.5"><i class="i-lucide-circle-x h-3.5 w-3.5 text-emerald-600" aria-hidden="true"></i>Tap a point to remove it</li>
   </ul>
 
-  <!-- Tools, thumb-sized. -->
+  {{-- Tools, thumb-sized. --}}
   <div class="mt-3 flex flex-wrap items-center gap-2">
     <div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="group" aria-label="How new legs are drawn">
       <button type="button" @click="setFollowPaths(true)" :aria-pressed="followPaths() ? 'true' : 'false'" x-class="followPaths() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition">
@@ -522,7 +522,7 @@
     </button>
   </div>
 
-  <!-- Save, then plan. -->
+  {{-- Save, then plan. --}}
   <section :if="hasRoute()" class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none" aria-label="Save this route">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div class="min-w-0 flex-1">
@@ -550,7 +550,7 @@
     </div>
   </section>
 
-  <!-- Saved -->
+  {{-- Saved --}}
   <div class="mb-3 mt-8 flex items-baseline justify-between">
     <h2 class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Your routes</h2>
     <span :if="routes().length > 0" class="text-sm text-slate-500 tabular-nums dark:text-slate-400">{{ routes().length === 1 ? '1 route' : routes().length + ' routes' }}</span>

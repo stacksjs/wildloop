@@ -178,7 +178,7 @@
     </label>
   </div>
 
-  <!-- Before a query: somewhere useful to start. -->
+  {{-- Before a query: somewhere useful to start. --}}
   <section :if="!hasQuery" class="mt-8">
     <h2 class="mb-3 px-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Start here</h2>
     <div class="grid grid-cols-2 gap-3">
@@ -196,9 +196,9 @@
     </div>
   </section>
 
-  <!-- Rows the shape of the answer while it is on its way. Only before the
+  {{-- Rows the shape of the answer while it is on its way. Only before the
        first answer for this text: once results are showing, they stay put
-       while the next keystroke is looked up. -->
+       while the next keystroke is looked up. --}}
   <div :if="hasQuery && loading && sections().length === 0" class="mt-6 animate-pulse" role="status" aria-label="Searching">
     <div class="mb-2 ml-1 h-3 w-16 rounded bg-slate-200 dark:bg-slate-700"></div>
     <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800">

@@ -264,7 +264,7 @@
 </script>
 
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-    <!--
+    {{--
       The page's heading, served, and the only one it has.
 
       A loaded attempt had no heading at all: what names it visually is the link
@@ -276,7 +276,7 @@
       rather than just the route's name, which would read as the trail's own
       page. `sr-only` because the route link already shows that name in place;
       the error card keeps its heading only when the server resolved nothing.
-    -->
+    --}}
     @if (ssrEffortSubject)
     <h1 class="sr-only">{{ ssrEffortSubject }}</h1>
     @endif
@@ -284,14 +284,14 @@
     <div :if="loading" class="py-20 text-center text-sm text-gray-400 dark:text-slate-500">Loading attempt…</div>
 
 @if (ssrEffortMissing)
-  <!--
+  {{--
     The not-found state, served rather than left for the client to reveal. The
     gated copy below is `:if`-conditioned, which stx serves `x-cloak`ed — so a
     request for a record that does not exist answered 200 with its explanation
     hidden. This copy carries no client directive, and its heading is the page's
     `h1` because here it is what the page is. The two are mutually exclusive, so
     there is one card and one heading either way. See `trail/[id].stx`.
-  -->
+  --}}
     <div class="py-20 text-center">
       <h1 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">Attempt not found</h1>
       <p class="mb-6 text-sm text-gray-500 dark:text-slate-400">It may have been withdrawn, or the link is wrong.</p>
@@ -315,8 +315,8 @@
         Records
       </StxLink>
 
-      <!-- The course. Shown for every attempt, and the first thing on the page
-           while one is live, with the clock over it. -->
+      {{-- The course. Shown for every attempt, and the first thing on the page
+           while one is live, with the clock over it. --}}
       <div :show="courseReady()" class="relative mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div id="effort-map" data-stx-ignore class="ts-map-container h-64 sm:h-80"></div>
 
@@ -340,10 +340,10 @@
       <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
         <div class="flex flex-wrap items-center gap-2">
           <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold" x-class="statusTone(effort.status)">{{ statusLabel(effort.status) }}</span>
-          <!-- "Headline" means this time also beats every more restrictive
+          {{-- "Headline" means this time also beats every more restrictive
                style on the route. A supported time slower than the standing
                unsupported one belongs on its board, but it is not the fastest
-               anything, and saying otherwise is what discredits a board. -->
+               anything, and saying otherwise is what discredits a board. --}}
           <span :if="effort.headline &amp;&amp; effort.status === 'verified'" class="rounded-full bg-yellow-100 px-2.5 py-1 text-[11px] font-semibold text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Fastest known time</span>
         </div>
 
@@ -394,8 +394,8 @@
           </dl>
         </div>
 
-        <!-- Evidence. A record is a claim until somebody can check it, so the
-             trace is given the same prominence as the time itself. -->
+        {{-- Evidence. A record is a claim until somebody can check it, so the
+             trace is given the same prominence as the time itself. --}}
         <div class="mt-6 border-t border-slate-100 pt-5 dark:border-slate-700">
           <h2 class="mb-3 text-sm font-bold text-slate-900 dark:text-white">Evidence</h2>
           <div class="flex flex-wrap gap-2">
@@ -423,8 +423,8 @@
           <p class="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-300">{{ effort.tripReport }}</p>
         </div>
 
-        <!-- Only the athlete and reviewers ever see this. Publishing "we did
-             not believe this person" is not the site's call to make. -->
+        {{-- Only the athlete and reviewers ever see this. Publishing "we did
+             not believe this person" is not the site's call to make. --}}
         <div :if="effort.reviewNote" class="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-900/20">
           <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">Reviewer's note</p>
           <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">{{ effort.reviewNote }}</p>
@@ -435,9 +435,9 @@
         {{ actionError }}
       </div>
 
-      <!-- Owner tools. Closing out an attempt is the athlete's job, and a DNF
+      {{-- Owner tools. Closing out an attempt is the athlete's job, and a DNF
            is a first-class outcome: an attempt that quietly vanishes from the
-           tracking board teaches people not to announce the next one. -->
+           tracking board teaches people not to announce the next one. --}}
       <div :if="effort.isOwner &amp;&amp; effort.status !== 'verified'" class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800/60">
         <h2 class="mb-3 text-sm font-bold text-slate-900 dark:text-white">Your attempt</h2>
         <div class="flex flex-wrap gap-2">
@@ -457,8 +457,8 @@
         </div>
       </div>
 
-      <!-- Reviewer tools. Every decision has an author, and a rejection
-           always carries a reason the athlete can act on. -->
+      {{-- Reviewer tools. Every decision has an author, and a rejection
+           always carries a reason the athlete can act on. --}}
       <div :if="effort.canReview" class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800/60">
         <button @click="reviewOpen.set(!reviewOpen())" class="flex w-full items-center justify-between text-sm font-bold text-slate-900 dark:text-white">
           Review this claim

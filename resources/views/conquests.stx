@@ -97,7 +97,7 @@
   )
 </script>
 
-  <!-- Hero -->
+  {{-- Hero --}}
   <section class="border-b border-slate-200 bg-white pb-8 pt-8 sm:pb-10 sm:pt-12 dark:border-slate-800 dark:bg-slate-950">
     <div class="mx-auto flex max-w-6xl flex-col gap-5 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:px-8">
       <div class="min-w-0">
@@ -118,7 +118,7 @@
   <div class="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div class="lg:col-span-2">
-        <!-- Stats -->
+        {{-- Stats --}}
         <dl :if="signedIn && conquestStats" class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-swords h-3.5 w-3.5 text-orange-500" aria-hidden="true"></i>Conquered</dt>
@@ -179,7 +179,7 @@
         </div>
       </div>
 
-      <!-- Sidebar -->
+      {{-- Sidebar --}}
       <aside class="space-y-6">
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <h3 class="mb-3 font-semibold text-slate-900 dark:text-white">Empire status</h3>

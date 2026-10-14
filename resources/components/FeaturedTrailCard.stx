@@ -24,7 +24,7 @@ const { name, location, distance, elevation, difficulty, rating, image } = withD
 
 <template>
   <div class="relative">
-    <!-- Main card -->
+    {{-- Main card --}}
     <div class="overflow-hidden bg-white rounded-3xl shadow-2xl duration-300 transition-transform rotate-2 transform hover:rotate-0">
       <div class="overflow-hidden relative h-64">
         <Image src="{{ image }}" alt="{{ name }}" width="800" height="600" sizes="(max-width: 768px) 100vw, 50vw" placeholder="blur" class="object-cover h-full w-full" />
@@ -57,7 +57,7 @@ const { name, location, distance, elevation, difficulty, rating, image } = withD
       </div>
     </div>
 
-    <!-- Floating activity card -->
+    {{-- Floating activity card --}}
     <slot name="floating-card" />
   </div>
 </template>

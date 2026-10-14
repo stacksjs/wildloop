@@ -544,7 +544,7 @@
 
 <div class="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
   <header class="mb-8">
-    <!-- The app has no header to go back with; the website has its nav. -->
+    {{-- The app has no header to go back with; the website has its nav. --}}
     <StxLink to="/menu" class="native-only -ml-2 mb-3 min-h-11 items-center gap-1 rounded-full px-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
       <i class="i-lucide-chevron-left h-4 w-4" aria-hidden="true"></i>
       Menu
@@ -568,8 +568,8 @@
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap gap-2">
-          <!-- A label opens the picker without any script, and keeps the
-               native file input (sr-only) as the thing assistive tech reads. -->
+          {{-- A label opens the picker without any script, and keeps the
+               native file input (sr-only) as the thing assistive tech reads. --}}
           <label for="profile-photo-input" x-class="'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500/40 ' + (profilePhotoBusy() ? 'pointer-events-none opacity-50' : '')">
             <i class="i-lucide-camera h-4 w-4" aria-hidden="true"></i>
             {{ profileHasPhoto() ? 'Change photo' : 'Add photo' }}
@@ -636,10 +636,10 @@
         <div :if="!privacyLoading" class="grid gap-5 mt-5 sm:grid-cols-2">
           <label class="text-sm text-slate-700 dark:text-slate-300">
             <span class="mb-1.5 block font-medium">Default activity visibility</span>
-            <!-- The native select arrow is the OS control and reads as a
+            {{-- The native select arrow is the OS control and reads as a
                  foreign object against this dark, rounded UI. Suppress it and
                  overlay the app's own chevron; `pointer-events-none` keeps the
-                 whole field clickable and the native picker intact. -->
+                 whole field clickable and the native picker intact. --}}
             <span class="relative block">
               <select x-value="defaultVisibility" @change="defaultVisibility.set($event.target.value)" class="min-h-11 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-3 pr-10 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
                 <option value="public">Public</option>
@@ -675,14 +675,14 @@
     </div>
   </section>
 
-  <!-- Password.
+  {{-- Password.
 
        Its own card rather than a row inside Privacy: this is the one control
        on the page that changes a credential, and it carries its own messages
        because "that is not your current password" belongs beside the field it
        is about. Autocomplete hints are the documented ones, so a password
        manager offers the old entry for the first field and an update for the
-       other two. -->
+       other two. --}}
   <section class="mb-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-slate-200 rounded-2xl shadow-sm dark:border-slate-700 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700" aria-hidden="true">
@@ -816,10 +816,10 @@
         <i class="i-hugeicons-notification-02 h-6 w-6 text-emerald-600 dark:text-emerald-300"></i>
       </span>
       <div class="min-w-0 flex-1">
-        <!-- A switch, not a button: it takes effect at once, and a button
+        {{-- A switch, not a button: it takes effect at once, and a button
              labelled with the opposite of the current state made people read
              "Turn off" as the state. The padding is the tap target; the track
-             is the size of the system switch. -->
+             is the size of the system switch. --}}
         <div class="flex items-center justify-between gap-4">
           <h2 id="device-notifications-title" class="font-semibold text-slate-900 dark:text-white">Device notifications</h2>
           <button
@@ -870,10 +870,10 @@
     </div>
   </section>
 
-  <!-- Deleting the account (App Store 5.1.1(v)). What it removes is spelled
+  {{-- Deleting the account (App Store 5.1.1(v)). What it removes is spelled
        out before anything can be pressed, and the password is asked for again:
        a phone left unlocked must not be enough. An account Google or Apple
-       made types DELETE instead, from a recent sign-in. -->
+       made types DELETE instead, from a recent sign-in. --}}
   <section class="mt-6 p-5 sm:p-6 bg-white dark:bg-slate-800 border border-red-200 rounded-2xl shadow-sm dark:border-red-500/30 dark:shadow-none">
     <div class="flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
       <span class="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl bg-red-50 dark:bg-red-500/10" aria-hidden="true">
@@ -892,9 +892,9 @@
             <span class="mb-1.5 block font-medium">Enter your password to confirm</span>
             <input type="password" autocomplete="current-password" x-value="deletePassword" @input="deletePassword.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white max-w-sm" />
           </label>
-          <!-- Signed up with Google or Apple: there is no password to ask
+          {{-- Signed up with Google or Apple: there is no password to ask
                for. The server also wants a sign-in from the last 15 minutes,
-               and says so if this one is older. -->
+               and says so if this one is older. --}}
           <label :if="!deleteWithPassword()" class="text-sm text-slate-700 dark:text-slate-300">
             <span class="mb-1.5 block font-medium">Type DELETE to confirm</span>
             <input type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" x-value="deleteConfirmation" @input="deleteConfirmation.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white max-w-sm" />
@@ -914,9 +914,9 @@
     </div>
   </section>
 
-  <!-- The site footer is hidden on phones, and in the app it is the only
+  {{-- The site footer is hidden on phones, and in the app it is the only
        other place these were linked from. The App Store wants the privacy
-       policy reachable inside the app. -->
+       policy reachable inside the app. --}}
   <p class="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
     <StxLink to="/privacy" class="inline-flex min-h-11 items-center px-2 hover:underline">Privacy Policy</StxLink>
     <span aria-hidden="true">·</span>

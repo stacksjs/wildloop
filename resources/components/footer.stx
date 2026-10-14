@@ -26,9 +26,9 @@
           Find trails. Track miles. Hold ground.
         </p>
 
-        <!-- The install path that actually works today. A visitor on Android or
+        {{-- The install path that actually works today. A visitor on Android or
              desktop Chrome gets the real prompt; on iOS there is no programmatic
-             install, so say what to tap instead of offering a dead button. -->
+             install, so say what to tap instead of offering a dead button. --}}
         <div class="mt-6">
           <p :if="installed" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
             <i class="i-lucide-check h-4 w-4" aria-hidden="true"></i>
@@ -88,13 +88,13 @@
       </div>
     </div>
 
-    <!--
+    {{--
       Data attribution. Not decoration: OpenStreetMap is published under the
       ODbL, which requires that any product built on it credits the source and
       names the licence. The two federal datasets are public domain and need no
       permission, but saying where a trail came from is what lets someone judge
       whether to trust it.
-    -->
+    --}}
     <div class="mt-12 flex flex-col gap-4 border-t border-slate-200 pt-6 dark:border-slate-800 md:flex-row md:items-start md:justify-between">
       <p class="max-w-3xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
         Trail data from

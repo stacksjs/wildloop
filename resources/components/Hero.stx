@@ -16,7 +16,7 @@ const { activeUsers, trailsMapped, milesTracked } = withDefaults(defineProps<Her
 
 <template>
   <section class="flex overflow-hidden relative items-center min-h-screen hero-gradient">
-    <!-- Background pattern -->
+    {{-- Background pattern --}}
     <div class="absolute inset-0 opacity-10">
       <svg class="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
@@ -28,7 +28,7 @@ const { activeUsers, trailsMapped, milesTracked } = withDefaults(defineProps<Her
       </svg>
     </div>
 
-    <!-- Decorative mountains -->
+    {{-- Decorative mountains --}}
     <div class="absolute bottom-0 left-0 right-0">
       <svg viewBox="0 0 1440 320" class="w-full" preserveAspectRatio="none">
         <path fill="rgba(255,255,255,0.1)" d="M0,160L48,176C96,192,192,224,288,213.3C384,203,480,149,576,138.7C672,128,768,160,864,181.3C960,203,1056,213,1152,197.3C1248,181,1344,139,1392,117.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
@@ -37,7 +37,7 @@ const { activeUsers, trailsMapped, milesTracked } = withDefaults(defineProps<Her
 
     <div class="relative z-10 mx-auto pb-32 pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl">
       <div class="grid gap-12 items-center lg:grid-cols-2">
-        <!-- Left content -->
+        {{-- Left content --}}
         <div class="text-center lg:text-left">
           <div class="inline-flex items-center mb-6 px-4 py-2 font-medium text-sm text-white bg-white/20 rounded-full backdrop-blur-sm">
             <span class="mr-2 h-2 w-2 bg-green-400 rounded-full activity-live"></span>
@@ -59,7 +59,7 @@ const { activeUsers, trailsMapped, milesTracked } = withDefaults(defineProps<Her
             </a>
           </div>
 
-          <!-- Quick stats -->
+          {{-- Quick stats --}}
           <div class="grid gap-6 grid-cols-3 mt-12">
             <div class="text-center lg:text-left">
               <p class="font-bold text-3xl text-white stat-value">{{ activeUsers }}</p>
@@ -76,14 +76,14 @@ const { activeUsers, trailsMapped, milesTracked } = withDefaults(defineProps<Her
           </div>
         </div>
 
-        <!-- Right content - Featured trail card -->
+        {{-- Right content - Featured trail card --}}
         <div class="hidden lg:block">
           <slot name="featured-card" />
         </div>
       </div>
     </div>
 
-    <!-- Scroll indicator -->
+    {{-- Scroll indicator --}}
     <div class="absolute bottom-8 left-1/2 animate-bounce transform -translate-x-1/2">
       <Icon name="arrow-down" size="24" class="text-white/60" />
     </div>

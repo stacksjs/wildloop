@@ -148,8 +148,8 @@
   <div class="record-page">
     <div class="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6 lg:px-8">
 
-      <!-- ── Header ──────────────────────────────────────────────────────── -->
-      <!-- Explicit ARIA strings preserve boolean state: stacksjs/stacks#2794. -->
+      {{-- ── Header ──────────────────────────────────────────────────────── --}}
+      {{-- Explicit ARIA strings preserve boolean state: stacksjs/stacks#2794. --}}
       <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 class="font-display text-2xl font-bold tracking-[-0.03em] dark:text-white">Record</h1>
@@ -191,14 +191,14 @@
         </div>
       </dialog>
 
-      <!-- No pre-flight location card here. Starting a recording asks for the
+      {{-- No pre-flight location card here. Starting a recording asks for the
            permission itself (useRecorder -> startRecording / watchPosition),
            which is the moment the request explains itself, and the GPS badge
            on the map already says whether a fix exists. A screenful of prose
            and a second button in front of the one control this page is for
-           was a page's habit, not an app's. -->
+           was a page's habit, not an app's. --}}
 
-      <!-- ── Live event ──────────────────────────────────────────────────── -->
+      {{-- ── Live event ──────────────────────────────────────────────────── --}}
       <div :if="liveEvent" class="yard-strip">
         <div class="min-w-0">
           <p class="yard-strip-label"><span class="live-pip" aria-hidden="true"></span>{{ 'Yard ' + yard() + ' · next start in ' + countdown() }}</p>
@@ -211,7 +211,7 @@
       </div>
       <p :if="bankError" role="alert" class="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ bankError }}</p>
 
-      <!-- ── Options ─────────────────────────────────────────────────────── -->
+      {{-- ── Options ─────────────────────────────────────────────────────── --}}
       <dialog id="record-options" ref="optionsDialog" aria-labelledby="record-options-title" @close="optionsClosed()" class="record-options m-auto max-h-[85dvh] w-[92vw] max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-white">
         <div class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <h2 id="record-options-title" class="text-lg font-bold">Recording options</h2>
@@ -250,7 +250,7 @@
             </div>
           </div>
 
-          <!-- Target zone (capture mode) -->
+          {{-- Target zone (capture mode) --}}
           <div x-class="runMode === 'capture' ? '' : 'hidden'">
             <p class="field-label">Target a zone to attack</p>
             <div class="flex flex-wrap items-center gap-2">
@@ -263,7 +263,7 @@
             <p :if="targetZone" class="mt-2 text-xs text-orange-600 dark:text-orange-400">Focus run: cross <span class="font-semibold">{{ targetZone.name }}</span> to fill the capture meter.</p>
           </div>
 
-          <!-- Simulate -->
+          {{-- Simulate --}}
           <div class="border-t border-slate-100 pt-4 dark:border-slate-700">
             <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
               <p class="field-label mb-0">Preview a trail</p>
@@ -280,7 +280,7 @@
             </div>
           </div>
 
-          <!-- Import -->
+          {{-- Import --}}
           <div class="border-t border-slate-100 pt-4 dark:border-slate-700">
             <p class="field-label">Import an activity</p>
             <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">GPX, TCX, and checksum-validated FIT files import privately. Imported tracks cannot capture territory.</p>
@@ -295,7 +295,7 @@
         </div>
       </dialog>
 
-      <!-- ── Map ─────────────────────────────────────────────────────────── -->
+      {{-- ── Map ─────────────────────────────────────────────────────────── --}}
       <div class="map-frame isolate">
         <div id="record-map" data-stx-ignore class="ts-map-container h-[36dvh] min-h-[16rem] w-full sm:h-[24rem]"></div>
 
@@ -314,7 +314,7 @@
         <div :if="conquestToast" class="capture-toast absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full bg-emerald-600 px-5 py-2.5 font-bold text-white shadow-xl">{{ conquestToast }}</div>
       </div>
 
-      <!-- Recording controls stay in the page flow, never over the map. -->
+      {{-- Recording controls stay in the page flow, never over the map. --}}
       <div class="record-controls py-6 text-center">
         <p class="metric-clock mb-4" aria-label="Elapsed time">{{ fmtDuration(elapsed()) }}</p>
         <div class="control-inner">
@@ -337,12 +337,12 @@
           <span :if="recording && !paused">Recording</span>
           <span :if="recording && paused">Paused</span>
         </p>
-        <!-- The one rule a first capture run needs, before it is run rather than after it fails. -->
+        {{-- The one rule a first capture run needs, before it is run rather than after it fails. --}}
         <p :if="!recording && !hasPendingRecording && runMode === 'capture'" class="mx-auto mt-3 max-w-md text-center text-sm text-slate-600 dark:text-slate-300">Finish within 50 m of where you start to claim the ground inside your loop. Run straight across someone else's territory to take part of it.</p>
         <p :if="isWebRecorder" class="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">On the web, keep this page visible and your screen unlocked. Background GPS is not guaranteed.</p>
       </div>
 
-      <!-- ── Capture meters ──────────────────────────────────────────────── -->
+      {{-- ── Capture meters ──────────────────────────────────────────────── --}}
       <div :if="recording && activeCaptures.length > 0" class="mt-4 space-y-2">
         <template :for="cap in activeCaptures">
           <div class="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
@@ -355,7 +355,7 @@
         </template>
       </div>
 
-      <!-- ── Live numbers ────────────────────────────────────────────────── -->
+      {{-- ── Live numbers ────────────────────────────────────────────────── --}}
       <div :if="recording || distance > 0" class="metrics">
         <div class="metric-grid">
           <div class="metric">

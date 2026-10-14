@@ -133,9 +133,9 @@
       </div>
     </header>
 
-    <!-- Controls. Period is the primary choice, so it is a full-width
+    {{-- Controls. Period is the primary choice, so it is a full-width
          segmented control; metric is a quieter tab row below it, and the
-         global/following scope sits beside the title. -->
+         global/following scope sits beside the title. --}}
     <div class="mb-6 space-y-4">
       <div class="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Period">
         <button @click="period.set('weekly')" x-class="period === 'weekly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">This week</button>
@@ -152,9 +152,9 @@
       </div>
     </div>
 
-    <!-- First load: skeletons in the shape of the podium and rows, so nothing
+    {{-- First load: skeletons in the shape of the podium and rows, so nothing
          jumps when the rankings land. Later reloads keep the old board on
-         screen, dimmed, rather than blanking it on every tab switch. -->
+         screen, dimmed, rather than blanking it on every tab switch. --}}
     <div :if="loading && leaders.length === 0" aria-hidden="true">
       <div class="mb-6 grid grid-cols-3 items-end gap-3">
         <div class="skeleton h-40 rounded-2xl"></div>
@@ -169,7 +169,7 @@
     </div>
 
     <div x-class="loading ? 'opacity-60' : ''" class="transition-opacity">
-      <!-- Top 3 podium: second, first, third, with the winner standing tallest. -->
+      {{-- Top 3 podium: second, first, third, with the winner standing tallest. --}}
       <div :if="leaders.length >= 3" class="mb-6 grid grid-cols-3 items-end gap-2 sm:gap-4">
         <StxLink x-to="'/athlete/' + leaders[1]?.userId" class="group flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-2 pb-4 pt-5 text-center shadow-sm transition hover:border-slate-300 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
           <div class="relative">
@@ -203,8 +203,8 @@
         </StxLink>
       </div>
 
-      <!-- Full list: one grouped surface with hairline dividers, the way a
-           native table view reads, instead of a stack of separate cards. -->
+      {{-- Full list: one grouped surface with hairline dividers, the way a
+           native table view reads, instead of a stack of separate cards. --}}
       <ol :if="leaders.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800">
         <template :for="(leader, index) in leaders">
           <li>
@@ -226,7 +226,7 @@
       </ol>
     </div>
 
-    <!-- Empty state -->
+    {{-- Empty state --}}
     <div :if="!loading && leaders.length === 0" class="px-4 py-16 text-center">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <Icon name="award" size="30" class="text-emerald-600 dark:text-emerald-400" />

@@ -86,7 +86,7 @@
       </div>
     </header>
 
-    <!-- Signed out -->
+    {{-- Signed out --}}
     <div :if="!signedIn" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <i class="i-lucide-chart-column h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
@@ -97,7 +97,7 @@
     </div>
 
     <div :if="signedIn && userStats">
-      <!-- Summary tiles. One neutral number style; the icon carries the tint. -->
+      {{-- Summary tiles. One neutral number style; the icon carries the tint. --}}
       <dl class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <dt class="flex items-center gap-1.5 metric-label"><i class="i-lucide-route h-3.5 w-3.5 text-emerald-500" aria-hidden="true"></i>Miles</dt>
@@ -118,9 +118,9 @@
         </div>
       </dl>
 
-      <!-- Weekly distance chart. Each column is full height with the bar
+      {{-- Weekly distance chart. Each column is full height with the bar
            anchored to its foot, so a percentage height has something to be a
-           percentage of — the bars used to collapse to nothing. -->
+           percentage of — the bars used to collapse to nothing. --}}
       <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
         <div class="mb-5 flex items-baseline justify-between gap-3">
           <h2 class="font-display text-lg font-bold text-slate-900 dark:text-white">Weekly distance</h2>
@@ -144,7 +144,7 @@
       </section>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <!-- Personal Records -->
+        {{-- Personal Records --}}
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <h2 class="mb-2 flex items-center gap-2 font-display text-lg font-bold text-slate-900 dark:text-white">
             <Icon name="trophy" size="18" class="text-amber-500" />
@@ -174,7 +174,7 @@
           </dl>
         </section>
 
-        <!-- Activity Breakdown -->
+        {{-- Activity Breakdown --}}
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
           <h2 class="mb-4 font-display text-lg font-bold text-slate-900 dark:text-white">Activity breakdown</h2>
           <div class="space-y-4">
@@ -200,7 +200,7 @@
       </div>
     </div>
 
-    <!-- Empty state -->
+    {{-- Empty state --}}
     <div :if="signedIn && !userStats" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <Icon name="bar-chart-3" size="30" class="text-emerald-600 dark:text-emerald-400" />

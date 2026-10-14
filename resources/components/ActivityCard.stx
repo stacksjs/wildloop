@@ -69,7 +69,7 @@ const kudos = getValue(activity, 'kudosCount', getValue(activity, 'kudos', 0))
 
 <template>
   <div class="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition">
-    <!-- Header -->
+    {{-- Header --}}
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center space-x-3">
         <Image src="{{ avatar }}" alt="{{ user }}" width="48" height="48" sizes="48px" placeholder="blur" class="object-cover h-12 w-12 border-2 border-emerald-100 rounded-full" />
@@ -83,12 +83,12 @@ const kudos = getValue(activity, 'kudosCount', getValue(activity, 'kudos', 0))
       </button>
     </div>
 
-    <!-- Trail name -->
+    {{-- Trail name --}}
     <h3 class="mb-3 font-bold text-gray-900 text-lg hover:text-emerald-600 transition cursor-pointer">
       {{ trail }}
     </h3>
 
-    <!-- Stats grid -->
+    {{-- Stats grid --}}
     <div class="grid gap-4 grid-cols-4 mb-4">
       <div class="p-3 text-center bg-gray-50 rounded-xl">
         <p class="font-bold text-2xl text-gray-900">{{ distance }}</p>
@@ -108,7 +108,7 @@ const kudos = getValue(activity, 'kudosCount', getValue(activity, 'kudos', 0))
       </div>
     </div>
 
-    <!-- Map preview -->
+    {{-- Map preview --}}
     <div class="flex items-center justify-center mb-4 h-32 rounded-xl map-preview">
       <div class="relative z-10 text-center">
         <Icon name="map" size="32" class="mb-1 mx-auto text-sky-500" />
@@ -116,7 +116,7 @@ const kudos = getValue(activity, 'kudosCount', getValue(activity, 'kudos', 0))
       </div>
     </div>
 
-    <!-- Actions -->
+    {{-- Actions --}}
     <div class="flex items-center justify-between pt-4 border-gray-100 border-t">
       <div class="flex items-center space-x-4">
         <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition">

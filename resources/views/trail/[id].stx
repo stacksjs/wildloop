@@ -1029,7 +1029,7 @@
 </script>
 
 @if (ssrName)
-  <!--
+  {{--
     The page's heading, outside the container below because that container is
     where the problem was.
 
@@ -1046,12 +1046,12 @@
     hides it visually while leaving it in the accessibility tree, which is the
     half that was missing. The title below is a paragraph for the same reason:
     one page, one heading.
-  -->
+  --}}
   <h1 class="sr-only">{{ ssrName }}</h1>
 @endif
   <div :if="trail">
-    <!-- Header, the way a trail page is usually read: where it sits in the
-         catalog, its name, how it rates, and a row of places to jump to. -->
+    {{-- Header, the way a trail page is usually read: where it sits in the
+         catalog, its name, how it rates, and a row of places to jump to. --}}
     <div class="mx-auto max-w-6xl px-4 pt-4 sm:px-6 lg:px-8">
       <nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-1 overflow-x-auto whitespace-nowrap text-xs text-slate-500 [scrollbar-width:none] dark:text-slate-400">
         <button type="button" @click="goBack()" aria-label="Go back" class="-ml-1 mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 sm:hidden dark:text-slate-300 dark:hover:bg-slate-800">
@@ -1067,7 +1067,7 @@
 
       <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
-          <!--
+          {{--
             The painted title. `x-text` fills it from the client signal on
             hydration, and `{{ ssrName }}` is what stands there until then, so
             the first paint already says which trail this is instead of the
@@ -1077,7 +1077,7 @@
             `sr-only` heading above is the document's `h1` and this is a
             paragraph. Without one — the lookup failed, but the client may still
             load the trail — there is no heading above, so this has to be it.
-          -->
+          --}}
 @if (ssrName || ssrTrailMissing)
           <p x-text="trail.name" class="font-display text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl dark:text-white">{{ ssrName }}</p>
 @else
@@ -1141,7 +1141,7 @@
           </StxLink>
         </div>
       </div>
-      <!-- Anywhere else closes the menu. -->
+      {{-- Anywhere else closes the menu. --}}
       <div :if="menuOpen()" @click="closeMenu()" class="fixed inset-0 z-20" aria-hidden="true"></div>
 
       <nav aria-label="Trail sections" class="mt-4 flex gap-6 overflow-x-auto border-b border-slate-200 text-sm font-semibold [scrollbar-width:none] dark:border-slate-700">
@@ -1153,15 +1153,15 @@
       </nav>
     </div>
 
-    <!-- Photos beside the map: the main picture large, the next one and the
-         route stacked beside it. On a phone, just the main picture. -->
+    {{-- Photos beside the map: the main picture large, the next one and the
+         route stacked beside it. On a phone, just the main picture. --}}
     <div class="mx-auto mt-4 max-w-6xl px-4 sm:px-6 lg:px-8">
       <div class="grid h-64 grid-cols-1 gap-2 overflow-hidden rounded-2xl sm:h-80 md:h-[26rem] md:grid-cols-3 md:grid-rows-2">
         <div class="group relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 md:col-span-2 md:row-span-2">
           <Image :if="heroImage() !== ''" x-src="heroImage()" x-alt="photoIllustrative() ? 'Illustrative landscape' : photoArea() ? 'Photo of ' + photoPlace() + ' area' : trail.name" width="1200" height="800" sizes="(max-width: 768px) 100vw, 66vw" placeholder="blur" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]" />
 
-          <!-- No photo: contour lines and the route itself, drawn across the
-               space a photo would have filled. -->
+          {{-- No photo: contour lines and the route itself, drawn across the
+               space a photo would have filled. --}}
           <div :if="heroImage() === ''" class="trail-hero-topo absolute inset-0" aria-hidden="true"></div>
           <div :if="heroImage() === '' && heroRoute().points !== ''" class="absolute inset-8 opacity-90" aria-hidden="true">
             <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid meet" class="h-full w-full">
@@ -1173,8 +1173,8 @@
           </div>
           <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" aria-hidden="true"></div>
 
-          <!-- Gallery controls. Only drawn once a second photo exists: a lone
-               arrow over a single picture is a control that does nothing. -->
+          {{-- Gallery controls. Only drawn once a second photo exists: a lone
+               arrow over a single picture is a control that does nothing. --}}
           <button :if="hasGallery()" type="button" @click="previousPhoto()" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-slate-800 opacity-100 shadow transition hover:bg-white active:scale-95 md:opacity-0 md:group-hover:opacity-100">
             <i class="i-lucide-chevron-left h-5 w-5" aria-hidden="true"></i>
           </button>
@@ -1186,8 +1186,8 @@
             {{ photoCountLabel() }}
           </button>
 
-          <!-- Whose photo this is. A stock cover says it is one: it is not a
-               picture of this trail, and without the label it reads as one. -->
+          {{-- Whose photo this is. A stock cover says it is one: it is not a
+               picture of this trail, and without the label it reads as one. --}}
           <div :if="photoSourceUrl() !== ''" class="absolute bottom-3 left-4 z-10 flex max-w-[75%] flex-wrap gap-x-2 text-[11px] font-medium text-white/90">
             <span :if="photoArea()">{{ photoPlace() + ' area photo' }}</span>
             <a x-href="photoSourceUrl()" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">{{ 'Photo by ' + photoCredit() }}</a>
@@ -1197,8 +1197,8 @@
           <p :if="photoCredit() === '' && photoIllustrative()" class="absolute bottom-3 left-4 z-10 text-[11px] font-medium text-white/70">Illustrative photo</p>
         </div>
 
-        <!-- The next photo, when there is one. With a single photo the map
-             takes the whole column rather than sitting under an empty tile. -->
+        {{-- The next photo, when there is one. With a single photo the map
+             takes the whole column rather than sitting under an empty tile. --}}
         <button :if="secondPhoto() !== ''" type="button" @click="openGallery()" aria-label="Show all photos" class="relative hidden overflow-hidden bg-slate-100 md:block dark:bg-slate-800">
           <Image x-src="secondPhoto()" x-alt="'Another photo of ' + trail.name" width="600" height="400" sizes="33vw" placeholder="blur" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]" />
         </button>
@@ -1219,7 +1219,7 @@
     </div>
 
     <div id="trail-overview" class="mx-auto max-w-6xl scroll-mt-24 px-4 py-6 sm:px-6 lg:px-8">
-      <!-- Already planned: when, and the way back to the plan's directions. -->
+      {{-- Already planned: when, and the way back to the plan's directions. --}}
       <StxLink :if="trailPlan()" x-to="trailPlanLink()" class="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 transition hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
         <i class="i-lucide-calendar-check h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
         <span class="min-w-0 flex-1 font-semibold">{{ trailPlanLabel() }}</span>
@@ -1230,9 +1230,9 @@
       <p :if="shareMessage()" class="mb-4 px-4 py-3 text-sm text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 rounded-xl">{{ shareMessage() }}</p>
       <div class="grid gap-8 lg:grid-cols-3 lg:gap-10">
         <div class="min-w-0 space-y-6 lg:col-span-2">
-          <!-- A danger someone reported this week. First thing on the page,
+          {{-- A danger someone reported this week. First thing on the page,
                in red, because it is the one thing here that can get somebody
-               hurt: ice above the treeline, a flooded crossing, a fire. -->
+               hurt: ice above the treeline, a flooded crossing, a fire. --}}
           <div :if="danger" role="alert" class="flex items-start gap-3 rounded-2xl border-2 border-red-500 bg-red-50 p-4 dark:border-red-500/70 dark:bg-red-950/40">
             <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-600 text-white" aria-hidden="true">
               <i class="i-lucide-triangle-alert h-6 w-6"></i>
@@ -1247,17 +1247,17 @@
             </div>
           </div>
 
-          <!-- Anything that would change the plan, counted up front and
-               linked to the detail rather than buried below the reviews. -->
+          {{-- Anything that would change the plan, counted up front and
+               linked to the detail rather than buried below the reviews. --}}
           <a :if="noticeCount() > 0" href="#trail-info" class="-mt-4 inline-flex min-h-9 items-center gap-2 rounded-full bg-amber-50 px-3.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15">
             <i class="i-lucide-triangle-alert h-4 w-4" aria-hidden="true"></i>
             <span>Before you go</span>
             <span class="font-semibold underline underline-offset-2">{{ noticeLabel() }}</span>
           </a>
 
-          <!-- The numbers, flat and large: what am I committing to. The
+          {{-- The numbers, flat and large: what am I committing to. The
                catalog stores 0 when a source recorded no climb (NPS and USFS
-               never do), so 0 reads as unknown, not flat. -->
+               never do), so 0 reads as unknown, not flat. --}}
           <dl class="flex flex-wrap gap-x-10 gap-y-4">
             <div>
               <dd class="font-display text-2xl font-bold text-slate-900 tabular-nums dark:text-white">{{ trail.distance + ' mi' }}</dd>
@@ -1283,12 +1283,12 @@
             </div>
           </dl>
 
-          <!-- Description -->
+          {{-- Description --}}
           <div>
             <h2 class="sr-only">About this trail</h2>
-            <!-- Clamped to three lines until asked for: a catalog description
+            {{-- Clamped to three lines until asked for: a catalog description
                  can run to a page, and it pushed the map and the records off
-                 the screen on a phone. -->
+                 the screen on a phone. --}}
             <p x-class="descriptionOpen() || !descriptionLong() ? 'max-w-[68ch] text-slate-600 dark:text-slate-300 leading-relaxed' : 'max-w-[68ch] text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3'">{{ trail.description }}</p>
             <button :if="descriptionLong()" @click="toggleDescription()" class="mt-2 inline-flex min-h-9 items-center text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
               {{ descriptionOpen() ? 'Show less' : 'More' }}
@@ -1296,12 +1296,12 @@
           </div>
         </div>
 
-        <!-- Beside the overview: whether you have done it, and what to do
+        {{-- Beside the overview: whether you have done it, and what to do
              next. Where a trail page usually lists the sights along the way;
-             the catalog has none to list, so the column holds the actions. -->
+             the catalog has none to list, so the column holds the actions. --}}
         <aside class="min-w-0 space-y-4">
-          <!-- Done it? Above the facts, on a phone and a desktop alike: the
-               bar along the bottom of a phone is already full. -->
+          {{-- Done it? Above the facts, on a phone and a desktop alike: the
+               bar along the bottom of a phone is already full. --}}
           <div class="card flex flex-wrap items-center gap-3">
             <span x-class="isDone ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'" class="grid h-10 w-10 shrink-0 place-items-center rounded-full" aria-hidden="true">
               <i class="i-lucide-circle-check h-5 w-5"></i>
@@ -1323,8 +1323,8 @@
             </button>
           </div>
 
-          <!-- The things to do with a trail once it is chosen. Desktop only:
-               on a phone the same three sit in the bar along the bottom. -->
+          {{-- The things to do with a trail once it is chosen. Desktop only:
+               on a phone the same three sit in the bar along the bottom. --}}
           <div class="card hidden space-y-2 lg:block">
             <StxLink to="/record" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
               <i class="i-lucide-play h-4 w-4" aria-hidden="true"></i>
@@ -1354,17 +1354,17 @@
             </button>
           </div>
 
-          <!-- A weather card used to sit here reading 72°F and "Clear skies"
+          {{-- A weather card used to sit here reading 72°F and "Clear skies"
                for every trail in every season, hardcoded. The real forecast
-               for the trailhead now lives in the Conditions section. -->
+               for the trailhead now lives in the Conditions section. --}}
         </aside>
       </div>
 
-      <!-- The trail at a glance: its line on a map, what it is like, and the
-           facts — three cards in a row, as a trail page is usually laid out. -->
+      {{-- The trail at a glance: its line on a map, what it is like, and the
+           facts — three cards in a row, as a trail page is usually laid out. --}}
       <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <!-- Map -->
-          <!-- Not `card`: its padding framed the map in a white border. -->
+          {{-- Map --}}
+          {{-- Not `card`: its padding framed the map in a white border. --}}
           <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:col-span-2 lg:col-span-1 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
               <h2 class="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 dark:text-white">
@@ -1385,8 +1385,8 @@
             <div id="trail-map" data-stx-ignore class="trail-map-panel ts-map-container"></div>
           </div>
 
-          <!-- What the trail is like, as the managing agency lists it: one row
-               per feature, the way a trail page is usually scanned. -->
+          {{-- What the trail is like, as the managing agency lists it: one row
+               per feature, the way a trail page is usually scanned. --}}
           <div class="card">
             <h2 class="mb-3 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Features</h2>
             <ul :if="features().length > 0" class="space-y-2.5">
@@ -1413,8 +1413,8 @@
               <div :if="trail.surface" class="flex items-center justify-between gap-4 py-2.5"><dt class="text-slate-500 dark:text-slate-400">Surface</dt><dd class="font-medium capitalize text-slate-900 dark:text-white">{{ trail.surface }}</dd></div>
               <div :if="trail.managedBy" class="flex items-start justify-between gap-4 py-2.5"><dt class="shrink-0 text-slate-500 dark:text-slate-400">Managed by</dt><dd class="text-right font-medium text-slate-900 dark:text-white">{{ trail.managedBy }}</dd></div>
             </dl>
-            <!-- Anything that would change the plan. Every row is something the
-                 catalog actually says, so a trail with nothing to flag has none. -->
+            {{-- Anything that would change the plan. Every row is something the
+                 catalog actually says, so a trail with nothing to flag has none. --}}
             <div :if="noticeCount() > 0" class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700">
               <h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Before you go</h3>
               <ul class="space-y-3">
@@ -1434,10 +1434,10 @@
           </div>
       </div>
 
-          <!-- Conditions: the week's weather at the trailhead, what people have
+          {{-- Conditions: the week's weather at the trailhead, what people have
                found on the trail lately, and how to get there. The forecast is
                real or absent — see TrailForecastAction; this page once showed
-               an invented "72°F, clear skies" for every trail in every season. -->
+               an invented "72°F, clear skies" for every trail in every season. --}}
           <section id="trail-weather" class="mt-12 scroll-mt-24" aria-labelledby="trail-weather-title">
             <h2 id="trail-weather-title" class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Conditions</h2>
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1522,11 +1522,11 @@
           </section>
 
       <div class="mt-12 space-y-12">
-          <!-- Records -->
-          <!-- The route's fastest known times. Split into the buckets that
+          {{-- Records --}}
+          {{-- The route's fastest known times. Split into the buckets that
                make two times comparable at all — direction, category, style,
                solo or team — because a crewed time and an unsupported one on
-               the same board is a comparison nobody asked for. -->
+               the same board is a comparison nobody asked for. --}}
           <div :if="!recordsLoading &amp;&amp; recordsRankable">
             <div class="mb-4 flex items-end justify-between gap-4">
               <div>
@@ -1536,8 +1536,8 @@
               <button @click="openClaim()" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-timer h-3.5 w-3.5" aria-hidden="true"></i>Claim a time</button>
             </div>
 
-            <!-- The outright fastest, ignoring style and category. This is
-                 what "the FKT" means when it is said without qualification. -->
+            {{-- The outright fastest, ignoring style and category. This is
+                 what "the FKT" means when it is said without qualification. --}}
             <StxLink :if="recordBoard &amp;&amp; recordBoard.outright" x-to="'/effort/' + recordBoard.outright.id" class="mb-4 flex items-center gap-4 rounded-2xl border border-yellow-300 bg-yellow-50 px-4 py-3.5 transition hover:border-yellow-400 dark:border-yellow-800/60 dark:bg-yellow-900/15">
               <span class="text-2xl leading-none" aria-hidden="true">👑</span>
               <div class="min-w-0 flex-1">
@@ -1550,8 +1550,8 @@
               </div>
             </StxLink>
 
-            <!-- Attempts out on the route right now. Announced before the
-                 start, so they exist here before there is any time to rank. -->
+            {{-- Attempts out on the route right now. Announced before the
+                 start, so they exist here before there is any time to rank. --}}
             <div :if="recordBoard &amp;&amp; recordBoard.inProgress.length > 0" class="mb-4 space-y-2">
               <template :for="attempt in recordBoard.inProgress">
                 <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 dark:border-red-900/40 dark:bg-red-900/15">
@@ -1580,9 +1580,9 @@
                           <p class="truncate text-sm font-semibold dark:text-white">{{ entry.userName }}</p>
                           <p class="text-xs text-slate-500 dark:text-slate-400">{{ recordDate(entry.finishedAt || entry.startedAt) + ' · ' + entry.paceLabel }}</p>
                         </div>
-                        <!-- Said out loud rather than implied: a time nobody
+                        {{-- Said out loud rather than implied: a time nobody
                              has checked yet is on the board, but it is not
-                             the same thing as a verified one. -->
+                             the same thing as a verified one. --}}
                         <span :if="entry.status === 'pending'" class="hidden shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 sm:inline dark:bg-amber-900/30 dark:text-amber-400">{{ recordStatusLabel(entry.status) }}</span>
                         <p class="shrink-0 text-sm font-bold text-emerald-600">{{ entry.elapsedLabel }}</p>
                       </StxLink>
@@ -1599,18 +1599,18 @@
             </div>
           </div>
 
-          <!-- A route too short or too flat to race says so, rather than
-               offering a board that would be decided by GPS rounding. -->
+          {{-- A route too short or too flat to race says so, rather than
+               offering a board that would be decided by GPS rounding. --}}
           <div :if="!recordsLoading &amp;&amp; !recordsRankable &amp;&amp; recordBoard" class="card">
             <h2 class="mb-1 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Records</h2>
             <p class="text-sm text-slate-500 dark:text-slate-400">{{ recordBoard.rankableReason }}</p>
           </div>
 
-          <!-- Claim form. One shape for two things, because they are the same
+          {{-- Claim form. One shape for two things, because they are the same
                claim at different times: an attempt announced before the start
                (tracker link, no finish) and a finished one (a time and its
                evidence). Which one is filed follows from whether a finish was
-               entered — there is no mode switch to find. -->
+               entered — there is no mode switch to find. --}}
           <div :show="claimOpen()" x-cloak class="card">
             <h3 class="mb-1 font-bold text-lg dark:text-white">{{ isAnnouncement ? 'Announce an attempt' : 'File a time' }}</h3>
             <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
@@ -1678,7 +1678,7 @@
             </div>
           </div>
 
-          <!-- Segments -->
+          {{-- Segments --}}
           <div :if="segments.length > 0">
             <h2 class="mb-4 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Segments</h2>
             <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800">
@@ -1702,8 +1702,8 @@
             </div>
           </div>
 
-          <!-- Segments (#959). Hidden entirely when a trail has none: a
-               heading over an empty list is worse than no heading. -->
+          {{-- Segments (#959). Hidden entirely when a trail has none: a
+               heading over an empty list is worse than no heading. --}}
           <div :if="trailSegments().length > 0" id="trail-segments" class="mb-10 scroll-mt-24">
             <h2 class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Segments</h2>
             <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -1725,9 +1725,9 @@
                         <span>{{ segment.totalAttempts === 1 ? '1 effort' : segment.totalAttempts.toLocaleString() + ' efforts' }}</span>
                       </p>
                     </div>
-                    <!-- The leader, and your own time beside it. A board that
+                    {{-- The leader, and your own time beside it. A board that
                          shows only the top of the list tells most people
-                         nothing about themselves. -->
+                         nothing about themselves. --}}
                     <div class="shrink-0 text-right">
                       <p :if="segment.leader" class="text-sm font-bold text-slate-900 tabular-nums dark:text-white">{{ segment.leader.time }}</p>
                       <p :if="segment.leader" class="max-w-[9rem] truncate text-[11px] text-slate-500 dark:text-slate-400">{{ segment.leader.name }}</p>
@@ -1759,13 +1759,13 @@
             </div>
           </div>
 
-          <!-- Reviews -->
+          {{-- Reviews --}}
           <div id="trail-reviews" class="scroll-mt-24">
             <h2 class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Reviews</h2>
 
-            <!-- The average and how it splits, above the reviews themselves.
+            {{-- The average and how it splits, above the reviews themselves.
                  Counted from the reviews on this page, so the bars and the
-                 list beneath them always agree. -->
+                 list beneath them always agree. --}}
             <div :if="reviewStats().count > 0" class="mb-6 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center dark:border-slate-700 dark:bg-slate-800">
               <div class="shrink-0 text-center sm:w-36">
                 <p class="font-display text-5xl font-bold text-slate-900 tabular-nums dark:text-white">{{ reviewStats().average.toFixed(1) }}</p>
@@ -1796,7 +1796,7 @@
             </div>
 
             <div :if="reviewTab() === 'reviews'" class="space-y-4">
-              <!-- One review per person per trail (#981): opening the sheet again edits it. -->
+              {{-- One review per person per trail (#981): opening the sheet again edits it. --}}
               <div class="flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
                 <div class="flex min-w-0 items-center gap-3">
                   <span class="hidden h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-emerald-600 shadow-sm sm:grid dark:bg-slate-900 dark:text-emerald-400" aria-hidden="true"><i class="i-lucide-message-square-heart h-5 w-5"></i></span>
@@ -1839,8 +1839,8 @@
               </div>
             </div>
 
-            <!-- What people found, newest first, the last two months. The
-                 weather and hazards as much as the path. -->
+            {{-- What people found, newest first, the last two months. The
+                 weather and hazards as much as the path. --}}
             <div :if="reviewTab() === 'conditions'" class="space-y-3">
               <template :for="report in reports()">
                 <div x-class="report.severity === 'danger' ? 'border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-950/30' : report.severity === 'caution' ? 'border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/20' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'" class="flex items-start gap-3 rounded-2xl border p-4">
@@ -1867,9 +1867,9 @@
       </div>
     </div>
 
-    <!-- Below the trail: what else is around it, the questions people ask
+    {{-- Below the trail: what else is around it, the questions people ask
          about it, and ways into the catalog nearby. Full width, like the
-         header, because each reads as a row rather than a column. -->
+         header, because each reads as a row rather than a column. --}}
     <div class="mx-auto max-w-6xl space-y-12 px-4 pb-12 sm:px-6 lg:px-8">
       <section id="trail-nearby" class="scroll-mt-24" aria-labelledby="trail-nearby-title">
         <h2 id="trail-nearby-title" class="mb-4 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Top trails nearby</h2>
@@ -1939,13 +1939,13 @@
       </section>
     </div>
 
-    <!-- Room for the bar below, which is fixed and would otherwise sit on
-         top of the last card. -->
+    {{-- Room for the bar below, which is fixed and would otherwise sit on
+         top of the last card. --}}
     <div class="h-24 lg:hidden" aria-hidden="true"></div>
 
-    <!-- The three things somebody does on this page, always within a thumb's
+    {{-- The three things somebody does on this page, always within a thumb's
          reach: take it offline, keep it, or look at where it goes. Phone only
-         — on a desktop the same controls sit in the hero and the sidebar. -->
+         — on a desktop the same controls sit in the hero and the sidebar. --}}
     <div class="trail-action-bar lg:hidden">
       <div class="mx-auto flex max-w-lg items-center gap-1.5 px-3 py-3">
         <button
@@ -1981,8 +1981,8 @@
     </div>
   </div>
 
-  <!-- The page's own shape while the trail loads, so nothing jumps when it
-       arrives: hero, the facts line, the four stats and the sidebar. -->
+  {{-- The page's own shape while the trail loads, so nothing jumps when it
+       arrives: hero, the facts line, the four stats and the sidebar. --}}
   <div :if="loadingTrail && !trail" class="animate-pulse" role="status" aria-label="Loading trail">
     <div class="h-80 bg-slate-200 sm:h-96 lg:h-[26rem] dark:bg-slate-800"></div>
     <div class="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-3 lg:px-8">
@@ -2000,7 +2000,7 @@
     </div>
   </div>
 @if (ssrTrailMissing)
-  <!--
+  {{--
     The not-found state, served rather than left for the client to reveal.
     
     The card below it is gated on `:if`, which stx serves `x-cloak`ed — so a
@@ -2014,7 +2014,7 @@
     expression is exactly what should not be served. The two are mutually
     exclusive: when this renders, the gated one below is not emitted at all, so
     the page has one not-found card and one `h1`.
-  -->
+  --}}
   <div class="mx-auto max-w-md px-4 py-24 text-center sm:py-32">
     <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
       <i class="i-lucide-map-pin-off h-9 w-9" aria-hidden="true"></i>
@@ -2031,7 +2031,7 @@
     <div class="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
       <i x-class="trailLoadError ? 'i-lucide-cloud-off h-9 w-9' : 'i-lucide-map-pin-off h-9 w-9'" aria-hidden="true"></i>
     </div>
-    <!--
+    {{--
       Whether this card carries the page's heading depends on what the server
       resolved, which is why the tag is chosen here rather than in the browser.
 
@@ -2047,7 +2047,7 @@
       cannot tell "no such trail" from "the lookup failed" and must leave the
       choice to the client. That page is `noindex` and only ever shows one of
       them, so the duplication costs nothing.
-    -->
+    --}}
 @if (ssrName)
     <p class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ trailLoadError ? 'Trail could not be loaded' : 'Trail not found' }}</p>
 @else
@@ -2060,11 +2060,11 @@
     </StxLink>
   </div>
 @endif
-<!--
+{{--
   All of a trail's photos, full screen: a masonry grid under a bar that says
   whose they are. Picking one closes the grid on that photo. A page overlay,
   like the sheets below, so it stacks over the site header.
--->
+--}}
 <div
   :if="galleryOpen() && trail"
   data-page-overlay
@@ -2094,11 +2094,11 @@
     </template>
   </div>
 </div>
-<!--
+{{--
   Leave a review. A bottom sheet on a phone, a centred dialog on a wider
   screen. Visibility is a class rather than :if so the half-written review,
   photos included, survives closing the sheet by accident.
--->
+--}}
 <div
   data-page-overlay
   :data-open="reviewSheetOpen() ? 'true' : 'false'"
@@ -2216,10 +2216,10 @@
     </div>
   </div>
 </div>
-<!--
+{{--
   Plan a visit: a day, maybe a start time, and notes. The trailhead comes
   from the trail. A bottom sheet on a phone, a centred dialog wider up.
--->
+--}}
 <div
   data-page-overlay
   :data-open="planSheetOpen() ? 'true' : 'false'"

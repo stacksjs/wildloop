@@ -179,7 +179,7 @@
 
   <div class="flex items-center justify-center px-4 py-12 min-h-screen bg-gray-50 dark:bg-slate-900">
     <div class="max-w-md w-full">
-      <!-- Register Form Card -->
+      {{-- Register Form Card --}}
       <div class="p-8 bg-white dark:bg-slate-800 border border-gray-100 rounded-2xl dark:border-slate-700 shadow-xl">
         <div class="mb-8 text-center">
           <StxLink to="/" class="inline-flex items-center mb-6 font-bold text-emerald-600 text-xl">
@@ -189,7 +189,7 @@
           <p class="text-gray-500 dark:text-slate-400">Start your trail adventure today</p>
         </div>
 
-        <!-- Error Alert -->
+        {{-- Error Alert --}}
         <div :if="error" role="alert" aria-live="assertive" class="flex gap-3 items-start mb-6 p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl dark:border-red-900">
           <i class="i-hugeicons-alert-circle h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i>
           <div class="min-w-0">
@@ -201,10 +201,10 @@
           </div>
         </div>
 
-        <!-- Success Alert -->
+        {{-- Success Alert --}}
         <div :if="success" role="status" aria-live="polite" class="flex gap-3 items-start mb-6 p-4 text-emerald-700 text-sm dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 rounded-xl dark:border-emerald-900"><i class="i-hugeicons-checkmark-circle-02 h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i><span>{{ success }}</span></div>
 
-        <!-- Register Form -->
+        {{-- Register Form --}}
         <form @submit="handleRegister" class="space-y-5">
           <div>
             <label for="name" class="block mb-2 font-medium text-gray-700 text-sm dark:text-slate-300">Full Name</label>
@@ -251,7 +251,7 @@
                 <Icon :if="showPassword" name="eye-off" size="20" />
               </button>
             </div>
-            <!-- Password strength indicator -->
+            {{-- Password strength indicator --}}
             <div :if="password" class="mt-2">
               <div class="overflow-hidden h-1 bg-gray-200 dark:bg-slate-600 rounded-full">
                 <div x-class="passwordStrength().level" class="h-full rounded-full transition-all" x-style="'width: ' + passwordStrength().width"></div>
@@ -298,7 +298,7 @@
         </form>
 
         @if(socialReady)
-        <!-- Divider -->
+        {{-- Divider --}}
         <div class="relative my-8">
           <div class="flex absolute inset-0 items-center">
             <div class="w-full border-gray-200 border-t dark:border-slate-600"></div>
@@ -308,11 +308,11 @@
           </div>
         </div>
 
-        <!-- Social sign-up, which is the same endpoint as signing in: the
+        {{-- Social sign-up, which is the same endpoint as signing in: the
              callback creates an account when the Google or Apple identity is
              one it has not seen, so there is no separate sign-up flow to
              build. Links rather than buttons, so they work before hydration,
-             and each only when its credentials are configured. -->
+             and each only when its credentials are configured. --}}
         <div class="flex gap-4">
           @if(googleReady)
           <a href="/api/auth/google/redirect?from=register" rel="nofollow" class="flex flex-1 items-center justify-center px-4 py-3 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 transition">
@@ -336,7 +336,7 @@
         </div>
         @endif
 
-        <!-- Login Link -->
+        {{-- Login Link --}}
         <p class="mt-8 text-center text-gray-500 text-sm dark:text-slate-400">
           Already have an account?
           <StxLink to="/login" class="font-semibold text-emerald-600 hover:text-emerald-700">Sign in</StxLink>

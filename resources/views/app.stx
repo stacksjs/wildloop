@@ -66,7 +66,7 @@
         You get live GPS, offline maps, background tracking, and lap reporting on the home screen.
       </p>
 
-      <!-- The install control, or the honest reason there isn't one. -->
+      {{-- The install control, or the honest reason there isn't one. --}}
       <div class="mt-9">
         <div :if="installed" class="inline-flex items-center gap-3 rounded-2xl bg-emerald-50 px-5 py-4 dark:bg-emerald-950/40">
           <i class="i-lucide-circle-check h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
@@ -90,8 +90,8 @@
         </p>
       </div>
 
-      <!-- Platform instructions. iOS genuinely has no install API, so the
-           steps are the product rather than a fallback. -->
+      {{-- Platform instructions. iOS genuinely has no install API, so the
+           steps are the product rather than a fallback. --}}
       <div class="mt-12 grid gap-4 sm:grid-cols-2">
         <div class="install-card" x-class="platform === 'ios' ? 'install-card-active' : ''">
           <div class="install-head">
@@ -120,8 +120,8 @@
         </div>
       </div>
 
-      <!-- Getting from a desktop to a phone. The QR is the whole point of this
-           block: retyping a URL on a phone keyboard is the step people skip. -->
+      {{-- Getting from a desktop to a phone. The QR is the whole point of this
+           block: retyping a URL on a phone keyboard is the step people skip. --}}
       <div class="mt-6 flex flex-col gap-6 rounded-2xl border border-slate-200 p-6 sm:flex-row sm:items-center dark:border-slate-700">
         <div class="qr-frame" aria-hidden="false">{!! installQr !!}</div>
         <div class="min-w-0">

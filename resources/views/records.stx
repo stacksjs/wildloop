@@ -131,9 +131,9 @@
       </button>
     </div>
 
-    <!-- Style and category narrow the latest feed. The tracking board is
+    {{-- Style and category narrow the latest feed. The tracking board is
          deliberately unfiltered: there are rarely more than a handful of
-         attempts out at once, and hiding any of them defeats the point. -->
+         attempts out at once, and hiding any of them defeats the point. --}}
     <div :if="tab === 'latest'" class="wl-pill-scroll -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
       <button @click="applyFilter({ style: 'all', category: 'all' })" x-class="stylePill('all')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">All</button>
       <button @click="applyFilter({ style: 'unsupported' })" x-class="stylePill('unsupported')" class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition">Unsupported</button>
@@ -156,7 +156,7 @@
       <div class="h-[68px] animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800/60"></div>
     </div>
 
-    <!-- Latest records -->
+    {{-- Latest records --}}
     <div :if="!loading &amp;&amp; tab === 'latest'" class="space-y-2">
       <template :for="record in records">
         <StxLink x-to="'/effort/' + record.id" class="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm transition hover:-translate-y-px hover:border-emerald-300 hover:shadow-md sm:gap-4 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-emerald-700">
@@ -187,7 +187,7 @@
       </div>
     </div>
 
-    <!-- Tracking now -->
+    {{-- Tracking now --}}
     <div :if="!loading &amp;&amp; tab === 'tracking'" class="space-y-2">
       <template :for="attempt in tracking">
         <div class="rounded-2xl border border-red-100 bg-white px-4 py-3.5 shadow-sm dark:border-red-900/40 dark:bg-slate-800/60">

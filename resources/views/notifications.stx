@@ -85,7 +85,7 @@
 </script>
 
   <div class="mx-auto max-w-2xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-    <!-- Header -->
+    {{-- Header --}}
     <header class="mb-5 flex items-center justify-between gap-4">
       <div class="flex min-w-0 items-center gap-2.5">
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Notifications</h1>
@@ -97,7 +97,7 @@
       </button>
     </header>
 
-    <!-- Filter chips with counts. Bleed to the edge on phones, no scrollbar. -->
+    {{-- Filter chips with counts. Bleed to the edge on phones, no scrollbar. --}}
     <div :if="signedIn" class="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
       <template :for="chip in FILTERS">
         <button @click="filter.set(chip.key)" x-class="filter === chip.key ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full pl-4 pr-2 text-sm font-semibold transition active:scale-[0.98]">
@@ -107,8 +107,8 @@
       </template>
     </div>
 
-    <!-- Notification groups: one grouped surface per day, the way a native
-         inbox reads. Unread rows carry a dot and a faint tint. -->
+    {{-- Notification groups: one grouped surface per day, the way a native
+         inbox reads. Unread rows carry a dot and a faint tint. --}}
     <div :if="filtered.length > 0" class="space-y-6">
       <template :for="group in groupedByDay">
         <section>
@@ -116,7 +116,7 @@
           <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
             <template :for="notif in group.items">
               <StxLink x-to="notif.link || '#'" @click="markOne(notif.id)" class="group relative flex items-start gap-3 px-4 py-3.5 transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-700/40" x-class="!notif.read ? 'bg-emerald-50/50 dark:bg-emerald-500/5' : ''">
-                <!-- Type icon -->
+                {{-- Type icon --}}
                 <div class="relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full" x-class="iconTheme(notif.type)">
                   <Icon :if="notif.type === 'kudos'" name="heart" size="18" />
                   <Icon :if="notif.type === 'comment'" name="message-circle" size="18" />
@@ -130,7 +130,7 @@
                   <Icon :if="notif.type === 'plan'" name="calendar-check" size="18" />
                 </div>
 
-                <!-- Body -->
+                {{-- Body --}}
                 <div class="min-w-0 flex-1">
                   <div class="flex items-start justify-between gap-3">
                     <p class="text-sm leading-snug text-slate-900 dark:text-white" x-class="!notif.read ? 'font-semibold' : 'font-medium'">{{ notif.title }}</p>
@@ -150,7 +150,7 @@
       </template>
     </div>
 
-    <!-- Signed out -->
+    {{-- Signed out --}}
     <div :if="!signedIn" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <i class="i-lucide-bell h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
@@ -160,7 +160,7 @@
       <button type="button" @click="openLogin()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in</button>
     </div>
 
-    <!-- Empty state -->
+    {{-- Empty state --}}
     <div :if="signedIn && filtered.length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <Icon name="circle-check-big" size="30" class="text-emerald-600 dark:text-emerald-400" />

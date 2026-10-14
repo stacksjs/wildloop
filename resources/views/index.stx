@@ -465,12 +465,12 @@
 
 <div class="marketing-page">
 
-  <!-- ── Above the fold ─────────────────────────────────────────────────────
+  {{-- ── Above the fold ─────────────────────────────────────────────────────
        One photograph, one promise, one search box. Everything else on this
        page is below the fold on purpose: the first thing a visitor wants is
-       somewhere to go this weekend, not a feature list. -->
-  <!-- `data-nav-overlay` tells the nav it is sitting on a photograph, so it
-       draws itself transparent until the first scroll. See components/nav. -->
+       somewhere to go this weekend, not a feature list. --}}
+  {{-- `data-nav-overlay` tells the nav it is sitting on a photograph, so it
+       draws itself transparent until the first scroll. See components/nav. --}}
   <section class="hero-stage" data-nav-overlay>
     <Image
       src="/images/marketing/wildloop-ridge-runner.jpg"
@@ -520,8 +520,8 @@
           hidden
           x-hidden="suggestionsExpanded() !== 'true'"
         >
-          <!-- `hidden` above holds until the script binds, so the empty list
-               does not paint as a white bar under the field while it loads. -->
+          {{-- `hidden` above holds until the script binds, so the empty list
+               does not paint as a white bar under the field while it loads. --}}
           <template :for="slot in suggestionSlots">
             <li
               x-id="'hero-suggestion-' + slot"
@@ -553,7 +553,7 @@
     </div>
   </section>
 
-  <!-- ── Local favorites ──────────────────────────────────────────────────── -->
+  {{-- ── Local favorites ──────────────────────────────────────────────────── --}}
   <section class="section-paper">
     <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
       <div class="flex flex-wrap items-baseline justify-between gap-3">
@@ -561,9 +561,9 @@
         <StxLink to="/trails" class="text-sm font-semibold text-emerald-700 underline underline-offset-4 dark:text-emerald-400">See all trails</StxLink>
       </div>
 
-      <!-- A swipeable shelf on a phone, where four full-width tiles stacked
+      {{-- A swipeable shelf on a phone, where four full-width tiles stacked
            cost four screens of scrolling before anything else on the page; a
-           grid from `sm` up. -->
+           grid from `sm` up. --}}
       <div class="wl-shelf -mx-4 mt-7 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
         <template :if="featuredLoading() && featured().length === 0">
           <div class="trail-tile w-[78%] shrink-0 animate-pulse sm:w-auto"><div class="trail-tile-photo bg-slate-200 dark:bg-slate-700"></div><div class="mt-3 h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700"></div><div class="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div></div>
@@ -587,8 +587,8 @@
               </div>
               <span :if="tilePhotoIllustrative(trail)" class="absolute bottom-3 right-3 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Illustrative</span>
               <span :if="trail.coverScope === 'area'" class="absolute bottom-3 right-3 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Area photo</span>
-              <!-- The tile is one link, so the licence is named here and
-                   linked on the trail page it opens. -->
+              {{-- The tile is one link, so the licence is named here and
+                   linked on the trail page it opens. --}}
               <span :if="trail.coverCredit" class="absolute bottom-3 left-3 max-w-[80%] truncate rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">{{ 'Photo by ' + trail.coverCredit + (trail.coverLicense ? ' · ' + trail.coverLicense : '') }}</span>
             </div>
             <h3 class="mt-3 truncate font-semibold transition group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{{ trail.name }}</h3>
@@ -638,7 +638,7 @@
     </div>
   </section>
 
-  <!-- ── Territory ──────────────────────────────────────────────────────── -->
+  {{-- ── Territory ──────────────────────────────────────────────────────── --}}
   <section class="section-paper">
     <div class="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[0.78fr_1.22fr] lg:items-center lg:gap-20 lg:px-8 lg:py-28">
       <div class="section-rise">
@@ -684,7 +684,7 @@
     </div>
   </section>
 
-  <!-- ── Records ──────────────────────────────────────────────────────────── -->
+  {{-- ── Records ──────────────────────────────────────────────────────────── --}}
   <section class="section-muted">
     <div class="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-20 lg:px-8 lg:py-28">
       <div class="section-rise">
@@ -757,7 +757,7 @@
     </div>
   </section>
 
-  <!-- ── Live events ──────────────────────────────────────────────────────── -->
+  {{-- ── Live events ──────────────────────────────────────────────────────── --}}
   <section class="live-stage">
     <div class="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20 lg:px-8 lg:py-28">
       <div class="section-rise">
@@ -798,7 +798,7 @@
     </div>
   </section>
 
-  <!-- ── Product ──────────────────────────────────────────────────────────── -->
+  {{-- ── Product ──────────────────────────────────────────────────────────── --}}
   <section class="section-muted">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
       <div class="grid gap-5 md:auto-rows-[190px] md:grid-cols-12">
@@ -845,7 +845,7 @@
     </div>
   </section>
 
-  <!-- ── Get the app ──────────────────────────────────────────────────────── -->
+  {{-- ── Get the app ──────────────────────────────────────────────────────── --}}
   <section class="section-paper" id="get-the-app">
     <div class="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1fr_0.85fr] lg:items-center lg:gap-20 lg:px-8 lg:py-24">
       <div>
@@ -877,8 +877,8 @@
           </StxLink>
         </div>
 
-        <!-- iOS has no programmatic install, so name the two taps instead of
-             offering a button that cannot do anything. -->
+        {{-- iOS has no programmatic install, so name the two taps instead of
+             offering a button that cannot do anything. --}}
         <p :if="!installed && !canPrompt && platform === 'ios'" class="mt-5 max-w-[36rem] rounded-2xl border border-current/12 px-5 py-4 text-sm leading-relaxed text-current/70">
           <span class="font-semibold">On iPhone and iPad:</span> open this page in Safari, tap
           <span class="font-semibold">Share</span> <i class="i-lucide-share h-3.5 w-3.5 align-[-2px]" aria-hidden="true"></i>, then
@@ -891,8 +891,8 @@
       </div>
 
       <div class="app-visual">
-        <!-- The desktop-to-phone handoff. Hidden on small screens: somebody
-             already holding a phone cannot scan a code on it. -->
+        {{-- The desktop-to-phone handoff. Hidden on small screens: somebody
+             already holding a phone cannot scan a code on it. --}}
         <div class="qr-card">
           <div class="qr-frame">{!! appQr !!}</div>
           <p class="qr-caption">Scan to open it on your phone</p>
@@ -918,7 +918,7 @@
     </div>
   </section>
 
-  <!-- ── Adventure anywhere ───────────────────────────────────────────────── -->
+  {{-- ── Adventure anywhere ───────────────────────────────────────────────── --}}
   <section class="section-muted">
     <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
       <h2 class="font-display text-4xl font-bold leading-none tracking-[-0.04em] sm:text-5xl">Adventure anywhere</h2>
@@ -930,7 +930,7 @@
             <template :for="region in topRegions">
               <StxLink x-to="'/trails?state=' + region.code" class="directory-link">{{ region.name }}</StxLink>
             </template>
-            <!-- Bars the width of a name while the list is on its way. -->
+            {{-- Bars the width of a name while the list is on its way. --}}
             <div :if="topRegions().length === 0" class="animate-pulse space-y-3.5 pt-1.5" role="status" aria-label="Loading regions">
               <div class="h-3 w-3/4 rounded bg-current/10"></div>
               <div class="h-3 w-1/2 rounded bg-current/10"></div>
@@ -947,7 +947,7 @@
             <template :for="country in topCountries">
               <StxLink x-to="'/trails?country=' + country.code" class="directory-link">{{ countryName(country.code) }}</StxLink>
             </template>
-            <!-- Bars the width of a name while the list is on its way. -->
+            {{-- Bars the width of a name while the list is on its way. --}}
             <div :if="topCountries().length === 0" class="animate-pulse space-y-3.5 pt-1.5" role="status" aria-label="Loading countries">
               <div class="h-3 w-3/4 rounded bg-current/10"></div>
               <div class="h-3 w-1/2 rounded bg-current/10"></div>
@@ -964,7 +964,7 @@
             <template :for="trail in topTrails">
               <StxLink x-to="'/trail/' + trail.id" class="directory-link">{{ trail.name }}</StxLink>
             </template>
-            <!-- Bars the width of a name while the list is on its way. -->
+            {{-- Bars the width of a name while the list is on its way. --}}
             <div :if="topTrails().length === 0" class="animate-pulse space-y-3.5 pt-1.5" role="status" aria-label="Loading trails">
               <div class="h-3 w-3/4 rounded bg-current/10"></div>
               <div class="h-3 w-1/2 rounded bg-current/10"></div>

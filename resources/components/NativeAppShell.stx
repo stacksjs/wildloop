@@ -26,10 +26,10 @@ void nativeShellReady().then(native => nativeMobile.set(native))
   :class="className()"
   x-class="nativeMobile() ? 'native-mobile' : ''"
 >
-  <!-- The application layout owns the single <main> landmark. This shell is
+  {{-- The application layout owns the single <main> landmark. This shell is
        structural chrome; making it another <main> creates invalid nested
        landmarks and gives both elements the router's stx-content view-
-       transition name. -->
+       transition name. --}}
   <div class="native-app-content">
     <slot />
   </div>

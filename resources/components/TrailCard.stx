@@ -62,7 +62,7 @@ const gradeTitle = difficultyTitle(difficulty, elevation)
 
 <template>
   <article class="overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-md trail-card">
-    <!-- Image -->
+    {{-- Image --}}
     <div class="overflow-hidden relative h-48">
       <Image src="{{ image }}" alt="{{ name }}" width="800" height="600" sizes="(max-width: 768px) 100vw, 33vw" placeholder="blur" class="object-cover h-full w-full trail-image" />
       <div class="absolute left-4 top-4">
@@ -75,7 +75,7 @@ const gradeTitle = difficultyTitle(difficulty, elevation)
       </button>
     </div>
 
-    <!-- Content -->
+    {{-- Content --}}
     <div class="p-5">
       <div class="flex items-start justify-between mb-2">
         <h3 class="font-bold text-gray-900 text-lg hover:text-emerald-600 transition cursor-pointer">{{ name }}</h3>
@@ -91,7 +91,7 @@ const gradeTitle = difficultyTitle(difficulty, elevation)
         {{ location }}
       </p>
 
-      <!-- Stats -->
+      {{-- Stats --}}
       <div class="flex items-center justify-between pt-4 text-gray-600 text-sm border-gray-100 border-t">
         <div class="flex items-center space-x-4">
           <span class="flex items-center">
@@ -106,7 +106,7 @@ const gradeTitle = difficultyTitle(difficulty, elevation)
         <span class="text-gray-400">~{{ time }}</span>
       </div>
 
-      <!-- Tags -->
+      {{-- Tags --}}
       @if(tags.length > 0)
         <div class="flex flex-wrap gap-2 mt-4">
           @foreach(tags as tag)

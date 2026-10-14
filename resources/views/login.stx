@@ -148,7 +148,7 @@
 
   <div class="flex items-center justify-center px-4 py-12 min-h-screen bg-gray-50 dark:bg-slate-900">
     <div class="max-w-md w-full">
-      <!-- Login Form Card -->
+      {{-- Login Form Card --}}
       <div class="p-8 bg-white dark:bg-slate-800 border border-gray-100 rounded-2xl dark:border-slate-700 shadow-xl">
         <div class="mb-8 text-center">
           <StxLink to="/" class="inline-flex items-center mb-6 font-bold text-emerald-600 text-xl">
@@ -161,7 +161,7 @@
         <div :if="error" role="alert" aria-live="assertive" class="flex gap-3 items-start mb-6 p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl dark:border-red-900"><i class="i-hugeicons-alert-circle h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i><span>{{ error }}</span></div>
         <div :if="success" role="status" aria-live="polite" class="flex gap-3 items-start mb-6 p-4 text-emerald-700 text-sm dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 rounded-xl dark:border-emerald-900"><i class="i-hugeicons-checkmark-circle-02 h-5 w-5 shrink-0 mt-px" aria-hidden="true"></i><span>{{ success }}</span></div>
 
-        <!-- Login Form -->
+        {{-- Login Form --}}
         <form @submit="handleLogin" class="space-y-5">
           <div>
             <label for="email" class="block mb-2 font-medium text-gray-700 text-sm dark:text-slate-300">Email</label>
@@ -227,7 +227,7 @@
         </form>
 
         @if(socialReady)
-        <!-- Divider -->
+        {{-- Divider --}}
         <div class="relative my-8">
           <div class="flex absolute inset-0 items-center">
             <div class="w-full border-gray-200 border-t dark:border-slate-600"></div>
@@ -237,11 +237,11 @@
           </div>
         </div>
 
-        <!-- Social Login. Each provider is a link, not a button: a plain
+        {{-- Social Login. Each provider is a link, not a button: a plain
              navigation to an endpoint that redirects, so it works before
              hydration and a middle-click opens it the way a link should.
              Each appears only when its credentials are configured, and the
-             row shares its width between whichever are there. -->
+             row shares its width between whichever are there. --}}
         <div class="flex gap-4">
           @if(googleReady)
           <a href="/api/auth/google/redirect" rel="nofollow" class="flex flex-1 items-center justify-center px-4 py-3 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 rounded-xl dark:border-slate-600 transition">
@@ -265,7 +265,7 @@
         </div>
         @endif
 
-        <!-- Sign Up Link -->
+        {{-- Sign Up Link --}}
         <p class="mt-8 text-center text-gray-500 text-sm dark:text-slate-400">
           Don't have an account?
           <StxLink to="/register" class="font-semibold text-emerald-600 hover:text-emerald-700">Sign up for free</StxLink>

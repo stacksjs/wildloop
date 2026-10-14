@@ -2,5 +2,5 @@
   useDark()
 </script>
 
-<!-- STX needs a concrete root to hydrate this client-only partial. -->
+{{-- STX needs a concrete root to hydrate this client-only partial. --}}
 <div class="contents" aria-hidden="true"></div>

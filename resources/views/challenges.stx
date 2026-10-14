@@ -120,7 +120,7 @@
             <span class="text-xs text-slate-500 dark:text-slate-400">{{ wl.timeAgo(challenge.created_at) }}</span>
           </div>
 
-          <!-- Challenger vs defender, mirrored around the VS mark. -->
+          {{-- Challenger vs defender, mirrored around the VS mark. --}}
           <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div class="flex min-w-0 items-center gap-3">
               <Image :if="photoOf(challenge.challengerAvatar)" x-src="photoOf(challenge.challengerAvatar)" x-alt="challenge.challengerName" width="44" height="44" sizes="44px" loading="lazy" class="h-11 w-11 shrink-0 rounded-full object-cover" />
@@ -149,7 +149,7 @@
             <span class="shrink-0 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">{{ areaText(challenge.areaAtStake) + ' at stake' }}</span>
           </StxLink>
 
-          <!-- Accept / decline (received + pending only) (#965) -->
+          {{-- Accept / decline (received + pending only) (#965) --}}
           <div :if="challenge.challenged_id === currentUserId && challenge.status === 'pending'" class="mt-3 grid grid-cols-2 gap-2">
             <button @click="respond(challenge, 'decline')" x-disabled="busyId === challenge.id" class="min-h-11 rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-red-300 hover:text-red-600 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300">Decline</button>
             <button @click="respond(challenge, 'accept')" x-disabled="busyId === challenge.id" class="min-h-11 rounded-full bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">Accept</button>
@@ -169,7 +169,7 @@
     </div>
   </div>
 
-  <!-- New-challenge modal (#965). Bottom sheet on phones. -->
+  {{-- New-challenge modal (#965). Bottom sheet on phones. --}}
   <div :if="createOpen" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="new-challenge-title">
     <div @click="closeCreate()" class="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]"></div>
     <div class="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-200 bg-white px-5 pb-8 pt-3 shadow-2xl sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-800">

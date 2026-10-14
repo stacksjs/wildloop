@@ -141,11 +141,11 @@ onDestroy(() => {
     <ActivityIndicator :show="loading" testID="records-loading" class="mt-6" />
     <Text :show="error" testID="records-error" class="mt-4 text-rose-300" :text="error" />
 
-    <!--
+    {{--
       Keep this as a keyed :for inside ScrollView. FlatList's legacy item
       template expansion is host-specific; the shared STX runtime guarantees
       keyed identity, event scope, and scroll preservation on this path.
-    -->
+    --}}
     <View testID="records-list" class="mt-5 gap-3">
       <Pressable :for="row in rows()" :key="row.id" testID="record-row" class="rounded-xl bg-slate-900 p-3" @click="openEffort(row.id)">
         <Text class="text-base font-semibold text-white" :text="row.trailName" />

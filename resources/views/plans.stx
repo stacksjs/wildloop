@@ -321,7 +321,7 @@
       </button>
     </header>
 
-    <!-- Where to? A town anywhere, then its trails or a spot there. -->
+    {{-- Where to? A town anywhere, then its trails or a spot there. --}}
     <section class="relative mb-6" aria-label="Find a place">
       <label for="plan-where" class="sr-only">Where are you going?</label>
       <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30 dark:border-slate-700 dark:bg-slate-800">
@@ -359,7 +359,7 @@
     </p>
     <p :if="loadError()" class="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300" role="alert">{{ loadError() }}</p>
 
-    <!-- Upcoming -->
+    {{-- Upcoming --}}
     <section :if="canShow() && upcoming().length > 0" aria-labelledby="upcoming-heading">
       <h2 id="upcoming-heading" class="metric-label mb-2 px-1">Upcoming</h2>
       <div class="space-y-3">
@@ -383,7 +383,7 @@
               </div>
             </div>
 
-            <!-- Directions first: this is the card somebody opens in the car. -->
+            {{-- Directions first: this is the card somebody opens in the car. --}}
             <div class="mt-4 grid grid-cols-2 gap-2 px-4">
               <a x-href="appleUrl(plan)" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] dark:bg-white dark:text-slate-900">
                 <i class="i-lucide-navigation h-4 w-4" aria-hidden="true"></i>
@@ -422,7 +422,7 @@
       </div>
     </section>
 
-    <!-- Nothing planned yet -->
+    {{-- Nothing planned yet --}}
     <div :if="signedIn() && loaded() && !loadError() && upcoming().length === 0" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <i class="i-lucide-calendar-plus h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
@@ -437,7 +437,7 @@
 
     <p :if="signedIn() && loading() && !loaded()" class="py-10 text-center text-sm text-slate-400">Loading your plans…</p>
 
-    <!-- Past -->
+    {{-- Past --}}
     <section :if="canShow() && past().length > 0" class="mt-8">
       <button type="button" @click="showPast.set(!showPast())" x-aria-expanded="showPast() ? 'true' : 'false'" class="flex min-h-10 w-full items-center justify-between rounded-xl px-1 text-left">
         <span class="metric-label">{{ 'Past · ' + past().length }}</span>
@@ -458,7 +458,7 @@
       </ul>
     </section>
 
-    <!-- Signed out -->
+    {{-- Signed out --}}
     <div :if="!canShow() && loaded()" class="rounded-2xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700">
       <div class="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
         <i class="i-lucide-calendar-days h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
@@ -469,11 +469,11 @@
     </div>
   </div>
 
-<!--
+{{--
   New spot or edit. A bottom sheet on a phone, a centred dialog wider up.
   Visibility is a class rather than :if so the pin map is not rebuilt, and a
   half-typed note survives closing the sheet by accident.
--->
+--}}
 <div
   data-page-overlay
   :data-open="sheetOpen() ? 'true' : 'false'"
@@ -499,7 +499,7 @@
     </div>
 
     <div class="flex-1 space-y-5 overflow-y-auto px-6 pb-6 pt-5">
-      <!-- Where: only for a spot. A trail plan goes to the trailhead. -->
+      {{-- Where: only for a spot. A trail plan goes to the trailhead. --}}
       <section x-class="isTrailPlan() ? 'hidden' : ''" class="space-y-2.5">
         <label for="plan-spot-search" class="text-sm font-semibold text-slate-900 dark:text-white">Where</label>
         <input id="plan-spot-search" type="search" autocomplete="off" placeholder="Town or city" @input="onSpotInput($event)" class="block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />

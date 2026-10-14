@@ -58,11 +58,15 @@
     earlier count of 1,804 looked only at `resources/views/**` and missed what the
     components carry. Tokens and `@keyframes` belong in `config/crosswind.ts`,
     repeated shapes in its `shortcuts`
-  - comment with `{{-- --}}`, never `<!-- -->` — **352 HTML comments** left, over the
-    same wider scope. They ship to the browser as content, and one mentioning
-    `<html>`, `<!DOCTYPE` or `</script` makes `hasDocumentShell` skip the shell, which
-    turns every in-app navigation into a full reload. None currently carry those
-    tokens; 35 carry a backtick
+  - comment with `{{-- --}}`, never `<!-- -->` — **clear**. All 352 were converted
+    on 15 Oct 2026, and `bun run gate:stx` now fails on the next one rather than
+    tracking a backlog. They shipped to the browser as content: ten pages carried
+    21-35 each, and losing them took 6-9KB off every one. The hazard was never
+    the weight though — one mentioning `<html>`, `<!DOCTYPE` or `</script` makes
+    `hasDocumentShell` skip the shell, which turns every in-app navigation into a
+    full reload, and nothing stopped somebody writing that comment tomorrow.
+    Verified by diffing the served HTML before and after: 4,242 lines each way,
+    two differing, both the dev server's own reload counter
   - at most two script blocks per file — **clear**. One server block plus one client
     block is the shape, and prose quoting `<script server>` inflates a naive count
 

@@ -19,7 +19,7 @@ onMount(() => {
 onDestroy(() => removeListener?.())
 </script>
 
-<!--
+{{--
   Visibility is a class, not `:if`.
 
   A component's `:if` binds once and then never re-runs inside Craft's
@@ -33,7 +33,7 @@ onDestroy(() => removeListener?.())
   element's classes when it binds and then assigns `className` outright, so a
   second binding on the same element overwrites whatever the first decided —
   which left this banner stuck in one state whichever way the signal went.
--->
+--}}
 <div
   role="status"
   aria-live="polite"
