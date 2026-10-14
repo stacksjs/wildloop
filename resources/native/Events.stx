@@ -128,32 +128,32 @@ onDestroy(() => {
       <Button testID="cycle-type" @click="cycleType()">Change the kind</Button>
     </View>
 
-    <ActivityIndicator :if="loading" testID="events-loading" class="mt-6" />
-    <Text :if="error" testID="events-error" class="mt-4 text-rose-300" :text="error" />
+    <ActivityIndicator :show="loading" testID="events-loading" class="mt-6" />
+    <Text :show="error" testID="events-error" class="mt-4 text-rose-300" :text="error" />
 
     {{-- Three keyed lists rather than one with headings: a live event and a
          finished one are different things to somebody standing at a start
          line, and the order is the information. --}}
-    <View :if="live().length > 0" class="mt-5 gap-2">
+    <View :show="live().length > 0" class="mt-5 gap-2">
       <Text testID="live-heading" class="text-xs font-semibold uppercase text-emerald-300">Live now</Text>
       <Pressable :for="row in live()" :key="row.id" testID="live-row" class="rounded-xl bg-emerald-950 p-3" @click="openEvent(row)">
         <Text class="text-base font-semibold text-white" :text="row.name" />
         <Text class="text-xs text-emerald-200" :text="standing(row)" />
-        <Text :if="where(row)" class="text-xs text-slate-400" :text="where(row)" />
+        <Text :show="where(row)" class="text-xs text-slate-400" :text="where(row)" />
       </Pressable>
     </View>
 
-    <View :if="upcoming().length > 0" class="mt-5 gap-2">
+    <View :show="upcoming().length > 0" class="mt-5 gap-2">
       <Text testID="upcoming-heading" class="text-xs font-semibold uppercase text-slate-500">Coming up</Text>
       <Pressable :for="row in upcoming()" :key="row.id" testID="upcoming-row" class="rounded-xl bg-slate-900 p-3" @click="openEvent(row)">
         <Text class="text-base font-semibold text-white" :text="row.name" />
         <Text class="text-xs text-slate-300" :text="kind(row) + ' · ' + when(row)" />
-        <Text :if="where(row)" class="text-xs text-slate-400" :text="where(row)" />
+        <Text :show="where(row)" class="text-xs text-slate-400" :text="where(row)" />
         <Text class="text-xs text-slate-500" :text="standing(row)" />
       </Pressable>
     </View>
 
-    <View :if="past().length > 0" class="mt-5 gap-2">
+    <View :show="past().length > 0" class="mt-5 gap-2">
       <Text testID="past-heading" class="text-xs font-semibold uppercase text-slate-600">Finished</Text>
       <Pressable :for="row in past()" :key="row.id" testID="past-row" class="rounded-xl bg-slate-900/60 p-3" @click="openEvent(row)">
         <Text class="text-sm font-semibold text-slate-300" :text="row.name" />
@@ -161,7 +161,7 @@ onDestroy(() => {
       </Pressable>
     </View>
 
-    <Text :if="!loading && !error && rows().length === 0" testID="events-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && rows().length === 0" testID="events-empty" class="mt-6 text-sm text-slate-400">
       No events of this kind yet.
     </Text>
   </ScrollView>

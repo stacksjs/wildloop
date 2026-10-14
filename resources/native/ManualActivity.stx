@@ -153,7 +153,7 @@ onDestroy(() => {
       </NativeRunMetric>
     </View>
 
-    <Text :if="error" testID="manual-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="manual-error" class="mt-4 text-rose-300" :text="error" />
     <Button testID="save-activity" class="mt-5" @click="submit()">Save activity</Button>
     <Button testID="manual-back" class="mt-2" @click="goBack()">Back</Button>
   </ScrollView>

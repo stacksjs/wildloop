@@ -189,9 +189,9 @@ onDestroy(() => {
       <Button testID="cycle-metric" @click="cycleMetric()">Change the measure</Button>
     </View>
 
-    <ActivityIndicator :if="loading" testID="leaderboard-loading" class="mt-6" />
-    <Text :if="error" testID="leaderboard-error" class="mt-4 text-rose-300" :text="error" />
-    <Text :if="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-slate-400">
+    <ActivityIndicator :show="loading" testID="leaderboard-loading" class="mt-6" />
+    <Text :show="error" testID="leaderboard-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-slate-400">
       Sign in to see how you rank against the people you follow.
     </Text>
 
@@ -199,8 +199,8 @@ onDestroy(() => {
     <View testID="leaderboard-list" class="mt-5 gap-3">
       <Pressable :for="row in rows()" :key="row.rank" testID="leader-row" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3" @click="openAthlete(row)">
         <Text testID="leader-rank" class="w-7 text-center text-base font-bold text-slate-400" :text="row.rank" />
-        <Image :if="photo(row)" testID="leader-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
-        <Text :if="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
+        <Image :show="photo(row)" testID="leader-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
+        <Text :show="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
         <View class="flex-1">
           <Text class="text-base font-semibold text-white" :text="row.userName" />
           <Text class="text-xs text-slate-400" :text="secondary(row)" />
@@ -209,7 +209,7 @@ onDestroy(() => {
       </Pressable>
     </View>
 
-    <Text :if="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" class="mt-6 text-sm text-slate-400">
       Nobody has logged anything in this period yet.
     </Text>
   </ScrollView>

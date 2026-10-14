@@ -138,8 +138,8 @@ onDestroy(() => {
       <Button testID="cycle-style" @click="cycleStyle()">Change style</Button>
     </View>
 
-    <ActivityIndicator :if="loading" testID="records-loading" class="mt-6" />
-    <Text :if="error" testID="records-error" class="mt-4 text-rose-300" :text="error" />
+    <ActivityIndicator :show="loading" testID="records-loading" class="mt-6" />
+    <Text :show="error" testID="records-error" class="mt-4 text-rose-300" :text="error" />
 
     <!--
       Keep this as a keyed :for inside ScrollView. FlatList's legacy item
@@ -149,17 +149,17 @@ onDestroy(() => {
     <View testID="records-list" class="mt-5 gap-3">
       <Pressable :for="row in rows()" :key="row.id" testID="record-row" class="rounded-xl bg-slate-900 p-3" @click="openEffort(row.id)">
         <Text class="text-base font-semibold text-white" :text="row.trailName" />
-        <Text :if="row.where" class="text-xs text-slate-400" :text="row.where" />
+        <Text :show="row.where" class="text-xs text-slate-400" :text="row.where" />
         <View class="mt-2 flex-row items-baseline gap-2">
           <Text class="text-xl font-bold text-emerald-300" :text="row.elapsed" />
-          <Text :if="row.pace" class="text-xs text-slate-400" :text="row.pace" />
+          <Text :show="row.pace" class="text-xs text-slate-400" :text="row.pace" />
         </View>
         <Text class="mt-1 text-xs text-slate-300" :text="row.who + ' · ' + row.kind" />
         <Text class="text-xs text-slate-500" :text="row.status" />
       </Pressable>
     </View>
 
-    <Text :if="!loading && !error && rows().length === 0" testID="records-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && rows().length === 0" testID="records-empty" class="mt-6 text-sm text-slate-400">
       No claims match this style yet.
     </Text>
   </ScrollView>

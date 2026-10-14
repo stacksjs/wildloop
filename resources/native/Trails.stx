@@ -146,33 +146,33 @@ onDestroy(() => {
       />
       <View class="flex-row gap-2">
         <Button testID="trails-submit" @click="search()">Search</Button>
-        <Button :if="query() !== ''" testID="trails-clear" @click="clear()">Clear</Button>
+        <Button :show="query() !== ''" testID="trails-clear" @click="clear()">Clear</Button>
       </View>
     </View>
 
-    <ActivityIndicator :if="loading" testID="trails-loading" class="mt-6" />
-    <Text :if="error" testID="trails-error" class="mt-4 text-rose-300" :text="error" />
+    <ActivityIndicator :show="loading" testID="trails-loading" class="mt-6" />
+    <Text :show="error" testID="trails-error" class="mt-4 text-rose-300" :text="error" />
 
-    <Text :if="heading()" testID="trails-count" class="mt-5 text-xs font-semibold uppercase text-slate-500" :text="heading()" />
+    <Text :show="heading()" testID="trails-count" class="mt-5 text-xs font-semibold uppercase text-slate-500" :text="heading()" />
 
     {{-- The route, then the words. A trail with no line in the catalog gets the
          words alone rather than an empty box pretending to be a picture. --}}
     <View class="mt-2 gap-2">
       <Pressable :for="row in rows()" :key="row.id" testID="trail-row" class="flex-row gap-3 rounded-xl bg-slate-900 p-3" @click="openTrail(row)">
-        <View :if="line(row) !== ''" class="rounded-lg bg-slate-950 p-1">
+        <View :show="line(row) !== ''" class="rounded-lg bg-slate-950 p-1">
           <svg viewBox="0 0 96 64" width="96" height="64">
             <polyline testID="trail-route" :points="line(row)" stroke="#34d399" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </View>
         <View class="flex-1">
           <Text class="text-base font-semibold text-white" :text="row.name" />
-          <Text :if="place(row)" class="text-xs text-slate-400" :text="place(row)" />
-          <Text :if="stats(row)" class="mt-1 text-xs text-slate-300" :text="stats(row)" />
-          <Text :if="grade(row)" testID="trail-grade" class="mt-1 text-xs capitalize text-emerald-300" :text="grade(row)" />
+          <Text :show="place(row)" class="text-xs text-slate-400" :text="place(row)" />
+          <Text :show="stats(row)" class="mt-1 text-xs text-slate-300" :text="stats(row)" />
+          <Text :show="grade(row)" testID="trail-grade" class="mt-1 text-xs capitalize text-emerald-300" :text="grade(row)" />
         </View>
       </Pressable>
     </View>
 
-    <Text :if="!loading && !error && rows().length === 0" testID="trails-empty" class="mt-6 text-sm text-slate-400">No trail matches that.</Text>
+    <Text :show="!loading && !error && rows().length === 0" testID="trails-empty" class="mt-6 text-sm text-slate-400">No trail matches that.</Text>
   </ScrollView>
 </SafeAreaView>

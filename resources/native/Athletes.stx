@@ -202,9 +202,9 @@ onDestroy(() => {
       <Button testID="run-search" @click="search()">Search</Button>
     </View>
 
-    <ActivityIndicator :if="loading" testID="athletes-loading" class="mt-6" />
-    <Text :if="error" testID="athletes-error" class="mt-4 text-rose-300" :text="error" />
-    <Text :if="signedOut" testID="athletes-signed-out" class="mt-3 text-xs text-slate-500">
+    <ActivityIndicator :show="loading" testID="athletes-loading" class="mt-6" />
+    <Text :show="error" testID="athletes-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="signedOut" testID="athletes-signed-out" class="mt-3 text-xs text-slate-500">
       Sign in to follow athletes and see their runs in your feed.
     </Text>
 
@@ -212,8 +212,8 @@ onDestroy(() => {
     <View testID="athletes-list" class="mt-5 gap-3">
       <View :for="row in rows()" :key="row.id" testID="athlete-row" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3">
         <Pressable testID="athlete-open" class="flex-1 flex-row items-center gap-3" @click="openAthlete(row)">
-          <Image :if="photo(row)" testID="athlete-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
-          <Text :if="!photo(row)" testID="athlete-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
+          <Image :show="photo(row)" testID="athlete-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
+          <Text :show="!photo(row)" testID="athlete-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
           <View class="flex-1">
             <Text class="text-base font-semibold text-white" :text="row.name" />
             <Text testID="athlete-stats" class="text-xs text-slate-400" :text="stats(row)" />
@@ -223,7 +223,7 @@ onDestroy(() => {
       </View>
     </View>
 
-    <Text :if="!loading && !error && rows().length === 0" testID="athletes-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && rows().length === 0" testID="athletes-empty" class="mt-6 text-sm text-slate-400">
       Nobody matches that name.
     </Text>
   </ScrollView>

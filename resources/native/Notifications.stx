@@ -166,12 +166,12 @@ onDestroy(() => {
            turned true kept the handler from the first RENDER, and the tap did
            nothing. Fixed in stx 0.2.504, which hydrates a revealed handler in
            the same batch; `scripts/stx-gate.ts` holds the floor. --}}
-      <Button :if="unread() > 0" testID="mark-all" @click="markAllRead()">Mark all read</Button>
+      <Button :show="unread() > 0" testID="mark-all" @click="markAllRead()">Mark all read</Button>
     </View>
 
-    <ActivityIndicator :if="loading" testID="notifications-loading" class="mt-6" />
-    <Text :if="error" testID="notifications-error" class="mt-4 text-rose-300" :text="error" />
-    <Text :if="signedOut" testID="notifications-signed-out" class="mt-4 text-sm text-slate-400">
+    <ActivityIndicator :show="loading" testID="notifications-loading" class="mt-6" />
+    <Text :show="error" testID="notifications-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="signedOut" testID="notifications-signed-out" class="mt-4 text-sm text-slate-400">
       Sign in to hear when somebody gives you kudos, challenges you, or takes your ground.
     </Text>
 
@@ -189,12 +189,12 @@ onDestroy(() => {
             <Text class="text-xs text-slate-500" :text="timeAgo(row.created_at)" />
           </View>
           <Text class="mt-1 text-sm text-slate-300" :text="row.message" />
-          <Text :if="!row.read" testID="row-unread" class="mt-1 text-xs text-emerald-300">New</Text>
+          <Text :show="!row.read" testID="row-unread" class="mt-1 text-xs text-emerald-300">New</Text>
         </Pressable>
       </View>
     </View>
 
-    <Text :if="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-slate-400">
       Nothing under this filter.
     </Text>
   </ScrollView>

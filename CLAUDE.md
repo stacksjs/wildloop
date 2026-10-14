@@ -39,6 +39,18 @@
     the three-button probe (flipped-later now runs). `bun run gate:stx` holds
     0.2.504 as the floor instead of banning the pattern, so this comes back as a
     failure only if the framework goes backwards
+  - **no `:if` in `resources/native/**` — use `:show`.** The native runtime never
+    applies `:if`: the compiler puts the binding in the manifest, nothing reads
+    it, and `stxHost.setVisible` is never called, so *every* branch renders.
+    Trails shipped showing its spinner, its error slot, its result count and
+    "No trail matches that." in the same frame, and a challenge the viewer sent
+    got a working Accept button. `:show` goes through `setVisible` and is correct
+    inside a `:for` as well as outside — four display operations, all right, in
+    the same probe where `:if` produced none. Filed as stacksjs/stx#2074, present
+    in 0.2.504 and 0.2.520 alike, so it is not a regression and nothing is coming
+    for free. The gate fails on any `:if` under `resources/native/`. Note the
+    semantics differ: `:show` keeps the node mounted and hides it, so a test
+    asserting a control is *not* offered has to read `style.display`, not the text
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that

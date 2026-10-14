@@ -219,24 +219,24 @@ onDestroy(() => {
       <Button testID="cycle-filter" @click="cycleFilter()">Change the filter</Button>
     </View>
 
-    <ActivityIndicator :if="loading" testID="clubs-loading" class="mt-6" />
-    <Text :if="error" testID="clubs-error" class="mt-4 text-rose-300" :text="error" />
-    <Text :if="signedOut" testID="clubs-signed-out" class="mt-4 text-amber-300">Sign in on the web to join a club.</Text>
+    <ActivityIndicator :show="loading" testID="clubs-loading" class="mt-6" />
+    <Text :show="error" testID="clubs-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="signedOut" testID="clubs-signed-out" class="mt-4 text-amber-300">Sign in on the web to join a club.</Text>
 
-    <Text :if="heading()" testID="clubs-count" class="mt-5 text-xs font-semibold uppercase text-slate-500" :text="heading()" />
+    <Text :show="heading()" testID="clubs-count" class="mt-5 text-xs font-semibold uppercase text-slate-500" :text="heading()" />
 
     <View class="mt-2 gap-2">
       <View :for="club in shown()" :key="club.id" class="rounded-xl bg-slate-900 p-3">
         <Pressable testID="club-row" @click="openClub(club)">
           <Text class="text-base font-semibold text-white" :text="club.name" />
-          <Text :if="place(club)" class="text-xs text-slate-400" :text="place(club)" />
+          <Text :show="place(club)" class="text-xs text-slate-400" :text="place(club)" />
           <Text class="mt-1 text-xs text-slate-300" :text="members(club) + ' · ' + week(club)" />
-          <Text :if="door(club)" testID="club-door" class="mt-1 text-xs text-amber-300" :text="door(club)" />
+          <Text :show="door(club)" testID="club-door" class="mt-1 text-xs text-amber-300" :text="door(club)" />
         </Pressable>
         <Button testID="club-action" class="mt-2" @click="toggleMembership(club)" :text="action(club)" />
       </View>
     </View>
 
-    <Text :if="!loading && !error && shown().length === 0" testID="clubs-empty" class="mt-6 text-sm text-slate-400">No club under that filter yet.</Text>
+    <Text :show="!loading && !error && shown().length === 0" testID="clubs-empty" class="mt-6 text-sm text-slate-400">No club under that filter yet.</Text>
   </ScrollView>
 </SafeAreaView>

@@ -108,6 +108,21 @@ for (const file of await files())
   }
 }
 
+// ── 2b. `:if` does nothing on a native screen (stacksjs/stx#2074) ────────────
+// The compiler puts the binding in the manifest and the native runtime has no
+// handler for it, so every branch renders: Trails showed its spinner, its
+// error slot, its result count and "No trail matches that." in the same frame,
+// and a challenge the viewer sent got a working Accept button. `:show` goes
+// through `setVisible` and is correct inside a `:for` as well as outside, so
+// it is the spelling until that issue closes.
+for (const [file, source] of sources) {
+  if (!file.startsWith('resources/native/'))
+    continue
+  const uses = source.match(/:if=/g)?.length ?? 0
+  if (uses > 0)
+    fail(`${file}: \`:if\` on a native screen`, `${uses} use(s). The native runtime never applies it — use \`:show\` (stacksjs/stx#2074).`)
+}
+
 // ── 3. The portable list boundary (093ef1ac) ─────────────────────────────────
 // FlatList's item-template expansion is host-specific; a keyed `:for` renders
 // the shared mutation protocol and keeps row identity and event scope.
