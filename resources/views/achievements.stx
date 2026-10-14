@@ -17,6 +17,7 @@
   import { openAuthGate } from '../composables/useAuthGate'
   import { useAchievementCatalog } from '../composables/useAchievementCatalog'
   import { formatMiles, monthlyProgress, personalBests, shareText } from '../functions/personal-bests'
+  import { badgeIsEarned, badgeProgressText } from '../functions/achievements'
 
   useHead({ title: 'Achievements — Wildloop' })
 
@@ -59,6 +60,19 @@
   // Imported helpers are not in scope in the markup, so the labels are built here.
   const yearLabel = derived(() => formatMiles(months().reduce((sum: number, m: any) => sum + m.miles, 0)))
   const maxLabel = derived(() => formatMiles(maxMiles()))
+
+  /*
+   * Shared with the native screen. Both were inline here: `progress >= total`
+   * and a clamped `n/total`. A badge never un-earns, so an over-run has to
+   * read as full in both places or the two screens disagree about a number.
+   */
+  function earned(badge: any): boolean {
+    return badgeIsEarned(badge)
+  }
+
+  function badgeProgress(badge: any): string {
+    return badgeProgressText(badge)
+  }
 
   function iconFor(record: any): string {
     return ICONS[record.key] ?? 'i-hugeicons-award-01'
@@ -196,8 +210,8 @@
   <h2 class="mt-12 font-display text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Badges</h2>
   <div :if="badges().length > 0" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
     <template :for="badge in badges">
-      <div class="flex items-center gap-4 rounded-2xl border bg-white p-4 dark:bg-slate-800" x-class="badge.progress >= badge.total ? 'border-emerald-300 dark:border-emerald-500/40' : 'border-slate-200 dark:border-slate-700'">
-        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl" x-class="badge.progress >= badge.total ? 'bg-emerald-50 dark:bg-emerald-500/15' : 'bg-slate-100 grayscale dark:bg-slate-700'" aria-hidden="true">{{ badge.icon }}</span>
+      <div class="flex items-center gap-4 rounded-2xl border bg-white p-4 dark:bg-slate-800" x-class="earned(badge) ? 'border-emerald-300 dark:border-emerald-500/40' : 'border-slate-200 dark:border-slate-700'">
+        <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl" x-class="earned(badge) ? 'bg-emerald-50 dark:bg-emerald-500/15' : 'bg-slate-100 grayscale dark:bg-slate-700'" aria-hidden="true">{{ badge.icon }}</span>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ badge.name }}</p>
           <p class="text-xs text-slate-500 dark:text-slate-400">{{ badge.description }}</p>
@@ -205,7 +219,7 @@
             <div class="h-full rounded-full bg-emerald-500" x-style="'width: ' + (Math.min(badge.progress, badge.total) / badge.total * 100) + '%'"></div>
           </div>
         </div>
-        <p class="shrink-0 text-xs font-semibold tabular-nums" x-class="badge.progress >= badge.total ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'">{{ Math.min(badge.progress, badge.total) + '/' + badge.total }}</p>
+        <p class="shrink-0 text-xs font-semibold tabular-nums" x-class="earned(badge) ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'">{{ badgeProgress(badge) }}</p>
       </div>
     </template>
   </div>

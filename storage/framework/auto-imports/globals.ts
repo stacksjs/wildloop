@@ -14,6 +14,16 @@ declare global {
   const hasSubSevenMile: typeof autoImports.hasSubSevenMile
   const computeAchievementProgress: typeof autoImports.computeAchievementProgress
   const achievementMetricValues: typeof autoImports.achievementMetricValues
+  const achievementsPath: typeof autoImports.achievementsPath
+  const activitiesPath: typeof autoImports.activitiesPath
+  const badgeRowsFrom: typeof autoImports.badgeRowsFrom
+  const badgeIsEarned: typeof autoImports.badgeIsEarned
+  const badgeProgressText: typeof autoImports.badgeProgressText
+  const sortBadges: typeof autoImports.sortBadges
+  const monthBars: typeof autoImports.monthBars
+  const yearTotalText: typeof autoImports.yearTotalText
+  const bestMonthText: typeof autoImports.bestMonthText
+  const YEAR_CHART: typeof autoImports.YEAR_CHART
   const detectAnomalies: typeof autoImports.detectAnomalies
   const trackFingerprint: typeof autoImports.trackFingerprint
   const parseActivityFile: typeof autoImports.parseActivityFile

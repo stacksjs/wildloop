@@ -50,6 +50,7 @@ export default {
      * those paths on the web.
      */
     nativeScreens: {
+      '/achievements': 'Achievements',
       '/athletes': 'Athletes',
       '/challenges': 'Challenges',
       '/clubs': 'Clubs',

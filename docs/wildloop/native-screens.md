@@ -5,6 +5,7 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 
 ```ts
 nativeScreens: {
+  '/achievements': 'Achievements',
   '/athletes': 'Athletes',
   '/challenges': 'Challenges',
   '/clubs': 'Clubs',
@@ -43,6 +44,10 @@ The flows so far:
   carries its route as a real SVG polyline, projected by the same
   `routeShapeFor` the website uses, so a line is never a square thumbnail
   stretched into a strip.
+- **Achievements** — the records, the year and every badge. The first screen
+  that draws a chart: twelve bound `<rect>`s in one SVG, where the web page
+  uses twelve divs with a percentage height, which native has no equivalent
+  for. The numbers are `personal-bests.ts`, which the web page has always used.
 - **Challenges** — who is challenging whom for which ground. Every line depends
   on which side of it the viewer is on, so the screen asks `/api/me` before it
   asks for anything else: a finished challenge reads Won or Lost, not

@@ -2,7 +2,17 @@
  * Pure achievement math (#982). The engine action computes per-user metric
  * values from rows; these helpers handle the two non-trivial ones (streaks,
  * fast splits) and the generic progress merge.
+ *
+ * Below the engine's half: what a screen needs to *show* achievements, added
+ * when `/achievements` was promoted to a native screen. The records and the
+ * year were already shared through `personal-bests.ts`; these are the two
+ * endpoints, the badge rows, and the geometry of the year chart, which a
+ * native screen draws as an SVG rather than as twelve divs with a percentage
+ * height.
  */
+
+import type { MonthProgress } from './personal-bests'
+import { formatMiles } from './personal-bests'
 
 /** Longest run of consecutive calendar days (UTC) with at least one date. */
 export function longestDayStreak(dates: Array<string | null | undefined>): number {
@@ -141,4 +151,157 @@ export function achievementMetricValues(input: {
     streak_days: longestDayStreak(activities.map(a => a.completed_at)),
     fast_mile: hasSubSevenMile(activities.map(a => a.splits)) ? 1 : 0,
   }
+}
+
+export interface BadgeRow {
+  id: number
+  name: string
+  description: string
+  /** The emoji the catalog carries. Native draws it as text, as the web does. */
+  icon: string
+  progress: number
+  total: number
+}
+
+/** The athlete's badges, earned and not. Their own id, so it needs their token. */
+export function achievementsPath(userId: number): string {
+  return `/api/users/${encodeURIComponent(String(userId))}/achievements`
+}
+
+/**
+ * The rows the records and the year are computed from.
+ *
+ * 500 is what the web page asks for: enough to hold a full year for anybody
+ * who is not running twice a day, and the records are only as true as the
+ * window they are taken over.
+ */
+export function activitiesPath(userId: number, limit = 500): string {
+  return `/api/activities?user_id=${encodeURIComponent(String(userId))}&limit=${encodeURIComponent(String(limit))}`
+}
+
+function text(value: unknown): string {
+  return value == null ? '' : String(value)
+}
+
+function count(value: unknown): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+export function badgeRowsFrom(payload: unknown): BadgeRow[] {
+  const source = payload as { achievements?: unknown } | unknown[] | null
+  const list = Array.isArray(source)
+    ? source
+    : Array.isArray((source as { achievements?: unknown })?.achievements)
+      ? (source as { achievements: unknown[] }).achievements
+      : []
+
+  const rows: BadgeRow[] = []
+  for (const entry of list) {
+    const badge = entry as Record<string, unknown>
+    const id = Number(badge?.id)
+    if (!Number.isFinite(id))
+      continue
+
+    rows.push({
+      id,
+      name: text(badge.name) || 'Badge',
+      description: text(badge.description),
+      icon: text(badge.icon),
+      progress: count(badge.progress),
+      // A badge with no target cannot be earned by progressing, so it is
+      // treated as a single step rather than as a division by zero.
+      total: Math.max(1, count(badge.total)),
+    })
+  }
+  return rows
+}
+
+/** Earned when the progress has reached the target — never un-earned. */
+export function badgeIsEarned(badge: Partial<BadgeRow> | null | undefined): boolean {
+  return count(badge?.progress) >= Math.max(1, count(badge?.total))
+}
+
+/** `3/10`, with the progress clamped: an over-run badge is still 10/10. */
+export function badgeProgressText(badge: Partial<BadgeRow> | null | undefined): string {
+  const total = Math.max(1, count(badge?.total))
+  return `${Math.min(count(badge?.progress), total)}/${total}`
+}
+
+/**
+ * Earned badges first — what somebody opens this screen to see — and then the
+ * unearned ones nearest to being earned.
+ *
+ * Earned badges keep the catalog's own order. Ranking them against each other
+ * by progress says Empire Builder at 14/10 is more earned than First Loop at
+ * 1/1, which is not a thing: a badge is earned or it is not, and how far past
+ * the line somebody went is an artefact of the metric, not an achievement.
+ */
+export function sortBadges(rows: BadgeRow[]): BadgeRow[] {
+  return [...rows].sort((a, b) => {
+    const earned = Number(badgeIsEarned(b)) - Number(badgeIsEarned(a))
+    if (earned !== 0)
+      return earned
+    if (badgeIsEarned(a))
+      return 0
+    return (b.progress / b.total) - (a.progress / a.total)
+  })
+}
+
+export interface MonthBar {
+  month: number
+  label: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** The chart's box, in the units the screen's viewBox declares. */
+export const YEAR_CHART = { width: 312, height: 72, gap: 4 } as const
+
+/**
+ * Twelve bars across the box, each as tall as its share of the best month.
+ *
+ * A month with miles in it always gets a sliver — a bar of zero height and a
+ * month that was not run look the same otherwise, and only one of them is
+ * true. A month with nothing gets nothing.
+ */
+export function monthBars(months: MonthProgress[], box = YEAR_CHART): MonthBar[] {
+  const best = Math.max(1, ...months.map(month => month.miles))
+  const width = Math.max(1, (box.width - box.gap * 11) / 12)
+
+  return months.map((month, index) => {
+    const share = month.miles > 0 ? Math.max(2, Math.round((month.miles / best) * box.height)) : 0
+    return {
+      month: month.month,
+      label: month.label,
+      x: Math.round(index * (width + box.gap)),
+      y: box.height - share,
+      width: Math.round(width),
+      height: share,
+    }
+  })
+}
+
+/** The year's total, as the caption under the chart. */
+export function yearTotalText(months: MonthProgress[]): string {
+  return `${formatMiles(months.reduce((sum, month) => sum + month.miles, 0))} this year`
+}
+
+/*
+ * `monthlyProgress` labels a month with one letter, which is what a chart axis
+ * wants and not what a sentence does — "M was the biggest" names nothing.
+ */
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/** The best month, named in full, or '' before there is one. */
+export function bestMonthText(months: MonthProgress[]): string {
+  const best = months.reduce<MonthProgress | null>((top, month) => (!top || month.miles > top.miles ? month : top), null)
+  if (!best || best.miles <= 0)
+    return ''
+  return `${MONTH_NAMES[best.month] ?? best.label} was the biggest, at ${formatMiles(best.miles)}`
 }
