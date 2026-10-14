@@ -211,7 +211,6 @@ onDestroy(() => {
 
 <SafeAreaView class="flex-1 bg-slate-950">
   <ScrollView class="p-4" testID="clubs-scroll">
-    <Text class="text-3xl font-bold text-white">Clubs</Text>
     <Text class="mt-1 text-sm text-slate-400">Crews training together — join one, or start your own on the web.</Text>
 
     <View class="mt-4 gap-2">

@@ -100,6 +100,35 @@ The `manual` route requires these maintained Craft capabilities:
 The native compiler resolves application components before framework fallbacks;
 `NativeRunMetric.stx` is the representative app-owned component in this flow.
 
+## Building for the simulator
+
+`bun run preview:ios:local` builds and launches. Two things will stop it, both
+outside this repo:
+
+- **The generated Xcode project has no `PRODUCT_NAME`.** Every `buildSettings`
+  block in `storage/framework/mobile/ios/Wildloop.xcodeproj/project.pbxproj`
+  sets the bundle id and the Info.plist and omits this one, so Xcode resolves
+  it empty and both targets build a product called `.app` / `.appex`:
+
+  ```
+  error: Multiple commands produce '…/Debug-iphonesimulator/.app'
+  ```
+
+  Adding `PRODUCT_NAME = "$(TARGET_NAME)";` to each block fixes it. The project
+  is regenerated on every build and is not tracked, **so this patch has to be
+  re-applied after each regeneration** until craft-native/craft#354 closes.
+  Derived data from before the fix holds `WildLoop.app` (capital L) against the
+  current `Wildloop`, which collides on a case-insensitive filesystem and makes
+  the error look like something else — remove
+  `storage/framework/runtime/e2e/derived-data/ios` when in doubt.
+
+- **craft-native 0.0.174 and 0.0.175 do not compile.** `contentPadding` is used
+  in two functions that do not declare it, and `rawAttestationObject` is a
+  `Data?` passed where `Data` is wanted. Both arrived in 0.0.174 — the release
+  that brought the `Map` — so the pin is held at **0.0.173** until #354 closes.
+  That costs nothing today, because the Map cannot be fed from data either
+  (stacksjs/stx#2073).
+
 ## Current boundaries
 
 - The native routes cover manual activity entry and its saved confirmation, not

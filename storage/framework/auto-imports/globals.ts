@@ -82,6 +82,35 @@ declare global {
   const estimateCalories: typeof autoImports.estimateCalories
   const REFERENCE_WEIGHT_KG: typeof autoImports.REFERENCE_WEIGHT_KG
   const shapeChallenge: typeof autoImports.shapeChallenge
+  const challengesPath: typeof autoImports.challengesPath
+  const challengeRespondRequest: typeof autoImports.challengeRespondRequest
+  const territoryPath: typeof autoImports.territoryPath
+  const challengeRowsFrom: typeof autoImports.challengeRowsFrom
+  const matchesChallengeTab: typeof autoImports.matchesChallengeTab
+  const filterChallenges: typeof autoImports.filterChallenges
+  const challengeStatusText: typeof autoImports.challengeStatusText
+  const challengeVersusLine: typeof autoImports.challengeVersusLine
+  const challengeStakeText: typeof autoImports.challengeStakeText
+  const canRespondToChallenge: typeof autoImports.canRespondToChallenge
+  const challengeWaitingText: typeof autoImports.challengeWaitingText
+  const challengeEmptyText: typeof autoImports.challengeEmptyText
+  const CHALLENGE_TABS: typeof autoImports.CHALLENGE_TABS
+  const CHALLENGE_TAB_LABELS: typeof autoImports.CHALLENGE_TAB_LABELS
+  const clubsPath: typeof autoImports.clubsPath
+  const clubPath: typeof autoImports.clubPath
+  const clubJoinRequest: typeof autoImports.clubJoinRequest
+  const isClubMember: typeof autoImports.isClubMember
+  const clubRowsFrom: typeof autoImports.clubRowsFrom
+  const matchesClubFilter: typeof autoImports.matchesClubFilter
+  const filterClubs: typeof autoImports.filterClubs
+  const clubMemberText: typeof autoImports.clubMemberText
+  const clubPlaceLine: typeof autoImports.clubPlaceLine
+  const clubDoorLabel: typeof autoImports.clubDoorLabel
+  const clubWeekLine: typeof autoImports.clubWeekLine
+  const clubActionLabel: typeof autoImports.clubActionLabel
+  const CLUB_TYPES: typeof autoImports.CLUB_TYPES
+  const CLUB_FILTERS: typeof autoImports.CLUB_FILTERS
+  const CLUB_FILTER_LABELS: typeof autoImports.CLUB_FILTER_LABELS
   const computeConquestRecord: typeof autoImports.computeConquestRecord
   const computeCounterFixes: typeof autoImports.computeCounterFixes
   const computeTerritoryStatsFixes: typeof autoImports.computeTerritoryStatsFixes

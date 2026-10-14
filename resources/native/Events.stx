@@ -120,7 +120,6 @@ onDestroy(() => {
 
 <SafeAreaView class="flex-1 bg-slate-950">
   <ScrollView class="p-4" testID="events-scroll">
-    <Text class="text-3xl font-bold text-white">Events</Text>
     <Text class="mt-1 text-sm text-slate-400">Races, group runs and backyard ultras.</Text>
 
     <View class="mt-4 gap-2">

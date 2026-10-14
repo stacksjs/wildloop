@@ -29,7 +29,7 @@
     "@stacksjs/stx": "0.2.520",
     "@stacksjs/ts-cloud": "^0.16.43",
     "bun-plugin-stx": "0.2.520",
-    "craft-native": "0.0.175",
+    "craft-native": "0.0.173",
   },
   "packages": {
     "@bughq/sdk": ["@bughq/sdk@0.2.2", "", {}, "sha512-OySn397nSGHmFv4qu8/HUhX25sb+ORKCk94yOt/OR1vymScXPJPAA5eV9WcxrnzVUPvNOgEhp4lfEDm8MVS8Kw=="],
@@ -354,7 +354,7 @@
 
     "clone": ["clone@2.1.2", "", {}, "sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w=="],
 
-    "craft-native": ["craft-native@0.0.175", "", { "bin": { "craft-sdk": "dist/cli.js" } }, "sha512-bvuOtPsBNgKxSFLMpl4byuyHrO+Qz98W9v/bQ+ieGnPaCZKbX3A+6SZxBAK5yw8BIlxRNHiWmr4Z6OfEWjV/UA=="],
+    "craft-native": ["craft-native@0.0.173", "", { "bin": { "craft-sdk": "dist/cli.js" } }, "sha512-JzMSiBqX+lSxcpk70flk6gH96Q2Xl4QsG1nisLLvVU/AqqFlYfkY/+MtkdwTfp8t1v1BG4Bt0L/e/O2Rk4APAQ=="],
 
     "cz-git": ["cz-git@1.14.0", "", {}, "sha512-QjwlXZrGWsXQkyregBHhA2qNNGB2TCuf0ovkW1Q5OLgdJDs9Tq1yahfKpSMLyqOBjVRuv1iHBTDP83zJDBlJdg=="],
 
