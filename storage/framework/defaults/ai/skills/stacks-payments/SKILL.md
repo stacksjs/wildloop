@@ -119,6 +119,87 @@ const changed = await Payment.changeSubscription(user, 'enterprise-monthly')
 
 `cancelSubscription(id, immediately)` is gone: its `false` also cancelled at once, only with a proration. For Stripe's `prorate` / `invoice_now`, call `manageSubscription.cancel(id, params)`. To undo a cancel at period end before the period ends, call `manageSubscription.resume(id)`: Stripe renews again and the stored `ends_at` is cleared. Both use a fresh idempotency key per attempt, so cancel → resume → cancel within Stripe's 24-hour key window still reaches Stripe each time.
 
+### Stripe Connect (marketplaces)
+
+`Payment.connect` (source `src/connect/`) onboards merchants as Express connected accounts and settles sales to them, while the customer, the charge and its refunds and disputes stay on the platform.
+
+```typescript
+import { manageConnectedAccount, manageDestinationCharge, manageDestinationSubscription } from '@stacksjs/payments'
+
+// Onboard: create once (deterministic idempotency key), then a hosted onboarding link
+const account = await manageConnectedAccount.createConnectedAccount(user)
+const link = await manageConnectedAccount.accountOnboardingLink(account.id, { refreshUrl, returnUrl })
+const status = await manageConnectedAccount.accountStatus(account.id) // chargesEnabled, payoutsEnabled, currentlyDue...
+
+// One-off sale: a destination charge (or Checkout with payment_intent_data.transfer_data)
+const fee = manageDestinationCharge.applicationFeeFor(4900, { platformFeePercent: 10 }) // 490, rounded down
+
+// Recurring sale: a destination subscription through Checkout
+const session = await manageDestinationSubscription.checkout(user, {
+  destination: 'acct_xxx',
+  price: { amount: 9900, currency: 'eur', interval: 'month', productName: 'Coaching' }, // or 'price_xxx'
+  trialDays: 14,
+  platformFeePercent: 0,
+  metadata: { product_id: '7' }, // on the session AND the subscription
+  successUrl: 'https://app.example/purchases',
+  cancelUrl: 'https://app.example/store/coaching',
+})
+```
+
+- A destination subscription lives on the platform with `transfer_data.destination`, so renewals (`invoice.paid`), failed payments (`invoice.payment_failed`), status changes and cancellation (`customer.subscription.updated` / `.deleted`) arrive on the platform's normal webhook endpoint, not the Connect one. `destinationOf(subscription)` (also `connect.subscriptionDestination`) tells a merchant's subscription from the platform's own.
+- Its fee is `application_fee_percent` (`feePercentFor`, at most two decimals; 0 sends no fee field), applied to every invoice, unlike a charge's fee amount.
+- Cancel, resume and read it with `manageSubscription` (`cancelAtPeriodEnd`, `resume`, `cancel`); entitlement from `subscriptionGrantsAccess(status)` and dates from `subscriptionPeriod(subscription)`.
+- Events about a connected account itself (`account.updated`, `payout.*`) come to the Connect endpoint with `event.account`; read it with `getConnectedAccountId(event)`.
+
+### Bank debits (SEPA Direct Debit, Bacs, ACH, BECS)
+
+`src/direct-debit.ts` (also `@stacksjs/payments/direct-debit`, pure and browser-safe) holds what a debit needs next to cards:
+
+```typescript
+import { currencyForCountry, debitEventOf, paymentMethodsFor, retrieveDebitMandate, stripe } from '@stacksjs/payments'
+
+paymentMethodsFor('card,sepa_debit', 'eur') // ['card', 'sepa_debit'] -> Checkout's allowed_payment_method_types
+paymentMethodsFor('card,sepa_debit', 'usd') // ['card']: SEPA is euros only
+currencyForCountry('AT', ['usd', 'eur'], 'usd') // 'eur'
+
+const debit = debitEventOf(event) // null unless the event is a step in a debit's life
+// debit.outcome: 'processing' | 'succeeded' | 'failed' | 'returned' | 'mandate_inactive'
+const mandate = await retrieveDebitMandate(stripe, debit.mandateId!) // { reference, url, status }
+```
+
+- `PAYMENT_METHODS` says per method which currencies it takes, whether it is delayed, whether it has a mandate, and `noticeDays` (SEPA: 2, what Stripe's mandate text agrees to; the rulebook's default is 14).
+- A debit is a delayed-notification payment. Checkout completes with `payment_status: 'unpaid'` (`processing`); only `checkout.session.async_payment_succeeded`, `invoice.paid` or `charge.succeeded` mean the money arrived. **A subscription can turn `active` while its first debit is still processing**, so never grant access from the subscription status alone.
+- A bank can take a SEPA debit back for eight weeks with no questions asked (13 months if unauthorised). Stripe reports it as `charge.dispute.created`; `debitEventOf` reads it as `returned` unless the dispute is a card's. SEPA disputes are final.
+- `debitDetailsOf(charge | paymentMethod)` gives the method, the mandate id, the last four digits and the expected debit date. Store the mandate reference and last four, never an IBAN: the payer types it into Stripe Checkout or the Payment Element.
+- `debitFailureNextStep(code)` turns Stripe's failure code into `retry` (insufficient funds), `update` (new bank details or mandate) or `contact`.
+- `isDebitNoticeDue({ debitDate, today, leadDays, method })` and `isDebitNoticeTimely` plan the pre-notification each SEPA debit needs (amount, date, mandate reference, last four digits, creditor). Stripe sends its own debit emails while you use Stripe's creditor ID.
+- `CheckoutRequest.paymentMethods` (Stripe's names) limits a neutral checkout's methods: Stripe's `allowed_payment_method_types` (Stripe API 2026-01-28.clover has no `payment_method_types`, and only offers methods enabled in the Dashboard); Adyen maps `card` and `sepa_debit` to `allowedPaymentMethods`; Paddle and Lemon Squeezy refuse it.
+- Connect: a destination charge without `on_behalf_of` debits under the platform's creditor ID and mandate, so enable SEPA on the platform account.
+
+### Card-present payments (Stripe Terminal)
+
+`src/terminal.ts` (also `@stacksjs/payments/terminal`) is the server-driven Terminal flow: a smart reader (WisePOS E, S700, simulated) collects the card while the server holds the PaymentIntent.
+
+```typescript
+import { stripeTerminal, terminalChargeState, cardPresentDetails, latestChargeId } from '@stacksjs/payments/terminal'
+
+const terminal = stripeTerminal({ secretKey: env.STRIPE_SECRET_KEY, apiBase: env.STRIPE_API_BASE }) // apiBase: an HTTP double in tests
+const place = await terminal.createLocation({ displayName: 'Studio Mitte', address: { line1: 'Torstraße 1', city: 'Berlin', postal_code: '10119', country: 'DE' } }, 'location:12')
+const reader = await terminal.registerReader({ registrationCode: 'simulated-wpe', label: 'Front desk', location: place.id })
+const intent = await terminal.createPaymentIntent({ amount: 2000, currency: 'eur', onBehalfOf: acct, transferDestination: acct }, 'sale:91')
+await terminal.processPaymentIntent(reader.id, intent.id)
+// poll (or take terminal.reader.action_succeeded / action_failed):
+const outcome = terminalChargeState(await terminal.retrievePaymentIntent(intent.id), await terminal.retrieveReader(reader.id))
+// outcome.state: 'waiting' | 'succeeded' | 'failed' (retry on the same PaymentIntent) | 'canceled'
+```
+
+- A REST client (form encoding, `Idempotency-Key`, Stripe's error object as `StripeApiError`) rather than the `stripe` SDK: no optional dependency, and `apiBase` lets tests use an HTTP fake.
+- It pins `Stripe-Version` to `STRIPE_TERMINAL_API_VERSION` (`2026-09-30.endive`), where a PaymentIntent names its method with `allowed_payment_method_types` (`payment_method_types` is refused). Pass `apiVersion: null` for the account default.
+- A declined card leaves the PaymentIntent `requires_payment_method`; process it on the reader again. `cancelReaderAction` takes it off the screen; cancel the PaymentIntent too when the sale is abandoned.
+- Refunds of card-present charges are ordinary refunds (`terminal.refund`), except Interac, which needs the card at the reader.
+- `cardPresentDetails` reads what a card receipt prints (brand, last four, AID, application name, authorisation code); `latestChargeId` the charge behind a PaymentIntent.
+- Simulated readers (`SIMULATED_READER_CODES`, test keys only: `isTestKey`) and `presentPaymentMethod` with a test card number exercise declines.
+
 ### Customers
 
 ```typescript

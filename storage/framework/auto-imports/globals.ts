@@ -235,6 +235,7 @@ declare global {
   const STATUS_LABELS: typeof autoImports.STATUS_LABELS
   const MIN_RECORD_DISTANCE_MI: typeof autoImports.MIN_RECORD_DISTANCE_MI
   const MIN_RECORD_ELEVATION_FT: typeof autoImports.MIN_RECORD_ELEVATION_FT
+  const routeShapeFor: typeof autoImports.routeShapeFor
   const groupSearchResults: typeof autoImports.groupSearchResults
   const segmentDraft: typeof autoImports.segmentDraft
   const cumulativeMiles: typeof autoImports.cumulativeMiles
@@ -298,6 +299,15 @@ declare global {
   const formatTrailTime: typeof autoImports.formatTrailTime
   const parseTrailTime: typeof autoImports.parseTrailTime
   const displayTrailTime: typeof autoImports.displayTrailTime
+  const trailsPath: typeof autoImports.trailsPath
+  const trailRowsFrom: typeof autoImports.trailRowsFrom
+  const trailDistanceText: typeof autoImports.trailDistanceText
+  const trailAscentText: typeof autoImports.trailAscentText
+  const trailStatsLine: typeof autoImports.trailStatsLine
+  const trailPlaceLine: typeof autoImports.trailPlaceLine
+  const trailRoutePoints: typeof autoImports.trailRoutePoints
+  const trailPath: typeof autoImports.trailPath
+  const TRAIL_ROUTE_BOX: typeof autoImports.TRAIL_ROUTE_BOX
   const durationSeconds: typeof autoImports.durationSeconds
   const computeTrainingStats: typeof autoImports.computeTrainingStats
   const isCalendarDate: typeof autoImports.isCalendarDate

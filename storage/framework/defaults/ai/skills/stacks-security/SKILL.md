@@ -161,7 +161,21 @@ PBKDF2-SHA-256 derivation in `core/security/src/crypt.ts`; decrypt retains
 legacy formats for upgrades. The base64: APP_KEY prefix is normalized by that
 implementation. Encryption/hashing/encoding are distinct APIs; use the exported
 webhook helpers from `core/security/src/webhook.ts` for signed callback
-validation rather than inventing a string comparison.
+validation rather than inventing a string comparison. To SEND signed webhooks,
+`signWebhook(secret | secrets[], body, { timestamp? })` returns the
+`t=<unix>,v1=<hex>` header (HMAC-SHA256 of `${t}.${body}`, one `v1` per secret
+while rotating) and `verifySignedWebhook` / `verifyWebhook('signed', ...)` is
+the receiver's check (tolerance applies both ways). `generateWebhookSecret()`
+mints a `whsec_` secret; store it encrypted, since signing needs the plaintext.
+
+Outbound requests to a URL a user typed (webhook endpoints, import-from-URL)
+go through `outboundUrlProblem(url, { allowHttp?, allowPrivate? })` when the
+URL is saved and `await assertPublicOutboundUrl(url, opts)` right before the
+request: https only, no credentials, and every resolved address public
+(`isPrivateAddress` covers loopback, RFC 1918, CGNAT, link-local metadata,
+IPv4-mapped/NAT64/6to4 forms). It throws `OutboundUrlError` with a `reason`.
+API keys handed to integrations: `generateApiKey('myapp_live_')` returns
+`{ key, hash, hint }`; show `key` once, store `hash` (`hashApiKey`), list `hint`.
 
 Generated model API exposure and ownership live under `config/security.ts`
 api settings. Read `stacks-models`/`stacks-router` before opening generated

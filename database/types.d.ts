@@ -300,6 +300,18 @@ declare module '@stacksjs/database' {
       end_date: string
       team_id: number
     }
+    card_attachments: {
+      // columns
+      id: number
+      uuid: string
+      created_at: string
+      updated_at: string | null
+      disk: string
+      path: string
+      mime_type: string
+      size_bytes: number
+      card_id: number
+    }
     card_comments: {
       // columns
       id: number
@@ -822,6 +834,20 @@ declare module '@stacksjs/database' {
       duration_ms: number
       failed_at: string
     }
+    feedback_tokens: {
+      // columns
+      id: number
+      uuid: string
+      created_at: string
+      updated_at: string | null
+      token: string
+      label: string
+      revoked_at: string
+      expires_at: string
+      last_used_at: string
+      created_by_user_id: number
+      board_id: number
+    }
     follows: {
       // columns
       id: number
@@ -1137,6 +1163,12 @@ declare module '@stacksjs/database' {
       expires_at: string
       user_agent: string
       ip_address: string
+      user_id: number
+      oauth_client_id: number
+      oauth_grant_id: string
+      resources: string
+      audiences: string
+      workspace_id: string
     }
     order_idempotency: {
       // columns
@@ -1258,6 +1290,15 @@ declare module '@stacksjs/database' {
       user_id: number
       payment_method_id: number
     }
+    payment_webhook_events: {
+      // columns
+      id: number
+      created_at: string
+      updated_at: string | null
+      provider: string
+      event_id: string
+      processed_at: string
+    }
     payments: {
       // columns
       id: number
@@ -1276,6 +1317,7 @@ declare module '@stacksjs/database' {
       payment_provider: string
       refund_amount: number
       notes: string
+      failure_reason: string
       order_id: number
       customer_id: number
     }
