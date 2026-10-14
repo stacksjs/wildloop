@@ -54,7 +54,7 @@
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
-  - no `<style>` block in a `.stx` file — **2,089 lines** across `resources/**`,
+  - no `<style>` block in a `.stx` file — **2,090 lines** across `resources/**`,
     down from 2,326 on 15 Oct 2026 when the route and contour classes moved out.
     An earlier count of 1,804 looked only at `resources/views/**` and missed what
     the components carry. Tokens and `@keyframes` belong in `config/crosswind.ts`,
