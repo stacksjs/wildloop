@@ -51,6 +51,7 @@ export default {
      */
     nativeScreens: {
       '/athletes': 'Athletes',
+      '/clubs': 'Clubs',
       '/events': 'Events',
       '/records': 'Records',
       '/trails': 'Trails',

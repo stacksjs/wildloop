@@ -1,5 +1,6 @@
 import { onMount, state } from 'stx'
 import { createClub, fetchClubs, toggleClubMembership } from '../assets/scripts/game-api'
+import { isClubMember } from '../functions/clubs'
 import { requireAuth } from './useAuthGate'
 import { indexInSpotlight, removeFromSpotlight, syncSpotlight } from './useSpotlightIndex'
 
@@ -55,10 +56,15 @@ export function useClubs(wl: ClubStoreLike | null) {
     }
   })
 
+  /*
+   * Shared with the native screen: the listing withholds the roster and sends
+   * a boolean, older payloads sent the roster, and a screen reading only one
+   * of them offers to join a club somebody is already in.
+   */
   function isMember(club: any): boolean {
     if (!wl)
       return false
-    return club.isMember ?? (club.members ?? []).includes(wl.currentUserId())
+    return isClubMember(club, wl.currentUserId())
   }
 
   async function onToggleMembership(club: any) {

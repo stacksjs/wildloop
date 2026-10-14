@@ -39,6 +39,7 @@
 
 <script client>
   import { useClubs } from '../composables/useClubs'
+  import { clubMemberText, filterClubs } from '../functions/clubs'
   import { resolveNearby } from '../composables/useNearby'
 
 
@@ -107,12 +108,15 @@
 
   const filtered = derived(() => {
     if (!wl) return []
+    // The chips are shared with the native screen. "Mine" stays on this
+    // page's own `isMember`, which can also read an older payload's roster
+    // against the signed-in id — the shared one has no viewer to compare to.
+    // The ordering below is not shared either: it needs a location this page
+    // can resolve and a native screen cannot ask for.
     const f = filter()
-    const shown = f === 'all'
-      ? wl.clubs()
-      : f === 'mine'
-        ? wl.clubs().filter((c: any) => isMember(c))
-        : wl.clubs().filter((c: any) => c.type === f)
+    const shown = f === 'mine'
+      ? wl.clubs().filter((c: any) => isMember(c))
+      : filterClubs(wl.clubs() as any, f as any)
 
     // Nearest crews first once the page knows where the visitor is: a club is
     // somewhere you turn up on a Tuesday. Clubs with no place keep the API's
@@ -124,6 +128,11 @@
       .sort((a: any, b: any) => (a.miles ?? Infinity) - (b.miles ?? Infinity) || a.index - b.index)
       .map((entry: any) => entry.club)
   })
+
+  /** Shared with the native screen, so the two cannot count differently. */
+  function memberText(club: any): string {
+    return clubMemberText(club?.memberCount)
+  }
 
   const nearHeading = derived(() => (here() ? `Closest to ${here()?.label ?? 'you'} first.` : ''))
 </script>
@@ -185,7 +194,7 @@
                 <span :if="club.location" aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
                 <span>{{ club.type }}</span>
                 <span aria-hidden="true" class="text-slate-300 dark:text-slate-600">·</span>
-                <span class="tabular-nums">{{ club.memberCount === 1 ? '1 member' : club.memberCount + ' members' }}</span>
+                <span class="tabular-nums">{{ memberText(club) }}</span>
               </p>
               <p :if="clubAway(club) !== ''" class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
                 <i class="i-lucide-navigation h-3 w-3" aria-hidden="true"></i>{{ clubAway(club) }}

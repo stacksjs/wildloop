@@ -6,6 +6,7 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 ```ts
 nativeScreens: {
   '/athletes': 'Athletes',
+  '/clubs': 'Clubs',
   '/events': 'Events',
   '/records': 'Records',
   '/trails': 'Trails',
@@ -41,6 +42,11 @@ The flows so far:
   carries its route as a real SVG polyline, projected by the same
   `routeShapeFor` the website uses, so a line is never a square thumbnail
   stretched into a strip.
+- **Clubs** — the crew directory, and the second screen that writes per row.
+  Join and leave are one endpoint the server decides, so the row moves
+  optimistically and is then put back from the response rather than from what
+  the tap assumed. An invite-only club opens its page instead of offering a
+  button that would be refused.
 
 The screens are compiled to Craft's native document protocol; they do not use a
 WebView or a second layout engine. Shared numbers come from
