@@ -63,13 +63,34 @@
     missing. `stroke`, `stroke-width` and `fill` on an SVG child have no utility,
     so `.wl-route-*` could never have been a shortcut.
     **Not `components/styles.stx`**: that file is inlined into every page, so
-    moving 1.8KB there to save it on seven views put 3.1KB on every *other*
-    page — measured, after doing exactly that by mistake. A preflight lands in
-    the generated stylesheet, which is linked and cached once: the seven views
-    lost 1.8KB each and no other page moved by more than a byte.
+    moving 1.8KB there to save it on seven views put 3.1KB of HTML on every
+    *other* page — measured, after doing exactly that by mistake.
+    A preflight is better but not free, and the first write-up of this
+    overstated it by measuring HTML only. **The generated stylesheet is
+    per-page** — `/records`, `/clubs` and `/feed` each link a different
+    `/_stx/css.<hash>.css` — and a preflight is injected into every one of
+    them. So the seven route views lost 1.8KB of inline HTML and gained 1.7KB
+    of linked CSS, while fifteen pages that never draw a route gained 1.7KB
+    they do not use: 1.8% of a 96KB sheet. The trade bought one definition
+    instead of seven, which is worth it for a shape the whole app shares —
+    and is exactly the wrong trade for CSS only one page uses.
     What is left is concentrated — `index.stx` 934, `styles.stx` 366,
-    `record.stx` 296, `app.stx` 127 — and is page-specific CSS rather than
-    anything duplicated
+    `record.stx` 296, `app.stx` 127 — and **the rule does not fit it**, which
+    is worth knowing before spending another session on it. Measured on
+    `index.stx`: all 88 of its classes are used, none appears in any other
+    file, and it carries its own light/dark palette (`--page-paper`,
+    `--page-muted`, `--page-ink`) that overlaps nothing in the design system.
+    A preflight is the wrong home for it — the generated sheet is per-page, so
+    934 lines there is ~20KB added to all 22 pages to serve one. Utilities are
+    the rule's real intent, but only about 55% of the rules could become one
+    (27 descendant selectors, 9 states, 5 media queries, 4 pseudo-elements and
+    2 keyframes cannot), and the convertible half is mostly `background:
+    var(--page-paper)` — which in markup becomes `bg-[#f3f5f1]` and loses the
+    token. Cross-file duplication is down to 4 selectors (`.live-pip`,
+    `.qr-frame`, `.qr-frame svg`, a search-cancel reset), so there is no
+    sharing left to find either. **A page-local `<style>` block for a page
+    nothing else shares is the right shape; the number to watch is how much of
+    it is duplicated, not how big it is.**
   - comment with `{{-- --}}`, never `<!-- -->` — **clear**. All 352 were converted
     on 15 Oct 2026, and `bun run gate:stx` now fails on the next one rather than
     tracking a backlog. They shipped to the browser as content: ten pages carried
