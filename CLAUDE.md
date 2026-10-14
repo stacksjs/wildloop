@@ -54,10 +54,22 @@
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
-  - no `<style>` block in a `.stx` file — **2,326 lines** across `resources/**`. An
-    earlier count of 1,804 looked only at `resources/views/**` and missed what the
-    components carry. Tokens and `@keyframes` belong in `config/crosswind.ts`,
-    repeated shapes in its `shortcuts`
+  - no `<style>` block in a `.stx` file — **2,089 lines** across `resources/**`,
+    down from 2,326 on 15 Oct 2026 when the route and contour classes moved out.
+    An earlier count of 1,804 looked only at `resources/views/**` and missed what
+    the components carry. Tokens and `@keyframes` belong in `config/crosswind.ts`,
+    repeated shapes in its `shortcuts` — and anything that has no utility to
+    shortcut to goes in its **`preflights`**, which is the destination that was
+    missing. `stroke`, `stroke-width` and `fill` on an SVG child have no utility,
+    so `.wl-route-*` could never have been a shortcut.
+    **Not `components/styles.stx`**: that file is inlined into every page, so
+    moving 1.8KB there to save it on seven views put 3.1KB on every *other*
+    page — measured, after doing exactly that by mistake. A preflight lands in
+    the generated stylesheet, which is linked and cached once: the seven views
+    lost 1.8KB each and no other page moved by more than a byte.
+    What is left is concentrated — `index.stx` 934, `styles.stx` 366,
+    `record.stx` 296, `app.stx` 127 — and is page-specific CSS rather than
+    anything duplicated
   - comment with `{{-- --}}`, never `<!-- -->` — **clear**. All 352 were converted
     on 15 Oct 2026, and `bun run gate:stx` now fails on the next one rather than
     tracking a backlog. They shipped to the browser as content: ten pages carried

@@ -377,45 +377,5 @@
       <StxLink to="/trails" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Explore trails</StxLink>
     </div>
   </div>
-<style>
-  /* Contour-tinted ground for the banner and for an activity or trail with no
-     picture. The same four layouts the feed and catalog use. */
-  .wl-topo {
-    --topo-x: 78%;
-    --topo-y: 28%;
 
-    background-color: #eef3ef;
-    background-image:
-      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
-      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
-      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
-  }
-
-  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
-  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
-  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
-
-  .dark .wl-topo {
-    background-color: #0f1a16;
-    background-image:
-      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
-      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
-      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
-  }
-
-  .wl-route-casing,
-  .wl-route-line {
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .wl-route-casing { stroke: #fff; stroke-width: 6; }
-  .wl-route-line { stroke: #059669; stroke-width: 3; }
-  .wl-route-start { fill: #10b981; stroke: #fff; stroke-width: 2; }
-
-  .dark .wl-route-casing { stroke: #0b1411; }
-  .dark .wl-route-line { stroke: #34d399; }
-  .dark .wl-route-start { stroke: #0b1411; }
-</style>
 @endsection

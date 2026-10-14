@@ -1199,28 +1199,13 @@
 
   /* Contour-tinted ground for a card with no photo. Four layouts, picked by
      id, so a grid of them reads as different places rather than one tile. */
-  .wl-topo {
-    --topo-x: 78%;
-    --topo-y: 28%;
+  
 
-    background-color: #eef3ef;
-    background-image:
-      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.12), transparent 60%),
-      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(15 70 45 / 0.08) 15px 16px),
-      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(15 70 45 / 0.045) 23px 24px);
-  }
+  
+  
+  
 
-  .wl-topo-1 { --topo-x: 22%; --topo-y: 30%; }
-  .wl-topo-2 { --topo-x: 60%; --topo-y: 85%; }
-  .wl-topo-3 { --topo-x: 95%; --topo-y: 65%; }
-
-  .dark .wl-topo {
-    background-color: #0f1a16;
-    background-image:
-      radial-gradient(90% 120% at 12% 115%, rgb(16 185 129 / 0.14), transparent 60%),
-      repeating-radial-gradient(ellipse 150% 110% at var(--topo-x) var(--topo-y), transparent 0 15px, rgb(167 243 208 / 0.065) 15px 16px),
-      repeating-radial-gradient(ellipse 80% 60% at calc(100% - var(--topo-x)) calc(100% - var(--topo-y)), transparent 0 23px, rgb(167 243 208 / 0.035) 23px 24px);
-  }
+  
 
   @media (prefers-reduced-motion: reduce) {
     .action-sheet, .action-sheet-backdrop { animation: none; }
