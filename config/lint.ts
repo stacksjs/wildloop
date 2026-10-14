@@ -23,6 +23,12 @@ const config: PickierOptions = {
     // variables. Regenerated on every build, so editing it to satisfy the
     // linter would not survive.
     '**/storage/framework/auto-imports/**',
+    // The compiled native bundle. Written by `bun run build:native-screens`,
+    // minified, and never committed — a stale copy of it was tracked until the
+    // lint cache went cold and reported 455 problems in generated output.
+    '**/storage/framework/native/**',
+    // Skill scripts vendored in by the framework, not ours to lint.
+    '**/storage/framework/defaults/ai/skills/**',
     '**/bun-queue/**',
     // Generated declaration files
     '**/*.d.ts',

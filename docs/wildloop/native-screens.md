@@ -54,8 +54,10 @@ bun test tests/unit/manual-activity.test.ts tests/unit/native-manual-activity-fl
 bun run typecheck
 ```
 
-The build writes `storage/framework/native/native-screen.js`. This is generated
-output and is gitignored.
+The build writes `storage/framework/native/native-screens.js`. The whole
+directory is gitignored and excluded from the linter — a stale `native-screen.js`
+(singular, from an earlier output name) sat tracked in the repo until the lint
+cache went cold and reported 455 problems inside it.
 
 `tests/fixtures/nativeScreen.ts` compiles that bundle once and drives it through
 a fake Craft bridge: `start(screen, params)`, `event(testID, name)`,
