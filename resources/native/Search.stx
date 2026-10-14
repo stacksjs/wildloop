@@ -1,0 +1,204 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import {
+  allTrailsPath,
+  allTrailsText,
+  groupSearchResults,
+  isSearchable,
+  nothingFoundText,
+  searchPaths,
+  searchSections,
+  SEARCH_QUICK_LINKS,
+} from '../functions/search-results'
+
+/*
+ * One box for everything the app can find. Tenth screen.
+ *
+ * Five endpoints asked in parallel, grouped by `search-results.ts` — the same
+ * function the web page has always used, so a trail and an athlete read the
+ * same way on both. There is no search index behind this; every group is a
+ * plain API answer.
+ *
+ * Two things differ from the web page, both forced. It searches on submit
+ * rather than after a pause in typing: the web page debounces with
+ * `useTimeout`, and the native runtime does not promise a timer. And a quick
+ * link pushes the native screen where we have one rather than opening a web
+ * view onto a page the app already draws — the two that need a map or a
+ * location fix still open the website.
+ *
+ * A stale answer must not replace a newer one, so each search takes a ticket.
+ * That part is the same as the web page and matters more here, where a slow
+ * phone network makes the race easy to lose.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+
+const query = state('')
+const groups = state<any>(null)
+const searched = state('')
+const loading = state(false)
+const failed = state(false)
+let active = true
+let latest = 0
+
+const quickLinks = SEARCH_QUICK_LINKS
+
+function eventText(event: { text?: unknown }): string {
+  return event?.text == null ? '' : String(event.text)
+}
+
+function sections(): any[] {
+  return isSearchable(query()) ? searchSections(groups()) : []
+}
+
+function showQuickLinks(): boolean {
+  return !isSearchable(query()) && !loading()
+}
+
+function nothingFound(): boolean {
+  return isSearchable(query()) && !loading() && !failed()
+    && searched() === query().trim() && sections().length === 0
+}
+
+function nothingText(): string {
+  return nothingFoundText(query())
+}
+
+function allTrails(): string {
+  return allTrailsText(query())
+}
+
+function rowDetail(row: any): string {
+  return String(row?.detail ?? '')
+}
+
+async function ask(path: string): Promise<any> {
+  try {
+    const response = await fetch(`https://wildloop.org${path}`, { headers: { Accept: 'application/json' } })
+    return await response.json().catch(() => null)
+  }
+  catch {
+    return null
+  }
+}
+
+async function runSearch(): Promise<void> {
+  const text = query().trim()
+  if (!isSearchable(text))
+    return
+
+  const ticket = ++latest
+  loading.set(true)
+  failed.set(false)
+  try {
+    const paths = searchPaths(text)
+    const [towns, suggest, people, clubs, events] = await Promise.all([
+      ask(paths.towns),
+      ask(paths.suggestions),
+      ask(paths.athletes),
+      ask(paths.clubs),
+      ask(paths.events),
+    ])
+
+    // A slower answer to an older query must not replace a newer one.
+    if (ticket !== latest || !active)
+      return
+    if (!towns && !suggest && !people && !clubs && !events)
+      throw new Error('search')
+
+    groups.set(groupSearchResults({
+      towns: towns?.results,
+      suggestions: suggest?.suggestions,
+      athletes: people?.athletes,
+      clubs: clubs?.clubs,
+      events: events?.events,
+    }))
+    searched.set(text)
+  }
+  catch {
+    if (ticket === latest && active)
+      failed.set(true)
+  }
+  finally {
+    if (ticket === latest && active)
+      loading.set(false)
+  }
+}
+
+function clear(): void {
+  query.set('')
+  groups.set(null)
+  searched.set('')
+  failed.set(false)
+}
+
+function openRow(row: any): void {
+  if (row?.href)
+    craft.navigation.open(row.href)
+}
+
+function openAllTrails(): void {
+  craft.navigation.open(allTrailsPath(query()))
+}
+
+/** A screen we draw ourselves is pushed; anything else opens the website. */
+function openQuickLink(link: any): void {
+  if (link?.screen)
+    craft.navigation.push(link.screen, {})
+  else if (link?.href)
+    craft.navigation.open(link.href)
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Search', largeTitle: true })
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="search-scroll">
+    <Text class="mt-1 text-sm text-slate-400">Places, trails, athletes, clubs and events.</Text>
+
+    <View class="mt-4 gap-2">
+      <TextInput
+        testID="search-input"
+        class="rounded-xl bg-slate-900 p-3 text-white"
+        placeholder="Search for anything"
+        :value="query"
+        @input="query.set(eventText($event))"
+      />
+      <View class="flex-row gap-2">
+        <Button testID="run-search" @click="runSearch()">Search</Button>
+        <Button :show="query() !== ''" testID="clear-search" @click="clear()">Clear</Button>
+      </View>
+    </View>
+
+    <ActivityIndicator :show="loading" testID="search-loading" class="mt-6" />
+    <Text :show="failed" testID="search-error" class="mt-4 text-rose-300">Could not search just now.</Text>
+    <Text :show="nothingFound()" testID="search-empty" class="mt-6 text-sm text-slate-400" :text="nothingText()" />
+
+    {{-- Where to go before anything has been typed. --}}
+    <View :show="showQuickLinks()" testID="quick-links" class="mt-6 gap-2">
+      <Text class="text-xs font-semibold uppercase text-slate-500">Start here</Text>
+      <Pressable :for="link in quickLinks" :key="link.label" testID="quick-link" class="rounded-xl bg-slate-900 p-3" @click="openQuickLink(link)">
+        <Text class="text-base font-semibold text-white" :text="link.label" />
+        <Text class="text-xs text-slate-400" :text="link.detail" />
+      </Pressable>
+    </View>
+
+    <View :for="section in sections()" :key="section.key" class="mt-6 gap-2">
+      <Text testID="section-title" class="text-xs font-semibold uppercase text-slate-500" :text="section.title" />
+      <Pressable :for="row in section.rows" :key="row.href" testID="result-row" class="rounded-xl bg-slate-900 p-3" @click="openRow(row)">
+        <Text class="text-base font-semibold text-white" :text="row.label" />
+        <Text :show="rowDetail(row)" class="text-xs text-slate-400" :text="rowDetail(row)" />
+      </Pressable>
+    </View>
+
+    <Pressable :show="sections().length > 0" testID="all-trails" class="mt-4 rounded-xl bg-slate-900 p-3" @click="openAllTrails()">
+      <Text class="text-sm text-emerald-300" :text="allTrails()" />
+    </Pressable>
+  </ScrollView>
+</SafeAreaView>

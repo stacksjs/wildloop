@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 /**
  * Challenges, natively.
@@ -13,37 +13,6 @@ import { answer, compileNativeBundle, requests, shownText, shownTextSince, start
  * the challenge the server returns rather than from the button that was
  * pressed.
  */
-
-/**
- * Whether a node is on screen.
- *
- * `:show` keeps the node mounted and hides it with `display: none` — unlike
- * `:if`, which the native runtime ignores entirely (stacksjs/stx#2074). So a
- * control that must not be offered is one that is present and hidden, and
- * only the style says which.
- */
-function visibility(screen: any, testID: string): string {
-  const ops = screen.sent
-    .filter((message: any) => message.type === 'MUTATE')
-    .flatMap((message: any) => message.payload.operations)
-  const ids = new Set<string>()
-  const walk = (node: any): void => {
-    if (!node || typeof node !== 'object')
-      return
-    if (node.props?.testID === testID && node.props?.__stxId)
-      ids.add(String(node.props.__stxId))
-    ;(node.children ?? []).forEach(walk)
-  }
-  walk(screen.sent.find((message: any) => message.type === 'RENDER')?.payload.document)
-  for (const operation of ops) {
-    if (operation.op === 'createNode' && operation.node?.props?.testID === testID)
-      ids.add(String(operation.id))
-  }
-  const display = ops
-    .filter((operation: any) => operation.op === 'updateNode' && ids.has(String(operation.id)) && operation.patch?.style?.display)
-    .map((operation: any) => operation.patch.style.display)
-  return display.at(-1) ?? (ids.size > 0 ? 'shown' : 'absent')
-}
 
 const SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Challenges.stx'), 'utf8')
 

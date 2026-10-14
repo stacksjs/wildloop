@@ -56,6 +56,7 @@ export default {
       '/clubs': 'Clubs',
       '/events': 'Events',
       '/records': 'Records',
+      '/search': 'Search',
       '/trails': 'Trails',
       '/notifications': 'Notifications',
       '/leaderboard': 'Leaderboard',

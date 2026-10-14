@@ -65,7 +65,7 @@ describe('text query', () => {
       suggestions: [{ kind: 'place', label: 'Cleveland National Forest', detail: 'CA', href: '/trails?q=Cleveland' }],
     })
     expect(groups.places).toEqual([
-      { label: 'San Diego', detail: 'California, United States · Trails nearby', href: '/trails?near=San+Diego&lat=32.71571&lng=-117.16472' },
+      { label: 'San Diego', detail: 'California, United States · Trails nearby', href: '/trails?near=San%20Diego&lat=32.71571&lng=-117.16472' },
       { label: 'Cleveland National Forest', detail: 'CA', href: '/trails?q=Cleveland' },
     ])
   })

@@ -13,7 +13,16 @@
 
 <script client>
   import { apiFetch } from '../assets/scripts/auth'
-  import { groupSearchResults } from '../functions/search-results'
+  import {
+    allTrailsPath,
+    allTrailsText,
+    groupSearchResults,
+    isSearchable,
+    nothingFoundText,
+    searchPaths,
+    SEARCH_QUICK_LINKS,
+    searchSections,
+  } from '../functions/search-results'
   import { avatarTint } from '../functions/avatars'
 
   useHead({ title: 'Search — Wildloop' })
@@ -27,37 +36,37 @@
   const groups = state<any>(null)
   const searched = state('')
 
-  const SECTIONS = [
-    { key: 'places', title: 'Places', icon: 'i-lucide-map-pin' },
-    { key: 'trails', title: 'Trails', icon: 'i-lucide-map' },
-    { key: 'athletes', title: 'Athletes', icon: '' },
-    { key: 'clubs', title: 'Clubs', icon: 'i-lucide-users' },
-    { key: 'events', title: 'Events', icon: 'i-lucide-calendar-days' },
-  ]
+  // The icons stay here: they are this page's, and a native screen has no
+  // iconify class to put them in. Everything else — which groups there are,
+  // what they are called, and the two-character minimum — is shared with the
+  // native screen through `search-results.ts`.
+  const ICONS: Record<string, string> = {
+    places: 'i-lucide-map-pin',
+    trails: 'i-lucide-map',
+    athletes: '',
+    clubs: 'i-lucide-users',
+    events: 'i-lucide-calendar-days',
+  }
 
-  const hasQuery = derived(() => query().trim().length >= 2)
-  const sections = derived(() => {
-    const found = groups()
-    if (!found || !hasQuery())
-      return []
-    return SECTIONS
-      .map(section => ({ ...section, rows: found[section.key] ?? [] }))
-      .filter(section => section.rows.length > 0)
-  })
+  const hasQuery = derived(() => isSearchable(query()))
+  const sections = derived(() => (hasQuery()
+    ? searchSections(groups()).map(section => ({ ...section, icon: ICONS[section.key] ?? '' }))
+    : []))
   const nothingFound = derived(() => hasQuery() && !loading() && !failed() && searched() === query().trim()
     && sections().length === 0)
-  const allTrailsHref = derived(() => `/trails?q=${encodeURIComponent(query().trim())}`)
-  const allTrailsLabel = derived(() => `See all trails matching “${query().trim()}”`)
-  const nothingLabel = derived(() => `Nothing matches “${query().trim()}” yet.`)
+  const allTrailsHref = derived(() => allTrailsPath(query()))
+  const allTrailsLabel = derived(() => allTrailsText(query()))
+  const nothingLabel = derived(() => nothingFoundText(query()))
 
-  const QUICK_LINKS = [
-    { label: 'Trails near me', detail: 'Popular within a drive', href: '/trails?near=me', icon: 'i-lucide-locate-fixed' },
-    { label: 'Find athletes', detail: 'Follow people you run with', href: '/athletes', icon: 'i-lucide-user-search' },
-    { label: 'Clubs', detail: 'Groups and their runs', href: '/clubs', icon: 'i-lucide-users' },
-    { label: 'Events', detail: 'Races and backyard ultras', href: '/events', icon: 'i-lucide-calendar-days' },
-    { label: 'Territory map', detail: 'Who holds the ground', href: '/territories', icon: 'i-lucide-flag' },
-    { label: 'Records', detail: 'Fastest known times', href: '/records', icon: 'i-lucide-crown' },
-  ]
+  const LINK_ICONS: Record<string, string> = {
+    'Trails near me': 'i-lucide-locate-fixed',
+    'Find athletes': 'i-lucide-user-search',
+    'Clubs': 'i-lucide-users',
+    'Events': 'i-lucide-calendar-days',
+    'Territory map': 'i-lucide-flag',
+    'Records': 'i-lucide-crown',
+  }
+  const QUICK_LINKS = SEARCH_QUICK_LINKS.map(link => ({ ...link, icon: LINK_ICONS[link.label] ?? '' }))
 
   /** An athlete's face colour, the same one they have on every other card. */
   function rowTint(row: any) {
@@ -71,14 +80,14 @@
     loading.set(true)
     failed.set(false)
     try {
-      const encoded = encodeURIComponent(text)
+      const paths = searchPaths(text)
       const ask = (path: string) => apiFetch(path).then(r => r.json()).catch(() => null)
       const [towns, suggest, people, clubs, events] = await Promise.all([
-        ask(`/api/geo/search?q=${encoded}&limit=3`),
-        ask(`/api/search/suggest?q=${encoded}`),
-        ask(`/api/users/search?q=${encoded}&limit=5`),
-        ask(`/api/clubs?q=${encoded}&limit=4`),
-        ask(`/api/events?q=${encoded}&limit=4`),
+        ask(paths.towns),
+        ask(paths.suggestions),
+        ask(paths.athletes),
+        ask(paths.clubs),
+        ask(paths.events),
       ])
       // A slower answer to an older query must not replace a newer one.
       if (ticket !== latest)
@@ -119,7 +128,7 @@
    */
   const pendingSearch = useTimeout(() => {
     const trimmed = query().trim()
-    if (trimmed.length >= 2)
+    if (isSearchable(trimmed))
       void runSearch(trimmed)
   }, 250)
 
@@ -127,7 +136,7 @@
     const text = String(event?.target?.value ?? '')
     query.set(text)
     const trimmed = text.trim()
-    if (trimmed.length < 2) {
+    if (!isSearchable(trimmed)) {
       pendingSearch.stop()
       latest++
       loading.set(false)

@@ -199,3 +199,41 @@ export function shownTextSince(session: NativeSession, from: number): string[] {
   }
   return found
 }
+
+/**
+ * Whether a node is on screen: `'flex'`, `'none'`, `'shown'` when it exists
+ * and nothing has hidden it, or `'absent'`.
+ *
+ * `:show` keeps a node mounted and hides it with `style.display` — unlike
+ * `:if`, which the native runtime ignores entirely (stacksjs/stx#2074). So a
+ * control that must not be offered, and a message that must not be showing,
+ * are both *present* and hidden, and only the style says so. A test that
+ * searches the text instead passes whatever the screen does, because a static
+ * label is in the first RENDER either way.
+ */
+export function visibility(session: NativeSession, testID: string): string {
+  const operations = session.sent
+    .filter(message => message.type === 'MUTATE')
+    .flatMap(message => message.payload.operations)
+
+  const ids = new Set<string>()
+  const walk = (node: any): void => {
+    if (!node || typeof node !== 'object')
+      return
+    if (node.props?.testID === testID && node.props?.__stxId)
+      ids.add(String(node.props.__stxId))
+    for (const child of node.children ?? [])
+      walk(child)
+  }
+  walk(session.sent.find(message => message.type === 'RENDER')?.payload.document)
+  for (const operation of operations) {
+    if (operation.op === 'createNode' && operation.node?.props?.testID === testID)
+      ids.add(String(operation.id))
+  }
+
+  const display = operations
+    .filter(operation => operation.op === 'updateNode' && ids.has(String(operation.id)) && operation.patch?.style?.display)
+    .map(operation => operation.patch.style.display)
+
+  return display.at(-1) ?? (ids.size > 0 ? 'shown' : 'absent')
+}

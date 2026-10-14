@@ -276,6 +276,15 @@ declare global {
   const MIN_RECORD_ELEVATION_FT: typeof autoImports.MIN_RECORD_ELEVATION_FT
   const routeShapeFor: typeof autoImports.routeShapeFor
   const groupSearchResults: typeof autoImports.groupSearchResults
+  const isSearchable: typeof autoImports.isSearchable
+  const searchPaths: typeof autoImports.searchPaths
+  const searchSections: typeof autoImports.searchSections
+  const nothingFoundText: typeof autoImports.nothingFoundText
+  const allTrailsText: typeof autoImports.allTrailsText
+  const allTrailsPath: typeof autoImports.allTrailsPath
+  const MIN_SEARCH_LENGTH: typeof autoImports.MIN_SEARCH_LENGTH
+  const SEARCH_SECTIONS: typeof autoImports.SEARCH_SECTIONS
+  const SEARCH_QUICK_LINKS: typeof autoImports.SEARCH_QUICK_LINKS
   const segmentDraft: typeof autoImports.segmentDraft
   const cumulativeMiles: typeof autoImports.cumulativeMiles
   const MIN_SEGMENT_MILES: typeof autoImports.MIN_SEGMENT_MILES

@@ -11,6 +11,7 @@ nativeScreens: {
   '/clubs': 'Clubs',
   '/events': 'Events',
   '/records': 'Records',
+  '/search': 'Search',
   '/trails': 'Trails',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',
@@ -40,6 +41,11 @@ The flows so far:
   A keyed `:for` inside a `ScrollView`, filtered server-side by style, and a
   row hands off to the web effort page through `craft.navigation.open` because
   that page is a map (craft-native/craft#340).
+- **Search** — one box for everything the app can find. Five endpoints asked
+  in parallel and grouped by the same function the web page uses, with a
+  ticket so a slow answer to an older query cannot replace a newer one. Its
+  quick links `push` the native screen where we have one rather than opening a
+  web view onto a page the app already draws.
 - **Trails** — the catalog, and the first screen that draws something. Each row
   carries its route as a real SVG polyline, projected by the same
   `routeShapeFor` the website uses, so a line is never a square thumbnail
