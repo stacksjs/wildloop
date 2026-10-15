@@ -7,12 +7,15 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 nativeScreens: {
   '/achievements': 'Achievements',
   '/athletes': 'Athletes',
+  '/battles': 'Battles',
   '/challenges': 'Challenges',
   '/clubs': 'Clubs',
+  '/conquests': 'Conquests',
   '/events': 'Events',
   '/records': 'Records',
   '/search': 'Search',
   '/stats': 'Stats',
+  '/territories': 'Territories',
   '/trails': 'Trails',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',
@@ -70,6 +73,22 @@ The flows so far:
   optimistically and is then put back from the response rather than from what
   the tap assumed. An invite-only club opens its page instead of offering a
   button that would be refused.
+- **Territories** — the first screen that draws a real map. One `MapPolyline`
+  per zone, closed by repeating its first point because craft-native has
+  polylines and markers and no polygon. Two things here fail silently and are
+  therefore shared rather than written twice: a GeoJSON ring is `[lng, lat]`
+  and everything that draws it wants `[lat, lng]`, and the query is built with
+  `encodeURIComponent` because the native runtime has no `URLSearchParams`.
+  Colour is identity, from the same `territory-style` the web map uses.
+- **Battles** — the game's feed, and the only native screen that works signed
+  out: `/api/territories/battles` answers without a viewer and only `?mine=1`
+  needs one. Third person, about other people.
+- **Conquests** — the athlete's own record, from `?mine=1` rather than folded
+  out of the global feed, which is the newest 200 battles in the whole game and
+  holds only a few of anyone's. Second person — and the battle the feed badges
+  "Conquered" is "Lost" here, which is the distinction the two web pages used
+  to get wrong in opposite directions. The counters are
+  `computeConquestRecord`, which the web page already used.
 
 The screens are compiled to Craft's native document protocol; they do not use a
 WebView or a second layout engine. Shared numbers come from
@@ -143,10 +162,17 @@ outside this repo:
 - **craft-native 0.0.174 and 0.0.175 do not compile.** `contentPadding` is used
   in two functions that do not declare it, and `rawAttestationObject` is a
   `Data?` passed where `Data` is wanted. Both arrived in 0.0.174 — the release
-  that brought the `Map` — so the pin is held at **0.0.173** until #354 closes.
-  All three are fixed in published 0.0.187 — `rawAttestationObject` is
-  unwrapped, `project.yml.template` sets `PRODUCT_NAME`, and `contentPadding`
-  is in scope — so the pin can move once a clean Xcode build confirms it.
+  that brought the `Map` — so the pin is held at **0.0.173**.
+  All three are fixed in published **0.0.187**: `rawAttestationObject` is
+  unwrapped behind a `guard let`, `project.yml.template` sets `PRODUCT_NAME`,
+  and `contentPadding` is declared in scope. craft-native/craft#354 is still
+  open pending a clean Xcode build, which is what the pin is waiting on.
+  **This is what gates the territory map on a device.** `Map`, `MapPolyline`
+  and `MapMarker` have no renderer at all in 0.0.173 — they arrived with
+  0.0.174 — so the Territories screen compiles, passes its tests against the
+  mutation protocol, and draws nothing until the pin moves. The screen was
+  written anyway because the protocol is the contract and the fixture tests it
+  honestly; what cannot be checked until then is how it looks.
 
 ## Current boundaries
 
