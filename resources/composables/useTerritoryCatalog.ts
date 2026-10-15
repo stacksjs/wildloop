@@ -1,5 +1,6 @@
 import { onMount, state } from 'stx'
 import { apiFetch } from '../assets/scripts/auth'
+import { territoriesMapPath, territoryRowsFrom, type TerritoryRow } from '../functions/territories'
 
 /**
  * Hydrate the `wl` store's territories from the live API
@@ -15,24 +16,6 @@ interface TerritoryStoreLike {
     polygons: Record<number, [number, number][]>,
     users: unknown[],
   ) => void
-}
-
-interface MapFeature {
-  properties: {
-    id: number
-    name: string
-    ownerId: number
-    ownerName: string
-    ownerAvatar?: string | null
-    areaSize: number
-    conquestCount: number
-    defendCount: number
-    claimedAt: string
-    status: string
-    centerLat: number
-    centerLng: number
-  }
-  geometry: { type: string, coordinates: number[][][] } | null
 }
 
 export const territorySource = state<'api' | 'seed'>('seed')
@@ -60,19 +43,14 @@ export async function loadTerritories(
   if (!wl)
     return false
   try {
-    const query = new URLSearchParams({ limit: '500' })
-    if (viewport) {
-      query.set('min_lat', String(viewport.minLat))
-      query.set('min_lng', String(viewport.minLng))
-      query.set('max_lat', String(viewport.maxLat))
-      query.set('max_lng', String(viewport.maxLng))
-    }
-    const res = await apiFetch(`/api/territories/map?${query}`, {
-    })
+    // `territoriesMapPath` rather than a `URLSearchParams` built here: the
+    // native screen issues the same query and has no `URLSearchParams`, and
+    // one of the two building it by hand is how the two drift.
+    const res = await apiFetch(territoriesMapPath(viewport ?? null), {})
     if (!res.ok)
       throw new Error(`Territories API returned ${res.status}`)
     const payload = await res.json()
-    const features: MapFeature[] = Array.isArray(payload?.features) ? payload.features : []
+    const features = territoryRowsFrom(payload)
     territoryError.set(null)
 
     // An empty answer is an answer. This used to `return false` here, which
@@ -90,14 +68,12 @@ export async function loadTerritories(
     const polygons: Record<number, [number, number][]> = {}
     const usersById = new Map<number, any>()
 
-    for (const f of features) {
-      const p = f.properties
-      territories.push(storeTerritory(f))
-      const ring = storeRing(f)
-      if (ring)
-        polygons[p.id] = ring
-      if (!usersById.has(p.ownerId))
-        usersById.set(p.ownerId, storeOwner(f))
+    for (const row of features) {
+      territories.push(storeTerritory(row))
+      if (row.ring)
+        polygons[row.id] = row.ring
+      if (!usersById.has(row.userId))
+        usersById.set(row.userId, storeOwner(row))
     }
 
     wl.hydrateTerritoriesFromApi(territories, polygons, [...usersById.values()])
@@ -111,36 +87,29 @@ export async function loadTerritories(
   }
 }
 
-function storeTerritory(f: MapFeature) {
-  const p = f.properties
+/** A shared row as the store holds it: snake_case, from the database days. */
+function storeTerritory(row: TerritoryRow) {
   return {
-    id: p.id,
-    name: p.name,
-    user_id: p.ownerId,
-    areaSize: p.areaSize ?? 0,
-    conquestCount: p.conquestCount ?? 0,
-    defendCount: p.defendCount ?? 0,
+    id: row.id,
+    name: row.name,
+    user_id: row.userId,
+    areaSize: row.areaSize,
+    conquestCount: row.conquestCount,
+    defendCount: row.defendCount,
     totalRunners: 0,
-    status: p.status === 'contested' ? 'contested' : 'active',
-    claimedAt: p.claimedAt ?? new Date().toISOString(),
-    lat: p.centerLat ?? 0,
-    lng: p.centerLng ?? 0,
+    status: row.status,
+    claimedAt: row.claimedAt || new Date().toISOString(),
+    lat: row.lat,
+    lng: row.lng,
   }
 }
 
-/** GeoJSON polygon ring is [[lng, lat], ...]; the store wants [lat, lng]. */
-function storeRing(f: MapFeature): [number, number][] | null {
-  const ring = f.geometry?.coordinates?.[0]
-  return ring ? ring.map(([lng, lat]) => [lat, lng] as [number, number]) : null
-}
-
-function storeOwner(f: MapFeature) {
-  const p = f.properties
+function storeOwner(row: TerritoryRow) {
   return {
-    id: p.ownerId,
-    name: p.ownerName || 'Unknown',
+    id: row.userId,
+    name: row.ownerName || 'Unknown',
     email: '',
-    avatar: p.ownerAvatar ?? null,
+    avatar: row.ownerAvatar,
     joinedAt: new Date().toISOString(),
   }
 }
@@ -166,10 +135,11 @@ export async function loadTerritory(
     if (!res.ok)
       return null
     const payload = await res.json()
-    const feature = payload?.territory as MapFeature | undefined
-    if (!feature?.properties)
+    // Shaped through the same reader as the map, which wants a feature list.
+    const [row] = territoryRowsFrom({ features: payload?.territory ? [payload.territory] : [] })
+    if (!row)
       return false
-    wl.upsertTerritoryFromApi(storeTerritory(feature), storeRing(feature), storeOwner(feature))
+    wl.upsertTerritoryFromApi(storeTerritory(row), row.ring, storeOwner(row))
     return true
   }
   catch {
