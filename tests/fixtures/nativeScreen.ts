@@ -204,12 +204,13 @@ export function shownTextSince(session: NativeSession, from: number): string[] {
  * Whether a node is on screen: `'flex'`, `'none'`, `'shown'` when it exists
  * and nothing has hidden it, or `'absent'`.
  *
- * `:show` keeps a node mounted and hides it with `style.display` — unlike
- * `:if`, which the native runtime ignores entirely (stacksjs/stx#2074). So a
- * control that must not be offered, and a message that must not be showing,
- * are both *present* and hidden, and only the style says so. A test that
- * searches the text instead passes whatever the screen does, because a static
- * label is in the first RENDER either way.
+ * `:show` keeps a node mounted and hides it with `style.display`, where `:if`
+ * unmounts — a batch after the initial render, which carries every branch
+ * either way (tests/unit/native-conditional-timing.test.ts). So on a `:show`
+ * screen a control that must not be offered, and a message that must not be
+ * showing, are both *present* and hidden, and only the style says so. A test
+ * that searches the text instead passes whatever the screen does, because a
+ * static label is in the first RENDER regardless.
  */
 export function visibility(session: NativeSession, testID: string): string {
   const operations = session.sent

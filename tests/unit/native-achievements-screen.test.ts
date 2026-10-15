@@ -73,9 +73,8 @@ describe('Wildloop native achievements screen', () => {
   })
 
   /*
-   * The bar's geometry is bound. `:height` and `:y` on a rect do register as
-   * bindings — unlike `:geometry` on a MapPolyline, which the compiler drops
-   * (stacksjs/stx#2073) — and that is what makes a chart possible at all.
+   * The bar's geometry is bound. `:height` and `:y` on a rect register as
+   * bindings, which is what makes a chart possible at all.
    */
   it('binds every bar\'s geometry', () => {
     for (const binding of [':x="bar.x"', ':y="bar.y"', ':width="bar.width"', ':height="bar.height"'])

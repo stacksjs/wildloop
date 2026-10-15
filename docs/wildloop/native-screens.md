@@ -144,30 +144,39 @@ outside this repo:
   in two functions that do not declare it, and `rawAttestationObject` is a
   `Data?` passed where `Data` is wanted. Both arrived in 0.0.174 — the release
   that brought the `Map` — so the pin is held at **0.0.173** until #354 closes.
-  That costs nothing today, because the Map cannot be fed from data either
-  (stacksjs/stx#2073).
+  All three are fixed in published 0.0.187 — `rawAttestationObject` is
+  unwrapped, `project.yml.template` sets `PRODUCT_NAME`, and `contentPadding`
+  is in scope — so the pin can move once a clean Xcode build confirms it.
 
 ## Current boundaries
 
 - The native routes cover manual activity entry and its saved confirmation, not
   GPS recording, maps, media upload, authentication, or the full activity feed.
-- **`:if` does nothing here — use `:show`.** The native runtime never applies
-  it (stacksjs/stx#2074): the compiler puts the binding in the manifest,
-  nothing reads it, and `setVisible` is never called, so every branch renders.
-  Seven screens shipped that way before it was noticed, because every earlier
-  `:if` sat on a `Text` whose bound text was empty anyway — the one that gave
-  it away was a Button. `:show` is correct, inside a `:for` as well as outside,
-  and `bun run gate:stx` fails on an `:if` under `resources/native/`. It hides
-  rather than unmounts, so a test that a control is *not* offered reads
-  `style.display` rather than the text.
-- **The map renders but cannot be fed.** craft-native 0.0.174 draws `Map` with
+- **Use `:show`, not `:if` — but not for the reason first recorded here.**
+  `:if` *is* applied: it emits `removeNode` when the condition is false and
+  `createNode` + `insertChild` when it turns true, standalone and on a loop
+  row. What is true is narrower — the **initial RENDER carries every branch**
+  regardless of the condition, and the corrections land in the first post-mount
+  MUTATE batch. So the first frame shows all of them. Seven screens shipped
+  that way before it was noticed, because every earlier `:if` sat on a `Text`
+  whose bound text was empty anyway — the one that gave it away was a Button.
+  `:show` resolves in that same batch, so it is not faster; it is easier to
+  assert on, and it hides rather than unmounts, so a test that a control is
+  *not* offered reads `style.display` rather than the text. `bun run gate:stx`
+  fails on an `:if` under `resources/native/` for that reason.
+  stacksjs/stx#2074 was filed saying `setVisible` is never called, which was a
+  misreading of the RENDER payload; 0.2.532 adds a `display` patch beside each
+  structural op but leaves the branches in the initial render.
+  `tests/unit/native-conditional-timing.test.ts` pins the measured behaviour.
+- **The map can be fed from data.** craft-native 0.0.174 draws `Map` with
   `MapPolyline`, `MapMarker` and `fitToBounds` on both hosts, and stx 0.2.520
-  compiles all three. A bound `:geometry` is dropped by the compiler, though —
-  no prop, no binding, no manifest entry, no diagnostic (stacksjs/stx#2073) —
-  so a route that comes from the API never reaches the map. Only a
-  compile-time-constant geometry survives. The trails screen draws its line as
-  an SVG polyline instead, where `:points` does bind; when #2073 lands, that is
-  the screen to move onto a real map.
+  compiles all three. A bound `:geometry` reaches the host as
+  `{"op":"updateNode","patch":{"props":{"geometry":[…]}}}` in the first
+  post-mount batch — the initial RENDER carries only
+  `data-stx-parent-bindings="geometry"`, which is what stacksjs/stx#2073
+  mistook for the compiler dropping it. It does not. The trails screen draws
+  its line as an SVG polyline for its own reasons (a 96×64 thumbnail, not a
+  pannable map); a real `Map` is available wherever one is wanted.
 - Network requests require an absolute `http://` or `https://` URL. Response
   bodies are text/JSON and are limited by the maintained host.
 - Native `:for` renders the shared keyed STX mutation protocol and is the

@@ -19,9 +19,9 @@ import { monthlyProgress, personalBests } from '../functions/personal-bests'
  *
  * The year is twelve `<rect>`s in one SVG, each bound to its month's share of
  * the best one. The web page does the same thing with twelve divs and a
- * percentage height; a native screen has no percentage heights, and after
- * stacksjs/stx#2073 we know a bound geometry attribute on a shape does reach
- * the renderer — `:points` on the trails screen draws real routes on device.
+ * percentage height; a native screen has no percentage heights, and a bound
+ * geometry attribute on a shape does reach the renderer — `:points` on the
+ * trails screen draws real routes on device.
  *
  * Everything numeric comes from `personal-bests.ts`, which the web page has
  * always used: the three records and the twelve months are computed from the

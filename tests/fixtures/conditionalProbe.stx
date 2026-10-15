@@ -1,0 +1,34 @@
+<script client>
+/*
+ * Not a screen the app ships — the probe behind the `:if` and `:geometry`
+ * corrections in CLAUDE.md. It lives under tests/ so the native gate, which
+ * scans `resources/**`, does not fail it for the `:if` it exists to measure.
+ *
+ * Four things in one render: a condition that starts false and turns true, one
+ * that starts true and turns false, the same pair inside a `:for`, and a
+ * MapPolyline whose geometry is bound to a signal.
+ */
+const off = state(false)
+const on = state(true)
+const rows = state([{ id: 1, ok: true }, { id: 2, ok: false }])
+const route = state<number[]>([32.7, -117.1, 32.8, -117.2])
+
+onMount(() => {
+  off.set(true)
+  on.set(false)
+})
+</script>
+
+<SafeAreaView>
+  <Text :if="off()" testID="turns-on">was false, turns true</Text>
+  <Text :if="on()" testID="turns-off">was true, turns false</Text>
+  <Text :show="off()" testID="shown-node">shown</Text>
+
+  <View :for="row in rows()" :key="row.id">
+    <Text :if="row.ok" testID="loop-if">row ok</Text>
+  </View>
+
+  <Map testID="probe-map">
+    <MapPolyline :geometry="route()" strokeColor="#f00" :strokeWidth="3" />
+  </Map>
+</SafeAreaView>

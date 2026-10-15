@@ -12,11 +12,13 @@ import {
 /*
  * The trail catalog, natively. Sixth list screen.
  *
- * This is the screen the map was meant to carry, and it does not — a
- * `MapPolyline`'s `:geometry` binding is dropped by the compiler, so a route
- * that comes from the API never reaches the map (stacksjs/stx#2073, filed from
- * this screen). The renderer is ready and the data is already `[lat, lng]`
- * pairs; only the binding is missing.
+ * The route on each row is an SVG polyline, not a map, and that is a choice
+ * rather than a limit: the row draws a 96x64 thumbnail, where a pannable
+ * `MKMapView` per row would be absurd. A bound `:geometry` on a `MapPolyline`
+ * does work — stacksjs/stx#2073 said otherwise and was filed off a misreading
+ * of the initial RENDER, which carries the binding marker and no array until
+ * the first post-mount batch (tests/unit/native-conditional-timing.test.ts).
+ * A whole-trail map screen is available whenever one is wanted.
  *
  * So the line is drawn rather than mapped, which is what the web card does
  * when a trail has no photo, for a better reason than a fallback: the line is

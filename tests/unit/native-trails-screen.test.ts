@@ -13,10 +13,10 @@ import { trailPlaceLine, trailRoutePoints, trailStatsLine } from '../../resource
  * back to the server, and a row hands off to the web trail page because that
  * page is a map.
  *
- * It also pins the shape of the workaround. A `MapPolyline`'s `:geometry`
- * binding is dropped by the compiler (stacksjs/stx#2073), so this screen draws
- * the line instead of mapping it. If that is ever fixed and this screen moves
- * to a `Map`, these assertions are the ones to rewrite deliberately.
+ * It also pins the shape of the row thumbnail. This screen draws its line as
+ * an SVG polyline because the row is 96x64, not because a `Map` could not be
+ * fed — it can. If a row ever becomes a real map, these assertions are the
+ * ones to rewrite deliberately.
  */
 
 const SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Trails.stx'), 'utf8')

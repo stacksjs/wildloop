@@ -31,9 +31,10 @@ import {
  * should show what actually happened.
  *
  * Narrower than the web page: no new-challenge sheet. Picking a rival
- * territory means reading the map, and the map is the one thing a native
- * screen still cannot draw from data (stacksjs/stx#2073). The territory at
- * stake opens the web page for the same reason.
+ * territory means reading a map, and the territory at stake opens the web page
+ * for now. That is scope, not a platform limit — a bound `:geometry` on a
+ * `MapPolyline` does reach the host, and stacksjs/stx#2073, which said it did
+ * not, was a misreading of the initial RENDER.
  */
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft

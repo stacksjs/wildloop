@@ -39,18 +39,34 @@
     the three-button probe (flipped-later now runs). `bun run gate:stx` holds
     0.2.504 as the floor instead of banning the pattern, so this comes back as a
     failure only if the framework goes backwards
-  - **no `:if` in `resources/native/**` — use `:show`.** The native runtime never
-    applies `:if`: the compiler puts the binding in the manifest, nothing reads
-    it, and `stxHost.setVisible` is never called, so *every* branch renders.
-    Trails shipped showing its spinner, its error slot, its result count and
-    "No trail matches that." in the same frame, and a challenge the viewer sent
-    got a working Accept button. `:show` goes through `setVisible` and is correct
-    inside a `:for` as well as outside — four display operations, all right, in
-    the same probe where `:if` produced none. Filed as stacksjs/stx#2074, present
-    in 0.2.504 and 0.2.520 alike, so it is not a regression and nothing is coming
-    for free. The gate fails on any `:if` under `resources/native/`. Note the
-    semantics differ: `:show` keeps the node mounted and hides it, so a test
-    asserting a control is *not* offered has to read `style.display`, not the text
+  - **no `:if` in `resources/native/**` — use `:show`.** Not because `:if` is
+    ignored. It emits structural operations and always has: `removeNode` when
+    the condition is false, `createNode` + `insertChild` when it turns true,
+    standalone and inside a `:for`. What is actually true is narrower — **the
+    initial RENDER carries every branch regardless of the condition**, and the
+    corrections arrive in the first post-mount MUTATE batch. So the first frame
+    shows all of them: Trails showed its spinner, its error slot, its result
+    count and "No trail matches that." together, and a challenge the viewer sent
+    got an Accept button. stx 0.2.532 adds a `display` patch beside each
+    structural op, but the branches are still all in that initial RENDER, so the
+    window does not close — measured on 0.2.520 and 0.2.532 alike. `:show` lands
+    in the same batch, so it is no faster; it is just far easier to assert on,
+    and it keeps the node mounted, so a test asserting a control is *not*
+    offered reads `style.display`, not the text. The gate fails on any `:if`
+    under `resources/native/` for that reason, not the original one.
+    **I filed stacksjs/stx#2074 saying `setVisible` is never called; that was
+    wrong** — I read the RENDER payload and stopped there. Which is the rule
+    underneath this one: **the initial RENDER is not the frame.** A binding
+    missing from it may still arrive a batch later, so a probe that reads only
+    the render document will report a drop that is really a delay.
+    `tests/unit/native-conditional-timing.test.ts` pins both halves
+  - a bound `:geometry` on `MapPolyline` **does** reach the host — as
+    `{"op":"updateNode","patch":{"props":{"geometry":[…]}}}`, on 0.2.520 as well
+    as 0.2.532. I filed stacksjs/stx#2073 claiming the compiler dropped it, and
+    it does not: the initial RENDER carries only
+    `data-stx-parent-bindings="geometry"` and the flat array follows in the first
+    post-mount batch, which is what I mistook for a drop. Nothing was blocking
+    the map screens
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that

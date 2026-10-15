@@ -3,8 +3,7 @@
  *
  * A native screen has no percentage heights — the web pages give each bar a
  * `height: 42%` and let the browser resolve it. So the geometry is computed
- * here, once, and the markup binds `:x`, `:y`, `:width` and `:height`, which
- * the compiler keeps (unlike `:geometry` on a MapPolyline, stacksjs/stx#2073).
+ * here, once, and the markup binds `:x`, `:y`, `:width` and `:height`.
  *
  * Extracted when the training-stats screen became the second chart. The first
  * was the achievements year.

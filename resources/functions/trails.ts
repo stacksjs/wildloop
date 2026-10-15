@@ -208,9 +208,8 @@ export const TRAIL_ROUTE_BOX = { width: 96, height: 64, pad: 8 } as const
  * The native screen draws the route rather than a photo, for the same reason
  * the web card falls back to it: the line is the one thing on the row that is
  * actually this trail. It is bound as `:points`, which the native compiler
- * carries through as geometry — unlike `:geometry` on a `MapPolyline`, which is
- * dropped (stacksjs/stx#2073), and is why this screen draws the line instead of
- * putting it on a map.
+ * carries through as geometry. A `MapPolyline` would work too — it is a 96x64
+ * thumbnail on a list row, which is why it is drawn rather than mapped.
  */
 export function trailRoutePoints(line: LatLng[] | null | undefined): string {
   const shape = routeShapeFor(line, TRAIL_ROUTE_BOX.width, TRAIL_ROUTE_BOX.height, TRAIL_ROUTE_BOX.pad)

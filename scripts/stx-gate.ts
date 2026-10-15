@@ -110,19 +110,22 @@ for (const file of await files())
   }
 }
 
-// ── 2b. `:if` does nothing on a native screen (stacksjs/stx#2074) ────────────
-// The compiler puts the binding in the manifest and the native runtime has no
-// handler for it, so every branch renders: Trails showed its spinner, its
-// error slot, its result count and "No trail matches that." in the same frame,
-// and a challenge the viewer sent got a working Accept button. `:show` goes
-// through `setVisible` and is correct inside a `:for` as well as outside, so
-// it is the spelling until that issue closes.
+// ── 2b. `:if` is resolved a batch late on a native screen ────────────────────
+// Not that it is ignored — it emits `removeNode`/`createNode` properly. But the
+// initial RENDER carries *every* branch whatever the condition says, and the
+// corrections arrive in the first post-mount MUTATE batch, so the first frame
+// shows all of them: Trails showed its spinner, its error slot, its result
+// count and "No trail matches that." together, and a challenge the viewer sent
+// got an Accept button. `:show` lands in the same batch — no faster, but it
+// keeps the node mounted so a test can read `style.display`. stacksjs/stx#2074
+// was filed on the stronger claim and was wrong; the behaviour is pinned by
+// tests/unit/native-conditional-timing.test.ts.
 for (const [file, source] of sources) {
   if (!file.startsWith('resources/native/'))
     continue
   const uses = source.match(/:if=/g)?.length ?? 0
   if (uses > 0)
-    fail(`${file}: \`:if\` on a native screen`, `${uses} use(s). The native runtime never applies it — use \`:show\` (stacksjs/stx#2074).`)
+    fail(`${file}: \`:if\` on a native screen`, `${uses} use(s). Every branch is in the initial RENDER — use \`:show\`, which a test can read off \`style.display\`.`)
 }
 
 // ── 3. The portable list boundary (093ef1ac) ─────────────────────────────────
