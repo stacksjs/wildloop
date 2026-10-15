@@ -1,0 +1,190 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { formatTerritoryArea } from '../functions/territory-style'
+import {
+  BATTLE_PERIOD_LABELS,
+  BATTLE_PERIODS,
+  battleRowsFrom,
+  battlesPath,
+  countByStatus,
+  feedBadge,
+  feedLine,
+  filterBattlesByPeriod,
+  liveBattles,
+} from '../functions/battles'
+
+/*
+ * The live battle feed, natively. Thirteenth screen.
+ *
+ * Public, unlike every other screen here: `/api/territories/battles` answers
+ * without a viewer, and only `?mine=1` needs one. So this does not gate on a
+ * token — a signed-out athlete sees the game being played, which is most of
+ * the argument for the page existing. The token is still sent when there is
+ * one, because the endpoint hides blocked athletes from a viewer it knows.
+ *
+ * Narrower than the web page: no "near me" scope. That reads a location, and
+ * the period filter is the one that changes what is worth looking at. The
+ * voice is the feed's — `feedBadge`/`feedLine` rather than the second-person
+ * `ownBadge`/`ownLine` the conquests screen uses, which is the distinction
+ * the two web pages used to get wrong in opposite directions.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+
+const periodIndex = state(0)
+const rows = state<any[]>([])
+const loading = state(true)
+const error = state('')
+const bearer = state('')
+let active = true
+let reading: Promise<string> | null = null
+
+async function readToken(): Promise<string> {
+  if (bearer())
+    return bearer()
+
+  reading ??= Promise.resolve(craft.secureStorage.get('auth_token')).then((value) => {
+    const token = typeof value === 'string' ? value : ''
+    bearer.set(token)
+    return token
+  })
+
+  return reading
+}
+
+async function json(path: string): Promise<any> {
+  const token = await readToken()
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token)
+    headers.Authorization = `Bearer ${token}`
+  const response = await fetch(`https://wildloop.org${path}`, { headers })
+  const body = await response.json().catch(() => null)
+  return { ok: response.ok, body }
+}
+
+function period(): any {
+  return BATTLE_PERIODS[periodIndex()]
+}
+
+function periodName(): string {
+  return BATTLE_PERIOD_LABELS[period()]
+}
+
+function cyclePeriod(): void {
+  periodIndex.set((periodIndex() + 1) % BATTLE_PERIODS.length)
+}
+
+function shown(): any[] {
+  return filterBattlesByPeriod(rows(), period())
+}
+
+function liveText(): string {
+  const live = liveBattles(shown()).length
+  return live === 1 ? '1 live battle' : `${live} live battles`
+}
+
+function conqueredText(): string {
+  return String(countByStatus(shown(), 'conquered'))
+}
+
+function defendedText(): string {
+  return String(countByStatus(shown(), 'defended'))
+}
+
+function lineText(battle: any): string {
+  return feedLine(battle)
+}
+
+function badgeText(battle: any): string {
+  return feedBadge(battle)
+}
+
+function groundText(battle: any): string {
+  return formatTerritoryArea(battle.areaCaptured)
+}
+
+function emptyText(): string {
+  return period() === 'today'
+    ? 'Nobody has fought over anything today.'
+    : 'No battles in this stretch.'
+}
+
+function openTerritory(battle: any): void {
+  craft.navigation.open(`/territory/${battle.territory_id}`)
+}
+
+async function load(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  try {
+    const result = await json(battlesPath())
+    if (!active)
+      return
+    if (!result.ok)
+      throw new Error('Could not load the battle feed')
+
+    rows.set(battleRowsFrom(result.body))
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load the battle feed')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Live battles', largeTitle: true })
+  void load()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="battles-scroll">
+    <Text class="mt-1 text-sm text-slate-400">Ground changing hands across the game.</Text>
+
+    <ActivityIndicator :show="loading" testID="battles-loading" class="mt-6" />
+    <Text :show="error" testID="battles-error" class="mt-4 text-rose-300" :text="error" />
+
+    <View :show="!loading() && !error()" testID="battles-body" class="mt-5 gap-4">
+      <View class="gap-2">
+        <Text testID="battles-period" class="text-xs font-semibold uppercase text-slate-500" :text="periodName()" />
+        <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
+      </View>
+
+      <View class="flex-row gap-2">
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Live</Text>
+          <Text testID="battles-live" class="text-base font-semibold text-white" :text="liveText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Taken</Text>
+          <Text testID="battles-conquered" class="text-2xl font-bold text-white" :text="conqueredText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Held</Text>
+          <Text testID="battles-defended" class="text-2xl font-bold text-white" :text="defendedText()" />
+        </View>
+      </View>
+
+      <Text :show="shown().length === 0" testID="battles-empty" class="mt-2 text-sm text-slate-400" :text="emptyText()" />
+
+      <View :show="shown().length > 0" class="gap-2">
+        <Text class="text-xs font-semibold uppercase text-slate-500">What is happening</Text>
+        <Pressable :for="battle in shown()" :key="battle.id" testID="battle-row" @click="openTerritory(battle)" class="gap-1 rounded-xl bg-slate-900 p-3">
+          <View class="flex-row justify-between">
+            <Text class="flex-1 text-sm text-white" :text="lineText(battle)" />
+            <Text testID="battle-badge" class="text-xs text-slate-400" :text="badgeText(battle)" />
+          </View>
+          <Text testID="battle-ground" class="text-xs text-slate-500" :text="groundText(battle)" />
+        </Pressable>
+      </View>
+    </View>
+  </ScrollView>
+</SafeAreaView>

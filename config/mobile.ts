@@ -52,8 +52,10 @@ export default {
     nativeScreens: {
       '/achievements': 'Achievements',
       '/athletes': 'Athletes',
+      '/battles': 'Battles',
       '/challenges': 'Challenges',
       '/clubs': 'Clubs',
+      '/conquests': 'Conquests',
       '/events': 'Events',
       '/records': 'Records',
       '/search': 'Search',

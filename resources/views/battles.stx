@@ -34,7 +34,15 @@
 <script client>
   import { formatTerritoryArea } from '../functions/territory-style'
   import { avatarUrl } from '../functions/avatars'
-  import { mapBoundsAround, mapBoundsContain, type MapBounds } from '../functions/map-area'
+  import { mapBoundsAround, type MapBounds } from '../functions/map-area'
+  import {
+    countByStatus,
+    feedBadge,
+    feedVerb,
+    filterBattlesByArea,
+    filterBattlesByPeriod,
+    liveBattles as liveOnly,
+  } from '../functions/battles'
   import { resolveNearby } from '../composables/useNearby'
 
   useHead({ title: 'Live Battles — Wildloop' })
@@ -85,43 +93,33 @@
     scope.set('near')
   })
 
+  /*
+   * The reading is shared with the native screen (functions/battles.ts), which
+   * tells the same rows in the same third person. The two used to carry a
+   * `battleBadge` each, and they disagreed: the battle the feed called
+   * "Conquered" was "Lost" on /conquests, with nothing saying which was meant.
+   */
   const inScope = derived(() => {
     if (!wl) return []
-    const box = area()
-    if (scope() !== 'near' || !box) return wl.conquests()
-    return wl.conquests().filter((b: any) => b.centerLat != null && b.centerLng != null && mapBoundsContain(box, b.centerLat, b.centerLng))
+    return filterBattlesByArea(wl.conquests(), scope() === 'near' ? area() : null)
   })
 
-  const liveBattles = derived(() => inScope().filter((c: any) => c.status === 'active'))
+  const liveBattles = derived(() => liveOnly(inScope()))
+  const filteredBattles = derived(() => filterBattlesByPeriod(inScope(), period()))
+  const conqueredCount = derived(() => countByStatus(inScope(), 'conquered'))
+  const defendedCount = derived(() => countByStatus(inScope(), 'defended'))
 
-  const filteredBattles = derived(() => {
-    const p = period()
-    const now = Date.now()
-    if (p === 'today') {
-      const start = new Date().setHours(0, 0, 0, 0)
-      return inScope().filter((b: any) => new Date(b.created_at).getTime() >= start)
-    }
-    if (p === 'week') {
-      const weekAgo = now - 7 * 86400000
-      return inScope().filter((b: any) => new Date(b.created_at).getTime() >= weekAgo)
-    }
-    return inScope()
-  })
-
-  const conqueredCount = derived(() => inScope().filter((b: any) => b.status === 'conquered').length)
-  const defendedCount = derived(() => inScope().filter((b: any) => b.status === 'defended').length)
-
-  /** A contest still open reads as an attack in progress, not a failed one. */
+  /*
+   * Local wrappers, because the template cannot call an import directly — an
+   * imported binding referenced from markup evaluates to nothing and the value
+   * vanishes from the page rather than erroring.
+   */
   function battleVerb(battle: any): string {
-    if (battle.status === 'conquered') return ' conquered '
-    if (battle.status === 'active') return ' is attacking '
-    return ' failed to conquer '
+    return feedVerb(battle)
   }
 
   function battleBadge(battle: any): string {
-    if (battle.status === 'conquered') return 'Conquered'
-    if (battle.status === 'active') return 'Contested'
-    return 'Defended'
+    return feedBadge(battle)
   }
 </script>
 
