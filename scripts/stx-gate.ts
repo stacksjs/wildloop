@@ -161,20 +161,51 @@ for (const [file, source] of sources) {
     }
   }
 
-  for (const [module, names] of imported) {
-    const text = (await Bun.file(module).text().catch(() => ''))
+  /*
+   * What a module pulls in, one level down.
+   *
+   * `resources/functions/trails.ts` imports `normalizeTrailsPayload` from
+   * `../assets/scripts/trail-data`, and the Trails screen imports trails.ts —
+   * so a web API down there reaches a native screen while this rule, which
+   * read only the direct `../functions/` import, said nothing. Found while
+   * building the effort screen on exactly that chain.
+   *
+   * One level, not a full graph: it is the depth the repo actually uses, and a
+   * transitive hit is reported against the file that holds it.
+   */
+  async function readModule(path: string): Promise<string> {
+    return (await Bun.file(path).text().catch(() => ''))
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/\/\/.*$/gm, '')
+  }
+
+  for (const [module, names] of [...imported]) {
+    const text = await readModule(module)
+    for (const match of text.matchAll(/from '((?:\.\.\/)+[\w./-]+|\.\/[\w.-]+)'/g)) {
+      const target = match[1].startsWith('./')
+        ? `resources/functions/${match[1].slice(2)}.ts`
+        : `resources/${match[1].replace(/^(?:\.\.\/)+/, '')}.ts`
+      if (target === module || imported.has(target))
+        continue
+      // Everything it exports is reachable through the importing module.
+      const deeper = await readModule(target)
+      if (deeper && WEB_ONLY.test(deeper))
+        imported.set(target, new Set(['*']))
+    }
+  }
+
+  for (const [module, names] of imported) {
+    const text = await readModule(module)
     if (!WEB_ONLY.test(text))
       continue
 
     // Which exports hold it: from each `export ... name` to the next one.
     const bodies = [...text.matchAll(/export (?:async )?(?:function|const) (\w+)([\s\S]*?)(?=\nexport |$)/g)]
     const offending = bodies.filter(body => WEB_ONLY.test(body[2])).map(body => body[1])
-    const reached = offending.filter(name => names.has(name))
+    const reached = names.has('*') ? offending : offending.filter(name => names.has(name))
 
     if (reached.length > 0)
-      fail(`${module}: a native screen imports ${reached.join(', ')}, which use a web API`, 'JavaScriptCore has none. Rewrite with the language intrinsics.')
+      fail(`${module}: a native screen reaches ${reached.join(', ')}, which use a web API`, names.has('*') ? 'Reached through a resources/functions module. JavaScriptCore has none.' : 'JavaScriptCore has none. Rewrite with the language intrinsics.')
     else
       warn(`${module}: ${offending.join(', ')} use a web API`, `No native screen imports them yet — it imports ${[...names].join(', ')}. It throws the day one does.`)
   }
