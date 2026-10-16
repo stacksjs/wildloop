@@ -29,6 +29,9 @@
  * beats every *more restrictive* style too. Being crewed to a 10-hour finish
  * on a route somebody has run unsupported in 9 is not the fastest anything.
  */
+import { parseTrailGeometry } from '../assets/scripts/trail-data'
+import { formatClock } from './backyard'
+
 export const RECORD_STYLES = ['supported', 'self_supported', 'unsupported'] as const
 export type RecordStyle = typeof RECORD_STYLES[number]
 
@@ -336,4 +339,150 @@ export function evidenceIsSufficient(effort: {
   if (effort.status === 'in_progress' || effort.status === 'dnf')
     return true
   return Boolean(effort.activityId || effort.evidenceUrl || effort.gpxUrl)
+}
+
+// ── One attempt's own page ───────────────────────────────────────────────────
+
+/**
+ * The reading half of `/effort/:id`, added when it was promoted to a native
+ * screen. The paths, the gating and the words; the drawing and the forms stay
+ * with each screen.
+ *
+ * Nothing here touches a web API — the query strings are plain, and the one
+ * place a date is turned into a string for the API uses `toISOString`, which
+ * is a language intrinsic.
+ */
+
+export function effortPath(id: number): string {
+  return `/api/route-efforts/${encodeURIComponent(String(id))}`
+}
+
+export function effortReviewPath(id: number): string {
+  return `${effortPath(id)}/review`
+}
+
+/** The course an attempt is run on, read from the trail rather than the effort. */
+export function effortCoursePath(trailId: number): string {
+  return `/api/trails/${encodeURIComponent(String(trailId))}`
+}
+
+/** One attempt, out of `{ effort }`. */
+export function effortFrom(payload: unknown): any | null {
+  const effort = (payload as any)?.effort
+  return effort && effort.id != null ? effort : null
+}
+
+/**
+ * How long an attempt has been running, at a given instant.
+ *
+ * `now` is a parameter rather than read from the clock: the web page ticks
+ * this every second with `setInterval`, and a native screen has no promised
+ * timer, so it computes the same thing once per load. Passing the instant in
+ * is also the only way to test it.
+ */
+export function liveElapsedSeconds(effort: any, now: number): number | null {
+  if (!effort || effort.status !== 'in_progress')
+    return null
+  const started = Date.parse(String(effort.startedAt ?? ''))
+  if (!Number.isFinite(started))
+    return null
+  return Math.max(0, Math.floor((now - started) / 1000))
+}
+
+/**
+ * The clock to show: the finished time, or how long it has been running.
+ *
+ * The API has no elapsed time for an attempt that has not finished —
+ * `elapsedLabel` is a dash until then — which left a dash in the one place a
+ * spectator looks first.
+ */
+export function effortClockText(effort: any, now: number): string {
+  const live = liveElapsedSeconds(effort, now)
+  // `formatClock`, not `formatElapsed`: the web page's live clock uses the
+  // former ("1:30") and the board uses the latter ("1m 30s"). Sharing the
+  // wrong one would have made the two screens disagree about the same
+  // attempt, which is the only thing this module exists to prevent.
+  if (live !== null)
+    return formatClock(live * 1000)
+  return String(effort?.elapsedLabel ?? '—')
+}
+
+/** "3 of 12 on this board", or nothing when it is not ranked. */
+export function effortRankText(effort: any): string {
+  if (!effort?.rank)
+    return ''
+  return `${effort.rank} of ${effort.bucketSize} on this board`
+}
+
+/**
+ * What the viewer may do with this attempt.
+ *
+ * Read off the server's own `isOwner` and `canReview` rather than compared
+ * against a locally-held viewer id: the server decides, and a screen that
+ * decided for itself would offer a button the API refuses.
+ */
+export function effortActions(effort: any): {
+  finish: boolean
+  dnf: boolean
+  withdraw: boolean
+  review: boolean
+} {
+  const running = effort?.status === 'in_progress'
+  const owner = Boolean(effort?.isOwner)
+  return {
+    finish: owner && running,
+    dnf: owner && running,
+    // A verified record is the board's; withdrawing it is not the athlete's
+    // to do once it has been reviewed.
+    withdraw: owner && (running || effort?.status === 'pending'),
+    review: Boolean(effort?.canReview) && effort?.status === 'pending',
+  }
+}
+
+/** The instant a finish is filed for, as the API wants it. */
+export function finishedAtFrom(now: number): string {
+  return new Date(now).toISOString()
+}
+
+/** The evidence an attempt carries, as rows worth showing. */
+export function effortEvidence(effort: any): { label: string, url: string }[] {
+  const rows: { label: string, url: string }[] = []
+  if (effort?.evidenceUrl)
+    rows.push({ label: 'Activity', url: String(effort.evidenceUrl) })
+  if (effort?.gpxUrl)
+    rows.push({ label: 'GPS file', url: String(effort.gpxUrl) })
+  if (effort?.trackerUrl)
+    rows.push({ label: 'Live tracker', url: String(effort.trackerUrl) })
+  return rows
+}
+
+/**
+ * The course line out of a `/api/trails/{id}` payload.
+ *
+ * The endpoint answers stored `geometry`, not a ready line, and
+ * `parseTrailGeometry` is what reads the several shapes it comes in — the web
+ * page's `fetchCourse` does the same. Reading `payload.trail.line` instead
+ * finds nothing and draws no course, silently, which is what the first version
+ * of the native screen did.
+ */
+export function courseLineFrom(payload: unknown): [number, number][] {
+  const trail = (payload as any)?.trail
+  if (!trail)
+    return []
+  return parseTrailGeometry(trail.geometry) as [number, number][]
+}
+
+/**
+ * The course as the flat array a MapPolyline takes.
+ *
+ * Open, not closed like a territory: a route is a line that goes somewhere,
+ * and joining its ends would draw a leg nobody ran.
+ */
+export function courseGeometry(line: [number, number][] | null | undefined): number[] {
+  if (!line || line.length < 2)
+    return []
+  const flat: number[] = []
+  for (const [lat, lng] of line)
+    flat.push(lat, lng)
+  return flat
 }

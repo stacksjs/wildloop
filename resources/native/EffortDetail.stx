@@ -1,0 +1,392 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { pathIdFrom } from '../functions/route-id'
+import {
+  CATEGORY_LABELS,
+  courseGeometry,
+  courseLineFrom,
+  DIRECTION_LABELS,
+  effortActions,
+  effortClockText,
+  effortCoursePath,
+  effortEvidence,
+  effortFrom,
+  effortPath,
+  effortRankText,
+  effortReviewPath,
+  finishedAtFrom,
+  STATUS_LABELS,
+  STYLE_LABELS,
+} from '../functions/route-records'
+
+/*
+ * One record attempt, natively. Sixteenth screen, and the one that closes the
+ * records screen's last hand-off to the web: a row on `/records` used to open
+ * `/effort/:id` in a web view because that page is a map.
+ *
+ * Three things differ from the web page, each for a reason:
+ *
+ * **No ticking clock.** The web page runs `setInterval` once a second and
+ * polls the API while an attempt is live. The native runtime does not promise
+ * a timer — the bridge writes its own as
+ * `typeof globalThis.setTimeout === 'function' ? … : null` — so a screen that
+ * ticked would work in a test and stop on a phone. The clock is read once per
+ * load, from `effortClockText(effort, Date.now())`, and there is a refresh
+ * button that says so. An honest still number beats a frozen one that looks
+ * live.
+ *
+ * **Review is here, not handed off.** The first version of this screen offered
+ * "Review it on the web" via `craft.navigation.open('/effort/:id')`, which
+ * would have looped straight back: `navigation.open` is not "open the web
+ * view", it is "let the shell route this path", and promoting `/effort/:id`
+ * makes that path native. So a reject's required note is a `TextInput` here
+ * and the three decisions post to `/review` directly.
+ *
+ * **Finish files now.** The web page offers a `datetime-local` defaulted to
+ * now. The common case is an athlete finishing and filing it, so the button
+ * does that and the web page remains the way to file a different time.
+ *
+ * What the viewer may do comes from the server's own `isOwner` and `canReview`
+ * on the payload, never from a locally-held viewer id — a screen that decided
+ * for itself would offer a button the API refuses.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const params = craft.route.params
+
+/** Digits only: `/effort/7.5.1` must not load attempt 7. */
+const wanted = pathIdFrom(params.id)
+
+const effort = state<any>(null)
+const course = state<number[]>([])
+const readAt = state(0)
+const loading = state(true)
+const error = state('')
+const missing = state(false)
+const working = state(false)
+const actionError = state('')
+const note = state('')
+const bearer = state('')
+let active = true
+let reading: Promise<string> | null = null
+
+async function readToken(): Promise<string> {
+  if (bearer())
+    return bearer()
+
+  reading ??= Promise.resolve(craft.secureStorage.get('auth_token')).then((value) => {
+    const token = typeof value === 'string' ? value : ''
+    bearer.set(token)
+    return token
+  })
+
+  return reading
+}
+
+async function send(path: string, method: string, body?: unknown): Promise<any> {
+  const token = await readToken()
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token)
+    headers.Authorization = `Bearer ${token}`
+  if (body !== undefined)
+    headers['Content-Type'] = 'application/json'
+  const response = await fetch(`https://wildloop.org${path}`, {
+    method,
+    headers,
+    ...body === undefined ? {} : { body: JSON.stringify(body) },
+  })
+  const payload = await response.json().catch(() => null)
+  return { ok: response.ok, status: response.status, body: payload }
+}
+
+function athleteText(): string {
+  return String(effort()?.userName ?? '')
+}
+
+function routeText(): string {
+  return String(effort()?.trailName ?? '')
+}
+
+function clockText(): string {
+  return effortClockText(effort(), readAt())
+}
+
+function statusText(): string {
+  const status = effort()?.status
+  return status ? (STATUS_LABELS[status] ?? status) : ''
+}
+
+function styleText(): string {
+  const current = effort()
+  if (!current)
+    return ''
+  const style = STYLE_LABELS[current.style] ?? current.style
+  const category = CATEGORY_LABELS[current.category] ?? current.category
+  const direction = DIRECTION_LABELS[current.direction] ?? current.direction
+  return `${style} · ${category} · ${direction}`
+}
+
+function paceText(): string {
+  return String(effort()?.paceLabel ?? '—')
+}
+
+function rankText(): string {
+  return effortRankText(effort())
+}
+
+function liveText(): string {
+  return effort()?.status === 'in_progress' ? 'Still running — read at load' : ''
+}
+
+function reviewNote(): string {
+  return String(effort()?.reviewNote ?? '')
+}
+
+function evidence(): any[] {
+  return effortEvidence(effort())
+}
+
+function actions(): any {
+  return effortActions(effort())
+}
+
+function shape(): number[] {
+  return course()
+}
+
+function openEvidence(row: any): void {
+  craft.navigation.open(String(row.url))
+}
+
+function openAthlete(): void {
+  const id = Number(effort()?.userId) || 0
+  if (id > 0)
+    craft.navigation.open(`/athlete/${id}`)
+}
+
+function backToRecords(): void {
+  craft.navigation.push('Records', {})
+}
+
+async function act(work: () => Promise<any>): Promise<void> {
+  if (working())
+    return
+  working.set(true)
+  actionError.set('')
+  try {
+    const result = await work()
+    if (!active)
+      return
+    if (!result.ok || result.body?.success === false)
+      throw new Error(String(result.body?.error ?? 'That did not work.'))
+    await load()
+  }
+  catch (cause) {
+    if (active)
+      actionError.set(cause instanceof Error ? cause.message : 'Could not reach the records service.')
+  }
+  finally {
+    if (active)
+      working.set(false)
+  }
+}
+
+function finishNow(): void {
+  void act(() => send(effortPath(wanted ?? 0), 'PATCH', { finished_at: finishedAtFrom(Date.now()) }))
+}
+
+function markDnf(): void {
+  void act(() => send(effortPath(wanted ?? 0), 'PATCH', { outcome: 'dnf' }))
+}
+
+function withdraw(): void {
+  void act(() => send(effortPath(wanted ?? 0), 'DELETE'))
+}
+
+function eventText(event: { text?: unknown }): string {
+  return typeof event?.text === 'string' ? event.text : ''
+}
+
+/*
+ * A reject must carry a note — the athlete is owed a reason — while a verify
+ * or a reopen may. The button is refused here rather than by the API so the
+ * reviewer is told before they press it.
+ */
+function canReject(): boolean {
+  return note().trim().length > 0
+}
+
+function review(decision: string): void {
+  if (decision === 'reject' && !canReject()) {
+    actionError.set('A rejection needs a note.')
+    return
+  }
+  const body: Record<string, unknown> = { decision }
+  const text = note().trim()
+  if (text)
+    body.note = text
+  void act(() => send(effortReviewPath(wanted ?? 0), 'POST', body))
+}
+
+function verify(): void {
+  review('verify')
+}
+
+function reject(): void {
+  review('reject')
+}
+
+function reopen(): void {
+  review('reopen')
+}
+
+function refresh(): void {
+  void load()
+}
+
+async function load(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  try {
+    if (wanted === null) {
+      if (active)
+        missing.set(true)
+      return
+    }
+
+    const result = await send(effortPath(wanted), 'GET')
+    if (!active)
+      return
+    if (result.status === 404 || result.status === 422) {
+      missing.set(true)
+      return
+    }
+    if (!result.ok)
+      throw new Error('Could not load this attempt')
+
+    const row = effortFrom(result.body)
+    if (!row) {
+      missing.set(true)
+      return
+    }
+    effort.set(row)
+    readAt.set(Date.now())
+
+    // The course, from the trail — every attempt on a route shares one. A
+    // failure here costs the line and not the attempt.
+    const trailId = Number(row.trailId) || 0
+    if (trailId > 0) {
+      const trail = await send(effortCoursePath(trailId), 'GET')
+      if (active && trail.ok)
+        course.set(courseGeometry(courseLineFrom(trail.body)))
+    }
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load this attempt')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Record attempt', largeTitle: false })
+  void load()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="effort-detail-scroll">
+    <ActivityIndicator :show="loading" testID="effort-loading" class="mt-6" />
+    <Text :show="error" testID="effort-error" class="mt-4 text-rose-300" :text="error" />
+
+    <View :show="missing" testID="effort-missing" class="mt-6 gap-3">
+      <Text class="text-lg font-semibold text-white">That attempt could not be found.</Text>
+      <Button testID="back-to-records" @click="backToRecords()">See the records board</Button>
+    </View>
+
+    <View :show="effort()" testID="effort-body" class="gap-4">
+      <View class="gap-1">
+        <Text testID="effort-route" class="text-2xl font-bold text-white" :text="routeText()" />
+        <Text testID="effort-athlete" class="text-sm text-slate-400" :text="athleteText()" />
+        <Text testID="effort-style" class="text-xs uppercase text-slate-500" :text="styleText()" />
+      </View>
+
+      {{-- The course. Open, not closed: a route is a line that goes somewhere,
+           and joining its ends would draw a leg nobody ran. --}}
+      <View :show="shape().length > 0" testID="effort-map-frame" class="h-56 overflow-hidden rounded-2xl bg-slate-900">
+        <Map testID="effort-map" class="flex-1" :fitToBounds="true" mapType="standard">
+          <mappolyline :geometry="shape()" strokeColor="#059669" :strokeWidth="4" />
+        </Map>
+      </View>
+
+      <View class="flex-row gap-2">
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Time</Text>
+          <Text testID="effort-clock" class="text-xl font-bold text-white" :text="clockText()" />
+          <Text :show="liveText()" testID="effort-live" class="text-xs text-amber-400" :text="liveText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Pace</Text>
+          <Text testID="effort-pace" class="text-xl font-bold text-white" :text="paceText()" />
+        </View>
+      </View>
+
+      <View class="flex-row gap-2">
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Status</Text>
+          <Text testID="effort-status" class="text-base font-semibold text-white" :text="statusText()" />
+        </View>
+        <View :show="rankText()" class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Rank</Text>
+          <Text testID="effort-rank" class="text-base font-semibold text-white" :text="rankText()" />
+        </View>
+      </View>
+
+      <Button testID="effort-refresh" @click="refresh()">Refresh</Button>
+
+      <Text :show="actionError" testID="effort-action-error" class="text-sm text-rose-300" :text="actionError" />
+
+      {{-- The athlete's own attempt. Which buttons exist comes from the
+           server's `isOwner`, so the screen cannot offer one the API refuses. --}}
+      <View :show="actions().finish || actions().withdraw" testID="effort-actions" class="gap-2">
+        <Button :show="actions().finish" testID="effort-finish" @click="finishNow()">Finish now</Button>
+        <Button :show="actions().dnf" testID="effort-dnf" @click="markDnf()">Mark it a DNF</Button>
+        <Button :show="actions().withdraw" testID="effort-withdraw" @click="withdraw()">Withdraw it</Button>
+      </View>
+
+      {{-- A reviewer's decision. The note is required for a reject and
+           optional otherwise, which is why the field sits above all three. --}}
+      <View :show="actions().review" testID="effort-review" class="gap-2 rounded-xl bg-slate-900 p-3">
+        <Text class="text-sm text-amber-300">This attempt is waiting on a decision.</Text>
+        <TextInput testID="review-note" placeholder="Why? (required to reject)" :value="note" @input="note.set(eventText($event))" />
+        <Button testID="effort-verify" @click="verify()">Verify it</Button>
+        <Button testID="effort-reject" @click="reject()">Reject it</Button>
+        <Button testID="effort-reopen" @click="reopen()">Send it back</Button>
+      </View>
+
+      <View :show="reviewNote()" testID="effort-note" class="gap-1 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs uppercase text-slate-500">Reviewer's note</Text>
+        <Text testID="effort-note-text" class="text-sm text-slate-300" :text="reviewNote()" />
+      </View>
+
+      <View :show="evidence().length > 0" testID="effort-evidence" class="gap-2">
+        <Text class="text-xs font-semibold uppercase text-slate-500">Evidence</Text>
+        <Pressable :for="row in evidence()" :key="row.label" testID="evidence-row" @click="openEvidence(row)" class="rounded-xl bg-slate-900 p-3">
+          <Text class="text-sm text-emerald-400" :text="row.label" />
+        </Pressable>
+      </View>
+
+      <Pressable testID="effort-owner" @click="openAthlete()" class="rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs uppercase text-slate-500">Athlete</Text>
+        <Text class="text-sm font-semibold text-white" :text="athleteText()" />
+      </Pressable>
+    </View>
+  </ScrollView>
+</SafeAreaView>

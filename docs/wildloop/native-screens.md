@@ -10,6 +10,7 @@ nativeScreens: {
   '/battles': 'Battles',
   '/challenges': 'Challenges',
   '/clubs': 'Clubs',
+  '/effort/:id': 'EffortDetail',
   '/conquests': 'Conquests',
   '/events': 'Events',
   '/records': 'Records',
@@ -44,8 +45,7 @@ The flows so far:
   with the returned id.
 - **Records** — the public fastest-known-times board, the first list screen.
   A keyed `:for` inside a `ScrollView`, filtered server-side by style, and a
-  row hands off to the web effort page through `craft.navigation.open` because
-  that page is a map (craft-native/craft#340).
+  row now **pushes** `EffortDetail` rather than handing off to the web.
 - **Search** — one box for everything the app can find. Five endpoints asked
   in parallel and grouped by the same function the web page uses, with a
   ticket so a slow answer to an older query cannot replace a newer one. Its
@@ -95,6 +95,22 @@ The flows so far:
   Its history is filtered out of the battle feed, as the web page does from its
   store, and told in a *third* voice — the feed names the territory, and here
   the reader is already looking at it, so it reads "Marta is attacking it".
+- **Effort detail** — one record attempt, and the end of the records board's
+  last hand-off to the web. Three things differ from the web page on purpose:
+  it runs **no timer** (the web page ticks a live clock with `setInterval`, and
+  the runtime does not promise one, so the clock is read once per load with a
+  refresh button that says so); a **finish files now** rather than offering a
+  `datetime-local`; and the course line is drawn **open**, because a route goes
+  somewhere and closing it would draw a leg nobody ran.
+  Which buttons exist comes from the server's own `isOwner`/`canReview` on the
+  payload, never a locally-held viewer id — a screen that decided for itself
+  would offer a button the API refuses.
+  **`craft.navigation.open` is not "open the web view."** It means "let the
+  shell route this path", so promoting a path changes what every existing
+  `open()` to it does. The first version of this screen offered "Review it on
+  the web" through `open('/effort/:id')`, which would have looped straight back
+  into itself; review is on the screen instead, with the note a rejection
+  requires.
 - **Conquests** — the athlete's own record, from `?mine=1` rather than folded
   out of the global feed, which is the newest 200 battles in the whole game and
   holds only a few of anyone's. Second person — and the battle the feed badges

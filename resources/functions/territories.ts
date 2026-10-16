@@ -19,6 +19,7 @@
  */
 
 import type { MapBounds } from './map-area'
+import { pathIdFrom } from './route-id'
 
 /** How many zones to ask for. The map holds the land around one viewport. */
 export const TERRITORY_LIMIT = 500
@@ -265,20 +266,10 @@ export function territoryActionLabel(territory: TerritoryRow | null, viewerId: n
 /**
  * A territory id from a route parameter, or null.
  *
- * Strict on purpose. `Number.parseInt` is lenient — `'7.5.1'` and `'7abc'`
- * both come back as 7 — so a malformed path would quietly load a *different*
- * zone than the one it names. That is the same hazard the web page's `-1`
- * sentinel guards against: territory 1 is real, and loading it because a
- * parameter did not parse is worse than saying nothing was found.
- *
- * Digits only, so `'07'` is 7 and everything else is nothing.
+ * Kept as a name of its own because that is what the territory screens read;
+ * the rule itself is shared (`functions/route-id`), since every parameterised
+ * record page needs the same strictness.
  */
 export function territoryIdFrom(raw: unknown): number | null {
-  if (typeof raw !== 'string' && typeof raw !== 'number')
-    return null
-  const text = String(raw).trim()
-  if (!/^\d+$/.test(text))
-    return null
-  const id = Number(text)
-  return Number.isSafeInteger(id) && id > 0 ? id : null
+  return pathIdFrom(raw)
 }

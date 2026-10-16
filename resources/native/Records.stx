@@ -104,11 +104,14 @@ function cycleStyle(): void {
 }
 
 /*
- * An effort's own page is a map screen, so it stays on the web side for now and
- * the native list hands off to it. One warm web view, one navigation stack.
+ * An effort's own page is native now (EffortDetail), so this pushes it rather
+ * than handing off. `craft.navigation.open` would also reach it — that call is
+ * not "open the web view" but "let the shell route this path", and the table
+ * now has a pattern for it — but a push says what it means and skips the round
+ * trip through the shell.
  */
 function openEffort(id: number): void {
-  craft.navigation.open(`/effort/${id}`)
+  craft.navigation.push('EffortDetail', { id: String(id) })
 }
 
 onMount(() => {

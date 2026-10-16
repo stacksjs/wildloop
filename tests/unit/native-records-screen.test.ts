@@ -99,7 +99,7 @@ describe('Wildloop native records screen', () => {
     expect(texts.some(t => t.includes('/mi'))).toBe(false)
   })
 
-  it('refilters on the server when the style changes, and hands a row to the web screen', async () => {
+  it('refilters on the server when the style changes, and pushes a row to its own screen', async () => {
     const screen = await start('Records')
     const first = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
     answer(screen, first, {
@@ -115,10 +115,17 @@ describe('Wildloop native records screen', () => {
     const second = await waitForRequest(screen, before, r => r.payload?.module === 'Network')
     expect(second.payload.args[0].url).toContain('style=supported')
 
-    // The last row the screen was given, which is the second effort.
+    /*
+     * The last row the screen was given, which is the second effort. It is a
+     * push now, not a web-view hand-off: `/effort/:id` is a native screen as
+     * of EffortDetail, and the board was the last place that opened it by
+     * path.
+     */
     await screen.event('record-row', 'onPress')
-    await Bun.sleep(0)
-    expect(screen.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_OPEN', payload: { path: '/effort/4' } })
+    await Bun.sleep(1)
+    expect(screen.sent.filter((m: any) => m.type === 'NAVIGATE')).toContainEqual(
+      expect.objectContaining({ payload: expect.objectContaining({ screen: 'EffortDetail', params: { id: '4' } }) }),
+    )
   })
 
   it('reports a board it could not reach, rather than an empty one', async () => {
