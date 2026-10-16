@@ -10,6 +10,7 @@ nativeScreens: {
   '/athletes': 'Athletes',
   '/battles': 'Battles',
   '/challenges': 'Challenges',
+  '/club/:id': 'ClubDetail',
   '/clubs': 'Clubs',
   '/effort/:id': 'EffortDetail',
   '/conquests': 'Conquests',
@@ -109,6 +110,17 @@ The flows so far:
   Its history is filtered out of the battle feed, as the web page does from its
   store, and told in a *third* voice — the feed names the territory, and here
   the reader is already looking at it, so it reads "Marta is attacking it".
+- **Club detail** — one club, and the directory's two hand-offs (a row, and
+  the "View" door on an invite-only club) become pushes. The permissions are
+  read off the payload and shared with the web page: **inviting** needs an
+  owner or an admin *on the roster* — `isMember` is not enough — and
+  **deleting** is the creator's alone, which an admin's role sounds like it
+  should cover and does not. Joining settles through the same
+  `settledFollowerCount` the athlete screen uses. An invite-only club offers
+  the code field instead of a button, held to eight characters before anything
+  is sent. **No copy button on a code**: `enableClipboard` is false in the
+  app's capability set, so `craft.clipboard` does not exist in a native screen
+  and the code is shown as text.
 - **Effort detail** — one record attempt, and the end of the records board's
   last hand-off to the web. Three things differ from the web page on purpose:
   it runs **no timer** (the web page ticks a live clock with `setInterval`, and

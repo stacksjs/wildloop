@@ -7,7 +7,6 @@ import {
   clubDoorLabel,
   clubJoinRequest,
   clubMemberText,
-  clubPath,
   clubPlaceLine,
   clubRowsFrom,
   clubsPath,
@@ -143,9 +142,10 @@ async function toggleMembership(club: any): Promise<void> {
   if (!id)
     return
 
-  // Not a door this list can open. The club's own page is where an invite is.
+  // Not a door this list can open. The club's own page is where an invite is
+  // redeemed, and it is native now, so it is pushed rather than handed off.
   if (clubActionLabel(club) === 'View') {
-    craft.navigation.open(clubPath(id))
+    craft.navigation.push('ClubDetail', { id: String(id) })
     return
   }
 
@@ -196,7 +196,7 @@ async function toggleMembership(club: any): Promise<void> {
 function openClub(club: any): void {
   if (!club?.id)
     return
-  craft.navigation.open(clubPath(club.id))
+  craft.navigation.push('ClubDetail', { id: String(club.id) })
 }
 
 onMount(() => {

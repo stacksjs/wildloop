@@ -117,12 +117,15 @@ describe('Wildloop native clubs screen', () => {
   })
 
   /*
-   * An invite-only club cannot be joined from a list, so the control opens the
-   * club's page — where an invite would be waiting — instead of sending a
+   * An invite-only club cannot be joined from a list, so the control goes to
+   * the club's page — where the invite code is redeemed — instead of sending a
    * request the server would refuse. The fixture taps the last row carrying
    * the testID, which is that club.
+   *
+   * A push rather than a web-view hand-off since ClubDetail: `/club/:id` is a
+   * native screen now.
    */
-  it('opens the page of an invite-only club instead of asking to join it', async () => {
+  it('pushes the page of an invite-only club instead of asking to join it', async () => {
     const { screen, request } = await directory()
     answer(screen, request, ok(CLUBS))
     await waitForText(screen, 'Gorge Land Grab')
@@ -131,7 +134,9 @@ describe('Wildloop native clubs screen', () => {
     await screen.event('club-action', 'onPress')
     await Bun.sleep(0)
 
-    expect(screen.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_OPEN', payload: { path: '/club/3' } })
+    expect(screen.sent.filter((m: any) => m.type === 'NAVIGATE')).toContainEqual(
+      expect.objectContaining({ payload: expect.objectContaining({ screen: 'ClubDetail', params: { id: '3' } }) }),
+    )
     expect(requests(screen).length).toBe(before)
   })
 
@@ -209,14 +214,16 @@ describe('Wildloop native clubs screen', () => {
     expect(texts).toContain('Join')
   })
 
-  it('hands a row to the club\'s own page', async () => {
+  it('pushes a row to the club\'s own screen', async () => {
     const { screen, request } = await directory()
     answer(screen, request, ok(CLUBS))
     await waitForText(screen, 'Gorge Land Grab')
 
     await screen.event('club-row', 'onPress')
-    await Bun.sleep(0)
-    expect(screen.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_OPEN', payload: { path: '/club/3' } })
+    await Bun.sleep(1)
+    expect(screen.sent.filter((m: any) => m.type === 'NAVIGATE')).toContainEqual(
+      expect.objectContaining({ payload: expect.objectContaining({ screen: 'ClubDetail', params: { id: '3' } }) }),
+    )
   })
 
   it('reports a directory it could not load', async () => {

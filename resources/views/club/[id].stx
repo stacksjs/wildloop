@@ -128,6 +128,8 @@
   import { deleteClub, fetchClubDetail, toggleClubMembership } from '../../assets/scripts/game-api'
   import { fetchClubInvites, inviteToClub, redeemClubInvite } from '../../assets/scripts/events-api'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { pathIdFrom } from '../../functions/route-id'
+  import { canDeleteClub, canInviteToClub, isRedeemable, MIN_INVITE_CODE } from '../../functions/clubs'
   import { avatarUrl } from '../../functions/avatars'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { indexInSpotlight, removeFromSpotlight } from '../../composables/useSpotlightIndex'
@@ -135,7 +137,13 @@
   useHead({ title: 'Club - Wildloop' })
 
   const wl = useStore('wl')
-  const clubId = readRouteParam('id') ?? -1
+  /*
+   * -1 is a no-match sentinel so an unresolved param renders "not found".
+   * `pathIdFrom` is digits-only and shared with the native screen:
+   * `Number.parseInt` reads `/club/2.5` as 2 and would load a club the path
+   * does not name.
+   */
+  const clubId = pathIdFrom(readRouteParam('id')) ?? -1
   const club = state<any>(null)
   const loading = state(true)
   const loadError = state(false)
@@ -184,12 +192,9 @@
   const copiedCode = state<string | null>(null)
 
   const isInviteOnly = derived(() => club()?.joinPolicy === 'invite_only')
-  const canInvite = derived(() => {
-    const current = club()
-    if (!current || !wl) return false
-    const me = (current.members ?? []).find((m: any) => m.userId === wl.currentUserId())
-    return me?.role === 'owner' || me?.role === 'admin'
-  })
+  // Shared with the native club screen, so the two cannot disagree about who
+  // may invite — it is an owner or an admin on the roster, not any member.
+  const canInvite = derived(() => canInviteToClub(club(), wl?.currentUserId()))
 
   async function loadInvites() {
     if (!canInvite()) return
@@ -246,8 +251,10 @@
   async function submitRedeem() {
     if (redeemWorking()) return
     const code = redeemCode().trim()
-    if (code.length < 8) {
-      redeemError.set('Enter the invite code you were sent.')
+    // `isRedeemable` holds the same floor the native screen holds, so a
+    // half-typed code reads as "finish typing" on both.
+    if (!isRedeemable(code)) {
+      redeemError.set(`Enter the invite code you were sent (${MIN_INVITE_CODE} characters).`)
       return
     }
     redeemWorking.set(true)
@@ -262,7 +269,9 @@
     redeemError.set(res?.error ?? 'That code did not work.')
   }
 
-  const isOwner = derived(() => !!(wl && club() && club().creatorId === wl.currentUserId()))
+  // Deleting is the creator's alone — an admin's role sounds like it should
+  // cover it and does not. Shared with the native screen.
+  const isOwner = derived(() => canDeleteClub(club(), wl?.currentUserId()))
 
   async function onDelete() {
     if (!club() || busy()) return

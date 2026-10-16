@@ -205,3 +205,123 @@ export function clubActionLabel(club: Partial<ClubRow> | null | undefined): 'Lea
     return 'Ask to join'
   return 'Join'
 }
+
+// ── One club's own page ──────────────────────────────────────────────────────
+
+/**
+ * The reading half of `/club/:id`, added when it was promoted to a native
+ * screen. The list screen already shares the door label, the member count and
+ * the week line; this adds the detail payload, the roles and the invites.
+ */
+
+/**
+ * One club, on the API.
+ *
+ * Distinct from `clubPath`, which is the *web page* (`/club/2`) that the list
+ * screen used to hand off to. Building the invites path on that one produced
+ * `/club/2/invites`, which is not an endpoint — the name reads like an API
+ * path and is not one.
+ */
+export function clubApiPath(id: number): string {
+  return `/api/clubs/${encodeURIComponent(String(id))}`
+}
+
+/** `/api/clubs/{id}` answers `{ success, club }`, not a bare club. */
+export function clubDetailFrom(payload: unknown): any | null {
+  const envelope = payload as any
+  const club = envelope?.club ?? null
+  return club && club.id != null ? club : null
+}
+
+export function clubInvitesPath(id: number): string {
+  return `${clubApiPath(id)}/invites`
+}
+
+/** Redeeming is club-agnostic: the code says which club it is for. */
+export function clubRedeemPath(): string {
+  return '/api/clubs/invites/accept'
+}
+
+export function clubDeleteRequest(id: number): { path: string, method: 'DELETE' } {
+  return { path: clubApiPath(id), method: 'DELETE' }
+}
+
+export type ClubRole = 'owner' | 'admin' | 'member'
+
+/** The viewer's role in this club, or null when they are not in it. */
+export function clubRoleOf(club: any, viewerId: number | null | undefined): ClubRole | null {
+  if (!club || viewerId == null || viewerId <= 0)
+    return null
+  const members = Array.isArray(club.members) ? club.members : []
+  const mine = members.find((member: any) => Number(member?.userId) === viewerId)
+  const role = String(mine?.role ?? '')
+  return role === 'owner' || role === 'admin' || role === 'member' ? role : null
+}
+
+/**
+ * Who may invite: an owner or an admin.
+ *
+ * Read off the membership roster rather than guessed from `isMember`, because
+ * a plain member seeing an invite form would be offered something the API
+ * refuses.
+ */
+export function canInviteToClub(club: any, viewerId: number | null | undefined): boolean {
+  const role = clubRoleOf(club, viewerId)
+  return role === 'owner' || role === 'admin'
+}
+
+/** Only the creator may delete a club, and never by role alone. */
+export function canDeleteClub(club: any, viewerId: number | null | undefined): boolean {
+  return Boolean(club && viewerId != null && viewerId > 0 && Number(club.creatorId) === viewerId)
+}
+
+/**
+ * Whether an invite code is worth sending to the server.
+ *
+ * Eight characters is what the web page holds out for, and it is the
+ * difference between "that code did not work" from the API and telling
+ * somebody they have not finished typing.
+ */
+export const MIN_INVITE_CODE = 8
+
+export function isRedeemable(code: unknown): boolean {
+  return typeof code === 'string' && code.trim().length >= MIN_INVITE_CODE
+}
+
+/** One invite, as a line: who it is for, or that it is open to anybody. */
+export function inviteLine(invite: any): string {
+  return String(invite?.invitedName || invite?.invitedEmail || 'Open invite')
+}
+
+export function inviteStatusText(invite: any): string {
+  return String(invite?.status ?? 'pending')
+}
+
+/** The invites a club has, newest first, out of `{ invites }`. */
+export function inviteRowsFrom(payload: unknown): any[] {
+  const invites = (payload as any)?.invites
+  if (!Array.isArray(invites))
+    return []
+  return invites
+    .filter((invite: any) => invite && invite.id != null)
+    .slice()
+    .sort((a: any, b: any) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+}
+
+/** One member, as a line. */
+export function memberLine(member: any): string {
+  return String(member?.name ?? 'Member')
+}
+
+export function memberRoleText(member: any): string {
+  const role = String(member?.role ?? 'member')
+  return role.charAt(0).toUpperCase() + role.slice(1)
+}
+
+export function clubWeeklyDistanceText(club: any): string {
+  return `${Number(club?.weeklyDistance ?? 0).toFixed(1)} mi`
+}
+
+export function clubWeeklyActivitiesText(club: any): string {
+  return String(club?.activitiesThisWeek ?? 0)
+}
