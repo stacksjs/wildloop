@@ -264,7 +264,7 @@ describe('Wildloop native territory detail screen', () => {
     expect(visibility(screen, 'detail-error')).toBe('none')
   })
 
-  it('opens the holder\'s page, and the recorder', async () => {
+  it('pushes the holder\'s page, and opens the recorder', async () => {
     const { screen } = await open()
     await waitForVisibility(screen, 'detail-owner', 'flex')
 
@@ -274,9 +274,12 @@ describe('Wildloop native territory detail screen', () => {
      */
     const opened = () => screen.sent.filter((m: any) => m.type === 'NAVIGATE_OPEN').map((m: any) => String(m.payload?.path ?? ''))
 
+    /* The holder's page is native now, so it is pushed rather than opened. */
     await screen.event('detail-owner', 'onPress')
     await Bun.sleep(1)
-    expect(opened()).toContain(`/athlete/${ME}`)
+    expect(screen.sent.filter((m: any) => m.type === 'NAVIGATE')).toContainEqual(
+      expect.objectContaining({ payload: expect.objectContaining({ screen: 'AthleteDetail', params: { id: String(ME) } }) }),
+    )
 
     await screen.event('territory-action', 'onPress')
     await Bun.sleep(1)

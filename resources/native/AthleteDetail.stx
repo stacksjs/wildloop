@@ -1,0 +1,452 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import {
+  activityRoutePoints,
+  athleteDistanceText,
+  athleteElevationText,
+  athletePath,
+  athleteProfileFrom,
+  blockRequest,
+  followLabel,
+  followRequest,
+  recentActivityLine,
+  recentActivityStats,
+  REPORT_REASON_LABELS,
+  REPORT_REASONS,
+  reportRequest,
+  settledFollowerCount,
+} from '../functions/athletes'
+import { pathIdFrom } from '../functions/route-id'
+import { CATEGORY_LABELS, recordsPath, STYLE_LABELS } from '../functions/route-records'
+
+/*
+ * One athlete, natively. Seventeenth screen, and it closes three hand-offs at
+ * once: the directory, the leaderboard and the territory map all opened
+ * `/athlete/:id` in a web view.
+ *
+ * `/api/users/{id}` answers an *envelope* — identity under `user`, numbers
+ * under `stats`, follow counts at the top — so `athleteProfileFrom` flattens
+ * it once. A screen reading `payload.name` shows a nameless profile full of
+ * zeroes and nothing errors, which is the failure mode this module exists for.
+ *
+ * Only *verified* records are listed. A profile is where a record is read as a
+ * credential, so a claim nobody has checked belongs on the route's board
+ * marked pending, not here.
+ *
+ * **Blocking takes two taps.** There is no system confirm dialog in a native
+ * screen, and a block removes follow connections both ways — so the button
+ * arms a confirm rather than doing it, and says what it will do. Reporting
+ * cycles a reason rather than opening a picker.
+ *
+ * Narrower than the web page: no avatar image (the row carries an initial),
+ * and the recent activities draw their route as the same SVG thumbnail the
+ * trails screen uses rather than a map each.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const params = craft.route.params
+
+/** Digits only: `/athlete/44.5` must not load athlete 44. */
+const wanted = pathIdFrom(params.id)
+
+const profile = state<any>(null)
+const records = state<any[]>([])
+const viewerId = state(0)
+const following = state(false)
+const followerCount = state(0)
+const loading = state(true)
+const error = state('')
+const missing = state(false)
+const working = state(false)
+const notice = state('')
+const blockArmed = state(false)
+const reasonIndex = state(0)
+const bearer = state('')
+let active = true
+let reading: Promise<string> | null = null
+
+async function readToken(): Promise<string> {
+  if (bearer())
+    return bearer()
+
+  reading ??= Promise.resolve(craft.secureStorage.get('auth_token')).then((value) => {
+    const token = typeof value === 'string' ? value : ''
+    bearer.set(token)
+    return token
+  })
+
+  return reading
+}
+
+async function send(path: string, method = 'GET', body?: unknown): Promise<any> {
+  const token = await readToken()
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token)
+    headers.Authorization = `Bearer ${token}`
+  if (body !== undefined)
+    headers['Content-Type'] = 'application/json'
+  const response = await fetch(`https://wildloop.org${path}`, {
+    method,
+    headers,
+    ...body === undefined ? {} : { body: JSON.stringify(body) },
+  })
+  const payload = await response.json().catch(() => null)
+  return { ok: response.ok, status: response.status, body: payload }
+}
+
+function nameText(): string {
+  return String(profile()?.name ?? '')
+}
+
+function locationText(): string {
+  return String(profile()?.location ?? '')
+}
+
+function bioText(): string {
+  return String(profile()?.bio ?? '')
+}
+
+function distanceText(): string {
+  return athleteDistanceText(profile())
+}
+
+function elevationText(): string {
+  return athleteElevationText(profile())
+}
+
+function activityCountText(): string {
+  return String(profile()?.activityCount ?? 0)
+}
+
+function territoryCountText(): string {
+  return String(profile()?.territoriesOwned ?? 0)
+}
+
+function followersText(): string {
+  return String(followerCount())
+}
+
+function followingCountText(): string {
+  return String(profile()?.followingCount ?? 0)
+}
+
+function isSelf(): boolean {
+  return viewerId() > 0 && profile()?.id === viewerId()
+}
+
+function followText(): string {
+  return followLabel(following())
+}
+
+function recent(): any[] {
+  return profile()?.recentActivities ?? []
+}
+
+function activityLine(activity: any): string {
+  return recentActivityLine(activity)
+}
+
+function activityStats(activity: any): string {
+  return recentActivityStats(activity)
+}
+
+/*
+ * The route thumbnail. `routeShapeFor` is the shared projection — the same one
+ * the web page uses — into this row's own 96x64 box rather than the web's
+ * square container.
+ */
+function activityRoute(activity: any): string {
+  return activityRoutePoints(activity)
+}
+
+function recordLine(record: any): string {
+  const style = STYLE_LABELS[record?.style] ?? record?.style ?? ''
+  const category = CATEGORY_LABELS[record?.category] ?? record?.category ?? ''
+  return [style, category].filter(Boolean).join(' · ')
+}
+
+function reasonText(): string {
+  return REPORT_REASON_LABELS[REPORT_REASONS[reasonIndex()]]
+}
+
+function cycleReason(): void {
+  reasonIndex.set((reasonIndex() + 1) % REPORT_REASONS.length)
+}
+
+function blockText(): string {
+  return blockArmed() ? 'Really block? This removes both follows.' : 'Block this athlete'
+}
+
+function openActivity(activity: any): void {
+  const id = Number(activity?.id) || 0
+  if (id > 0)
+    craft.navigation.open(`/activity/${id}`)
+}
+
+function openRecord(record: any): void {
+  const id = Number(record?.id) || 0
+  if (id > 0)
+    craft.navigation.push('EffortDetail', { id: String(id) })
+}
+
+/*
+ * Follow optimistically, then settle from the server's answer.
+ *
+ * `was` and `countWas` are read *before* the toggle, because a rollback has to
+ * return to where it started — settling from the direction of the tap is what
+ * took a club from 48 members to 47 on a refused join.
+ */
+async function toggleFollow(): Promise<void> {
+  if (working() || isSelf() || wanted === null)
+    return
+  const was = following()
+  const countWas = followerCount()
+  working.set(true)
+  notice.set('')
+  following.set(!was)
+  followerCount.set(settledFollowerCount(was, !was, countWas))
+
+  try {
+    const request = followRequest(wanted, !was)
+    const result = await send(request.path, request.method, {})
+    if (!active)
+      return
+    if (!result.ok || result.body?.success === false)
+      throw new Error(String(result.body?.error ?? 'That did not work.'))
+
+    const settled = typeof result.body?.following === 'boolean' ? result.body.following : !was
+    following.set(settled)
+    followerCount.set(settledFollowerCount(was, settled, countWas, result.body?.followerCount))
+  }
+  catch (cause) {
+    if (!active)
+      return
+    following.set(was)
+    followerCount.set(settledFollowerCount(was, was, countWas))
+    notice.set(cause instanceof Error ? cause.message : 'Could not reach the service.')
+  }
+  finally {
+    if (active)
+      working.set(false)
+  }
+}
+
+function armBlock(): void {
+  if (!blockArmed()) {
+    blockArmed.set(true)
+    return
+  }
+  void doBlock()
+}
+
+async function doBlock(): Promise<void> {
+  if (working() || wanted === null)
+    return
+  working.set(true)
+  try {
+    const request = blockRequest(wanted, true)
+    const result = await send(request.path, request.method, {})
+    if (!active)
+      return
+    if (result.ok && result.body?.blocked) {
+      notice.set('Blocked. Follow connections are removed.')
+      // The profile goes with the block: what is left to look at.
+      profile.set(null)
+      missing.set(true)
+      return
+    }
+    notice.set(String(result.body?.error ?? 'Could not block this athlete.'))
+  }
+  catch {
+    if (active)
+      notice.set('Could not reach the service.')
+  }
+  finally {
+    if (active) {
+      working.set(false)
+      blockArmed.set(false)
+    }
+  }
+}
+
+async function report(): Promise<void> {
+  if (working() || wanted === null)
+    return
+  working.set(true)
+  try {
+    const request = reportRequest(wanted, REPORT_REASONS[reasonIndex()])
+    const result = await send(request.path, 'POST', request.body)
+    if (!active)
+      return
+    notice.set(result.ok && result.body?.success !== false
+      ? 'Report received. Thank you.'
+      : String(result.body?.error ?? 'Could not submit that report.'))
+  }
+  catch {
+    if (active)
+      notice.set('Could not reach the service.')
+  }
+  finally {
+    if (active)
+      working.set(false)
+  }
+}
+
+function backToAthletes(): void {
+  craft.navigation.push('Athletes', {})
+}
+
+async function load(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  try {
+    if (wanted === null) {
+      if (active)
+        missing.set(true)
+      return
+    }
+
+    const me = await send('/api/me')
+    if (active && me.ok && me.body?.user?.id)
+      viewerId.set(Number(me.body.user.id))
+
+    const result = await send(athletePath(wanted))
+    if (!active)
+      return
+    if (result.status === 404 || result.status === 422) {
+      missing.set(true)
+      return
+    }
+    if (!result.ok)
+      throw new Error('Could not load this athlete')
+
+    const row = athleteProfileFrom(result.body)
+    if (!row) {
+      missing.set(true)
+      return
+    }
+    profile.set(row)
+    followerCount.set(row.followerCount)
+    following.set(Boolean(result.body?.isFollowing))
+
+    // Their verified records: a different question from "what have they run",
+    // and a failure here costs the list and not the profile.
+    const board = await send(recordsPath({ userId: wanted, status: 'verified', limit: 20 }))
+    if (active && board.ok && Array.isArray(board.body?.efforts))
+      records.set(board.body.efforts)
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load this athlete')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Athlete', largeTitle: false })
+  void load()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="athlete-detail-scroll">
+    <ActivityIndicator :show="loading" testID="athlete-loading" class="mt-6" />
+    <Text :show="error" testID="athlete-error" class="mt-4 text-rose-300" :text="error" />
+
+    <View :show="missing" testID="athlete-missing" class="mt-6 gap-3">
+      <Text class="text-lg font-semibold text-white">No such athlete</Text>
+      <Button testID="back-to-athletes" @click="backToAthletes()">See the directory</Button>
+    </View>
+
+    <Text :show="notice" testID="athlete-notice" class="mt-4 text-sm text-amber-300" :text="notice" />
+
+    <View :show="profile()" testID="athlete-body" class="gap-4">
+      <View class="gap-1">
+        <Text testID="athlete-name" class="text-2xl font-bold text-white" :text="nameText()" />
+        <Text :show="locationText()" testID="athlete-location" class="text-sm text-slate-400" :text="locationText()" />
+        <Text :show="bioText()" testID="athlete-bio" class="text-sm text-slate-300" :text="bioText()" />
+      </View>
+
+      <Button :show="!isSelf()" testID="athlete-follow" @click="toggleFollow()" :text="followText()" />
+      <Text :show="isSelf()" testID="athlete-self" class="text-xs uppercase text-slate-500">This is you</Text>
+
+      <View class="flex-row gap-2">
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Miles</Text>
+          <Text testID="athlete-distance" class="text-lg font-bold text-white" :text="distanceText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Climbing</Text>
+          <Text testID="athlete-elevation" class="text-lg font-bold text-white" :text="elevationText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Activities</Text>
+          <Text testID="athlete-activities" class="text-lg font-bold text-white" :text="activityCountText()" />
+        </View>
+      </View>
+
+      <View class="flex-row gap-2">
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Zones</Text>
+          <Text testID="athlete-zones" class="text-lg font-bold text-white" :text="territoryCountText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Followers</Text>
+          <Text testID="athlete-followers" class="text-lg font-bold text-white" :text="followersText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Following</Text>
+          <Text testID="athlete-following" class="text-lg font-bold text-white" :text="followingCountText()" />
+        </View>
+      </View>
+
+      {{-- Verified only: a profile is where a record is read as a credential,
+           so a claim nobody has checked lives on the route's board instead. --}}
+      <View :show="records().length > 0" testID="athlete-records" class="gap-2">
+        <Text class="text-xs font-semibold uppercase text-slate-500">Verified records</Text>
+        <Pressable :for="record in records()" :key="record.id" testID="athlete-record" @click="openRecord(record)" class="gap-1 rounded-xl bg-slate-900 p-3">
+          <View class="flex-row justify-between">
+            <Text class="flex-1 text-sm font-semibold text-white" :text="record.trailName" />
+            <Text testID="record-time" class="text-sm text-emerald-400" :text="record.elapsedLabel" />
+          </View>
+          <Text testID="record-line" class="text-xs text-slate-500" :text="recordLine(record)" />
+        </Pressable>
+      </View>
+
+      <View :show="recent().length > 0" testID="athlete-recent" class="gap-2">
+        <Text class="text-xs font-semibold uppercase text-slate-500">Recently</Text>
+        <Pressable :for="activity in recent()" :key="activity.id" testID="athlete-activity" @click="openActivity(activity)" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3">
+          {{-- The route, projected into a 96x64 box by the same `routeShapeFor`
+               the website uses. The View carries the size: the native renderer
+               does not read an `<svg>`'s own width and height. --}}
+          <View :show="activityRoute(activity) !== ''" class="h-16 w-24 rounded-lg bg-slate-950 p-1">
+            <svg viewBox="0 0 96 64" class="h-full w-full">
+              <polyline testID="activity-route" :points="activityRoute(activity)" stroke="#34d399" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </View>
+          <View class="flex-1">
+            <Text testID="activity-line" class="text-sm text-white" :text="activityLine(activity)" />
+            <Text testID="activity-stats" class="text-xs text-slate-500" :text="activityStats(activity)" />
+          </View>
+        </Pressable>
+      </View>
+
+      {{-- Safety. Blocking arms a confirm rather than acting on one tap: there
+           is no system dialog here, and a block cuts both follows. --}}
+      <View :show="!isSelf()" testID="athlete-safety" class="gap-2 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-slate-500">Safety</Text>
+        <Text testID="report-reason" class="text-sm text-slate-300" :text="reasonText()" />
+        <Button testID="cycle-reason" @click="cycleReason()">Change the reason</Button>
+        <Button testID="athlete-report" @click="report()">Report this athlete</Button>
+        <Button testID="athlete-block" @click="armBlock()" :text="blockText()" />
+      </View>
+    </View>
+  </ScrollView>
+</SafeAreaView>

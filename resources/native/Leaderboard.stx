@@ -162,7 +162,7 @@ function cycleScope(): void {
 function openAthlete(row: any): void {
   if (!row?.userId)
     return
-  craft.navigation.open(`/athlete/${row.userId}`)
+  craft.navigation.push('AthleteDetail', { id: String(row.userId) })
 }
 
 onMount(() => {

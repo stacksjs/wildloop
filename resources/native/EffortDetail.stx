@@ -161,7 +161,7 @@ function openEvidence(row: any): void {
 function openAthlete(): void {
   const id = Number(effort()?.userId) || 0
   if (id > 0)
-    craft.navigation.open(`/athlete/${id}`)
+    craft.navigation.push('AthleteDetail', { id: String(id) })
 }
 
 function backToRecords(): void {

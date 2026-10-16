@@ -178,7 +178,7 @@ async function toggleFollow(row: any): Promise<void> {
 function openAthlete(row: any): void {
   if (!row?.id)
     return
-  craft.navigation.open(`/athlete/${row.id}`)
+  craft.navigation.push('AthleteDetail', { id: String(row.id) })
 }
 
 onMount(() => {

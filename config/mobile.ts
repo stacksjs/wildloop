@@ -51,6 +51,7 @@ export default {
      */
     nativeScreens: {
       '/achievements': 'Achievements',
+      '/athlete/:id': 'AthleteDetail',
       '/athletes': 'Athletes',
       '/battles': 'Battles',
       '/challenges': 'Challenges',

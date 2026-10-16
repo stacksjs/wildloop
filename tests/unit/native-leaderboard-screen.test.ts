@@ -99,9 +99,16 @@ describe('Wildloop native leaderboard screen', () => {
     answer(screen, request, ok(BOARD))
     await waitForText(screen, 'Harvey Lewis')
 
+    /*
+     * A push, not a web-view hand-off: `/athlete/:id` is a native screen as of
+     * AthleteDetail, and this board was one of three places that opened it by
+     * path.
+     */
     await screen.event('leader-row', 'onPress')
-    await Bun.sleep(0)
-    expect(screen.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_OPEN', payload: { path: '/athlete/9' } })
+    await Bun.sleep(1)
+    expect(screen.sent.filter((m: any) => m.type === 'NAVIGATE')).toContainEqual(
+      expect.objectContaining({ payload: expect.objectContaining({ screen: 'AthleteDetail', params: { id: '9' } }) }),
+    )
 
     const anonymous = await start('Leaderboard')
     const only = await waitForRequest(anonymous, 0, r => r.payload?.module === 'Network')

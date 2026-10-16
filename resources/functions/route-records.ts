@@ -486,3 +486,33 @@ export function courseGeometry(line: [number, number][] | null | undefined): num
     flat.push(lat, lng)
   return flat
 }
+
+/** Filters the records board understands. */
+export interface RecordsQuery {
+  userId?: number
+  trailId?: number
+  style?: RecordStyle | 'all'
+  status?: RecordStatus
+  limit?: number
+}
+
+/**
+ * The board's own query.
+ *
+ * Built here rather than inline so the board, an athlete's profile and
+ * anything else asking the same question cannot disagree about the parameter
+ * names. `encodeURIComponent` throughout: the native runtime has no
+ * `URLSearchParams`.
+ */
+export function recordsPath(query: RecordsQuery = {}): string {
+  const parts: string[] = [`limit=${query.limit ?? 40}`]
+  if (query.userId)
+    parts.push(`user_id=${encodeURIComponent(String(query.userId))}`)
+  if (query.trailId)
+    parts.push(`trail_id=${encodeURIComponent(String(query.trailId))}`)
+  if (query.style && query.style !== 'all')
+    parts.push(`style=${encodeURIComponent(query.style)}`)
+  if (query.status)
+    parts.push(`status=${encodeURIComponent(query.status)}`)
+  return `/api/route-efforts?${parts.join('&')}`
+}

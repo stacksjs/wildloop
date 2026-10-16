@@ -104,6 +104,8 @@
   import { fetchAthlete, reportContent, toggleBlock, toggleFollow } from '../../assets/scripts/game-api'
   import { fetchRecords } from '../../assets/scripts/records-api'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { pathIdFrom } from '../../functions/route-id'
+  import { settledFollowerCount } from '../../functions/athletes'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { CATEGORY_LABELS, STYLE_LABELS } from '../../functions/route-records'
   import { avatarUrl } from '../../functions/avatars'
@@ -119,9 +121,13 @@
   const reportReason = state('harassment')
   const safetyMessage = state<string | null>(null)
 
-  // -1 is a no-match sentinel so an unresolved param renders "not found"
-  // rather than silently loading athlete 0/1 (#987).
-  const athleteId = readRouteParam('id') ?? -1
+  /*
+   * -1 is a no-match sentinel so an unresolved param renders "not found"
+   * rather than silently loading athlete 0/1 (#987). `pathIdFrom` is
+   * digits-only and shared with the native screen: `Number.parseInt` reads
+   * `/athlete/44.5` as 44 and would load an athlete the path does not name.
+   */
+  const athleteId = pathIdFrom(readRouteParam('id')) ?? -1
 
   const isSelf = derived(() => !!wl && athleteId === wl.currentUserId())
   const isFollowing = derived(() => !!wl && wl.isFollowing(athleteId))
@@ -173,18 +179,27 @@
     return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
+  /*
+   * Follow optimistically, then settle.
+   *
+   * `countWas` is read before the toggle and the count is settled through
+   * `settledFollowerCount`, shared with the native screen: settling from the
+   * direction of the *tap* is what took a club from 48 members to 47 on a
+   * refused join, and the same shape of bug was available here.
+   */
   async function onFollow() {
     if (!wl || isSelf()) return
     const was = wl.isFollowing(athleteId)
+    const countWas = Number(profile()?.followerCount ?? 0)
     wl.setFollowing(athleteId, !was) // optimistic
     const res = await toggleFollow(athleteId, !was)
-    if (res && res.success) {
-      wl.setFollowing(athleteId, !!res.following)
-      if (profile() && typeof res.followerCount === 'number')
-        profile.set({ ...profile(), followerCount: res.followerCount })
-    }
-    else {
-      wl.setFollowing(athleteId, was)
+    const settled = res && res.success ? !!res.following : was
+    wl.setFollowing(athleteId, settled)
+    if (profile()) {
+      profile.set({
+        ...profile(),
+        followerCount: settledFollowerCount(was, settled, countWas, res?.success ? res.followerCount : undefined),
+      })
     }
   }
 

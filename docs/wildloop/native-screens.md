@@ -6,6 +6,7 @@ path** in `ios.nativeScreens` (`config/mobile.ts`):
 ```ts
 nativeScreens: {
   '/achievements': 'Achievements',
+  '/athlete/:id': 'AthleteDetail',
   '/athletes': 'Athletes',
   '/battles': 'Battles',
   '/challenges': 'Challenges',
@@ -84,6 +85,19 @@ The flows so far:
 - **Battles** — the game's feed, and the only native screen that works signed
   out: `/api/territories/battles` answers without a viewer and only `?mine=1`
   needs one. Third person, about other people.
+- **Athlete detail** — one athlete, and it closes **three** hand-offs: the
+  directory, the leaderboard and the territory map all opened `/athlete/:id`
+  in a web view, and the effort screen opened it too. `/api/users/{id}`
+  answers an *envelope* — identity under `user`, numbers under `stats`, follow
+  counts at the top — so `athleteProfileFrom` flattens it once; a screen
+  reading `payload.name` shows a nameless profile of zeroes and nothing
+  errors. Only **verified** records are listed, because a profile is where a
+  record is read as a credential. Following is optimistic and settles through
+  `settledFollowerCount`, shared with the web page: settling from the
+  direction of the *tap* rather than the state before it is what took a club
+  from 48 members to 47 on a refused join. **A block takes two taps** — there
+  is no system confirm dialog in a native screen and a block cuts both
+  follows, so the first tap arms and says what it will do.
 - **Territory detail** — one zone, and the first promoted path with a
   **parameter**. `'/territory/:id'`: the shell matches patterns, static
   segments beating `:params` beating a trailing `*`, so `/territories` keeps

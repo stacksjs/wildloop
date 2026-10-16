@@ -144,7 +144,7 @@ function openRecord(): void {
 function openOwner(): void {
   const ownerId = Number(territory()?.userId) || 0
   if (ownerId > 0)
-    craft.navigation.open(`/athlete/${ownerId}`)
+    craft.navigation.push('AthleteDetail', { id: String(ownerId) })
 }
 
 function backToList(): void {
