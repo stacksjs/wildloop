@@ -1,0 +1,32 @@
+#!/bin/sh
+# Wildloop pre-commit.
+#
+# Not installed by default — `.git/hooks` is not version-controlled, and a
+# hook that blocks a commit is the kind of thing a repository should offer
+# rather than impose. Turn it on with:
+#
+#   bun run hooks:install
+#
+# which points `core.hooksPath` at this tracked directory. `git commit
+# --no-verify` skips it for a work-in-progress commit.
+set -e
+
+# Only run the stx gate when a `.stx`, a shared function, or the gate itself
+# is staged. It scans the whole `resources/**` tree rather than the staged
+# files, so running it on an unrelated commit is a few seconds for nothing.
+if git diff --cached --name-only --diff-filter=ACMR \
+  | grep -qE '\.stx$|^resources/functions/|^scripts/stx-gate\.ts$|^config/(mobile|stx|crosswind)\.ts$'; then
+  echo "pre-commit: bun run gate:stx"
+  bun run gate:stx
+fi
+
+# pickier applies its JS rules to .ts/.tsx/.js/.jsx only — it discovers .stx
+# but checks nothing inside the script block, so there is no point listing it
+# here (measured 16 Oct 2026: a .stx with two deliberate errors reported
+# clean, the same content as .ts reported three).
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(js|ts|json|ya?ml|md)$' || true)
+if [ -n "$STAGED_JS" ]; then
+  echo "pre-commit: pickier"
+  # shellcheck disable=SC2086
+  bunx --bun pickier lint $STAGED_JS
+fi

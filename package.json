@@ -109,7 +109,9 @@
     "test:types": "./buddy test:types",
     "bud": "./buddy",
     "stx": "./buddy",
-    "gate:stx": "bun scripts/stx-gate.ts"
+    "gate:stx": "bun scripts/stx-gate.ts",
+    "hooks:install": "git config core.hooksPath .githooks && echo 'hooks on: .githooks (git commit --no-verify to skip, bun run hooks:uninstall to turn off)'",
+    "hooks:uninstall": "git config --unset core.hooksPath && echo 'hooks off'"
   },
   "type": "module",
   "devDependencies": {
