@@ -1,5 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi } from '../functions/native-api'
 import { avatarInitial, avatarUrl } from '../functions/avatars'
 import {
   LEADERBOARD_METRICS,
@@ -39,7 +40,7 @@ const rows = state<any[]>([])
 const loading = state(true)
 const error = state('')
 const needsSignIn = state(false)
-const bearer = state('')
+const api = createNativeApi(craft)
 let active = true
 
 function period(): any {
@@ -92,16 +93,6 @@ function initial(row: any): string {
   return avatarInitial(row?.userName ?? '')
 }
 
-/** Read once and kept: one round trip rather than two, not a bridge limitation. */
-async function readToken(): Promise<string> {
-  if (bearer())
-    return bearer()
-  const value = await craft.secureStorage.get('auth_token')
-  const token = typeof value === 'string' ? value : ''
-  bearer.set(token)
-  return token
-}
-
 async function load(): Promise<void> {
   loading.set(true)
   error.set('')
@@ -109,7 +100,7 @@ async function load(): Promise<void> {
   try {
     const headers: Record<string, string> = { Accept: 'application/json' }
     if (scope() === 'following') {
-      const token = await readToken()
+      const token = await api.readToken()
       if (!token) {
         if (active) {
           needsSignIn.set(true)

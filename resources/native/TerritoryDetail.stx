@@ -1,5 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi, loadOutcome } from '../functions/native-api'
 import {
   battleRowsFrom,
   battlesPath,
@@ -57,32 +58,9 @@ const viewerId = state(0)
 const loading = state(true)
 const error = state('')
 const missing = state(false)
-const bearer = state('')
+const api = createNativeApi(craft)
 let active = true
-let reading: Promise<string> | null = null
 
-async function readToken(): Promise<string> {
-  if (bearer())
-    return bearer()
-
-  reading ??= Promise.resolve(craft.secureStorage.get('auth_token')).then((value) => {
-    const token = typeof value === 'string' ? value : ''
-    bearer.set(token)
-    return token
-  })
-
-  return reading
-}
-
-async function json(path: string): Promise<any> {
-  const token = await readToken()
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token)
-    headers.Authorization = `Bearer ${token}`
-  const response = await fetch(`https://wildloop.org${path}`, { headers })
-  const body = await response.json().catch(() => null)
-  return { ok: response.ok, status: response.status, body }
-}
 
 function name(): string {
   return String(territory()?.name ?? '')
@@ -161,19 +139,20 @@ async function load(): Promise<void> {
       return
     }
 
-    const me = await json('/api/me')
+    const me = await api.send('/api/me')
     if (active && me.ok && me.body?.user?.id)
       viewerId.set(Number(me.body.user.id))
 
-    const result = await json(territoryPath(wanted))
+    const result = await api.send(territoryPath(wanted))
     if (!active)
       return
-    // 404 and 422 are "no such territory", which is not a failure to load.
-    if (result.status === 404 || result.status === 422) {
+    // A record that does not exist is an answer, not a failure to load.
+    const outcome = loadOutcome(result)
+    if (outcome === 'missing') {
       missing.set(true)
       return
     }
-    if (!result.ok)
+    if (outcome === 'error')
       throw new Error('Could not load this territory')
 
     const row = territoryFrom(result.body)
@@ -185,7 +164,7 @@ async function load(): Promise<void> {
 
     // Its history, filtered out of the feed. A failure here costs the history
     // and not the territory, so it is not allowed to throw.
-    const feed = await json(battlesPath())
+    const feed = await api.send(battlesPath())
     if (active && feed.ok)
       battles.set(battleRowsFrom(feed.body))
   }

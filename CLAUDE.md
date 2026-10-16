@@ -124,6 +124,19 @@
   - at most two script blocks per file — **clear**. One server block plus one client
     block is the shape, and prose quoting `<script server>` inflates a naive count
 
+**A native screen's requests go through `createNativeApi`**
+(`resources/functions/native-api.ts`). Twelve screens each held the same
+memoized keychain read and the same token-bearing `fetch`, three byte-identical,
+and the four detail screens added the same 404-versus-failure split on top —
+copying it a thirteenth time is how one copy quietly stops matching the others.
+The helper is **native-only**, unlike the rest of `resources/functions`: a
+browser page goes through `apiFetch`, which carries a cookie and a CSRF token a
+native screen does not have. It lives there anyway so the gate keeps checking it
+for web APIs. Four screens are deliberately *not* on it: Records, Search and
+Trails send no token at all (the helper would add a keychain round trip they do
+not want), and ManualActivity needs the raw `Response` for `messageFrom`, which
+`api.send` parses and discards.
+
 **The native test fixture hands the bundle no timer** (`tests/fixtures/nativeScreen.ts`).
 The runtime does not promise one — the bridge arms its request timeout as
 `typeof globalThis.setTimeout === 'function' ? … : null` — so a screen leaning on
