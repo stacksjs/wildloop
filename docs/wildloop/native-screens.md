@@ -13,6 +13,7 @@ nativeScreens: {
   '/club/:id': 'ClubDetail',
   '/clubs': 'Clubs',
   '/effort/:id': 'EffortDetail',
+  '/event/:id': 'EventDetail',
   '/conquests': 'Conquests',
   '/events': 'Events',
   '/records': 'Records',
@@ -110,6 +111,20 @@ The flows so far:
   Its history is filtered out of the battle feed, as the web page does from its
   store, and told in a *third* voice — the feed names the territory, and here
   the reader is already looking at it, so it reads "Marta is attacking it".
+- **Event detail** — one event's live board, and the first screen built on the
+  shared request skeleton rather than its own copy. **It does not tick, and
+  this one costs the most**: the web page runs a poll that speeds up near a
+  corral plus a local once-a-second tick anchored to the board's `serverTime`,
+  so a device three minutes fast cannot disagree with the clock at the start
+  line. The runtime promises no timer, so there is neither. What saves it is
+  that `msToNextStart` is computed *by the server* and arrives on the board —
+  the countdown is a real number, simply as of when the board was read, and
+  the screen says so beside it. Refresh re-reads the board alone, since that
+  is all that changes during a race, and a dropped refresh keeps the last good
+  board rather than blanking out. The loop is drawn **open**: it is a lap, and
+  closing it would draw a leg nobody ran. No organiser status controls —
+  starting and stopping a race is the one thing worth doing on a laptop beside
+  the start line.
 - **Club detail** — one club, and the directory's two hand-offs (a row, and
   the "View" door on an invite-only club) become pushes. The permissions are
   read off the payload and shared with the web page: **inviting** needs an

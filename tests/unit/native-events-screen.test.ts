@@ -101,14 +101,20 @@ describe('Wildloop native events screen', () => {
     expect(second.payload.args[0].url).toContain('type=backyard')
   })
 
-  it('hands a row to the web event board, which is a map screen', async () => {
+  /*
+   * A push, not a web-view hand-off: `/event/:id` is a native screen as of
+   * EventDetail, which draws the loop itself.
+   */
+  it('pushes a row to the event\'s own board', async () => {
     const { screen, request } = await directory()
     answer(screen, request, ok(EVENTS))
     await waitForText(screen, 'Backyard at the Bluff')
 
     await screen.event('live-row', 'onPress')
-    await Bun.sleep(0)
-    expect(screen.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_OPEN', payload: { path: '/event/1' } })
+    await Bun.sleep(1)
+    expect(screen.sent.filter((m: any) => m.type === 'NAVIGATE')).toContainEqual(
+      expect.objectContaining({ payload: expect.objectContaining({ screen: 'EventDetail', params: { id: '1' } }) }),
+    )
   })
 
   it('reports a directory it could not load', async () => {

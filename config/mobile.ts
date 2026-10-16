@@ -59,6 +59,7 @@ export default {
       '/clubs': 'Clubs',
       '/conquests': 'Conquests',
       '/effort/:id': 'EffortDetail',
+      '/event/:id': 'EventDetail',
       '/events': 'Events',
       '/records': 'Records',
       '/search': 'Search',

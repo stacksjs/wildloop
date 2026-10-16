@@ -1,0 +1,366 @@
+<script client>
+import type { NativeCraft } from '@stacksjs/stx/native'
+import {
+  canReportLap,
+  corralCountdownText,
+  currentYardText,
+  entryLabel,
+  eventDetailFrom,
+  eventIsLive,
+  eventJoinPath,
+  eventLapPath,
+  eventLivePath,
+  liveBoardFrom,
+  eventPath,
+  eventTypeLabel,
+  eventWhenLabel,
+  lapDurationText,
+  lapLine,
+  nextLapBody,
+  recentLapsFrom,
+  standingLine,
+  standingStatusText,
+  standingYardsText,
+  standingsFrom,
+  stillInText,
+} from '../functions/events'
+import { createNativeApi, loadOutcome } from '../functions/native-api'
+import { courseGeometry } from '../functions/route-records'
+import { pathIdFrom } from '../functions/route-id'
+
+/*
+ * One event's live board, natively. Nineteenth screen, and the first built on
+ * the shared request skeleton rather than its own copy of one.
+ *
+ * **It does not tick, and this one costs the most.** The web page runs two
+ * clocks: a poll that speeds up near a corral, and a local once-a-second tick
+ * anchored to the board's `serverTime` so a device three minutes fast cannot
+ * disagree with the clock at the start line. The native runtime promises no
+ * timer, so there is neither.
+ *
+ * What saves it is that `msToNextStart` is computed *by the server* and
+ * arrives on the board. So the countdown shown here is a real number rather
+ * than a device-clock guess — it is simply as of when the board was read, and
+ * the screen says so beside it. A spectator at a backyard ultra taps refresh;
+ * a frozen clock pretending to run would be worse than an honest still one.
+ *
+ * The loop is drawn open, like a course and unlike a territory: `loopRoute` is
+ * a lap and closing it would draw a leg nobody ran.
+ *
+ * Narrower than the web page: no organiser status controls (starting and
+ * stopping a race is the one thing worth doing on a laptop beside the start
+ * line) and no share sheet.
+ */
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const api = createNativeApi(craft)
+const params = craft.route.params
+
+/** Digits only: `/event/9.5` must not load event 9. */
+const wanted = pathIdFrom(params.id)
+
+const event = state<any>(null)
+const live = state<any>(null)
+const mine = state<any>({ entered: false })
+const readAt = state('')
+const loading = state(true)
+const error = state('')
+const missing = state(false)
+const working = state(false)
+const notice = state('')
+let active = true
+
+function nameText(): string {
+  return String(event()?.name ?? '')
+}
+
+function typeText(): string {
+  return eventTypeLabel(String(event()?.type ?? ''))
+}
+
+function whenText(): string {
+  return eventWhenLabel(String(event()?.startTime ?? ''))
+}
+
+function placeText(): string {
+  return String(event()?.location ?? '')
+}
+
+function aboutText(): string {
+  return String(event()?.description ?? '')
+}
+
+function yardText(): string {
+  return currentYardText(live())
+}
+
+function stillText(): string {
+  return stillInText(live())
+}
+
+function countdownText(): string {
+  return corralCountdownText(live())
+}
+
+/*
+ * The countdown is a still number, so it is labelled rather than left to look
+ * live. Without this the screen would show a clock that never moves.
+ */
+function countdownNote(): string {
+  return countdownText() ? `to the next corral, read at ${readAt()}` : ''
+}
+
+function isLive(): boolean {
+  return eventIsLive(live(), event())
+}
+
+function standings(): any[] {
+  return standingsFrom(live())
+}
+
+function laps(): any[] {
+  return recentLapsFrom(live())
+}
+
+function standingText(standing: any): string {
+  return standingLine(standing)
+}
+
+function standingStatus(standing: any): string {
+  return standingStatusText(standing)
+}
+
+function standingYards(standing: any): string {
+  return standingYardsText(standing)
+}
+
+function lapText(lap: any): string {
+  return lapLine(lap)
+}
+
+function lapClock(lap: any): string {
+  return lapDurationText(lap)
+}
+
+function entryText(): string {
+  return entryLabel(mine())
+}
+
+function mayReportLap(): boolean {
+  return canReportLap(mine(), live(), event())
+}
+
+/** The loop, open: a lap is a line that goes round, not a closed boundary. */
+function loop(): number[] {
+  return courseGeometry(event()?.loopRoute ?? null)
+}
+
+function openStanding(standing: any): void {
+  const id = Number(standing?.userId) || 0
+  if (id > 0)
+    craft.navigation.push('AthleteDetail', { id: String(id) })
+}
+
+function backToEvents(): void {
+  craft.navigation.push('Events', {})
+}
+
+/** The clock this board was read at, so the countdown can be dated. */
+function stamp(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${now.getHours()}:${pad(now.getMinutes())}`
+}
+
+async function toggleEntry(): Promise<void> {
+  if (working() || wanted === null)
+    return
+  working.set(true)
+  notice.set('')
+  try {
+    const result = await api.send(eventJoinPath(wanted), 'POST', {})
+    if (!active)
+      return
+    if (!result.ok || result.body?.success === false)
+      throw new Error(String(result.body?.error ?? 'Could not change your entry.'))
+
+    // The server holds the entry and answers which way it went.
+    const entered = typeof result.body?.entered === 'boolean' ? result.body.entered : !mine()?.entered
+    mine.set({ ...mine(), entered })
+    await refresh()
+  }
+  catch (cause) {
+    if (active)
+      notice.set(cause instanceof Error ? cause.message : 'Could not reach the service.')
+  }
+  finally {
+    if (active)
+      working.set(false)
+  }
+}
+
+async function reportLap(): Promise<void> {
+  if (working() || wanted === null || !mayReportLap())
+    return
+  working.set(true)
+  notice.set('')
+  try {
+    const result = await api.send(eventLapPath(wanted), 'POST', nextLapBody(live()))
+    if (!active)
+      return
+    if (!result.ok || result.body?.success === false)
+      throw new Error(String(result.body?.error ?? 'Could not report that lap.'))
+    notice.set('Lap reported.')
+    await refresh()
+  }
+  catch (cause) {
+    if (active)
+      notice.set(cause instanceof Error ? cause.message : 'Could not reach the service.')
+  }
+  finally {
+    if (active)
+      working.set(false)
+  }
+}
+
+/** Re-read the board alone, which is all that changes during a race. */
+async function refresh(): Promise<void> {
+  if (wanted === null)
+    return
+  const result = await api.send(eventLivePath(wanted))
+  const board = result.ok ? liveBoardFrom(result.body) : null
+  // A dropped poll is normal at a trailhead: keep the last good board rather
+  // than blanking the screen out.
+  if (active && board) {
+    live.set(board)
+    readAt.set(stamp())
+  }
+}
+
+async function load(): Promise<void> {
+  loading.set(true)
+  error.set('')
+  try {
+    if (wanted === null) {
+      if (active)
+        missing.set(true)
+      return
+    }
+
+    const result = await api.send(eventPath(wanted))
+    if (!active)
+      return
+    // A record that does not exist is an answer, not a failure to load.
+    const outcome = loadOutcome(result)
+    if (outcome === 'missing') {
+      missing.set(true)
+      return
+    }
+    if (outcome === 'error')
+      throw new Error('Could not load this event')
+
+    const found = eventDetailFrom(result.body)
+    if (!found) {
+      missing.set(true)
+      return
+    }
+    event.set(found.event)
+    live.set(found.live)
+    mine.set(found.me)
+    readAt.set(stamp())
+  }
+  catch (cause) {
+    if (active)
+      error.set(cause instanceof Error ? cause.message : 'Could not load this event')
+  }
+  finally {
+    if (active)
+      loading.set(false)
+  }
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Event', largeTitle: false })
+  void load()
+})
+
+onDestroy(() => {
+  active = false
+})
+</script>
+
+<SafeAreaView class="flex-1 bg-slate-950">
+  <ScrollView class="p-4" testID="event-detail-scroll">
+    <ActivityIndicator :show="loading" testID="event-loading" class="mt-6" />
+    <Text :show="error" testID="event-error" class="mt-4 text-rose-300" :text="error" />
+
+    <View :show="missing" testID="event-missing" class="mt-6 gap-3">
+      <Text class="text-lg font-semibold text-white">No such event</Text>
+      <Button testID="back-to-events" @click="backToEvents()">See what is on</Button>
+    </View>
+
+    <Text :show="notice" testID="event-notice" class="mt-4 text-sm text-amber-300" :text="notice" />
+
+    <View :show="event()" testID="event-body" class="gap-4">
+      <View class="gap-1">
+        <Text testID="event-name" class="text-2xl font-bold text-white" :text="nameText()" />
+        <Text testID="event-when" class="text-sm text-slate-400" :text="whenText()" />
+        <View class="mt-1 flex-row gap-2">
+          <Text testID="event-type" class="text-xs uppercase text-slate-500" :text="typeText()" />
+          <Text :show="placeText()" testID="event-place" class="text-xs text-slate-500" :text="placeText()" />
+        </View>
+      </View>
+
+      <Text :show="aboutText()" testID="event-about" class="text-sm text-slate-300" :text="aboutText()" />
+
+      {{-- The corral clock. A still number, dated — the runtime promises no
+           timer, and a frozen clock pretending to run is worse than this. --}}
+      <View :show="countdownText()" testID="event-corral" class="gap-1 rounded-xl bg-slate-900 p-3">
+        <Text testID="corral-clock" class="text-3xl font-bold text-emerald-400" :text="countdownText()" />
+        <Text testID="corral-note" class="text-xs text-slate-500" :text="countdownNote()" />
+      </View>
+
+      <View :show="isLive()" class="flex-row gap-2">
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Yard</Text>
+          <Text testID="event-yard" class="text-lg font-bold text-white" :text="yardText()" />
+        </View>
+        <View class="flex-1 rounded-xl bg-slate-900 p-3">
+          <Text class="text-xs uppercase text-slate-500">Still in</Text>
+          <Text testID="event-still-in" class="text-lg font-bold text-white" :text="stillText()" />
+        </View>
+      </View>
+
+      <Button testID="event-refresh" @click="refresh()">Refresh the board</Button>
+      <Button testID="event-entry" @click="toggleEntry()" :text="entryText()" />
+      <Button :show="mayReportLap()" testID="event-report-lap" @click="reportLap()">I finished this yard</Button>
+
+      {{-- The loop, drawn open: it is a lap, and closing it would draw a leg
+           nobody ran. --}}
+      <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-slate-900">
+        <Map testID="event-map" class="flex-1" :fitToBounds="true" mapType="standard">
+          <mappolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
+        </Map>
+      </View>
+
+      <View :show="standings().length > 0" testID="event-standings" class="gap-2">
+        <Text class="text-xs font-semibold uppercase text-slate-500">The board</Text>
+        <Pressable :for="standing in standings()" :key="standing.userId" testID="event-standing" @click="openStanding(standing)" class="gap-1 rounded-xl bg-slate-900 p-3">
+          <View class="flex-row justify-between">
+            <Text class="flex-1 text-sm font-semibold text-white" :text="standingText(standing)" />
+            <Text testID="standing-status" class="text-xs text-slate-400" :text="standingStatus(standing)" />
+          </View>
+          <Text testID="standing-yards" class="text-xs text-slate-500" :text="standingYards(standing)" />
+        </Pressable>
+      </View>
+
+      <View :show="laps().length > 0" testID="event-laps" class="gap-2">
+        <Text class="text-xs font-semibold uppercase text-slate-500">Last laps in</Text>
+        <View :for="lap in laps()" :key="lap.finishedAt" class="flex-row justify-between rounded-xl bg-slate-900 p-3">
+          <Text testID="lap-line" class="flex-1 text-sm text-white" :text="lapText(lap)" />
+          <Text testID="lap-clock" class="text-xs text-slate-400" :text="lapClock(lap)" />
+        </View>
+      </View>
+    </View>
+  </ScrollView>
+</SafeAreaView>

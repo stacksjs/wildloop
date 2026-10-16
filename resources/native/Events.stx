@@ -26,7 +26,7 @@ import {
  * haptics, lifecycle). Both stay one tap away on the web, which is what the
  * warm web view is for.
  *
- * A row opens the event's own board, which is a map screen
+ * A row pushes the event's own board (EventDetail), which draws its loop
  * (craft-native/craft#340), so it hands off rather than pretending.
  */
 
@@ -102,10 +102,14 @@ function cycleType(): void {
   void load()
 }
 
+/*
+ * An event's own board is native now (EventDetail), so this pushes it rather
+ * than handing off to the web view.
+ */
 function openEvent(row: any): void {
   if (!row?.id)
     return
-  craft.navigation.open(`/event/${row.id}`)
+  craft.navigation.push('EventDetail', { id: String(row.id) })
 }
 
 onMount(() => {

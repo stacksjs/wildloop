@@ -109,15 +109,21 @@
   import { useLiveEvent } from '../../composables/useLiveEvent'
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
+  import { pathIdFrom } from '../../functions/route-id'
+  import { eventTypeLabel, standingStatusText } from '../../functions/events'
   import { shareLink, shareNote } from '../../composables/useShareLink'
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { formatClock } from '../../functions/backyard'
 
   useHead({ title: 'Live Event - Wildloop' })
 
-  // -1 is a no-match sentinel so an unresolved param renders "not found"
-  // rather than silently loading event 1.
-  const eventId = readRouteParam('id') ?? -1
+  /*
+   * -1 is a no-match sentinel so an unresolved param renders "not found"
+   * rather than silently loading event 1. `pathIdFrom` is digits-only and
+   * shared with the native screen: `Number.parseInt` reads `/event/9.5` as 9
+   * and would load an event the path does not name.
+   */
+  const eventId = pathIdFrom(readRouteParam('id')) ?? -1
 
   const {
     event, board, me, loading, notFound, actionError, working,
@@ -127,15 +133,10 @@
 
   const consoleOpen = state(false)
 
-  const TYPE_LABELS = {
-    backyard: 'Backyard ultra',
-    race: 'Race',
-    group_run: 'Group run',
-    time_trial: 'Time trial',
-  }
-
+  // Shared with the events list and the native screen, so one event is not
+  // described three ways. Wrapped because the template cannot call an import.
   function typeLabel(type) {
-    return TYPE_LABELS[type] ?? type
+    return eventTypeLabel(type)
   }
 
   function whenLabel(iso) {
@@ -156,18 +157,13 @@
     return formatClock((seconds ?? 0) * 1000)
   }
 
-  const statusLabels = {
-    registered: 'In',
-    running: 'In',
-    winner: 'Winner',
-    timed_out: 'Timed out',
-    dnf: 'DNS',
-    withdrawn: 'Withdrew',
-  }
-
+  /*
+   * Shared with the native screen. `stillIn` outranks the stored status — a
+   * mis-reported time-out the board has since corrected reads as still in —
+   * and only a winner outranks that.
+   */
   function statusLabel(entry) {
-    if (entry.status === 'winner') return 'Winner'
-    return entry.stillIn ? 'In' : (statusLabels[entry.status] ?? 'Out')
+    return standingStatusText(entry)
   }
 
   /** Gold, silver and bronze for the top three on the board. */
