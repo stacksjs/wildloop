@@ -16,6 +16,7 @@ nativeScreens: {
   '/search': 'Search',
   '/stats': 'Stats',
   '/territories': 'Territories',
+  '/territory/:id': 'TerritoryDetail',
   '/trails': 'Trails',
   '/notifications': 'Notifications',
   '/leaderboard': 'Leaderboard',
@@ -83,6 +84,17 @@ The flows so far:
 - **Battles** — the game's feed, and the only native screen that works signed
   out: `/api/territories/battles` answers without a viewer and only `?mine=1`
   needs one. Third person, about other people.
+- **Territory detail** — one zone, and the first promoted path with a
+  **parameter**. `'/territory/:id'`: the shell matches patterns, static
+  segments beating `:params` beating a trailing `*`, so `/territories` keeps
+  going to the list screen. `tests/unit/native-route-table.test.ts` checks the
+  whole table against craft's own `matchNativePath` rather than against a
+  reading of those rules — including that a query cannot override the path's
+  own `id`. The id is read digits-only (`territoryIdFrom`): `Number.parseInt`
+  reads `/territory/7.5.1` as 7 and would load a zone the path does not name.
+  Its history is filtered out of the battle feed, as the web page does from its
+  store, and told in a *third* voice — the feed names the territory, and here
+  the reader is already looking at it, so it reads "Marta is attacking it".
 - **Conquests** — the athlete's own record, from `?mine=1` rather than folded
   out of the global feed, which is the newest 200 battles in the whole game and
   holds only a few of anyone's. Second person — and the battle the feed badges

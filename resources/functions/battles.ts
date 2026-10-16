@@ -269,3 +269,39 @@ export function conquestEmptyText(filter: ConquestFilter): string {
     return 'You have not lost a zone. Yet.'
   return 'No battles yet. Run a closed loop across somebody else\'s zone.'
 }
+
+// ── On one territory's own page ───────────────────────────────────────────────
+
+/**
+ * This zone's battles, newest first.
+ *
+ * The feed is the whole game, so a territory's history is filtered out of it.
+ * Sorted here rather than trusted: the endpoint orders by `created_at desc`,
+ * and a page that depends on that silently reorders the day it does not.
+ */
+export function territoryHistory(battles: BattleRow[], territoryId: number): BattleRow[] {
+  return battles
+    .filter(battle => battle.territory_id === territoryId)
+    .slice()
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+}
+
+/**
+ * What happened, told on the zone's own page.
+ *
+ * A third voice, and it has to be: the feed names the territory ("Marta is
+ * attacking Balboa Loop") and here the reader is already looking at it, so the
+ * line is relative to the ground instead — "is attacking it".
+ */
+export function herePhrase(battle: BattleRow): string {
+  if (battle.status === 'conquered')
+    return 'took ground here'
+  if (battle.status === 'active')
+    return 'is attacking it'
+  return 'was held off'
+}
+
+/** "Marta is attacking it", for a screen with no separate attacker element. */
+export function hereLine(battle: BattleRow): string {
+  return `${battle.attackerName} ${herePhrase(battle)}`
+}

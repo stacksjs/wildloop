@@ -217,3 +217,68 @@ export function territoryEmptyBody(filter: TerritoryFilter): string {
     ? 'Every zone in view is held without a fight.'
     : 'Run a closed loop to claim your first territory.'
 }
+
+/**
+ * One zone, from `/api/territories/{id}`.
+ *
+ * `TerritoryShowAction` answers "shaped exactly like a feature from
+ * /api/territories/map", so it is read through the same function rather than a
+ * second one that could disagree about the ring order.
+ */
+export function territoryFrom(payload: unknown): TerritoryRow | null {
+  const feature = (payload as any)?.territory
+  const [row] = territoryRowsFrom({ features: feature ? [feature] : [] })
+  return row ?? null
+}
+
+/** Whether a zone is the viewer's own. Nobody owns anything when nobody is signed in. */
+export function isOwnTerritory(territory: TerritoryRow | null, viewerId: number | null | undefined): boolean {
+  return Boolean(territory && viewerId != null && viewerId > 0 && territory.userId === viewerId)
+}
+
+/** The hero line: whose ground this is, in the second person where it applies. */
+export function territoryHolderLine(territory: TerritoryRow | null, viewerId: number | null | undefined): string {
+  if (!territory)
+    return ''
+  if (isOwnTerritory(territory, viewerId))
+    return 'Held by you'
+  return territory.ownerName ? `Held by ${territory.ownerName}` : 'Held by nobody yet'
+}
+
+/** Secure or contested, which is the thing an owner wants to know first. */
+export function territoryStandingText(territory: TerritoryRow | null): string {
+  if (!territory)
+    return ''
+  return territory.status === 'contested' ? 'Contested' : 'Secure'
+}
+
+/**
+ * What to do about it, which depends on whose it is.
+ *
+ * The web page's button goes to `/record` either way; the words are what
+ * change, and they are the whole point of the button.
+ */
+export function territoryActionLabel(territory: TerritoryRow | null, viewerId: number | null | undefined): string {
+  return isOwnTerritory(territory, viewerId) ? 'Defend it' : 'Conquer this'
+}
+
+/**
+ * A territory id from a route parameter, or null.
+ *
+ * Strict on purpose. `Number.parseInt` is lenient — `'7.5.1'` and `'7abc'`
+ * both come back as 7 — so a malformed path would quietly load a *different*
+ * zone than the one it names. That is the same hazard the web page's `-1`
+ * sentinel guards against: territory 1 is real, and loading it because a
+ * parameter did not parse is worse than saying nothing was found.
+ *
+ * Digits only, so `'07'` is 7 and everything else is nothing.
+ */
+export function territoryIdFrom(raw: unknown): number | null {
+  if (typeof raw !== 'string' && typeof raw !== 'number')
+    return null
+  const text = String(raw).trim()
+  if (!/^\d+$/.test(text))
+    return null
+  const id = Number(text)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+}

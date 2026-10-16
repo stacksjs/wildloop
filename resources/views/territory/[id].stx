@@ -113,14 +113,21 @@
   import { recordTitle, setPageSeo } from '../../composables/usePageSeo'
   import { readRouteParam } from '../../composables/useRouteParam'
   import { formatTerritoryArea } from '../../functions/territory-style'
+  import { feedBadge, herePhrase } from '../../functions/battles'
+  import { territoryIdFrom } from '../../functions/territories'
   import { avatarUrl } from '../../functions/avatars'
 
   useHead({ title: 'Territory Details - Wildloop' })
 
   const wl = useStore('wl')
-  // -1 is a no-match sentinel so an unresolved param renders "not found"
-  // rather than silently loading territory 1 (#987).
-  const territoryId = readRouteParam('id') ?? -1
+  /*
+   * -1 is a no-match sentinel so an unresolved param renders "not found"
+   * rather than silently loading territory 1 (#987). `territoryIdFrom` is
+   * digits-only for the same reason, and is shared with the native screen:
+   * `Number.parseInt` reads `/territory/7.5.1` as 7 and would load a zone the
+   * path does not name.
+   */
+  const territoryId = territoryIdFrom(readRouteParam('id')) ?? -1
 
   const territory = derived(() => wl ? wl.findTerritory(territoryId) : null)
   const owner = derived(() => {
@@ -187,17 +194,19 @@
     runWhenMapReady('territory-detail-map', mountTerritoryDetailMap)
   })
 
-  /** A contest still open, a takeover, or an attack the owner ran off. */
+  /*
+   * A contest still open, a takeover, or an attack the owner ran off — told
+   * relative to the ground, because the reader is already looking at it.
+   * Shared with the native territory screen; the badge is the feed's, which
+   * does mean the same thing here. Wrapped locally because the template
+   * cannot call an import.
+   */
   function eventLine(event: any): string {
-    if (event.status === 'conquered') return ' took ground here'
-    if (event.status === 'active') return ' is attacking it'
-    return ' was held off'
+    return herePhrase(event)
   }
 
   function eventBadge(event: any): string {
-    if (event.status === 'conquered') return 'Conquered'
-    if (event.status === 'active') return 'Contested'
-    return 'Defended'
+    return feedBadge(event)
   }
 
   onDestroy(() => {

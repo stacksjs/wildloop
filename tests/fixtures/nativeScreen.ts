@@ -196,6 +196,36 @@ export async function waitForText(session: NativeSession, text: string): Promise
 }
 
 /**
+ * Wait until a node reaches a display state.
+ *
+ * The companion to `waitForText`, and the one to reach for whenever the thing
+ * being waited on is a `:show`. `waitForText` cannot do this job: a static
+ * label is in the first RENDER whatever the screen decides, so waiting on
+ * "No such territory" returns before the screen has decided anything and
+ * `visibility` then reads the state from the first frame. That is the same
+ * initial-RENDER-is-not-the-frame trap as stacksjs/stx#2073 and #2074, in
+ * test-writing form — it cost six failing assertions on the territory detail
+ * screen, each of which looked like a bug in the screen.
+ *
+ * Polls rather than sleeping a guessed amount: the batch that resolves a
+ * `:show` can take tens of milliseconds to arrive.
+ */
+export async function waitForVisibility(
+  session: NativeSession,
+  testID: string,
+  want: 'flex' | 'none' | 'shown' | 'absent',
+): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    if (visibility(session, testID) === want)
+      return
+    await Bun.sleep(1)
+  }
+  throw new Error(
+    `${testID} never became ${want} — it is ${visibility(session, testID)}`,
+  )
+}
+
+/**
  * The strings the screen has displayed *since* a point in the conversation.
  *
  * `shownText` harvests the whole history, which makes it useless for "did this

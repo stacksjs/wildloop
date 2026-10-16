@@ -61,6 +61,7 @@ export default {
       '/search': 'Search',
       '/stats': 'Stats',
       '/territories': 'Territories',
+      '/territory/:id': 'TerritoryDetail',
       '/trails': 'Trails',
       '/notifications': 'Notifications',
       '/leaderboard': 'Leaderboard',
