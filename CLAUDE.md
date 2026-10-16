@@ -33,7 +33,12 @@
     `leaderboardQuery` building its string with `URLSearchParams` made the screen
     issue no request at all while passing every browser test. Verified in the
     native test context, which is a bare JS context as JavaScriptCore is; stx
-    installs no shims
+    installs no shims. **`bun run gate:stx` is clean of this as of 16 Oct
+    2026**: the last two offenders, `normalizeEvidenceUrl` and
+    `normalizeTrackerUrl`, moved to `app/Support/evidenceUrls.ts` rather than
+    being rewritten — only server actions call them, and hand-parsing a URL for
+    a check whose job is to refuse `javascript:` is a worse trade than putting
+    the code where the real `URL` exists
   - `:if` on an interactive node was a silent dead button when the condition
     *turned* true (stacksjs/stx#2067) — **fixed in stx 0.2.504**, re-measured with
     the three-button probe (flipped-later now runs). `bun run gate:stx` holds

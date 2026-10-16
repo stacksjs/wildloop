@@ -9,8 +9,6 @@ import {
   isHeadlineRecord,
   MIN_RECORD_DISTANCE_MI,
   MIN_RECORD_ELEVATION_FT,
-  normalizeEvidenceUrl,
-  normalizeTrackerUrl,
   outrightRecord,
   rankBucket,
   recordBucketKey,
@@ -232,31 +230,9 @@ describe('evidence', () => {
     expect(evidenceIsSufficient({ status: 'in_progress' })).toBe(true)
   })
 
-  it('accepts a link to a platform that actually holds the recording', () => {
-    expect(normalizeEvidenceUrl('https://www.strava.com/activities/123')).toBe('https://www.strava.com/activities/123')
-  })
-
-  it('rejects a blog post, which is a trip report rather than a trace', () => {
-    expect(normalizeEvidenceUrl('https://example.com/my-big-run')).toBeNull()
-  })
-
-  it('rejects http, so a trace cannot be served over a tamperable channel', () => {
-    expect(normalizeEvidenceUrl('http://www.strava.com/activities/123')).toBeNull()
-  })
-
-  it('rejects a lookalike host that merely contains an allowed name', () => {
-    expect(normalizeEvidenceUrl('https://strava.com.evil.test/activities/1')).toBeNull()
-  })
-
-  it('accepts a subdomain of an allowed host', () => {
-    expect(normalizeEvidenceUrl('https://connect.garmin.com/modern/activity/1')).not.toBeNull()
-  })
-
-  it('holds a tracker link to https, but not to a platform allow-list', () => {
-    expect(normalizeTrackerUrl('https://share.garmin.com/abc')).toBe('https://share.garmin.com/abc')
-    expect(normalizeTrackerUrl('javascript:alert(1)')).toBeNull()
-    expect(normalizeTrackerUrl('')).toBeNull()
-  })
+  // Link validation moved to tests/unit/evidence-urls.test.ts with the
+  // functions themselves: they parse with `new URL`, which the native bundle
+  // this module is compiled into does not have.
 })
 
 describe('the headline record', () => {

@@ -17,10 +17,9 @@ import Trail from '../../Models/Trail'
 import {
   elapsedSeconds,
   evidenceIsSufficient,
-  normalizeEvidenceUrl,
-  normalizeTrackerUrl,
   routeIsRankable,
 } from '../../../resources/functions/route-records'
+import { normalizeEvidenceUrl, normalizeTrackerUrl } from '../../Support/evidenceUrls'
 import { asCategory, asDirection, asStyle, shapeEfforts } from '../../Support/routeEfforts'
 
 export default new Action({

@@ -16,8 +16,6 @@ import RouteEffort from '../../Models/RouteEffort'
 import {
   elapsedSeconds,
   evidenceIsSufficient,
-  normalizeEvidenceUrl,
-  normalizeTrackerUrl,
 } from '../../../resources/functions/route-records'
 import { shapeEfforts } from '../../Support/routeEfforts'
 
