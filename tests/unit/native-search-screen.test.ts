@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * Search, natively.
@@ -155,9 +155,8 @@ describe('Wildloop native search screen', () => {
     expect(visibility(screen, 'search-error')).toBe('none')
     for (const request of asked)
       answer(screen, request, { status: 500, statusText: 'Server Error', headers: {}, body: 'nope' })
-    await Bun.sleep(2)
 
-    expect(visibility(screen, 'search-error')).toBe('flex')
+    await waitForVisibility(screen, 'search-error', 'flex')
   })
 
   it('clears back to the quick links', async () => {
@@ -167,9 +166,8 @@ describe('Wildloop native search screen', () => {
 
     expect(visibility(screen, 'quick-links')).toBe('none')
     await screen.event('clear-search', 'onPress')
-    await Bun.sleep(1)
+    await waitForVisibility(screen, 'quick-links', 'flex')
 
-    expect(visibility(screen, 'quick-links')).toBe('flex')
     expect(shownText(screen)).toContain('Trails near me')
   })
 })

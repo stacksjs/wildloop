@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * The athlete's own record in the territory game, natively.
@@ -200,9 +200,8 @@ describe('Wildloop native conquests screen', () => {
     // Cycle to defences: the athlete has none in this payload.
     await screen.event('cycle-filter', 'onPress')
     await screen.event('cycle-filter', 'onPress')
-    await Bun.sleep(1)
+    await waitForVisibility(screen, 'conquests-empty', 'flex')
 
-    expect(visibility(screen, 'conquests-empty')).toBe('flex')
     expect(shownText(screen)).toContain('Nobody has come for your ground yet.')
   })
 
