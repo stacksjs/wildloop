@@ -52,10 +52,30 @@ export function nodesByTestId(node: any, found = new Map<string, string>()): Map
 export async function start(route: string, params: Record<string, unknown> = {}): Promise<NativeSession> {
   const sent: any[] = []
   let callback: (raw: string) => void = () => {}
+  /*
+   * No `setTimeout` on purpose, and this is load-bearing twice over.
+   *
+   * **Fidelity.** The native runtime does not promise a timer. The bridge arms
+   * its request timeout as
+   * `typeof globalThis.setTimeout === 'function' ? … : null`, so on a host
+   * without one no timeout is armed at all — and a screen that leaned on a
+   * timer would pass here and fail on a phone, which is exactly what the note
+   * at the top of Athletes.stx is about. Handing the bundle a timer the device
+   * may not have makes this fixture less like the thing it stands in for.
+   *
+   * **A flake.** With `setTimeout` in scope, every request armed a 30-second
+   * bridge timeout, and eight test files left fifteen of them uncleared
+   * between them — a test that asserts a request was *made* has no reason to
+   * answer it. In a suite that runs longer than thirty seconds those fired
+   * mid-run and rejected into nothing, surfacing as
+   * `Request js_… timed out after 30000ms` against whichever file happened to
+   * be executing. That is the intermittent native failure that moved around.
+   *
+   * Measured 16 Oct 2026: 192 native tests across 24 files pass with no timer
+   * in scope, and nothing arms a long timer any more.
+   */
   const scope: Record<string, any> = {
     console,
-    setTimeout,
-    clearTimeout,
     Promise,
     Date,
     Map,

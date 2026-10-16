@@ -124,6 +124,18 @@
   - at most two script blocks per file — **clear**. One server block plus one client
     block is the shape, and prose quoting `<script server>` inflates a naive count
 
+**The native test fixture hands the bundle no timer** (`tests/fixtures/nativeScreen.ts`).
+The runtime does not promise one — the bridge arms its request timeout as
+`typeof globalThis.setTimeout === 'function' ? … : null` — so a screen leaning on
+a timer would pass in a test and fail on a phone. It was also the intermittent
+native failure: with `setTimeout` in scope every request armed a 30-second bridge
+timeout, eight files left fifteen uncleared between them (a test asserting a
+request was *made* has no reason to answer it), and in a suite longer than thirty
+seconds those fired mid-run as `Request js_… timed out after 30000ms` against
+whichever file was executing. Measured 16 Oct 2026: 192 native tests pass with no
+timer in scope, three consecutive full runs at 2,850 passing and zero timeouts.
+A test in `native-conditional-timing.test.ts` fails if a timer is put back.
+
 **Do not count any of this by hand.** `bun run gate:stx` is the counter, and it found
 two of the numbers above wrong within a minute of existing. It runs stx's own DOM
 validator (which `config/stx.ts` now enables with `strict`), the native-screen rules,
