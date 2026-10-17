@@ -30,7 +30,7 @@ describe('native full trail map',()=>{
   })
   it('explains missing elevation without presenting invented zero-foot measurements',async()=>{
     const screen=await open([{mi:0,ft:null,lat:37.7,lng:-119.5},{mi:3,ft:null,lat:37.71,lng:-119.51}])
-    await waitForVisibility(screen,'map-profile-unavailable','shown')
+    await waitForVisibility(screen,'map-profile-unavailable','flex')
     await waitForVisibility(screen,'map-profile-range','none')
   })
   it('tracks gesture camera changes, resets north and inspects actual elevation positions',async()=>{

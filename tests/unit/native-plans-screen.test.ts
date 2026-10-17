@@ -11,8 +11,8 @@ async function open(params:Record<string,string>={}) {
   const cached=await waitForRequest(screen,0,r=>r.payload.module==='Storage')
   const before=requests(screen).length;answer(screen,cached,null)
   answer(screen,await waitForRequest(screen,before,r=>r.payload.module==='SecureStorage'),'native-token')
-  const me=await waitForRequest(screen,0,r=>r.payload.module==='Network');answer(screen,me,ok({user:{id:7}}))
-  const list=await waitForRequest(screen,requests(screen).indexOf(me)+1,r=>r.payload.module==='Network');answer(screen,list,ok({plans:[plan]}))
+  const me=await waitForRequest(screen,0,r=>r.payload.args?.[0]?.url?.endsWith('/api/me'));answer(screen,me,ok({user:{id:7}}))
+  const list=await waitForRequest(screen,requests(screen).indexOf(me)+1,r=>r.payload.args?.[0]?.url?.endsWith('/api/plans'));answer(screen,list,ok({plans:[plan]}))
   const write=await waitForRequest(screen,requests(screen).indexOf(list)+1,r=>r.payload.module==='Storage');answer(screen,write,true)
   await waitForText(screen,'Ridge day')
   return screen
@@ -33,10 +33,8 @@ describe('native Plans',()=>{
     await waitForText(screen,'Reminder scheduled for 6 pm on the evening before your plan.')
   })
   it('prefills a trail plan with the recorded route start rather than its center',async()=>{
-    const screen=await open({trail:'7'}),before=requests(screen).length
-    await screen.event('plan-new','onPress')
-    answer(screen,await waitForRequest(screen,before,r=>r.payload.module==='SecureStorage'),'native-token')
-    const request=await waitForRequest(screen,before,r=>r.payload.module==='Network')
+    const screen=await open({trail:'7'})
+    const request=await waitForRequest(screen,0,r=>r.payload.args?.[0]?.url?.endsWith('/api/trails/7'))
     expect(request.payload.args[0].url).toBe('https://wildloop.org/api/trails/7')
     answer(screen,request,ok({trail:{id:7,name:'Ridge Loop',latitude:37.75,longitude:-119.55,geometry:JSON.stringify([[37.7,-119.5],[37.71,-119.51]])}}))
     await waitForText(screen,'Ridge Loop')
