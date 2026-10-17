@@ -23,9 +23,10 @@ describe('image delivery contract', () => {
     expect(sources).toContain('<Image')
   })
 
-  it('uses the installed STX build unless an override is explicit', () => {
+  it('uses the installed STX package without a source override', () => {
     const build = readFileSync(join(root, 'build.ts'), 'utf8')
-    expect(build).toContain('process.env.STX_SOURCE_ROOT')
+    expect(build).toContain("from '@stacksjs/stx'")
+    expect(build).not.toContain('STX_SOURCE_ROOT')
     expect(build).not.toContain('Code/Tools/stx')
     expect(build).not.toContain("resolve(import.meta.dir, '../../Tools/stx')")
   })
