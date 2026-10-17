@@ -125,7 +125,7 @@ jobs:
 
   native-trail-ios:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       QA_PORT_BASE: '6320'
     steps:
@@ -172,5 +172,5 @@ jobs:
             storage/framework/runtime/e2e/native-trail/*.log
             storage/framework/runtime/e2e/native-trail/*.txt
             storage/framework/runtime/e2e/native-trail/*.png
-            storage/framework/runtime/e2e/native-trail/results.xcresult
+            storage/framework/runtime/e2e/native-trail/results-*.xcresult
           if-no-files-found: warn

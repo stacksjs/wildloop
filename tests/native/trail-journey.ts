@@ -1,8 +1,8 @@
 import type { SimulatorStep } from '@stacksjs/mobile/testing'
 
 /** Real native UI interactions against the isolated QA database. */
-export function nativeTrailJourney(input:{trailId:number,trailName:string,email:string,password:string,review:string,edit:string}):SimulatorStep[] {
-return [
+export function nativeTrailJourneys(input:{trailId:number,trailName:string,email:string,password:string,review:string,edit:string}):{name:string,steps:SimulatorStep[],completion:string}[] {
+const arrival:SimulatorStep[] = [
  {command:'launch'},
  {command:'expectid',text:'native-feed-scroll',seconds:15},
  {command:'openurl',url:`wildloop://login?next=/trail/${input.trailId}`},
@@ -20,14 +20,23 @@ return [
  {command:'expectid',text:'trail-native-map',seconds:15},
  {command:'shot',name:'native-trail-overview'},
  {command:'tree',name:'native-trail-overview'},
+]
+const maps:SimulatorStep[] = [
+ ...arrival,
  {command:'expectexact',text:'Save',seconds:30},
  {command:'tapid',text:'trail-save'},
  {command:'expect',text:'Saved',seconds:10},
  {command:'tapid',text:'trail-save'},
- {command:'scrollto',text:'Explore the route'},
+ {command:'expectexact',text:'Save',seconds:10},
+ {command:'scrollto',text:'Toggle elevation profile'},
  {command:'shot',name:'native-floating-profile-inline'},
  {command:'tapid',text:'trail-profile-toggle'},
+ {command:'expect',text:'Elevation profile collapsed',seconds:10},
+ {command:'scrollto',text:'Toggle elevation profile'},
+ {command:'shot',name:'native-profile-collapsed-inline'},
  {command:'tapid',text:'trail-profile-toggle'},
+ {command:'expect',text:'Elevation profile expanded',seconds:10},
+ {command:'scrollto',text:'Expand map'},
  {command:'tapid',text:'trail-map-fullscreen'},
  {command:'expectid',text:'trail-full-map',seconds:10},
  {command:'shot',name:'native-floating-profile-fullscreen'},
@@ -38,6 +47,7 @@ return [
  {command:'tapid',text:'map-3d'},
  {command:'tapid',text:'map-north'},
  {command:'tapid',text:'map-profile-toggle'},
+ {command:'expect',text:'Elevation profile collapsed',seconds:10},
  {command:'shot',name:'native-profile-collapsed'},
  {command:'tapid',text:'map-profile-toggle'},
  {command:'tapid',text:'map-layer'},
@@ -45,6 +55,10 @@ return [
  {command:'tapexact',text:'Satellite'},
  {command:'shot',name:'native-satellite'},
  {command:'back'},
+ {command:'expectid',text:'trail-sticky-actions',seconds:10},
+]
+const reviews:SimulatorStep[] = [
+ ...arrival,
  {command:'scrollto',text:'Leave a review'},
  {command:'tapid',text:'trail-write-review'},
  {command:'expectid',text:'trail-review-composer',seconds:10},
@@ -67,5 +81,9 @@ return [
  {command:'absent',text:input.review},
  {command:'shot',name:'native-review-deleted'},
  {command:'tree',name:'native-review-deleted'},
+]
+return [
+ {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
+ {name:'reviews',steps:reviews,completion:`PASS absent ${input.review}`},
 ]
 }

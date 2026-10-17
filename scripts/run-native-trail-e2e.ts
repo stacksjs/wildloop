@@ -4,7 +4,7 @@ import process from 'node:process'
 import { generateXcodeProject, resolveXcodegen } from '@stacksjs/actions/build/ios-toolchain'
 import { prepareIosSimulatorDriver, serializeSimulatorSteps } from '@stacksjs/mobile/testing'
 import mobile from '../config/mobile'
-import { nativeTrailJourney } from '../tests/native/trail-journey'
+import { nativeTrailJourneys } from '../tests/native/trail-journey'
 import { QA_PORTS } from '../tests/browser/qa-ports'
 import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
 import { IOS_SIMULATOR_SIGNING, validateGeneratedNativeApp, validateIosAppBundle } from './run-mobile-e2e'
@@ -31,7 +31,9 @@ export async function runNativeTrailE2e(): Promise<void> {
   const qa=Bun.spawn(['bun','scripts/start-recording-qa.ts'],{stdout:Bun.file(join(root,'qa-server.log')),stderr:'inherit'})
   let control:ReturnType<typeof Bun.serve>|undefined
   let nativeRun:ReturnType<typeof Bun.spawn>|undefined
-  let failed=false
+  let activeJourney='maps'
+  let activeScript=''
+  const failures:string[]=[]
   try {
     const deadline=Date.now()+180000
     while(true){
@@ -48,25 +50,25 @@ export async function runNativeTrailE2e(): Promise<void> {
     }
     if(!trail)throw new Error('Native trail QA requires its seeded recorded route.')
     const review=`Native QA ${crypto.randomUUID().slice(0,8)}: clear signposts and a beautiful ridge.`
-    const journey=serializeSimulatorSteps(nativeTrailJourney({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit:' Updated after a return visit.'}))
+    const journeys=nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit:' Updated after a return visit.'})
     const controlPort=QA_PORTS.app+15
     const driver=prepareIosSimulatorDriver({...mobile.ios,simulator:{output:join(root,'driver'),projectName:'WildloopTrailDriver',bundleIdPrefix:'org.wildloop.trailqa',controlUrl:`http://127.0.0.1:${controlPort}`}})
     control=Bun.serve({hostname:'127.0.0.1',port:controlPort,idleTimeout:120,async fetch(request){
       const url=new URL(request.url)
-      if(url.pathname==='/script')return new Response(journey)
+      if(url.pathname==='/script')return new Response(activeScript)
       if(url.pathname==='/note' && request.method==='POST'){
         const line=await request.text()
         if(line.startsWith('FAIL ')) {
-          failed=true
-          await command(['xcrun','simctl','io',device,'screenshot',join(root,'native-failure.png')],'failure-screenshot.log').catch(cause=>console.warn(String(cause)))
+          if(!failures.includes(activeJourney))failures.push(activeJourney)
+          await command(['xcrun','simctl','io',device,'screenshot',join(root,`${activeJourney}-native-failure.png`)],`${activeJourney}-failure-screenshot.log`).catch(cause=>console.warn(String(cause)))
         }
-        await appendFile(join(root,'driver.log'),`${line}\n`)
+        await appendFile(join(root,`driver-${activeJourney}.log`),`${line}\n`)
         return new Response('ok')
       }
       if(url.pathname==='/save' && request.method==='POST'){
         const name=url.searchParams.get('name') ?? ''
         if(!/^[a-z0-9-]+\.(png|txt)$/.test(name))return new Response('Invalid name',{status:422})
-        await writeFile(join(root,name),new Uint8Array(await request.arrayBuffer()))
+        await writeFile(join(root,`${activeJourney}-${name}`),new Uint8Array(await request.arrayBuffer()))
         return new Response('ok')
       }
       return new Response('Not found',{status:404})
@@ -92,14 +94,20 @@ export async function runNativeTrailE2e(): Promise<void> {
     const tool=await resolveXcodegen(process.cwd())
     generateXcodeProject(tool,driver.output)
     await writeFile(join(root,'driver-generation.log'),JSON.stringify({package:tool.pkg,version:tool.version})+'\n')
-    nativeRun=Bun.spawn(['xcodebuild','-project',join(driver.output,`${driver.projectName}.xcodeproj`),'-scheme',driver.projectName,'-destination',`id=${device}`,'-derivedDataPath',join(root,'driver-build'),'-resultBundlePath',join(root,'results.xcresult'),'-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1','-collect-test-diagnostics','never','-jobs','2','CODE_SIGNING_ALLOWED=NO','test'],{stdout:Bun.file(join(root,'driver-build-test.log')),stderr:'inherit'})
-    const status=await nativeRun.exited
-    if(status || failed) {
-      await command(['xcrun','simctl','spawn',device,'log','show','--last','5m','--style','compact','--predicate','process == "Wildloop"'],'app-runtime.log').catch(cause=>console.warn(String(cause)))
-      throw new Error('Native trail journey failed. Inspect its XCTest result, driver log and screenshots.')
+    for(const journey of journeys) {
+      activeJourney=journey.name
+      activeScript=serializeSimulatorSteps(journey.steps)
+      nativeRun=Bun.spawn(['xcodebuild','-project',join(driver.output,`${driver.projectName}.xcodeproj`),'-scheme',driver.projectName,'-destination',`id=${device}`,'-derivedDataPath',join(root,'driver-build'),'-resultBundlePath',join(root,`results-${activeJourney}.xcresult`),'-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1','-collect-test-diagnostics','never','-jobs','2','CODE_SIGNING_ALLOWED=NO','test'],{stdout:Bun.file(join(root,`driver-${activeJourney}-build-test.log`)),stderr:'inherit'})
+      const status=await nativeRun.exited
+      const notes=await Bun.file(join(root,`driver-${activeJourney}.log`)).text().catch(()=>'')
+      if(status || failures.includes(activeJourney) || !notes.includes(journey.completion)) {
+        if(!failures.includes(activeJourney))failures.push(activeJourney)
+        // Direct XCTest tap failures can stop before the driver's FAIL note.
+        await command(['xcrun','simctl','io',device,'screenshot',join(root,`${activeJourney}-native-failure.png`)],`${activeJourney}-failure-screenshot.log`).catch(cause=>console.warn(String(cause)))
+        await command(['xcrun','simctl','spawn',device,'log','show','--last','5m','--style','compact','--predicate','process == "Wildloop"'],`${activeJourney}-app-runtime.log`).catch(cause=>console.warn(String(cause)))
+      }
     }
-    const notes=await Bun.file(join(root,'driver.log')).text()
-    if(!notes.includes(`PASS absent ${review}`))throw new Error('Native review lifecycle did not reach its final deletion assertion.')
+    if(failures.length)throw new Error(`Native trail QA failed: ${failures.join(', ')}. Inspect the separate XCTest results, driver logs and screenshots.`)
     console.log('Native trail map, sticky save and review create/edit/delete journey passed.')
   }
   finally {

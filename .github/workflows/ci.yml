@@ -89,6 +89,9 @@ jobs:
       - name: Typecheck
         run: bun buddy test:types
 
+      - name: Typecheck application
+        run: bun run typecheck:app
+
   test:
     runs-on: ${{ matrix.os }}
     permissions:
