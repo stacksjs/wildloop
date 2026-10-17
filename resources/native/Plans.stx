@@ -2,6 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
 import { readNativeAccount } from '../functions/native-session'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { addDays, localDate, planDirections, PLAN_ACTIVITIES, planReminderBody, validateTripPlan, type TripPlan } from '../functions/trip-plans'
 const craft=(globalThis as typeof globalThis & {craft:NativeCraft}).craft
@@ -107,7 +108,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{rows.set([]);editing.set(false);own
 </script>
 <View :class="ui.screen">
   <ScrollView class="flex-1 pb-6" :refreshing="loading" @refresh="load()" testID="native-plans">
-    <Button :class="ui.action" class="m-4" testID="plan-new" @click="edit()"><Text :class="ui.actionText">Plan a visit</Text></Button>
+    <Button :class="ui.action" class="m-4" testID="plan-new" @click="edit()" title="Plan a visit" />
     <Text :show="error" :text="error" :class="ui.danger" class="m-4" testID="plan-error" />
     <Text :show="notice" :text="notice" :class="ui.body" class="m-4" />
     <Text :show="!loading() && !rows().length" :class="ui.caption" class="m-4">Your upcoming trail days will appear here.</Text>
@@ -125,14 +126,14 @@ onMount(()=>onNativeAccountChange(craft,()=>{rows.set([]);editing.set(false);own
       <Text :class="ui.caption" class="mt-4">Name</Text><TextInput testID="plan-title" :class="ui.input" :value="title" @input="title.set($event.text||'')" />
       <Text :class="ui.caption" class="mt-4">Date</Text><DatePicker testID="plan-date" mode="date" display="compact" :value="date" :minimumDate="today()" @change="date.set(String($event.value).slice(0,10))" />
       <Text :class="ui.caption" class="mt-4">Start time (optional, HH:MM)</Text><TextInput testID="plan-time" :class="ui.input" :value="time" @input="time.set($event.text||'')" />
-      <Text :class="ui.caption" class="mt-4">Activity</Text><Picker :value="activity" :options="PLAN_ACTIVITIES.map(value=>({value,label:value}))" @change="activity.set($event.value)" />
+      <Text :class="ui.caption" class="mt-4">Activity</Text><Button :class="ui.secondary" :title="'Activity' + ': ' + nativeChoiceLabel(PLAN_ACTIVITIES.map(value=>({value,label:value})),activity())" :accessibilityValue="{text:nativeChoiceLabel(PLAN_ACTIVITIES.map(value=>({value,label:value})),activity())}" @click="chooseNativeChoice(craft,'Activity',PLAN_ACTIVITIES.map(value=>({value,label:value})),choice=>{activity.set(choice)},message=>error.set(message))" />
       <Text :class="ui.caption" class="mt-4">Trailhead latitude and longitude</Text>
       <TextInput testID="plan-latitude" accessibilityLabel="Latitude" :class="ui.input" :value="latitude" keyboardType="numbers-and-punctuation" @input="latitude.set($event.text||'')" />
       <TextInput testID="plan-longitude" accessibilityLabel="Longitude" :class="ui.input" :value="longitude" keyboardType="numbers-and-punctuation" @input="longitude.set($event.text||'')" />
       <Button @click="craft.navigation.open('/trails')">Choose a trail</Button>
       <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="plan-notes" :class="ui.input" :multiline="true" :value="notes" @input="notes.set($event.text||'')" />
       <Text :show="error" :text="error" :class="ui.danger" class="my-4" />
-      <Button testID="plan-save" :disabled="busy" :class="ui.action" @click="save()"><Text :class="ui.actionText">Save plan</Text></Button><Button class="mt-3" @click="editing.set(false)">Close</Button>
+      <Button testID="plan-save" :disabled="busy" :class="ui.action" @click="save()" title="Save plan" /><Button class="mt-3" @click="editing.set(false)">Close</Button>
     </ScrollView></KeyboardAvoidingView>
   </Modal>
 </View>

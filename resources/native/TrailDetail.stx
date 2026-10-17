@@ -2,6 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, loadOutcome, nativeApiOrigin } from '../functions/native-api'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { decodeRouteParts } from '../functions/trail-geometry'
@@ -308,7 +309,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <Button testID="trail-map-fullscreen" :class="ui.secondary" @click="craft.navigation.open('/trail/' + wanted + '/map')">Expand map</Button>
         </View>
         <Button testID="trail-map-export" :disabled="!routeAvailable()" :class="ui.secondary" class="mt-2" @click="exportRoute()">Export GPX</Button>
-        <Picker testID="trail-map-layer" accessibilityLabel="Map layer" :value="mapType" :options="nativeBasemapOptions" @change="mapType.set($event.value)" />
+        <Button testID="trail-map-layer" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" :accessibilityValue="{text:nativeChoiceLabel(nativeBasemapOptions,mapType())}" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
 
       </View>
       <Text :class="ui.header">Conditions</Text>
@@ -327,7 +328,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       <Text :class="ui.header">Reviews</Text>
       <View :class="ui.card">
         <Text :text="trail()?.reviewCount ? trail().rating.toFixed(1) + ' out of 5, ' + trail().reviewCount + ' reviews' : 'No ratings yet'" :class="ui.title" />
-        <Button testID="trail-write-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.action" @click="editReview()"><Text :class="ui.actionText" :text="loading() ? 'Loading your review…' : !viewerReady() ? 'Review unavailable' : ownReview() ? 'Edit your review' : 'Leave a review'" /></Button>
+        <Button testID="trail-write-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.action" @click="editReview()" :title="loading() ? 'Loading your review…' : !viewerReady() ? 'Review unavailable' : ownReview() ? 'Edit your review' : 'Leave a review'" />
         <Button :show="ownReview()" testID="trail-delete-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.danger" @click="deleteReview()">Delete your review</Button>
         <Text :show="!reviews().length" :class="ui.caption">No reviews yet. Yours would be the first.</Text>
         <View :for="review in reviews()" :key="review.id" class="mt-5 gap-2">
@@ -342,7 +343,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
     <Text :show="notice" :text="notice" :class="ui.caption" class="m-4" testID="trail-notice" />
   </ScrollView>
   <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-white dark:bg-[#1b2c22]" testID="trail-sticky-actions">
-    <Button testID="trail-save" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()"><Text :class="ui.actionText" :text="loading() ? 'Loading…' : !viewerReady() ? 'Save unavailable' : saved() ? 'Saved' : 'Save'" /></Button>
+    <Button testID="trail-save" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()" :title="loading() ? 'Loading…' : !viewerReady() ? 'Save unavailable' : saved() ? 'Saved' : 'Save'" />
     <Button testID="trail-directions" :class="ui.secondary" @click="directions()">Directions</Button>
     <Button testID="trail-share" :class="ui.secondary" @click="shareTrail()">Share</Button>
   </View>
@@ -362,14 +363,14 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <Button testID="trail-review-clear-date" @click="visitDate.set('')">Clear date</Button>
         </View>
         <Text :class="ui.caption">Conditions (optional)</Text>
-        <Picker testID="trail-review-conditions" accessibilityLabel="Conditions" :value="conditions" :options="[{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))]" @change="conditions.set($event.value)" />
+        <Button testID="trail-review-conditions" :class="ui.secondary" :title="'Conditions' + ': ' + nativeChoiceLabel([{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],conditions())" :accessibilityValue="{text:nativeChoiceLabel([{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],conditions())}" @click="chooseNativeChoice(craft,'Conditions',[{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],choice=>{conditions.set(choice)},message=>error.set(message))" />
         <Text :class="ui.caption">Difficulty (optional)</Text>
-        <Picker testID="trail-review-difficulty" accessibilityLabel="Difficulty" :value="difficulty" :options="[{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS]" @change="difficulty.set($event.value)" />
+        <Button testID="trail-review-difficulty" :class="ui.secondary" :title="'Difficulty' + ': ' + nativeChoiceLabel([{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],difficulty())" :accessibilityValue="{text:nativeChoiceLabel([{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],difficulty())}" @click="chooseNativeChoice(craft,'Difficulty',[{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],choice=>{difficulty.set(choice)},message=>error.set(message))" />
         <Button testID="trail-review-add-photo" :disabled="busy" @click="pickReviewPhoto()">Add a photo</Button>
         <Text :show="photoDrafts().length" :text="photoDrafts().length + ' new photos selected. Existing review photos will be kept.'" :class="ui.caption" />
         <View :for="(draft,index) in photoDrafts()" :key="draft.file.path" class="gap-2 my-2"><Image :source="{uri:draft.file.path}" class="h-32 w-full rounded-[8px]" resizeMode="cover" /><Button :disabled="busy" @click="photoDrafts.set(photoDrafts().filter((entry,at)=>at!==index))">Remove selected photo</Button></View>
         <Text :show="formError" :text="formError" :class="ui.danger" testID="trail-review-error" />
-        <Button testID="trail-review-submit" :disabled="busy" :class="ui.action" @click="submitReview()"><Text :class="ui.actionText" :text="busy() ? 'Saving…' : 'Save review'" /></Button>
+        <Button testID="trail-review-submit" :disabled="busy" :class="ui.action" @click="submitReview()" :title="busy() ? 'Saving…' : 'Save review'" />
         <Button testID="trail-review-cancel" :disabled="busy" :class="ui.secondary" @click="composer.set(false)">Cancel</Button>
       </ScrollView>
     </KeyboardAvoidingView>

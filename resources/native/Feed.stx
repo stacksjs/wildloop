@@ -1,6 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { routeShapeFor } from '../functions/route-shape'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
@@ -68,8 +69,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); kudosed.set({})
       <Button :class="ui.secondary" @click="craft.navigation.open('/activity/new')">Log activity</Button>
       <Button :class="ui.secondary" @click="craft.navigation.open('/trails')">Find a trail</Button>
     </View>
-    <Picker testID="feed-scope" class="mx-4 mt-3" accessibilityLabel="Feed" :value="scope" :options="[{value:'all',label:'Everyone'},{value:'following',label:'Following'}]" @change="chooseScope($event.value)" />
-    <Picker testID="feed-type" class="mx-4 mt-3" accessibilityLabel="Activity type" :value="filter" :options="[{value:'all',label:'All activities'}, ...['Trail Run','Hike','Walk','Bike'].map(value => ({value,label:value}))]" @change="filter.set($event.value);load()" />
+    <Button testID="feed-scope" class="mx-4 mt-3" :class="ui.secondary" :title="'Feed' + ': ' + nativeChoiceLabel([{value:'all',label:'Everyone'},{value:'following',label:'Following'}],scope())" :accessibilityValue="{text:nativeChoiceLabel([{value:'all',label:'Everyone'},{value:'following',label:'Following'}],scope())}" @click="chooseNativeChoice(craft,'Feed',[{value:'all',label:'Everyone'},{value:'following',label:'Following'}],choice=>{chooseScope(choice)},message=>error.set(message))" />
+    <Button testID="feed-type" class="mx-4 mt-3" :class="ui.secondary" :title="'Activity type' + ': ' + nativeChoiceLabel([{value:'all',label:'All activities'}, ...['Trail Run','Hike','Walk','Bike'].map(value => ({value,label:value}))],filter())" :accessibilityValue="{text:nativeChoiceLabel([{value:'all',label:'All activities'}, ...['Trail Run','Hike','Walk','Bike'].map(value => ({value,label:value}))],filter())}" @click="chooseNativeChoice(craft,'Activity type',[{value:'all',label:'All activities'}, ...['Trail Run','Hike','Walk','Bike'].map(value => ({value,label:value}))],choice=>{filter.set(choice);load()},message=>error.set(message))" />
     <Text :show="error" :text="error" :class="ui.danger" class="m-4" testID="feed-error" />
     <ActivityIndicator :show="loading" testID="feed-loading" />
     <Text :show="!loading() && !shown().length" :class="ui.caption" class="m-4">No activities here yet. Record a run or explore a trail.</Text>

@@ -3,6 +3,7 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
 import { exportNativeGpx } from '../functions/native-export'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const id = Number(craft.route.params.id)
@@ -116,7 +117,7 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
         <Text :text="activity()?.activityType || ''" :class="ui.title" />
         <Text :text="(activity()?.distance || 0) + ' mi · ' + (activity()?.duration || '') + ' · ' + (activity()?.elevation || 0) + ' ft'" :class="ui.body" />
         <Text :show="activity()?.notes" :text="activity()?.notes || ''" :class="ui.body" />
-        <Map :tileOverlay="nativeOutdoorTiles" :show="route().length >= 4" :fitToBounds="true" :showsCompass="true" class="h-[320px] rounded-[12px]">
+        <Map testID="activity-native-map" :tileOverlay="nativeOutdoorTiles" :show="route().length >= 4" :fitToBounds="true" :showsCompass="true" class="h-[320px] rounded-[12px]">
           <MapPolyline :geometry="route()" strokeColor="#24724b" :strokeWidth="4" />
         </Map>
         <View :for="photo in activity()?.photos ?? []" :key="photo.id"><Image :source="{uri:photoUrl(photo)}" class="h-48 w-full rounded-[12px]" resizeMode="cover" /><Button :show="own" :disabled="busy" @click="removePhoto(photo)">Delete photo</Button></View>
@@ -131,20 +132,20 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
           <Text :text="entry.body" :class="ui.body" />
         </View>
         <TextInput testID="activity-comment" accessibilityLabel="Comment" :value="comment" :multiline="true" :class="ui.input" placeholder="Add a comment" @input="comment.set($event.text || '')" />
-        <Button testID="activity-comment-submit" :disabled="busy || !comment().trim()" :class="ui.action" @click="postComment()"><Text :class="ui.actionText">Post comment</Text></Button>
+        <Button testID="activity-comment-submit" :disabled="busy || !comment().trim()" :class="ui.action" @click="postComment()" title="Post comment" />
       </View>
     </View>
   </ScrollView>
   <Modal :visible="editing" presentationStyle="pageSheet" @requestClose="editing.set(false)">
     <KeyboardAvoidingView :class="ui.screen"><ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
       <Text :class="ui.title">Edit activity</Text>
-      <Text :class="ui.caption" class="mt-4">Activity type</Text><Picker :value="editType" :options="['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value}))" @change="editType.set($event.value)" />
+      <Text :class="ui.caption" class="mt-4">Activity type</Text><Button :class="ui.secondary" :title="'Activity type' + ': ' + nativeChoiceLabel(['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),editType())" :accessibilityValue="{text:nativeChoiceLabel(['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),editType())}" @click="chooseNativeChoice(craft,'Activity type',['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),choice=>{editType.set(choice)},message=>error.set(message))" />
       <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="activity-edit-notes" :class="ui.input" :value="editNotes" :multiline="true" @input="editNotes.set($event.text)" />
-      <Text :class="ui.caption" class="mt-4">Visibility</Text><Picker :value="editVisibility" :options="['public','followers','private'].map(value=>({value,label:value}))" @change="editVisibility.set($event.value)" />
+      <Text :class="ui.caption" class="mt-4">Visibility</Text><Button :class="ui.secondary" :title="'Visibility' + ': ' + nativeChoiceLabel(['public','followers','private'].map(value=>({value,label:value})),editVisibility())" :accessibilityValue="{text:nativeChoiceLabel(['public','followers','private'].map(value=>({value,label:value})),editVisibility())}" @click="chooseNativeChoice(craft,'Visibility',['public','followers','private'].map(value=>({value,label:value})),choice=>{editVisibility.set(choice)},message=>error.set(message))" />
       <View :show="!activity()?.hasGps" class="gap-3 mt-4"><Text :class="ui.caption">Distance (mi)</Text><TextInput :class="ui.input" :value="editDistance" keyboardType="decimal-pad" @input="editDistance.set($event.text)" /><Text :class="ui.caption">Elevation gain (ft)</Text><TextInput :class="ui.input" :value="editElevation" keyboardType="decimal-pad" @input="editElevation.set($event.text)" /><Text :class="ui.caption">Elapsed time (m:ss or h:mm:ss)</Text><TextInput :class="ui.input" :value="editDuration" @input="editDuration.set($event.text)" /></View>
       <Text :show="activity()?.hasGps" :class="ui.caption" class="mt-4">GPS distance, elevation and time are recorded measurements.</Text>
       <Text :show="error" :text="error" :class="ui.danger" class="my-4" />
-      <Button testID="activity-edit-save" :disabled="busy" :class="ui.action" class="mt-4" @click="save()"><Text :class="ui.actionText">Save changes</Text></Button><Button :disabled="busy" @click="editing.set(false)">Cancel</Button>
+      <Button testID="activity-edit-save" :disabled="busy" :class="ui.action" class="mt-4" @click="save()" title="Save changes" /><Button :disabled="busy" @click="editing.set(false)">Cancel</Button>
     </ScrollView></KeyboardAvoidingView>
   </Modal>
 </KeyboardAvoidingView>

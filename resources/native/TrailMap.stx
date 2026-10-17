@@ -2,6 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi } from '../functions/native-api'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { decodeRouteParts } from '../functions/trail-geometry'
@@ -97,7 +98,7 @@ onMount(() => { void load(); return () => { alive = false } })
       <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
     </Map>
     <View class="absolute top-3 left-3 right-3 flex-row flex-wrap gap-2">
-      <Picker testID="map-layer" accessibilityLabel="Map layer" :value="mapType" :options="nativeBasemapOptions" @change="mapType.set($event.value)" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" />
+      <Button testID="map-layer" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" :accessibilityValue="{text:nativeChoiceLabel(nativeBasemapOptions,mapType())}" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
       <Button testID="map-3d" :class="ui.secondary" :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" />
       <Button testID="map-north" :class="ui.secondary" @click="heading.set(0)">North</Button>
     </View>

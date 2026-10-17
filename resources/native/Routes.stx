@@ -3,6 +3,7 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import type { RoutePair } from '../functions/trail-geometry'
 import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { decodeRouteParts } from '../functions/trail-geometry'
 import { toPlaceResult } from '../composables/usePlaceSearch'
@@ -182,13 +183,13 @@ onMount(()=>onNativeAccountChange(craft,()=>{accountGeneration++;editGeneration+
     </Map>
     <View :class="ui.card" class="mt-3 gap-3">
       <Text :text="distance().toFixed(2) + ' mi' + (elevation() === null ? '' : ' · ' + Math.round(elevation()) + ' ft gain')" :class="ui.title" />
-      <Picker :show="seedParts().length > 1" accessibilityLabel="Trail section" :value="selectedPart" :options="seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index}))" @change="selectSeed(Number($event.value))" />
+      <Button :show="seedParts().length > 1" :class="ui.secondary" :title="'Trail section' + ': ' + nativeChoiceLabel(seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index})),selectedPart())" :accessibilityValue="{text:nativeChoiceLabel(seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index})),selectedPart())}" @click="chooseNativeChoice(craft,'Trail section',seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index})),choice=>{selectSeed(Number(choice))},message=>error.set(message))" />
       <View class="flex-row flex-wrap gap-2"><Button testID="route-undo" :disabled="busy" @click="undo()">Undo</Button><Button testID="route-loop" :disabled="busy || points().length < 2" @click="add({latitude:first()?.[0],longitude:first()?.[1]})">Close loop</Button><Button testID="route-clear" :disabled="busy" @click="clear()">Clear</Button><Button @click="region.set(null)">Fit route</Button><Button @click="locate()">My location</Button><Button :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" /></View>
-      <Picker accessibilityLabel="Map layer" :value="mapType" :options="nativeBasemapOptions" @change="mapType.set($event.value)" />
+      <Button :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" :accessibilityValue="{text:nativeChoiceLabel(nativeBasemapOptions,mapType())}" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
       <TextInput testID="route-name" :class="ui.input" placeholder="Route name" :value="name" :maxLength="200" @input="name.set($event.text)" />
       <Text :show="error" :text="error" :class="ui.danger" testID="route-error" /><Text :show="notice" :text="notice" :class="ui.caption" testID="route-notice" />
       <ActivityIndicator :show="busy" />
-      <Button testID="route-save" :disabled="busy" :class="ui.action" @click="save()"><Text :class="ui.actionText" :text="savedId() ? 'Update saved route' : 'Save route'" /></Button>
+      <Button testID="route-save" :disabled="busy" :class="ui.action" @click="save()" :title="savedId() ? 'Update saved route' : 'Save route'" />
       <Button testID="route-export" :disabled="busy || points().length < 2" @click="exportRoute()">Export GPX</Button>
       <Button :show="savedId()" @click="craft.navigation.open('/plans?route=' + savedId())">Plan a visit</Button>
     </View>

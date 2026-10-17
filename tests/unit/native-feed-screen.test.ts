@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const activity={id:7,userId:2,userName:'Trail friend',activityType:'Hike',title:'Ridge day',distance:3,duration:'1:00:00',elevationGain:300,kudosCount:1,viewerKudosed:true,route:[]}
 function ok(activities:unknown[]){return {status:200,headers:{'content-type':'application/json'},body:JSON.stringify({activities,meta:{hasMore:false}})}}
@@ -23,12 +23,12 @@ describe('native Feed',()=>{
   })
   it('asks the server for the entire selected activity type and following scope',async()=>{
     const screen=await open(),before=requests(screen).length
-    await screen.event('feed-type','onValueChange',{value:'Hike'})
+    await chooseNativeOption(screen,'feed-type','Hike')
     const typed=await waitForRequest(screen,before,r=>r.payload.module==='Network')
     expect(typed.payload.args[0].url).toContain('activity_type=Hike')
     answer(screen,typed,ok([activity]))
     const next=requests(screen).length
-    await screen.event('feed-scope','onValueChange',{value:'following'})
+    await chooseNativeOption(screen,'feed-scope','Following')
     const following=await waitForRequest(screen,next,r=>r.payload.module==='Network')
     expect(following.payload.args[0].url).toContain('scope=following')
     expect(following.payload.args[0].url).toContain('offset=0')
@@ -36,7 +36,7 @@ describe('native Feed',()=>{
   })
   it('opens native login when a guest chooses Following',async()=>{
     const screen=await open(null)
-    await screen.event('feed-scope','onValueChange',{value:'following'})
+    await chooseNativeOption(screen,'feed-scope','Following')
     expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=/feed')).toBe(true)
   })
 })

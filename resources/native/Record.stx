@@ -6,6 +6,7 @@ import { useIntervalFn } from '@stacksjs/composables'
 import { readNativeAccount } from '../functions/native-session'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { nativeRecordingDuration, movingSeconds, recordingFigures, recordingPayload, recordingSamples, type NativeRecording } from '../functions/native-recording'
 const craft = (globalThis as typeof globalThis & {craft:NativeCraft}).craft
@@ -210,25 +211,25 @@ onMount(()=>{
       <Text :text="figures().distance.toFixed(2) + ' mi'" class="text-[42px] font-bold text-[#192414] dark:text-white" testID="record-distance" />
       <Text :text="nativeRecordingDuration(movingTime()) + ' moving · ' + Math.round(figures().elevation) + ' ft gain'" :class="ui.body" testID="record-time" />
       <Text :text="running() ? (paused() ? 'Paused' : 'Recording GPS') : recording() ? 'Recording retained on device' : 'Ready to explore'" :class="ui.caption" testID="record-state" />
-      <Map :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
+      <Map testID="record-native-map" :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
         <MapPolyline :geometry="coordinates()" strokeColor="#24724b" :strokeWidth="5" />
       </Map>
     </View>
     <View :show="!recording()" :class="ui.card" class="mt-4 gap-3">
-      <Text :class="ui.caption">Activity</Text><Picker testID="record-type" :value="activityType" :options="['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value}))" @change="activityType.set($event.value)" />
-      <Text :class="ui.caption">Visibility</Text><Picker testID="record-visibility" :value="visibility" :options="['public','followers','private'].map(value=>({value,label:value}))" @change="visibility.set($event.value)" />
-      <Text :class="ui.caption">Territory game</Text><Picker testID="record-mode" :value="gameMode" :options="[{value:'capture',label:'Capture territory'},{value:'free',label:'Free activity'}]" @change="gameMode.set($event.value)" />
+      <Text :class="ui.caption">Activity</Text><Button testID="record-type" :class="ui.secondary" :title="'Activity' + ': ' + nativeChoiceLabel(['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),activityType())" :accessibilityValue="{text:nativeChoiceLabel(['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),activityType())}" @click="chooseNativeChoice(craft,'Activity',['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),choice=>{activityType.set(choice)},message=>error.set(message))" />
+      <Text :class="ui.caption">Visibility</Text><Button testID="record-visibility" :class="ui.secondary" :title="'Visibility' + ': ' + nativeChoiceLabel(['public','followers','private'].map(value=>({value,label:value})),visibility())" :accessibilityValue="{text:nativeChoiceLabel(['public','followers','private'].map(value=>({value,label:value})),visibility())}" @click="chooseNativeChoice(craft,'Visibility',['public','followers','private'].map(value=>({value,label:value})),choice=>{visibility.set(choice)},message=>error.set(message))" />
+      <Text :class="ui.caption">Territory game</Text><Button testID="record-mode" :class="ui.secondary" :title="'Territory game' + ': ' + nativeChoiceLabel([{value:'capture',label:'Capture territory'},{value:'free',label:'Free activity'}],gameMode())" :accessibilityValue="{text:nativeChoiceLabel([{value:'capture',label:'Capture territory'},{value:'free',label:'Free activity'}],gameMode())}" @click="chooseNativeChoice(craft,'Territory game',[{value:'capture',label:'Capture territory'},{value:'free',label:'Free activity'}],choice=>{gameMode.set(choice)},message=>error.set(message))" />
       <Text :class="ui.caption">Only verified GPS tracks can capture territory. Your activity visibility controls who can see it.</Text>
       <Button @click="craft.navigation.open('/activity/new')">Log a manual activity instead</Button>
     </View>
   </ScrollView>
   <View class="px-4 py-3 gap-2 bg-white dark:bg-[#1b2c22]">
-    <Button :show="!recording()" testID="record-start" :disabled="busy || loading" :class="ui.action" @click="start()"><Text :class="ui.actionText">Start recording</Text></Button>
+    <Button :show="!recording()" testID="record-start" :disabled="busy || loading" :class="ui.action" @click="start()" title="Start recording" />
     <View :show="running()" class="flex-row gap-3">
       <Button testID="record-pause" :disabled="busy" :class="ui.secondary" class="flex-1" @click="togglePause()" :text="paused() ? 'Resume' : 'Pause'" />
-      <Button testID="record-finish" :disabled="busy" :class="ui.action" class="flex-1" @click="finish()"><Text :class="ui.actionText">Finish and save</Text></Button>
+      <Button testID="record-finish" :disabled="busy" :class="ui.action" class="flex-1" @click="finish()" title="Finish and save" />
     </View>
-    <Button :show="recording()?.pending" testID="record-retry" :disabled="busy" :class="ui.action" @click="retry()"><Text :class="ui.actionText">Retry upload</Text></Button>
+    <Button :show="recording()?.pending" testID="record-retry" :disabled="busy" :class="ui.action" @click="retry()" title="Retry upload" />
     <Button :show="recording() && !running() && !recording()?.pending" :disabled="busy" @click="finish()">Save retained recording</Button>
     <Button :show="recording() && !running()" :disabled="busy" :class="ui.danger" @click="discard()">Discard recording</Button>
   </View>

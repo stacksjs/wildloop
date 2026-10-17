@@ -51,7 +51,7 @@ export async function runNativeTrailE2e(): Promise<void> {
     const journey=serializeSimulatorSteps(nativeTrailJourney({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit:' Updated after a return visit.'}))
     const controlPort=QA_PORTS.app+15
     const driver=prepareIosSimulatorDriver({...mobile.ios,simulator:{output:join(root,'driver'),projectName:'WildloopTrailDriver',bundleIdPrefix:'org.wildloop.trailqa',controlUrl:`http://127.0.0.1:${controlPort}`}})
-    control=Bun.serve({hostname:'127.0.0.1',port:controlPort,async fetch(request){
+    control=Bun.serve({hostname:'127.0.0.1',port:controlPort,idleTimeout:120,async fetch(request){
       const url=new URL(request.url)
       if(url.pathname==='/script')return new Response(journey)
       if(url.pathname==='/note' && request.method==='POST'){

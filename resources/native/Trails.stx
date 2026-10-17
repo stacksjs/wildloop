@@ -10,30 +10,7 @@ import {
   trailStatsLine,
 } from '../functions/trails'
 
-/*
- * The trail catalog, natively. Sixth list screen.
- *
- * The route on each row is an SVG polyline, not a map, and that is a choice
- * rather than a limit: the row draws a 96x64 thumbnail, where a pannable
- * `MKMapView` per row would be absurd. A bound `:geometry` on a `MapPolyline`
- * does work — stacksjs/stx#2073 said otherwise and was filed off a misreading
- * of the initial RENDER, which carries the binding marker and no array until
- * the first post-mount batch (tests/unit/native-conditional-timing.test.ts).
- * A whole-trail map screen is available whenever one is wanted.
- *
- * So the line is drawn rather than mapped, which is what the web card does
- * when a trail has no photo, for a better reason than a fallback: the line is
- * the one thing on the row that is actually this trail. `:points` on an SVG
- * polyline does bind, and the same `routeShapeFor` projection the website uses
- * puts it in the box — longitude squashed by the cosine of the latitude, so an
- * east-west ridge is not twice as wide as it is.
- *
- * Narrower than the web page by a long way. No filters (nine of them), no
- * radius or "near me" (geolocation is not in the native capability set), no
- * offline downloads, no reviewer faces, no photos. Search and the list, which
- * is what this screen is for. A row opens the trail's own page, which is a map
- * (craft-native/craft#340) and stays the website.
- */
+/** Native trail search, filters and private lists, with lightweight route thumbnails. */
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 
@@ -181,8 +158,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); mine.set([]); v
 
 <SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="trails-scroll" @refresh="load()" :refreshing="loading">
-    <Picker testID="trails-list" accessibilityLabel="Trail collection" :value="listMode" :options="[{label:'All trails',value:'all'},{label:'Saved',value:'saved'},{label:'Completed',value:'completed'}]" @change="chooseList($event.value)" />
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Half a million, by name, park or forest.</Text>
+    <Button testID="trails-list" :class="ui.secondary" :title="'Trail collection' + ': ' + nativeChoiceLabel([{label:'All trails',value:'all'},{label:'Saved',value:'saved'},{label:'Completed',value:'completed'}],listMode())" :accessibilityValue="{text:nativeChoiceLabel([{label:'All trails',value:'all'},{label:'Saved',value:'saved'},{label:'Completed',value:'completed'}],listMode())}" @click="chooseNativeChoice(craft,'Trail collection',[{label:'All trails',value:'all'},{label:'Saved',value:'saved'},{label:'Completed',value:'completed'}],choice=>{chooseList(choice)},message=>error.set(message))" />
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Find a trail by name, park, or forest.</Text>
 
     <View class="mt-4 gap-2">
       <TextInput
@@ -201,8 +178,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); mine.set([]); v
     <View :show="listMode() === 'all'" class="mt-3 gap-3">
       <View class="flex-row gap-3"><Button testID="trails-near-me" @click="locate()">Near me</Button><Button @click="showFilters.set(!showFilters())">Filters</Button><Button :show="nearby()" @click="nearby.set(null);load()">Anywhere</Button></View>
       <View :show="showFilters" class="gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-4">
-        <Text class="text-[#51604e] dark:text-[#b0bfac]">Difficulty</Text><Picker testID="trails-difficulty" :value="difficulty" :options="[{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}]" @change="difficulty.set($event.value);load()" />
-        <Text class="text-[#51604e] dark:text-[#b0bfac]">Route type</Text><Picker :value="routeType" :options="[{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}]" @change="routeType.set($event.value);load()" />
+        <Text class="text-[#51604e] dark:text-[#b0bfac]">Difficulty</Text><Button testID="trails-difficulty" :class="ui.secondary" :title="'Difficulty' + ': ' + nativeChoiceLabel([{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}],difficulty())" :accessibilityValue="{text:nativeChoiceLabel([{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}],difficulty())}" @click="chooseNativeChoice(craft,'Difficulty',[{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}],choice=>{difficulty.set(choice);load()},message=>error.set(message))" />
+        <Text class="text-[#51604e] dark:text-[#b0bfac]">Route type</Text><Button :class="ui.secondary" :title="'Route type' + ': ' + nativeChoiceLabel([{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}],routeType())" :accessibilityValue="{text:nativeChoiceLabel([{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}],routeType())}" @click="chooseNativeChoice(craft,'Route type',[{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}],choice=>{routeType.set(choice);load()},message=>error.set(message))" />
         <TextInput class="rounded-xl bg-[#f2f4ef] dark:bg-[#314536] p-3 text-[#192414] dark:text-white" placeholder="Country code, e.g. US" :value="country" autoCapitalize="characters" :maxLength="2" @input="country.set(eventText($event))" /><TextInput class="rounded-xl bg-[#f2f4ef] dark:bg-[#314536] p-3 text-[#192414] dark:text-white" placeholder="State or region code, e.g. CA" :value="stateCode" autoCapitalize="characters" @input="stateCode.set(eventText($event))" />
         <View class="flex-row justify-between items-center"><Text class="text-[#192414] dark:text-white">Dog friendly</Text><Switch :value="dogs" @change="dogs.set($event.value);load()" /></View><View class="flex-row justify-between items-center"><Text class="text-[#192414] dark:text-white">Accessible</Text><Switch :value="accessible" @change="accessible.set($event.value);load()" /></View>
         <View class="flex-row gap-4"><Button @click="load()">Apply location filters</Button><Button @click="resetFilters()">Reset filters</Button></View>

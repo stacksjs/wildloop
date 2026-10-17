@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeNodeProps, answer, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 describe('native account forms',()=>{
   beforeAll(compileNativeBundle,30000)
@@ -10,6 +10,7 @@ describe('native account forms',()=>{
     await screen.event('login-submit','onPress')
     answer(screen,await waitForRequest(screen,0,r=>r.payload.module==='SecureStorage'),null)
     const post=await waitForRequest(screen,0,r=>r.payload.module==='Network')
+    expect(nativeNodeProps(screen,'login-submit').title).toBe('Signing in…')
     expect(JSON.parse(post.payload.args[0].body)).toMatchObject({email:'native@example.test',password:'Native-QA-password'})
     answer(screen,post,{status:200,headers:{'content-type':'application/json'},body:JSON.stringify({token:'native-login-token',user:{id:7,name:'Native tester'}})})
     const bearer=await waitForRequest(screen,requests(screen).indexOf(post)+1,r=>r.payload.module==='SecureStorage' && r.payload.method==='set')

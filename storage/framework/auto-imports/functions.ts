@@ -67,6 +67,8 @@ export { nativeHeaders, loadOutcome, nativeApiOrigin, createNativeApi, onNativeA
 export type { NativeResponse, NativeApiHost, NativeApi } from '../../../resources/functions/native-api'
 export { startNativeApp } from '../../../resources/functions/native-app'
 export { nativeBasemap, nativeOutdoorTiles, nativeBasemapOptions } from '../../../resources/functions/native-basemaps'
+export { chooseNativeChoice, nativeChoiceLabel } from '../../../resources/functions/native-choice'
+export type { NativeChoice } from '../../../resources/functions/native-choice'
 export { nativeDestination, nativeShortcutDestination } from '../../../resources/functions/native-destinations'
 export { exportNativeGpx } from '../../../resources/functions/native-export'
 export { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../../../resources/functions/native-map'

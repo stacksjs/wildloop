@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, nativeNodeProps, requests, start, waitForGeometry, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForGeometry, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 function ok(body: unknown) { return {status:200,headers:{'content-type':'application/json'},body:JSON.stringify(body)} }
 async function open() {
-  const screen = await start('TrailMap',{id:'7'},['fetch','secureStorage','linking','share','files','geolocation'])
+  const screen = await start('TrailMap',{id:'7'},['fetch','secureStorage','linking','share','files','geolocation','dialog'])
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='SecureStorage'),null)
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='Network'),ok({trail:{id:7,name:'Ridge Loop',latitude:37.7,longitude:-119.5,geometry:JSON.stringify([[37.7,-119.5],[37.71,-119.51],[37.7,-119.5]])}}))
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.args?.[0]?.url?.endsWith('/profile')),ok({points:[{mi:0,ft:4000,lat:37.7,lng:-119.5},{mi:3,ft:4500,lat:37.71,lng:-119.51}]}))
@@ -15,7 +15,7 @@ describe('native full trail map',()=>{
   it('fits the recorded route with room for its floating card and supports zoom, layers and 3D',async()=>{
     const screen=await open()
     expect(nativeNodeProps(screen,'trail-full-map')).toMatchObject({fitToBounds:true,edgePadding:{bottom:240},showsCompass:true,showsScale:true,tileOverlay:{attribution:expect.stringContaining('Esri'),urlTemplate:expect.stringContaining('World_Topo_Map')}})
-    await screen.event('map-layer','onValueChange',{value:'satellite'})
+    await chooseNativeOption(screen,'map-layer','Satellite')
     await screen.event('map-3d','onPress')
     await screen.event('map-zoom-in','onPress')
     expect(nativeNodeProps(screen,'trail-full-map')).toMatchObject({mapType:'satellite',tileOverlay:null,cameraPitch:45,fitToBounds:false})

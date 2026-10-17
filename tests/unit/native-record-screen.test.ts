@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
@@ -17,6 +17,9 @@ describe('native Record checkpoint recovery',()=>{
   it('recovers a finished upload offline without starting another GPS recording',async()=>{
     const screen=await recover()
     await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')
+    expect(nativeNodeStyle(screen,'record-native-map').height).toBe(320)
+    expect(nativeNodeProps(screen,'record-retry').title).toBe('Retry upload')
+    expect(nativeNodeProps(screen,'record-start').title).toBe('Start recording')
     expect(requests(screen).some(r=>r.payload.method==='startRecording')).toBe(false)
     expect(requests(screen).some(r=>r.payload.module==='Network')).toBe(false)
     expect(shownText(screen).some(text=>text.includes('moving ·'))).toBe(true)

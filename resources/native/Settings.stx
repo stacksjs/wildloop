@@ -4,6 +4,7 @@ import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../func
 import { clearNativeSession, storeNativeSession } from '../functions/native-session'
 import { nativeOAuthCallback } from '../functions/native-oauth'
 import { formatHealthSummary } from '../functions/health-summary'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { validateProfileInput } from '../functions/profile-form'
 import { passwordChangeError } from '../functions/password-change'
@@ -193,7 +194,7 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
     <ActivityIndicator :show="loading" />
     <Text :show="error" :text="error" :class="ui.danger" class="m-4" testID="settings-error" />
     <Text :show="notice" :text="notice" :class="ui.body" class="m-4" testID="settings-notice" />
-    <Button :show="!user() && !loading()" :class="ui.action" class="m-4" @click="craft.navigation.open('/login?next=/settings')"><Text :class="ui.actionText">Log in</Text></Button>
+    <Button :show="!user() && !loading()" :class="ui.action" class="m-4" @click="craft.navigation.open('/login?next=/settings')" title="Log in" />
     <View :show="user()">
       <Text :class="ui.header">Profile</Text>
       <View :class="ui.card" class="gap-3">
@@ -203,12 +204,12 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
         <Text :class="ui.caption">Name</Text><TextInput testID="settings-name" accessibilityLabel="Name" :class="ui.input" :value="name" @input="name.set(field($event))" />
         <Text :class="ui.caption">Bio</Text><TextInput testID="settings-bio" accessibilityLabel="Bio" :class="ui.input" :value="bio" :multiline="true" :maxLength="280" @input="bio.set(field($event))" />
         <Text :class="ui.caption">Location</Text><TextInput testID="settings-location" accessibilityLabel="Location" :class="ui.input" :value="place" @input="place.set(field($event))" />
-        <Button testID="settings-save-profile" :disabled="busy" :class="ui.action" @click="saveProfile()"><Text :class="ui.actionText">Save profile</Text></Button>
+        <Button testID="settings-save-profile" :disabled="busy" :class="ui.action" @click="saveProfile()" title="Save profile" />
       </View>
       <Text :class="ui.header">Privacy and location safety</Text>
       <View :class="ui.card" class="gap-3">
         <Text :class="ui.caption">Default activity visibility</Text>
-        <Picker testID="settings-visibility" :value="visibility" :options="['public','followers','private'].map(value => ({value,label:value}))" @change="visibility.set($event.value)" />
+        <Button testID="settings-visibility" :class="ui.secondary" :title="'Default activity visibility' + ': ' + nativeChoiceLabel(['public','followers','private'].map(value => ({value,label:value})),visibility())" :accessibilityValue="{text:nativeChoiceLabel(['public','followers','private'].map(value => ({value,label:value})),visibility())}" @click="chooseNativeChoice(craft,'Default activity visibility',['public','followers','private'].map(value => ({value,label:value})),choice=>{visibility.set(choice)},message=>error.set(message))" />
         <Text :class="ui.caption">Hide the start and end of routes (metres)</Text><TextInput testID="settings-mask" :class="ui.input" :value="mask" keyboardType="decimal-pad" @input="mask.set(field($event))" />
         <Text :class="ui.caption">Home latitude and longitude (optional)</Text>
         <TextInput :class="ui.input" accessibilityLabel="Home latitude" :value="homeLat" keyboardType="numbers-and-punctuation" @input="homeLat.set(field($event))" />
@@ -216,7 +217,7 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
         <Text :class="ui.caption">Home safety radius (metres)</Text><TextInput :class="ui.input" :value="homeRadius" keyboardType="decimal-pad" @input="homeRadius.set(field($event))" />
         <View :class="ui.row"><Text :class="ui.body" class="flex-1">Exclude home from territory claims</Text><Switch :value="excludeHome" @change="excludeHome.set($event.value)" /></View>
         <View :class="ui.row"><Text :class="ui.body" class="flex-1">Show precise territories</Text><Switch :value="precise" @change="precise.set($event.value)" /></View>
-        <Button testID="settings-save-privacy" :disabled="busy || loading || !privacyReady()" :class="ui.action" @click="savePrivacy()"><Text :class="ui.actionText">Save privacy settings</Text></Button>
+        <Button testID="settings-save-privacy" :disabled="busy || loading || !privacyReady()" :class="ui.action" @click="savePrivacy()" title="Save privacy settings" />
       </View>
       <Text :class="ui.header">Connected devices</Text>
       <View :class="ui.card" class="gap-3">

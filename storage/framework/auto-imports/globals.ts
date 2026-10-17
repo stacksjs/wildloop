@@ -286,6 +286,8 @@ declare global {
   const nativeBasemap: typeof autoImports.nativeBasemap
   const nativeOutdoorTiles: typeof autoImports.nativeOutdoorTiles
   const nativeBasemapOptions: typeof autoImports.nativeBasemapOptions
+  const chooseNativeChoice: typeof autoImports.chooseNativeChoice
+  const nativeChoiceLabel: typeof autoImports.nativeChoiceLabel
   const nativeDestination: typeof autoImports.nativeDestination
   const nativeShortcutDestination: typeof autoImports.nativeShortcutDestination
   const exportNativeGpx: typeof autoImports.exportNativeGpx

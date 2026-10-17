@@ -8,9 +8,9 @@ export const nativeUi = {
   body: 'text-[17px] text-[#253321] dark:text-[#e3ecdf]',
   caption: 'text-[13px] text-[#51604e] dark:text-[#b0bfac]',
   input: 'min-h-[44px] rounded-[8px] px-3 py-2 text-[17px] text-[#192414] bg-[#eef2e9] dark:text-white dark:bg-[#314536]',
-  action: 'min-h-[48px] rounded-[12px] bg-[#24724b] items-center justify-center px-4',
+  action: 'text-[17px] font-semibold text-white min-h-[48px] rounded-[12px] bg-[#24724b] items-center justify-center px-4',
   actionText: 'text-[17px] font-semibold text-white',
-  secondary: 'min-h-[44px] rounded-[12px] bg-[#e7edde] dark:bg-[#314536] items-center justify-center px-3',
+  secondary: 'text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf] min-h-[44px] rounded-[12px] bg-[#e7edde] dark:bg-[#314536] items-center justify-center px-3',
   secondaryText: 'text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]',
   danger: 'text-[17px] text-[#b4232a] dark:text-[#ff8487]',
 } as const

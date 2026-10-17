@@ -49,7 +49,7 @@ export function nodesByTestId(node: any, found = new Map<string, string>()): Map
   return found
 }
 
-export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle']): Promise<NativeSession> {
+export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog']): Promise<NativeSession> {
   const sent: any[] = []
   let callback: (raw: string) => void = () => {}
   /*
@@ -154,11 +154,11 @@ export function requests(session: NativeSession): any[] {
 }
 
 /** Apply the host's prop patches before asserting the current visible state. */
-export function nativeNodeProps(session: NativeSession, testID: string): Record<string, any> {
+function nativeNodeField(session: NativeSession, testID: string, field:'props'|'style'): Record<string, any> {
   let id = ''
   let props: Record<string, any> = {}
   function find(node: any) {
-    if (node?.props?.testID === testID) { id = String(node.props.__stxId); props = { ...node.props } }
+    if (node?.props?.testID === testID) { id = String(node.props.__stxId); props = { ...node[field] } }
     for (const child of node?.children ?? []) if (child && typeof child === 'object') find(child)
   }
   for (const message of session.sent) {
@@ -166,11 +166,14 @@ export function nativeNodeProps(session: NativeSession, testID: string): Record<
     if (message.type !== 'MUTATE') continue
     for (const operation of message.payload.operations) {
       if (operation.op === 'createNode') find(operation.node)
-      if (operation.op === 'updateNode' && String(operation.id) === id) Object.assign(props, operation.patch?.props ?? {})
+      if (operation.op === 'updateNode' && String(operation.id) === id) Object.assign(props, operation.patch?.[field] ?? {})
     }
   }
   return props
 }
+
+export function nativeNodeProps(session:NativeSession,testID:string):Record<string,any> {return nativeNodeField(session,testID,'props')}
+export function nativeNodeStyle(session:NativeSession,testID:string):Record<string,any> {return nativeNodeField(session,testID,'style')}
 
 export async function waitForRequest(
   session: NativeSession,
@@ -343,4 +346,15 @@ export function visibility(session: NativeSession, testID: string): string {
     .map(operation => operation.patch.style.display)
 
   return display.at(-1) ?? (ids.size > 0 ? 'shown' : 'absent')
+}
+
+/** Choose through the actual system-sheet bridge, rather than synthesizing a Picker change. */
+export async function chooseNativeOption(session:NativeSession,testID:string,label:string):Promise<void> {
+  const before=requests(session).length
+  await session.event(testID,'onPress')
+  const sheet=await waitForRequest(session,before,request=>request.payload?.module==='Dialog' && request.payload?.method==='actionSheet')
+  const option=sheet.payload.args[0].actions.find((item:any)=>item.title===label)
+  expect(option,`Missing native choice ${label}`).toBeTruthy()
+  answer(session,sheet,option.id)
+  await Bun.sleep(0)
 }

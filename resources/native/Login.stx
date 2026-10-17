@@ -36,7 +36,7 @@ onMount(() => { craft.navigation.setOptions({ title: 'Log in', largeTitle: false
     <Text :class="ui.caption" class="mt-4">Password</Text>
     <TextInput testID="login-password" accessibilityLabel="Password" :class="ui.input" :value="password" :secureTextEntry="true" textContentType="password" @input="password.set($event.text || '')" />
     <Text :show="error" :text="error" :class="ui.danger" testID="login-error" class="my-4" />
-    <Button testID="login-submit" :disabled="busy" :class="ui.action" @click="login()"><Text :class="ui.actionText" :text="busy() ? 'Signing in…' : 'Log in'" /></Button>
+    <Button testID="login-submit" :disabled="busy" :class="ui.action" @click="login()" :title="busy() ? 'Signing in…' : 'Log in'" />
     <Button :class="ui.secondary" class="mt-4" @click="craft.navigation.open('/register')">Create an account</Button>
     <Button class="mt-4" @click="craft.navigation.open('/forgot-password')">Forgot your password?</Button>
   </ScrollView>

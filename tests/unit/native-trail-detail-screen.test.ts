@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 const LINE = [[37.7, -119.5], [37.71, -119.51], [37.72, -119.5]]
 const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.7, longitude: -119.5, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
@@ -26,6 +26,8 @@ describe('native trail details', () => {
   it('loads the actual route into native map geometry and displays forecast and surfaces', async () => {
     const screen = await open()
     expect(shownText(screen)).toContain('Native Ridge Loop')
+    expect(nativeNodeProps(screen,'trail-save').title).toBe('Save')
+    expect(nativeNodeProps(screen,'trail-write-review').title).toBe('Edit your review')
     expect(shownText(screen)).toContain('Natural')
     expect(shownText(screen)).toContain('Rock')
     expect(shownText(screen)).toContain('68°F, Clear')
@@ -33,7 +35,7 @@ describe('native trail details', () => {
   })
   it('changes map layer and camera through native bindings', async () => {
     const screen = await open()
-    await screen.event('trail-map-layer', 'onValueChange', { value: 'satellite' })
+    await chooseNativeOption(screen,'trail-map-layer','Satellite')
     await screen.event('trail-zoom-in', 'onPress')
     await screen.event('trail-fit-route', 'onPress')
     expect(props(screen).some(p => p.mapType === 'satellite')).toBe(true)

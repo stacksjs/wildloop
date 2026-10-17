@@ -40,7 +40,7 @@ onMount(() => { craft.navigation.setOptions({title:'Create an account',largeTitl
     <View :class="ui.row" class="mt-4"><Text :class="ui.body" class="flex-1">I agree to the terms of use</Text><Switch testID="register-terms" accessibilityLabel="Accept terms of use" :value="terms" @change="terms.set($event.value)" /></View>
     <View class="flex-row gap-4"><Button @click="craft.navigation.open('/terms')">Read terms</Button><Button @click="craft.navigation.open('/privacy')">Privacy policy</Button></View>
     <Text :show="error" :text="error" :class="ui.danger" class="my-4" testID="register-error" />
-    <Button testID="register-submit" :disabled="busy" :class="ui.action" @click="register()"><Text :class="ui.actionText" :text="busy() ? 'Creating account…' : 'Create account'" /></Button>
+    <Button testID="register-submit" :disabled="busy" :class="ui.action" @click="register()" :title="busy() ? 'Creating account…' : 'Create account'" />
     <Button class="mt-4" @click="craft.navigation.open('/login')">Already have an account? Log in</Button>
   </ScrollView>
 </KeyboardAvoidingView>
