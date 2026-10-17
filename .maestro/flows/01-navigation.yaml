@@ -11,7 +11,17 @@ tags:
       id: native-feed-scroll
     timeout: 30000
 - takeScreenshot: native-feed
-- tapOn: "^Menu$"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: craft-tab-/menu
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: "^Menu$"
 - extendedWaitUntil:
     visible:
       id: native-menu
@@ -23,7 +33,17 @@ tags:
       id: trails-scroll
     timeout: 30000
 - takeScreenshot: native-trails
-- tapOn: "^Record$"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: craft-tab-/record
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: "^Record$"
 - extendedWaitUntil:
     visible:
       id: record-start
