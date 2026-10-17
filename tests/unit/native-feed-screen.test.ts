@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { chooseNativeOption, answer, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const activity={id:7,userId:2,userName:'Trail friend',activityType:'Hike',title:'Ridge day',distance:3,duration:'1:00:00',elevationGain:300,kudosCount:1,viewerKudosed:true,route:[]}
 function ok(activities:unknown[]){return {status:200,headers:{'content-type':'application/json'},body:JSON.stringify({activities,meta:{hasMore:false}})}}
@@ -24,6 +24,7 @@ describe('native Feed',()=>{
   it('asks the server for the entire selected activity type and following scope',async()=>{
     const screen=await open(),before=requests(screen).length
     await chooseNativeOption(screen,'feed-type','Hike')
+    expect(nativeNodeProps(screen,'feed-type')).toMatchObject({accessibilityLabel:'Activity type',accessibilityValue:'Hike'})
     const typed=await waitForRequest(screen,before,r=>r.payload.module==='Network')
     expect(typed.payload.args[0].url).toContain('activity_type=Hike')
     answer(screen,typed,ok([activity]))

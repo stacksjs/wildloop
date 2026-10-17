@@ -63,7 +63,7 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); profile.set(n
         <Button :class="ui.secondary" @click="craft.navigation.open('/settings')">Edit profile</Button>
         <Button :class="ui.secondary" @click="craft.navigation.open('/athlete/' + user().id)">View public profile</Button>
       </View>
-      <Button class="mx-4 mt-4" :class="ui.secondary" :title="'Profile section' + ': ' + nativeChoiceLabel([{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],tab())" :accessibilityValue="{text:nativeChoiceLabel([{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],tab())}" @click="chooseNativeChoice(craft,'Profile section',[{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],choice=>{tab.set(choice)},message=>error.set(message))" />
+      <Button class="mx-4 mt-4" :class="ui.secondary" :title="'Profile section' + ': ' + nativeChoiceLabel([{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],tab())" accessibilityLabel="Profile section" :accessibilityValue="nativeChoiceLabel([{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],tab())" @click="chooseNativeChoice(craft,'Profile section',[{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],choice=>{tab.set(choice)},message=>error.set(message))" />
       <View :show="tab() === 'activities'">
         <Text :show="!activities().length" :class="ui.caption" class="m-4">No activities yet. Record one or log a past activity.</Text>
         <Pressable :for="activity in activities()" :key="activity.id" :class="ui.card" class="mt-3 gap-2" @click="craft.navigation.open('/activity/' + activity.id)">
