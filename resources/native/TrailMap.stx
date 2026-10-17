@@ -106,7 +106,7 @@ onMount(() => { void load(); return () => { alive = false } })
     <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white dark:bg-[#1b2c22] p-3 shadow-lg" testID="map-floating-profile">
       <View class="flex-row justify-between items-center">
         <Text :class="ui.title">Elevation profile</Text>
-        <Button testID="map-profile-toggle" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
+        <Button testID="map-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
       </View>
       <View :show="profileOpen">
         <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full"><path :d="trailProfilePath(profile())" fill="none" stroke="#24724b" stroke-width="3" /></svg>

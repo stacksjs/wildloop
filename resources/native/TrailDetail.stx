@@ -288,7 +288,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         </Map>
         <Button testID="trail-map-preview-expand" accessibilityLabel="Open interactive map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
           <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
-        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
+        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
         <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full">
           <path :d="profilePath()" fill="none" stroke="#24724b" stroke-width="3" />
