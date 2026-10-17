@@ -7,6 +7,7 @@ import mobile from '../config/mobile'
 import { nativeTrailJourneys } from '../tests/native/trail-journey'
 import { QA_PORTS } from '../tests/browser/qa-ports'
 import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
+import { decodeRouteParts, primaryRoutePart } from '../resources/functions/trail-geometry'
 import { IOS_SIMULATOR_SIGNING, validateGeneratedNativeApp, validateIosAppBundle } from './run-mobile-e2e'
 
 /** The caller supplies its own simulator; this runner never selects somebody else's. */
@@ -56,6 +57,34 @@ export async function runNativeTrailE2e(): Promise<void> {
     control=Bun.serve({hostname:'127.0.0.1',port:controlPort,idleTimeout:120,async fetch(request){
       const url=new URL(request.url)
       if(url.pathname==='/script')return new Response(activeScript)
+      if(url.pathname==='/exec') {
+        try {
+          const hook=url.searchParams.get('name')
+          if(hook==='verify-share') {
+            const pasted=Bun.spawnSync(['xcrun','simctl','pbpaste',device])
+            if(pasted.exitCode || !pasted.stdout.toString().includes(`https://wildloop.org/trail/${trail.id}`))throw new Error('The native share action did not copy this trail link.')
+            return new Response('PASS native share copied the trail link')
+          }
+          if(hook==='verify-gpx') {
+            const located=Bun.spawnSync(['xcrun','simctl','get_app_container',device,mobile.ios.bundleId,'data'])
+            if(located.exitCode)throw new Error('Could not inspect the owned simulator application container.')
+            const container=located.stdout.toString().trim()
+            const first=primaryRoutePart([...decodeRouteParts(trail.geometry),...(Array.isArray(trail.pieceRoutes)?trail.pieceRoutes:[])])[0]
+            if(!first)throw new Error('The seeded trail has no recorded route start.')
+            const point=`<trkpt lat="${first[0]}" lon="${first[1]}"`
+            for await(const file of new Bun.Glob('**/*.gpx').scan({cwd:container,onlyFiles:true,followSymlinks:false})) {
+              const xml=await Bun.file(join(container,file)).text()
+              if(xml.includes('<gpx ') && xml.includes('<trkseg>') && xml.includes(point))return new Response('PASS exported GPX contains the recorded route')
+            }
+            throw new Error('The native export did not write a GPX containing the recorded trail coordinates.')
+          }
+          return new Response('Unknown native verification hook',{status:404})
+        }
+        catch(cause) {
+          if(!failures.includes(activeJourney))failures.push(activeJourney)
+          return new Response(`FAIL ${cause instanceof Error?cause.message:String(cause)}`,{status:500})
+        }
+      }
       if(url.pathname==='/note' && request.method==='POST'){
         const line=await request.text()
         if(line.startsWith('FAIL ')) {
@@ -97,6 +126,7 @@ export async function runNativeTrailE2e(): Promise<void> {
     for(const journey of journeys) {
       activeJourney=journey.name
       activeScript=serializeSimulatorSteps(journey.steps)
+      console.log(`Native trail QA: ${activeJourney} journey`)
       nativeRun=Bun.spawn(['xcodebuild','-project',join(driver.output,`${driver.projectName}.xcodeproj`),'-scheme',driver.projectName,'-destination',`id=${device}`,'-derivedDataPath',join(root,'driver-build'),'-resultBundlePath',join(root,`results-${activeJourney}.xcresult`),'-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1','-collect-test-diagnostics','never','-jobs','2','CODE_SIGNING_ALLOWED=NO','test'],{stdout:Bun.file(join(root,`driver-${activeJourney}-build-test.log`)),stderr:'inherit'})
       const status=await nativeRun.exited
       const notes=await Bun.file(join(root,`driver-${activeJourney}.log`)).text().catch(()=>'')
@@ -108,7 +138,7 @@ export async function runNativeTrailE2e(): Promise<void> {
       }
     }
     if(failures.length)throw new Error(`Native trail QA failed: ${failures.join(', ')}. Inspect the separate XCTest results, driver logs and screenshots.`)
-    console.log('Native trail map, sticky save and review create/edit/delete journey passed.')
+    console.log('Native trail maps, sticky save, review lifecycle, sharing, GPX export and route planner journeys passed.')
   }
   finally {
     if(nativeRun && nativeRun.exitCode===null)nativeRun.kill()

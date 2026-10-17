@@ -125,7 +125,7 @@ jobs:
 
   native-trail-ios:
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       QA_PORT_BASE: '6320'
     steps:

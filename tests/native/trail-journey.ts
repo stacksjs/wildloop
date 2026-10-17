@@ -89,8 +89,44 @@ const reviews:SimulatorStep[] = [
  {command:'shot',name:'native-review-deleted'},
  {command:'tree',name:'native-review-deleted'},
 ]
+const fullMap:SimulatorStep[] = [
+ ...arrival,
+ {command:'openurl',url:`wildloop://trail/${input.trailId}/map`},
+ {command:'expectid',text:'trail-full-map',seconds:15},
+]
+const sharing:SimulatorStep[] = [
+ ...arrival,
+ {command:'tapid',text:'trail-share'},
+ {command:'expectexact',text:'Copy',seconds:10},
+ {command:'shot',name:'native-share-sheet'},
+ {command:'tree',name:'native-share-sheet'},
+ {command:'tapexact',text:'Copy'},
+ {command:'exec',name:'verify-share'},
+]
+const gpx:SimulatorStep[] = [
+ ...fullMap,
+ {command:'tapid',text:'map-export'},
+ {command:'expectexact',text:'Copy',seconds:10},
+ {command:'shot',name:'native-gpx-share-sheet'},
+ {command:'tree',name:'native-gpx-share-sheet'},
+ {command:'tapexact',text:'Copy'},
+ {command:'exec',name:'verify-gpx'},
+]
+const planner:SimulatorStep[] = [
+ ...fullMap,
+ {command:'tapid',text:'map-customize'},
+ {command:'expectid',text:'route-builder-map',seconds:15},
+ {command:'expect',text:input.trailName,seconds:15},
+ {command:'shot',name:'native-customize-route'},
+ {command:'tree',name:'native-customize-route'},
+ {command:'back'},
+ {command:'expectid',text:'trail-full-map',seconds:10},
+]
 return [
  {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
  {name:'reviews',steps:reviews,completion:`PASS absent ${input.review}`},
+ {name:'sharing',steps:sharing,completion:'exec verify-share: PASS native share copied the trail link'},
+ {name:'gpx',steps:gpx,completion:'exec verify-gpx: PASS exported GPX contains the recorded route'},
+ {name:'planner',steps:planner,completion:'PASS expectid trail-full-map'},
 ]
 }
