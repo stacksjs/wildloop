@@ -109,7 +109,7 @@ describe('native trail details', () => {
   it('blocks mutations while personal state is unavailable instead of opening a blank review',async()=>{
     const screen=await open(true,TRAIL.geometry,[],null,503)
     expect(nativeNodeProps(screen,'trail-write-review').disabled).toBe(true)
-    expect(nativeNodeProps(screen,'trail-save').disabled).toBe(true)
+    expect(nativeNodeProps(screen,'trail-save')).toMatchObject({disabled:true,title:'Save',accessibilityHint:expect.stringContaining('Pull down to retry')})
     const before=requests(screen).length
     await screen.event('trail-write-review','onPress')
     await screen.event('trail-save','onPress')

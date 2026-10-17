@@ -1,12 +1,13 @@
+import type { TrailProfilePoint } from '../../resources/functions/trail-profile'
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForGeometry, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForGeometry, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 function ok(body: unknown) { return {status:200,headers:{'content-type':'application/json'},body:JSON.stringify(body)} }
-async function open() {
+async function open(points:TrailProfilePoint[]=[{mi:0,ft:4000,lat:37.7,lng:-119.5},{mi:3,ft:4500,lat:37.71,lng:-119.51}]) {
   const screen = await start('TrailMap',{id:'7'},['fetch','secureStorage','linking','share','files','geolocation','dialog'])
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='SecureStorage'),null)
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='Network'),ok({trail:{id:7,name:'Ridge Loop',latitude:37.7,longitude:-119.5,geometry:JSON.stringify([[37.7,-119.5],[37.71,-119.51],[37.7,-119.5]])}}))
-  answer(screen,await waitForRequest(screen,0,r=>r.payload?.args?.[0]?.url?.endsWith('/profile')),ok({points:[{mi:0,ft:4000,lat:37.7,lng:-119.5},{mi:3,ft:4500,lat:37.71,lng:-119.51}]}))
+  answer(screen,await waitForRequest(screen,0,r=>r.payload?.args?.[0]?.url?.endsWith('/profile')),ok({points}))
   await waitForGeometry(screen)
   return screen
 }
@@ -26,6 +27,11 @@ describe('native full trail map',()=>{
     expect(nativeNodeProps(screen,'map-profile-toggle').accessibilityValue).toBe('Elevation profile collapsed')
     await screen.event('map-profile-toggle','onPress')
     expect(nativeNodeProps(screen,'map-profile-toggle').accessibilityValue).toBe('Elevation profile expanded')
+  })
+  it('explains missing elevation without presenting invented zero-foot measurements',async()=>{
+    const screen=await open([{mi:0,ft:null,lat:37.7,lng:-119.5},{mi:3,ft:null,lat:37.71,lng:-119.51}])
+    await waitForVisibility(screen,'map-profile-unavailable','shown')
+    await waitForVisibility(screen,'map-profile-range','none')
   })
   it('tracks gesture camera changes, resets north and inspects actual elevation positions',async()=>{
     const screen=await open()
