@@ -27,15 +27,12 @@ describe('conditional rendering inside components the native app mounts', () => 
   const gate = code('../../resources/components/AuthGate.stx')
   const banner = code('../../resources/components/NativeNetworkBanner.stx')
 
-  it('opens the sign-in gate with a class, not by inserting the dialog', () => {
+  it('uses the framework dialog for reactive visibility and focus management', () => {
     expect(gate).not.toContain(':if=')
-    expect(gate).toContain('x-class="gateIsOpen() ? \'flex\' : \'hidden\'"')
-  })
-
-  it('keeps the gate cloaked until it has been hydrated', () => {
-    // The dialog is in the DOM from the first byte now, so without x-cloak it
-    // would flash over the page before the class binding ever runs.
-    expect(gate).toContain('x-cloak')
+    expect(gate).toContain('<Dialog :open="gateIsOpen()"')
+    expect(gate).toContain('@close="dismiss()"')
+    expect(gate).toContain('<DialogBackdrop />')
+    expect(gate).toContain('<DialogPanel ')
   })
 
   it('reveals the register-only field and the error line by class too', () => {

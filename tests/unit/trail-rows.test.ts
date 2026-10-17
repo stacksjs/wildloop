@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { normalizeTrailsPayload } from '../../resources/assets/scripts/trail-data'
 import {
   trailAscentText,
   trailDistanceText,
@@ -189,5 +190,21 @@ describe('trailRoutePoints', () => {
 describe('trailPath', () => {
   it('points at the trail\'s own page, which stays the website', () => {
     expect(trailPath(7)).toBe('/trail/7')
+  })
+})
+
+
+describe('single-trail route handoff', () => {
+  it('keeps the detail endpoint name and recorded geometry for the planner and native screen', () => {
+    const result = normalizeTrailsPayload({ success: true, trail: ROW })
+    expect(result.trails.map(trail => trail.name)).toEqual(['Eagle Creek Loop'])
+    expect(result.geometryById[7]).toEqual(JSON.parse(ROW.geometry))
+  })
+
+  it('keeps disconnected route parts separate and does not invent a missing route', () => {
+    const parts = [[[45, -121], [45.01, -121]], [[46, -122], [46.01, -122]]]
+    expect(normalizeTrailsPayload({ trail: { ...ROW, geometry: JSON.stringify(parts) } }).routePartsById[7]).toEqual(parts)
+    expect(normalizeTrailsPayload({ trail: { ...ROW, geometry: null } }).geometryById).toEqual({})
+    expect(normalizeTrailsPayload({ success: false, error: 'Trail not found' }).trails).toEqual([])
   })
 })

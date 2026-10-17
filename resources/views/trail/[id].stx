@@ -213,6 +213,7 @@
   const loadingTrail = state(true)
   const trailLoadError = state(false)
   const downloaded = state(false)
+  const offlineBusy = state(false)
   const offlineMessage = state<string | null>(null)
   /** Long descriptions are clamped until asked for. */
   const descriptionOpen = state(false)
@@ -357,7 +358,7 @@
   const mapRouteParts = state<Array<Array<[number, number]>>>([])
   const surfaces = derived(() => trailSurfaceTypes(trail()?.surface))
   const {
-    mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen,
+    isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen,
     profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief,
     fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile,
     profileRange, profilePath, inspectProfile,
@@ -890,7 +891,8 @@
 
   async function toggleOfflineDownload() {
     const current = trail()
-    if (!current || !wl) return
+    if (!current || !wl || offlineBusy()) return
+    offlineBusy.set(true)
     try {
       if (downloaded()) {
         await removeOfflineTrail(current.id)
@@ -898,14 +900,18 @@
         offlineMessage.set('Offline download removed.')
       }
       else {
-        await saveTrailOffline(current, wl.trailRoutes()[current.id] ?? [])
+        offlineMessage.set('Saving the route and downloading map tiles…')
+        const tiles = await saveTrailOffline(current, wl.trailRoutes()[current.id] ?? [], (completed, total) => {
+          offlineMessage.set(`Downloading map tiles: ${completed} of ${total}.`)
+        })
         downloaded.set(true)
-        offlineMessage.set('Trail route saved for offline use.')
+        offlineMessage.set(!tiles || tiles.failed > 0 ? 'Route saved offline. Some map tiles could not be downloaded; reconnect and download again before heading out.' : 'Trail route and map tiles saved for offline use.')
       }
     }
     catch (error) {
       offlineMessage.set(error instanceof Error ? error.message : 'Could not save this trail offline')
     }
+    finally { offlineBusy.set(false) }
   }
 
   // ── Laid out like the trail pages people already know how to read ──────
@@ -1151,7 +1157,7 @@
           <button type="button" @click="onShare()" aria-label="Share this trail" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             <i class="i-lucide-share-2 h-[18px] w-[18px]" aria-hidden="true"></i>
           </button>
-          <button type="button" @click="toggleOfflineDownload()" x-aria-label="downloaded ? 'Remove the offline copy' : 'Download for offline use'" x-class="downloaded ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : ''" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+          <button type="button" @click="toggleOfflineDownload()" :disabled="offlineBusy()" :aria-busy="offlineBusy() ? 'true' : 'false'" x-aria-label="downloaded ? 'Remove the offline copy' : 'Download for offline use'" x-class="downloaded ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : ''" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
             <i x-class="downloaded ? 'i-lucide-circle-check-big h-[18px] w-[18px]' : 'i-lucide-download h-[18px] w-[18px]'" aria-hidden="true"></i>
           </button>
           <button type="button" @click="onToggleSaveTrail()" x-aria-label="saved ? 'Remove from saved trails' : 'Save this trail'" x-class="saved ? 'border-rose-200 bg-rose-50 text-rose-500 dark:border-rose-500/30 dark:bg-rose-500/10' : ''" class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
@@ -1270,7 +1276,7 @@
         <span class="shrink-0 text-xs font-semibold">Open plans</span>
         <i class="i-lucide-chevron-right h-4 w-4 shrink-0" aria-hidden="true"></i>
       </StxLink>
-      <p :if="offlineMessage" class="mb-4 px-4 py-3 text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">{{ offlineMessage }}</p>
+      <p :if="offlineMessage" role="status" class="mb-4 px-4 py-3 text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">{{ offlineMessage }}</p>
       <p :if="shareMessage()" class="mb-4 px-4 py-3 text-sm text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 rounded-xl">{{ shareMessage() }}</p>
       <div class="grid gap-8 lg:grid-cols-3 lg:gap-10">
         <div class="min-w-0 space-y-6 lg:col-span-2">
@@ -1392,7 +1398,7 @@
                 Google Maps
               </a>
             </div>
-            <button @click="toggleOfflineDownload()" x-class="downloaded ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
+            <button @click="toggleOfflineDownload()" :disabled="offlineBusy()" :aria-busy="offlineBusy() ? 'true' : 'false'" x-class="downloaded ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-slate-600 dark:text-slate-200 dark:hover:text-emerald-300'" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition active:scale-[0.98]">
               <i x-class="downloaded ? 'i-lucide-circle-check-big h-4 w-4' : 'i-lucide-circle-arrow-down h-4 w-4'" aria-hidden="true"></i>
               {{ downloaded ? 'Saved for offline' : 'Save for offline' }}
             </button>
@@ -1433,7 +1439,7 @@
               <div class="absolute bottom-4 right-4 z-[500] flex flex-col gap-2">
                 <button type="button" @click="toggle3D()" :aria-pressed="map3D() ? 'true' : 'false'" aria-label="Toggle 3D terrain" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-lg font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">{{ map3D() ? '2D' : '3D' }}</button>
                 <button type="button" @click="fitRoute()" aria-label="Fit route to map" title="Fit route" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-focus h-5 w-5" aria-hidden="true"></i></button>
-                <button type="button" @click="fullscreenMap()" aria-label="Expand map" title="Expand map" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-maximize h-5 w-5" aria-hidden="true"></i></button>
+                <button type="button" @click="fullscreenMap()" :aria-label="isFullscreen.value ? 'Exit full screen' : 'Expand map'" :title="isFullscreen.value ? 'Exit full screen' : 'Expand map'" :aria-pressed="isFullscreen.value ? 'true' : 'false'" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i x-class="(isFullscreen.value ? 'i-lucide-minimize' : 'i-lucide-maximize') + ' h-5 w-5'" aria-hidden="true"></i></button>
               </div>
               <div class="absolute bottom-4 left-4 z-[500] flex gap-2">
                 <button type="button" @click="downloadGpx()" aria-label="Download route GPX" title="Download GPX" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-download h-5 w-5" aria-hidden="true"></i></button>
@@ -2147,15 +2153,18 @@
   screen. Visibility is a class rather than :if so the half-written review,
   photos included, survives closing the sheet by accident.
 --}}
-<div data-page-overlay :data-open="phoneOpen() ? 'true' : 'false'" x-class="phoneOpen() ? 'flex' : 'hidden'" class="fixed inset-0 z-[90] items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="trail-phone-title">
-  <div @click="phoneOpen.set(false)" class="absolute inset-0 bg-slate-900/50"></div>
-  <div class="relative w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl dark:bg-slate-900">
-    <button type="button" @click="phoneOpen.set(false)" aria-label="Close send to phone" class="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-white"><i class="i-lucide-x h-5 w-5" aria-hidden="true"></i></button>
-    <h2 id="trail-phone-title" class="mt-4 font-display text-2xl font-semibold text-slate-900 dark:text-white">Take this trail with you</h2>
+<div data-page-overlay :data-open="phoneOpen() ? 'true' : 'false'">
+<Dialog :open="phoneOpen()" title="Take this trail with you" className="relative z-[90]" @close="phoneOpen.set(false)">
+  <DialogBackdrop />
+  <DialogPanel className="w-full max-w-sm !rounded-3xl !bg-white !p-5 sm:!p-6 text-center dark:!bg-slate-900">
+    <button type="button" @click="phoneOpen.set(false)" aria-label="Close send to phone" class="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-white"><i class="i-lucide-x h-5 w-5" aria-hidden="true"></i></button>
+    <h2 id="trail-phone-title" class="mt-6 font-display text-2xl font-semibold text-slate-900 dark:text-white">Take this trail with you</h2>
     <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Scan with your phone camera to open the route, directions, and trail details.</p>
-    <div x-html="phoneCode()" class="mx-auto my-6 w-fit rounded-2xl bg-white p-3"></div>
+    <div x-html="phoneCode()" class="mx-auto my-4 w-fit rounded-2xl bg-white p-3"></div>
     <button type="button" @click="onCopyLink()" class="min-h-11 w-full rounded-full bg-emerald-700 px-5 font-semibold text-white">Copy trail link</button>
-  </div>
+    <p role="status" class="mt-3 min-h-6 text-sm text-slate-600 dark:text-slate-300">{{ shareMessage() || '' }}</p>
+  </DialogPanel>
+</Dialog>
 </div>
 
 <div data-page-overlay :data-open="reviewSheetOpen() || deleteReviewOpen() ? 'true' : 'false'">

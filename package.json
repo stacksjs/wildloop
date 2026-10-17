@@ -10,6 +10,7 @@
     "@bughq/stacks": "^0.2.2",
     "@iconify-json/lucide": "^1.2.137",
     "@loghq/stacks": "^0.2.6",
+    "@stacksjs/composables": "^0.75.214",
     "@stacksjs/mobile": "^0.75.177",
     "@ts-analytics/tracking": "^0.1.17",
     "stacks": "^0.75.177",

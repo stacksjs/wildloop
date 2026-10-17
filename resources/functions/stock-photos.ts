@@ -21,13 +21,10 @@ export const STOCK_TRAIL_PHOTOS = [
 
 /** The photo's identity: its path, without the sizing query a view may add. */
 function stockPhotoKey(url: string): string | null {
-  try {
-    const parsed = new URL(url)
-    return parsed.hostname === 'images.unsplash.com' ? parsed.pathname : null
-  }
-  catch {
-    return null
-  }
+  // This identifies one fixed image host, rather than resolving arbitrary URLs.
+  // Keep it portable: Craft's JavaScriptCore does not expose the browser URL API.
+  const match = /^https?:\/\/images\.unsplash\.com(?::443)?(\/[^?#\s]*)/i.exec(url)
+  return match?.[1] ?? null
 }
 
 const STOCK_KEYS = new Set(STOCK_TRAIL_PHOTOS.map(url => stockPhotoKey(url)))

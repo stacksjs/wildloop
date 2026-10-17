@@ -40,9 +40,11 @@ async function request<T>(mode: IDBTransactionMode, operation: (store: IDBObject
   })
 }
 
-export async function saveTrailOffline(trail: UiTrail, route: LatLng[]): Promise<void> {
+export async function saveTrailOffline(trail: UiTrail, route: LatLng[], onProgress?: (completed: number, total: number) => void): Promise<OfflineTrail['tiles']> {
   if (route.length < 2) throw new Error('This trail has no verified route geometry to download')
   let tiles: OfflineTrail['tiles']
+  // Keep the route immediately; tile downloads can take longer on a trailhead connection.
+  await request('readwrite', store => store.put({ id: trail.id, trail, route, savedAt: new Date().toISOString() }))
   try {
     const mapsModuleUrl = '/js/ts-maps.mjs'
     const module = await import(/* @vite-ignore */ mapsModuleUrl) as typeof import('ts-maps')
@@ -70,12 +72,16 @@ export async function saveTrailOffline(trail: UiTrail, route: LatLng[]): Promise
       zoomRange: [10, 14],
       tileUrl,
       concurrency: 4,
-    })
+      signal: AbortSignal.timeout(60_000),
+    }, { fire: (type, data) => {
+      if (type === 'offline:progress' && data) onProgress?.(Number(data.completed), Number(data.total))
+    } })
   }
   catch (error) {
     console.warn('Offline basemap download failed; route geometry remains available', error)
   }
   await request('readwrite', store => store.put({ id: trail.id, trail, route, tiles, savedAt: new Date().toISOString() }))
+  return tiles
 }
 
 export async function removeOfflineTrail(id: number): Promise<void> {

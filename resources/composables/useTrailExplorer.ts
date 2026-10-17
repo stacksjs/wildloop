@@ -1,10 +1,10 @@
+import { useFullscreen } from '@stacksjs/composables'
 import { onUnmounted, state } from 'stx'
 import { apiFetch } from '../assets/scripts/auth'
 import { qrSvgMarkup } from '../functions/qr'
 import { trailGpx } from '../functions/trail-map'
+import { trailProfilePath, trailProfileRange, type TrailProfilePoint as ProfilePoint } from '../functions/trail-profile'
 import type { LatLng, TrailMapHandle } from './useTrailMap'
-
-interface ProfilePoint { mi: number, ft: number | null, lat: number, lng: number }
 
 export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () => LatLng[][], trail: () => { id: number, name: string } | null) {
   const mapMode = state<'outdoors' | 'topographic' | 'satellite' | 'street'>('outdoors')
@@ -13,6 +13,7 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   const reliefVisible = state(true)
   const mapMessage = state('')
   const phoneOpen = state(false)
+  const { isFullscreen, isSupported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen(() => document.getElementById('trail-map-explorer'))
   const profileStatus = state<'loading' | 'ready' | 'unavailable'>('loading')
   const profile = state<ProfilePoint[]>([])
   const activePoint = state<ProfilePoint | null>(null)
@@ -37,22 +38,24 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   }
 
   function fitRoute() {
-    handle()?.fitPoints(route().flat(), [48, 48])
+    const points = route().flat()
+    if (points.length < 2) {
+      mapMessage.set('This trail has no recorded route to fit. The map shows its trailhead.')
+      return
+    }
+    activePoint.set(null)
+    handle()?.fitPoints(points, [48, 48])
   }
 
   async function fullscreenMap() {
-    const element = document.getElementById('trail-map-explorer')
-    try {
-      if (document.fullscreenElement)
-        await document.exitFullscreen()
-      else if (element?.requestFullscreen)
-        await element.requestFullscreen()
-      else
-        mapMessage.set('Full screen is unavailable in this browser.')
+    if (!fullscreenSupported.value) {
+      mapMessage.set('Full screen is unavailable in this browser.')
+      return
     }
-    catch {
-      mapMessage.set('Full screen could not be opened.')
-    }
+    const wasFullscreen = isFullscreen.value
+    await toggleFullscreen()
+    if (isFullscreen.value === wasFullscreen)
+      mapMessage.set('Full screen could not be changed. Try again from the map button.')
   }
 
   function downloadGpx() {
@@ -75,7 +78,7 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
 
   function phoneCode(): string {
     const current = trail()
-    return current ? qrSvgMarkup(`https://wildloop.org/trail/${current.id}`, { title: 'Scan to open this trail on your phone', class: 'h-52 w-52' }) : ''
+    return current ? qrSvgMarkup(`https://wildloop.org/trail/${current.id}`, { title: 'Scan to open this trail on your phone', class: 'h-40 w-40 sm:h-52 sm:w-52' }) : ''
   }
 
   async function loadProfile(id: number) {
@@ -107,28 +110,11 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   }
 
   function profileRange() {
-    const values = profile().map(p => p.ft).filter((ft): ft is number => ft !== null && Number.isFinite(ft))
-    return { low: Math.min(...values), high: Math.max(...values), miles: profile().at(-1)?.mi ?? 0 }
+    return trailProfileRange(profile())
   }
 
   function profilePath(): string {
-    const { low, high, miles } = profileRange()
-    const paths: string[] = []
-    let segment: string[] = []
-    for (const point of profile()) {
-      if (point.ft === null) {
-        if (segment.length)
-          paths.push(`M${segment.join(' L')}`)
-        segment = []
-        continue
-      }
-      const x = 8 + point.mi / (miles || 1) * 984
-      const y = 92 - (point.ft - low) / (high - low || 1) * 76
-      segment.push(`${x.toFixed(1)},${y.toFixed(1)}`)
-    }
-    if (segment.length)
-      paths.push(`M${segment.join(' L')}`)
-    return paths.join(' ')
+    return trailProfilePath(profile())
   }
 
   function inspectProfile(event: Event) {
@@ -141,5 +127,5 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   }
 
   onUnmounted(() => controller?.abort())
-  return { mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
+  return { isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
 }

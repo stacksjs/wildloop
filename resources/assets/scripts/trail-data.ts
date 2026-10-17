@@ -219,6 +219,8 @@ export function extractApiTrailRows(payload: unknown): Record<string, unknown>[]
       return obj.data as Record<string, unknown>[]
     if (Array.isArray(obj.trails))
       return obj.trails as Record<string, unknown>[]
+    if (obj.trail && typeof obj.trail === 'object' && !Array.isArray(obj.trail))
+      return [obj.trail as Record<string, unknown>]
   }
   return []
 }

@@ -274,9 +274,11 @@ declare global {
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention
   const parseMentions: typeof autoImports.parseMentions
+  const MOBILE_MENU_GROUPS: typeof autoImports.MOBILE_MENU_GROUPS
   const completedLabel: typeof autoImports.completedLabel
   const nativeHeaders: typeof autoImports.nativeHeaders
   const loadOutcome: typeof autoImports.loadOutcome
+  const nativeApiOrigin: typeof autoImports.nativeApiOrigin
   const createNativeApi: typeof autoImports.createNativeApi
   const WILDLOOP_ORIGIN: typeof autoImports.WILDLOOP_ORIGIN
   const returnToServerFromBundledCopy: typeof autoImports.returnToServerFromBundledCopy
@@ -289,6 +291,7 @@ declare global {
   const nativeShellReady: typeof autoImports.nativeShellReady
   const whenNativeShell: typeof autoImports.whenNativeShell
   const activeTabFor: typeof autoImports.activeTabFor
+  const nativeUi: typeof autoImports.nativeUi
   const notificationRowsFrom: typeof autoImports.notificationRowsFrom
   const matchesNotificationFilter: typeof autoImports.matchesNotificationFilter
   const groupNotificationsByDay: typeof autoImports.groupNotificationsByDay
@@ -466,6 +469,8 @@ declare global {
   const NEAR_PLACE_PREFIX: typeof autoImports.NEAR_PLACE_PREFIX
   const parsePhotoList: typeof autoImports.parsePhotoList
   const trailGallery: typeof autoImports.trailGallery
+  const trailProfileRange: typeof autoImports.trailProfileRange
+  const trailProfilePath: typeof autoImports.trailProfilePath
   const formatTrailTime: typeof autoImports.formatTrailTime
   const parseTrailTime: typeof autoImports.parseTrailTime
   const displayTrailTime: typeof autoImports.displayTrailTime

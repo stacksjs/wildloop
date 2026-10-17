@@ -94,12 +94,6 @@
     gateIsOpen.set(false)
   }
 
-  // Escape closes it, the way every other dialog on the web does.
-  function onGateKeydown(e) {
-    if (e.key === 'Escape' && gateIsOpen())
-      dismiss()
-  }
-
   function onAuthRequired(e) {
     resetForm()
     gateWhy.set(e?.detail?.reason ?? '')
@@ -112,13 +106,12 @@
   // added under one name and removed under another leaks for the life of the
   // page, and nothing says so.
   useEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
-  useEventListener('keydown', onGateKeydown)
 </script>
 
-<div x-cloak role="dialog" aria-modal="true" aria-labelledby="auth-gate-title" x-class="gateIsOpen() ? 'flex' : 'hidden'" class="fixed inset-0 z-[100] items-end justify-center p-0 sm:items-center sm:p-4">
-  <div @click="dismiss()" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>
-
-  <div class="relative w-full max-w-sm rounded-t-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:rounded-3xl dark:border-slate-700 dark:bg-slate-800">
+<div data-page-overlay :data-open="gateIsOpen() ? 'true' : 'false'">
+<Dialog :open="gateIsOpen()" title="Sign in to Wildloop" className="relative z-[100]" @close="dismiss()">
+  <DialogBackdrop />
+  <DialogPanel className="w-full max-w-sm !rounded-3xl !bg-white dark:!bg-slate-800">
     <button @click="dismiss()" aria-label="Close" class="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200">
       <Icon name="x" size="18" />
     </button>
@@ -175,5 +168,6 @@
     <button @click="goToAuthPage(gateActiveMode())" class="mt-4 w-full text-center text-xs text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300">
       {{ gateRegistering() ? 'Open the full sign-up page' : 'Trouble signing in? Open the full page' }}
     </button>
-  </div>
+  </DialogPanel>
+</Dialog>
 </div>

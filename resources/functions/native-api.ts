@@ -58,6 +58,12 @@ export function loadOutcome(response: Pick<NativeResponse, 'ok' | 'status'>): 'o
 /** The minimum of `craft` this module needs, so a test can stand one up. */
 export interface NativeApiHost {
   secureStorage: { get: (key: string) => unknown }
+  app?: { url?: string }
+}
+
+/** The configured server, shared by the native app and its simulator builds. */
+export function nativeApiOrigin(host: Pick<NativeApiHost, 'app'>): string {
+  return /^https?:\/\/[^/?#]+/i.exec(host.app?.url ?? '')?.[0] ?? WILDLOOP_ORIGIN
 }
 
 export interface NativeApi {
@@ -76,7 +82,7 @@ export interface NativeApi {
  * Called once per screen, so two screens in one bundle do not share a token
  * cache — same as when each screen held its own.
  */
-export function createNativeApi(host: NativeApiHost, origin = WILDLOOP_ORIGIN): NativeApi {
+export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(host)): NativeApi {
   let reading: Promise<string> | null = null
   let token = ''
 
