@@ -11,7 +11,7 @@ import {
   challengeVersusLine,
   challengeWaitingText,
   filterChallenges,
-  territoryPath,
+  territoryPagePath,
 } from '../../resources/functions/challenges'
 
 /**
@@ -198,6 +198,6 @@ describe('the endpoints', () => {
   })
 
   it('points at the territory\'s own page, which is a map', () => {
-    expect(territoryPath(7)).toBe('/territory/7')
+    expect(territoryPagePath(7)).toBe('/territory/7')
   })
 })

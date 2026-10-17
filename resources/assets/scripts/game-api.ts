@@ -640,7 +640,7 @@ export async function deleteActivityPhoto(photoId: string): Promise<boolean> {
 }
 
 /** Create or update the session user's review of a trail (#981). */
-export async function postTrailReview(trailId: number, payload: { rating: number, content: string, conditions?: string | null, title?: string | null, difficulty?: string | null, photo_ids?: string[] }): Promise<{ success: boolean, review?: any, trail?: { id: number, rating: number, reviewCount: number }, updated?: boolean, error?: string, fields?: Record<string, string> }> {
+export async function postTrailReview(trailId: number, payload: { rating: number, content: string, conditions?: string | null, title?: string | null, difficulty?: string | null, photo_ids?: string[], visit_date?: string | null }): Promise<{ success: boolean, review?: any, trail?: { id: number, rating: number, reviewCount: number }, updated?: boolean, error?: string, fields?: Record<string, string> }> {
   await ensureSession()
   const res = await apiFetch(`/api/trails/${trailId}/reviews`, {
     method: 'POST',

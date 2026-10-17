@@ -89,6 +89,17 @@
       </div>
     </div>
 
+    <section class="mt-12 flex flex-col gap-5 rounded-2xl bg-emerald-950 px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between" aria-labelledby="footer-planet-title">
+      <div>
+        <h2 id="footer-planet-title" class="font-display text-xl font-semibold">For the places we explore</h2>
+        <p class="mt-2 max-w-lg text-sm leading-relaxed text-emerald-100/80">Stay on the trail, leave what you find, and help protect the outdoors.</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <a href="https://lnt.org/why/7-principles/" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-12 items-center gap-3 rounded-xl border border-white/25 px-4 text-sm font-semibold transition hover:bg-white/10"><i class="i-lucide-leaf h-6 w-6" aria-hidden="true"></i>Leave No Trace principles<i class="i-lucide-arrow-up-right h-4 w-4" aria-hidden="true"></i></a>
+        <a href="https://www.onepercentfortheplanet.org/" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-12 items-center gap-3 rounded-xl border border-white/25 px-4 text-sm font-semibold transition hover:bg-white/10"><i class="i-lucide-earth h-6 w-6" aria-hidden="true"></i>1% for the Planet<i class="i-lucide-arrow-up-right h-4 w-4" aria-hidden="true"></i></a>
+      </div>
+    </section>
+
     {{--
       Data attribution. Not decoration: OpenStreetMap is published under the
       ODbL, which requires that any product built on it credits the source and

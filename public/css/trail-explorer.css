@@ -1,0 +1,23 @@
+.wildloop-route-direction { border: 0; background: transparent; }
+.wildloop-route-direction > span { display: grid; width: 22px; height: 22px; place-items: center; border: 2px solid #46663c; border-radius: 999px; background: #fff; color: #365b2d; box-shadow: 0 1px 3px #17231238; }
+.wildloop-route-direction i { display: block; width: 14px; height: 14px; }
+#trail-map-explorer .trail-map-panel { height: 32rem; }
+#trail-map-explorer:fullscreen { display: flex; flex-direction: column; width: 100%; height: 100%; border: 0; border-radius: 0; }
+#trail-map-explorer:fullscreen > .relative { flex: 1; min-height: 0; }
+#trail-map-explorer:fullscreen .trail-map-panel { height: 100%; }
+#trail-map-explorer:fullscreen > :last-child { max-height: 14rem; }
+#trail-map-explorer .tsmap-bar { overflow: hidden; border: 0; border-radius: 24px; box-shadow: 0 3px 12px #1d2d2226; }
+#trail-map-explorer .tsmap-bar a, #trail-map-explorer .tsmap-bar button { width: 46px; height: 46px; line-height: 46px; color: #253321; background: #fff; }
+.trail-action-bar.trail-floating-actions { right: 12px; left: 12px; bottom: max(12px, var(--native-safe-area-bottom, 0px)); max-width: 42rem; margin-inline: auto; border: 1px solid #e5e7eb; border-radius: 999px; background: #fff; box-shadow: 0 5px 18px #17231226; }
+.trail-action-bar.trail-floating-with-tabs { bottom: calc(4.5rem + var(--native-safe-area-bottom, 0px)); }
+.dark .trail-action-bar.trail-floating-actions { border-color: #334155; background: #0f172a; }
+@media (min-width: 1024px) {
+  #trail-map-explorer .trail-map-panel { height: 38rem; }
+  .trail-action-bar.trail-floating-actions { bottom: 24px; }
+}
+@media print {
+  body { visibility: hidden; }
+  #trail-map-explorer, #trail-map-explorer * { visibility: visible; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #trail-map-explorer { position: absolute; inset: 0; overflow: visible; width: 100%; border: 0; }
+  #trail-map-explorer button, #trail-map-explorer a, #trail-map-explorer input, #trail-map-explorer .tsmap-control:not(.tsmap-control-attribution) { visibility: hidden; }
+}

@@ -14,7 +14,7 @@ import {
   challengeVersusLine,
   challengeWaitingText,
   filterChallenges,
-  territoryPath,
+  territoryPagePath,
 } from '../functions/challenges'
 
 /*
@@ -163,7 +163,7 @@ async function respond(row: any, action: 'accept' | 'decline'): Promise<void> {
 function openTerritory(row: any): void {
   if (!row?.territoryId)
     return
-  craft.navigation.open(territoryPath(row.territoryId))
+  craft.navigation.open(territoryPagePath(row.territoryId))
 }
 
 onMount(() => {

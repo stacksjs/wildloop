@@ -95,7 +95,7 @@ export function challengeRespondRequest(challengeId: number, action: 'accept' | 
 }
 
 /** The territory at stake, which is a map and stays the website. */
-export function territoryPath(territoryId: number): string {
+export function territoryPagePath(territoryId: number): string {
   return `/territory/${territoryId}`
 }
 

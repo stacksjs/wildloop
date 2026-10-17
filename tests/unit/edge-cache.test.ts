@@ -183,6 +183,7 @@ describe('the actions that may be shared', () => {
     expect(sharing).toEqual([
       'app/Actions/Search/SearchSuggestAction.ts',
       'app/Actions/Trail/TrailIndexAction.ts',
+      'app/Actions/Trail/TrailProfileAction.ts',
       'app/Actions/Trail/TrailShowAction.ts',
       'app/Actions/Trail/TrailStatsAction.ts',
     ])

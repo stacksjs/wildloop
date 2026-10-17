@@ -1,3 +1,4 @@
+import { trailDirectionSigns } from '../functions/trail-map'
 import type { CircleMarker as CircleMarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { Polyline as PolylineType } from 'ts-maps'
@@ -103,11 +104,11 @@ const MAX_ZOOM = 20
  * further than the same sheet over paper.
  */
 function reliefOpacity(theme: BasemapTheme): number {
-  return theme === 'dark' ? 0.35 : 0.5
+  return theme === 'dark' ? 0.2 : 0.24
 }
 
 /** The green a route is drawn in, and the green a mapped trail is drawn in. */
-const ROUTE_GREEN = '#059669'
+const ROUTE_GREEN = '#91e86b'
 
 export type BasemapTheme = 'light' | 'dark'
 
@@ -212,37 +213,21 @@ export async function resolveVectorTiles(): Promise<string | null> {
   return tileUrlPromise
 }
 
-/**
- * Wildloop's palette, applied to the map.
- *
- * ts-maps ships a good general-purpose pair of basemaps, and they are the wrong
- * pair for this app: the light one is warm paper-and-beige and the dark one is
- * a neutral charcoal, while every other surface here is cool slate with a
- * single emerald accent. A map that does not share the product's neutrals reads
- * as an embed from somewhere else, which on a screen that is mostly map is most
- * of the screen.
- *
- * So the greys are slate, the same ramp the rest of the UI is built from, and
- * parks carry the accent's hue rather than olive — the one place a basemap can
- * say "this is a trail app" without saying anything.
- *
- * Dark sits a step below the page (`#0f172a`) rather than matching it, so the
- * map reads as inset into the card instead of dissolving through it.
- */
+/** Pale stone, sage parkland and quiet water keep the selected route legible. */
 const PALETTE = {
   light: {
-    background: '#e8eef3',
-    land: '#f4f7fa',
-    green: '#dbeee3',
-    water: '#bcd7ea',
+    background: '#e9eae4',
+    land: '#f4f3ef',
+    green: '#e0e6d7',
+    water: '#d3e5ef',
     roadMajor: '#ffffff',
     roadMinor: '#ffffff',
-    roadCasing: '#d8e1ea',
-    buildings: '#e4ebf2',
-    boundary: '#c3cede',
-    label: '#334155',
+    roadCasing: '#d9ddd5',
+    buildings: '#e6e5e0',
+    boundary: '#bfc5b4',
+    label: '#343b2f',
     labelHalo: '#ffffff',
-    labelMuted: '#64748b',
+    labelMuted: '#6c7362',
   },
   dark: {
     background: '#0b1220',
@@ -360,9 +345,8 @@ export function buildStyle(
       filter: ['in', ['get', 'class'], ['literal', [...TRAIL_CLASSES]]],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
-        // `--accent-bright` and `--accent`: the same two greens the buttons and
-        // the route lines use, so a mapped trail and a run read as one family.
-        'line-color': theme === 'dark' ? '#34d399' : '#059669',
+        // Unselected paths stay quiet; the selected route carries the green.
+        'line-color': theme === 'dark' ? '#a4ad98' : '#737a69',
         'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 12, 0.9, 16, 2.2, 20, 5],
         // Dashes are how a paper map says "unpaved". They also keep the
         // trail legible where it runs alongside a road of the same width.
@@ -375,6 +359,9 @@ export function buildStyle(
 
 export interface TrailMapHandle {
   map: TsMapType
+  setBasemap: (mode: 'outdoors' | 'topographic' | 'satellite' | 'street') => void
+  setRelief: (visible: boolean) => void
+  set3D: (enabled: boolean) => void
   destroy: () => void
   /** Frame these points. Deferred if the container has not been laid out yet. */
   fitPoints: (points: LatLng[], padding?: [number, number]) => void
@@ -421,6 +408,8 @@ export interface TrailMapOptions {
    *   where a control stack would cover most of the map.
    */
   chrome?: 'full' | 'compact' | 'none'
+  /** Disable when the page provides a fullscreen control for a larger map panel. */
+  fullscreen?: boolean
   /** A keyless place-search box in the corner. */
   search?: boolean
   /** Shaded relief. On by default; off for small previews, where it is noise. */
@@ -471,7 +460,8 @@ export async function createTrailMap(
       // `addTo`, not `map.addControl`: the latter is mixed onto TsMap at
       // runtime and is not on its type, while every Control carries addTo.
       new NavigationControl({ position: 'topright', visualizePitch: true }).addTo(map)
-      new FullscreenControl({ position: 'topright' }).addTo(map)
+      if (options?.fullscreen !== false)
+        new FullscreenControl({ position: 'topright' }).addTo(map)
       new ScaleControl({ position: 'bottomleft', imperial: true, metric: false }).addTo(map)
     }
     else if (chrome === 'compact') {
@@ -512,6 +502,7 @@ export async function createTrailMap(
      * and dark, and the shading itself is theme-neutral: white highlights,
      * grey shadows.
      */
+    let reliefShown = true
     let relief: ReturnType<TsMapsModule['tileLayer']> | null = null
     if (options?.terrain !== false && chrome !== 'none') {
       relief = maps.tileLayer(TERRAIN_TILES, {
@@ -542,6 +533,19 @@ export async function createTrailMap(
     // `url` is null when the vector service could not be reached; `buildStyle`
     // turns that into the raster fallback.
     let tiles: string | null = null
+    let basemapMode: 'outdoors' | 'topographic' | 'satellite' | 'street' = 'outdoors'
+    let threeD = false
+    function paintBasemap() {
+      const style = basemapMode === 'satellite' || basemapMode === 'topographic'
+        ? maps.styles.light({ mode: 'raster', tiles: `https://server.arcgisonline.com/ArcGIS/rest/services/${basemapMode === 'satellite' ? 'World_Imagery' : 'World_Topo_Map'}/MapServer/tile/{z}/{y}/{x}`, attribution: basemapMode === 'satellite' ? 'Imagery: Esri, Maxar, Earthstar Geographics' : 'Topography: Esri, USGS, NOAA, OpenStreetMap contributors', maxzoom: MAX_ZOOM }) as StyleSpec
+        : buildStyle(maps, theme, tiles)
+      if (basemapMode === 'street')
+        style.layers = style.layers.filter(layer => layer.id !== 'trail' && layer.id !== 'trail-casing')
+      style.sources['wildloop-dem'] = { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, encoding: 'terrarium', maxzoom: 15 }
+      map.setStyle(style)
+      if (threeD)
+        map.setTerrain({ source: 'wildloop-dem', exaggeration: 1 })
+    }
     void resolveVectorTiles().then((url) => {
       // The map this closure was opened for may have been destroyed and
       // replaced while the lookup was in flight. Styling a removed map throws
@@ -549,7 +553,7 @@ export async function createTrailMap(
       if (mapElement._tsMap !== map)
         return
       tiles = url
-      map.setStyle(buildStyle(maps, currentTheme(), url))
+      paintBasemap()
     })
 
     // Follow the app's dark-mode toggle. Repainting the style re-requests tiles
@@ -562,9 +566,9 @@ export async function createTrailMap(
         if (next === theme || mapElement._tsMap !== map)
           return
         theme = next
-        map.setStyle(buildStyle(maps, next, tiles))
+        paintBasemap()
         map.setTheme(next)
-        relief?.setOpacity(reliefOpacity(next))
+        relief?.setOpacity(reliefShown ? reliefOpacity(next) : 0)
       })
       themeWatcher.observe(document.documentElement, { attributeFilter: ['class'] })
     }
@@ -638,6 +642,22 @@ export async function createTrailMap(
 
     const handle: TrailMapHandle = {
       map,
+      setBasemap(mode) {
+        basemapMode = mode
+        paintBasemap()
+      },
+      setRelief(visible) {
+        reliefShown = visible
+        relief?.setOpacity(visible ? reliefOpacity(theme) : 0)
+      },
+      set3D(enabled) {
+        threeD = enabled
+        if (enabled)
+          paintBasemap()
+        else
+          map.setTerrain(null)
+        map.setPitch(enabled ? 55 : 0)
+      },
       destroy() {
         themeWatcher?.disconnect()
         themeWatcher = null
@@ -727,7 +747,7 @@ export interface LayerTarget {
 export async function drawTrailRoute(
   target: LayerTarget,
   coords: LatLng[] | LatLng[][],
-  options?: { color?: string, weight?: number, opacity?: number, casing?: boolean },
+  options?: { color?: string, weight?: number, opacity?: number, casing?: boolean, directions?: boolean },
 ): Promise<PolylineType | null> {
   const parts = (isRouteParts(coords) ? coords : [coords]).filter(part => part.length >= 2)
   if (parts.length === 0)
@@ -742,9 +762,9 @@ export async function drawTrailRoute(
   if (options?.casing !== false) {
     for (const part of parts) {
       target.addLayer(new Polyline(part, {
-        color: '#0b1b15',
-        weight: weight + 3.5,
-        opacity: 0.35,
+        color: '#365b2d',
+        weight: weight + 4,
+        opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round',
       }))
@@ -762,6 +782,34 @@ export async function drawTrailRoute(
     })
     target.addLayer(line)
     main ??= line
+  }
+  if (options?.directions) {
+    const maps = await ensureTsMaps()
+    const signs = trailDirectionSigns(parts)
+    for (const sign of signs) {
+      const icon = maps.divIcon({
+        className: 'wildloop-route-direction',
+        html: `<span style="transform:rotate(${sign.bearing}deg)"><i class="i-lucide-arrow-up" aria-hidden="true"></i></span>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      })
+      const marker = new maps.Marker(sign.point, { icon, interactive: false, keyboard: false })
+      // Marker icons stand upright when the camera rotates. Orient the arrow
+      // in screen space while keeping its point attached to the actual route.
+      marker.on('add', () => {
+        const map = marker._map as TsMapType
+        const rotate = () => {
+          const arrow = marker.getElement()?.firstElementChild as HTMLElement | null
+          if (arrow)
+            arrow.style.transform = `rotate(${sign.bearing - map.getBearing()}deg)`
+        }
+        map.on('rotate', rotate)
+        marker.once('remove', () => map.off('rotate', rotate))
+        rotate()
+      })
+      target.addLayer(marker)
+    }
+    target.addLayer(new maps.CircleMarker(parts[0][0], { radius: 8, color: '#fff', weight: 3, fillColor: '#52be48', fillOpacity: 1 }))
   }
   return main
 }

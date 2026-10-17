@@ -62,6 +62,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
   const reviewSheetOpen = state(false)
   const formRating = state(0)
   const formContent = state('')
+  const formVisitDate = state('')
   const formConditions = state('')
   const formDifficulty = state('')
   const formPhotos = state<ReviewPhotoDraft[]>([])
@@ -113,6 +114,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     releasePhotos(formPhotos())
     formPhotos.set([])
     formContent.set('')
+    formVisitDate.set('')
     formConditions.set('')
     formDifficulty.set('')
     formRating.set(0)
@@ -128,6 +130,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     if (mine && formRating() === 0 && !formContent()) {
       formRating.set(mine.rating)
       formContent.set(mine.text)
+      formVisitDate.set(mine.visitDate ?? '')
       formConditions.set(mine.conditions)
       formDifficulty.set(mine.difficulty)
     }
@@ -204,6 +207,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
       rating: formRating(),
       content: formContent().trim(),
       conditions: formConditions() || null,
+      visit_date: formVisitDate() || null,
       difficulty: formDifficulty() || null,
       // Only sent when photos were added, so editing a review without touching
       // its photos keeps the ones it already has.
@@ -248,6 +252,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     reviewSheetOpen,
     formRating,
     formContent,
+    formVisitDate,
     formConditions,
     formDifficulty,
     formPhotos,

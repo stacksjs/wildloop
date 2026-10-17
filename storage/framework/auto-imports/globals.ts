@@ -71,6 +71,20 @@ declare global {
   const athleteMatchLine: typeof autoImports.athleteMatchLine
   const followRequest: typeof autoImports.followRequest
   const athleteSearchPath: typeof autoImports.athleteSearchPath
+  const athletePath: typeof autoImports.athletePath
+  const athleteProfileFrom: typeof autoImports.athleteProfileFrom
+  const athleteDistanceText: typeof autoImports.athleteDistanceText
+  const athleteElevationText: typeof autoImports.athleteElevationText
+  const followLabel: typeof autoImports.followLabel
+  const settledFollowerCount: typeof autoImports.settledFollowerCount
+  const blockRequest: typeof autoImports.blockRequest
+  const reportRequest: typeof autoImports.reportRequest
+  const recentActivityLine: typeof autoImports.recentActivityLine
+  const recentActivityStats: typeof autoImports.recentActivityStats
+  const activityRoutePoints: typeof autoImports.activityRoutePoints
+  const REPORT_REASONS: typeof autoImports.REPORT_REASONS
+  const REPORT_REASON_LABELS: typeof autoImports.REPORT_REASON_LABELS
+  const ACTIVITY_ROUTE_BOX: typeof autoImports.ACTIVITY_ROUTE_BOX
   const AUTH_REQUIRED_EVENT: typeof autoImports.AUTH_REQUIRED_EVENT
   const AUTH_READY_EVENT: typeof autoImports.AUTH_READY_EVENT
   const avatarUrl: typeof autoImports.avatarUrl
@@ -90,12 +104,39 @@ declare global {
   const STANDARD_YARD_MILES: typeof autoImports.STANDARD_YARD_MILES
   const STANDARD_YARD_MINUTES: typeof autoImports.STANDARD_YARD_MINUTES
   const barGeometry: typeof autoImports.barGeometry
+  const battlesPath: typeof autoImports.battlesPath
+  const battleRowsFrom: typeof autoImports.battleRowsFrom
+  const filterBattlesByPeriod: typeof autoImports.filterBattlesByPeriod
+  const filterBattlesByArea: typeof autoImports.filterBattlesByArea
+  const liveBattles: typeof autoImports.liveBattles
+  const countByStatus: typeof autoImports.countByStatus
+  const feedVerb: typeof autoImports.feedVerb
+  const feedBadge: typeof autoImports.feedBadge
+  const feedLine: typeof autoImports.feedLine
+  const isMyAttack: typeof autoImports.isMyAttack
+  const ownBattles: typeof autoImports.ownBattles
+  const filterConquests: typeof autoImports.filterConquests
+  const ownPhrase: typeof autoImports.ownPhrase
+  const ownLine: typeof autoImports.ownLine
+  const ownBadge: typeof autoImports.ownBadge
+  const wonBattle: typeof autoImports.wonBattle
+  const underAttack: typeof autoImports.underAttack
+  const conquestEmptyText: typeof autoImports.conquestEmptyText
+  const territoryHistory: typeof autoImports.territoryHistory
+  const herePhrase: typeof autoImports.herePhrase
+  const hereLine: typeof autoImports.hereLine
+  const FEED_LIMIT: typeof autoImports.FEED_LIMIT
+  const OWN_LIMIT: typeof autoImports.OWN_LIMIT
+  const BATTLE_PERIODS: typeof autoImports.BATTLE_PERIODS
+  const BATTLE_PERIOD_LABELS: typeof autoImports.BATTLE_PERIOD_LABELS
+  const CONQUEST_FILTERS: typeof autoImports.CONQUEST_FILTERS
+  const CONQUEST_FILTER_LABELS: typeof autoImports.CONQUEST_FILTER_LABELS
   const estimateCalories: typeof autoImports.estimateCalories
   const REFERENCE_WEIGHT_KG: typeof autoImports.REFERENCE_WEIGHT_KG
   const shapeChallenge: typeof autoImports.shapeChallenge
   const challengesPath: typeof autoImports.challengesPath
   const challengeRespondRequest: typeof autoImports.challengeRespondRequest
-  const territoryPath: typeof autoImports.territoryPath
+  const territoryPagePath: typeof autoImports.territoryPagePath
   const challengeRowsFrom: typeof autoImports.challengeRowsFrom
   const matchesChallengeTab: typeof autoImports.matchesChallengeTab
   const filterChallenges: typeof autoImports.filterChallenges
@@ -119,9 +160,26 @@ declare global {
   const clubDoorLabel: typeof autoImports.clubDoorLabel
   const clubWeekLine: typeof autoImports.clubWeekLine
   const clubActionLabel: typeof autoImports.clubActionLabel
+  const clubApiPath: typeof autoImports.clubApiPath
+  const clubDetailFrom: typeof autoImports.clubDetailFrom
+  const clubInvitesPath: typeof autoImports.clubInvitesPath
+  const clubRedeemPath: typeof autoImports.clubRedeemPath
+  const clubDeleteRequest: typeof autoImports.clubDeleteRequest
+  const clubRoleOf: typeof autoImports.clubRoleOf
+  const canInviteToClub: typeof autoImports.canInviteToClub
+  const canDeleteClub: typeof autoImports.canDeleteClub
+  const isRedeemable: typeof autoImports.isRedeemable
+  const inviteLine: typeof autoImports.inviteLine
+  const inviteStatusText: typeof autoImports.inviteStatusText
+  const inviteRowsFrom: typeof autoImports.inviteRowsFrom
+  const memberLine: typeof autoImports.memberLine
+  const memberRoleText: typeof autoImports.memberRoleText
+  const clubWeeklyDistanceText: typeof autoImports.clubWeeklyDistanceText
+  const clubWeeklyActivitiesText: typeof autoImports.clubWeeklyActivitiesText
   const CLUB_TYPES: typeof autoImports.CLUB_TYPES
   const CLUB_FILTERS: typeof autoImports.CLUB_FILTERS
   const CLUB_FILTER_LABELS: typeof autoImports.CLUB_FILTER_LABELS
+  const MIN_INVITE_CODE: typeof autoImports.MIN_INVITE_CODE
   const computeConquestRecord: typeof autoImports.computeConquestRecord
   const computeCounterFixes: typeof autoImports.computeCounterFixes
   const computeTerritoryStatsFixes: typeof autoImports.computeTerritoryStatsFixes
@@ -139,8 +197,30 @@ declare global {
   const eventSections: typeof autoImports.eventSections
   const eventStandingLine: typeof autoImports.eventStandingLine
   const eventsPath: typeof autoImports.eventsPath
+  const eventPath: typeof autoImports.eventPath
+  const eventLivePath: typeof autoImports.eventLivePath
+  const eventJoinPath: typeof autoImports.eventJoinPath
+  const eventLapPath: typeof autoImports.eventLapPath
+  const eventStatusPath: typeof autoImports.eventStatusPath
+  const liveBoardFrom: typeof autoImports.liveBoardFrom
+  const eventDetailFrom: typeof autoImports.eventDetailFrom
+  const corralCountdownText: typeof autoImports.corralCountdownText
+  const eventIsLive: typeof autoImports.eventIsLive
+  const standingStatusText: typeof autoImports.standingStatusText
+  const standingLine: typeof autoImports.standingLine
+  const standingYardsText: typeof autoImports.standingYardsText
+  const standingsFrom: typeof autoImports.standingsFrom
+  const recentLapsFrom: typeof autoImports.recentLapsFrom
+  const lapLine: typeof autoImports.lapLine
+  const lapDurationText: typeof autoImports.lapDurationText
+  const stillInText: typeof autoImports.stillInText
+  const currentYardText: typeof autoImports.currentYardText
+  const entryLabel: typeof autoImports.entryLabel
+  const canReportLap: typeof autoImports.canReportLap
+  const nextLapBody: typeof autoImports.nextLapBody
   const EVENT_TYPES: typeof autoImports.EVENT_TYPES
   const EVENT_TYPE_LABELS: typeof autoImports.EVENT_TYPE_LABELS
+  const ENTRANT_STATUS_LABELS: typeof autoImports.ENTRANT_STATUS_LABELS
   const garminCardState: typeof autoImports.garminCardState
   const garminConnectedLabel: typeof autoImports.garminConnectedLabel
   const garminImportSummary: typeof autoImports.garminImportSummary
@@ -195,6 +275,10 @@ declare global {
   const applyMention: typeof autoImports.applyMention
   const parseMentions: typeof autoImports.parseMentions
   const completedLabel: typeof autoImports.completedLabel
+  const nativeHeaders: typeof autoImports.nativeHeaders
+  const loadOutcome: typeof autoImports.loadOutcome
+  const createNativeApi: typeof autoImports.createNativeApi
+  const WILDLOOP_ORIGIN: typeof autoImports.WILDLOOP_ORIGIN
   const returnToServerFromBundledCopy: typeof autoImports.returnToServerFromBundledCopy
   const serverPath: typeof autoImports.serverPath
   const serverURLFor: typeof autoImports.serverURLFor
@@ -251,6 +335,7 @@ declare global {
   const REVIEW_CONTENT_MAX: typeof autoImports.REVIEW_CONTENT_MAX
   const REVIEW_PHOTO_LIMIT: typeof autoImports.REVIEW_PHOTO_LIMIT
   const REVIEW_DIFFICULTY_OPTIONS: typeof autoImports.REVIEW_DIFFICULTY_OPTIONS
+  const pathIdFrom: typeof autoImports.pathIdFrom
   const routeIsRankable: typeof autoImports.routeIsRankable
   const elapsedSeconds: typeof autoImports.elapsedSeconds
   const formatElapsed: typeof autoImports.formatElapsed
@@ -262,8 +347,19 @@ declare global {
   const beatsMoreRestrictiveStyles: typeof autoImports.beatsMoreRestrictiveStyles
   const isHeadlineRecord: typeof autoImports.isHeadlineRecord
   const evidenceIsSufficient: typeof autoImports.evidenceIsSufficient
-  const normalizeEvidenceUrl: typeof autoImports.normalizeEvidenceUrl
-  const normalizeTrackerUrl: typeof autoImports.normalizeTrackerUrl
+  const effortPath: typeof autoImports.effortPath
+  const effortReviewPath: typeof autoImports.effortReviewPath
+  const effortCoursePath: typeof autoImports.effortCoursePath
+  const effortFrom: typeof autoImports.effortFrom
+  const liveElapsedSeconds: typeof autoImports.liveElapsedSeconds
+  const effortClockText: typeof autoImports.effortClockText
+  const effortRankText: typeof autoImports.effortRankText
+  const effortActions: typeof autoImports.effortActions
+  const finishedAtFrom: typeof autoImports.finishedAtFrom
+  const effortEvidence: typeof autoImports.effortEvidence
+  const courseLineFrom: typeof autoImports.courseLineFrom
+  const courseGeometry: typeof autoImports.courseGeometry
+  const recordsPath: typeof autoImports.recordsPath
   const RECORD_STYLES: typeof autoImports.RECORD_STYLES
   const RECORD_CATEGORIES: typeof autoImports.RECORD_CATEGORIES
   const RECORD_DIRECTIONS: typeof autoImports.RECORD_DIRECTIONS
@@ -303,6 +399,27 @@ declare global {
   const METERS_TO_FEET: typeof autoImports.METERS_TO_FEET
   const isStockTrailPhoto: typeof autoImports.isStockTrailPhoto
   const STOCK_TRAIL_PHOTOS: typeof autoImports.STOCK_TRAIL_PHOTOS
+  const territoriesMapPath: typeof autoImports.territoriesMapPath
+  const territoryPath: typeof autoImports.territoryPath
+  const territoryRowsFrom: typeof autoImports.territoryRowsFrom
+  const territoryGeometry: typeof autoImports.territoryGeometry
+  const matchesTerritoryFilter: typeof autoImports.matchesTerritoryFilter
+  const filterTerritories: typeof autoImports.filterTerritories
+  const territoryLeaderboard: typeof autoImports.territoryLeaderboard
+  const territoryBadge: typeof autoImports.territoryBadge
+  const territoryOwnerLine: typeof autoImports.territoryOwnerLine
+  const zonesHeldText: typeof autoImports.zonesHeldText
+  const territoryEmptyTitle: typeof autoImports.territoryEmptyTitle
+  const territoryEmptyBody: typeof autoImports.territoryEmptyBody
+  const territoryFrom: typeof autoImports.territoryFrom
+  const isOwnTerritory: typeof autoImports.isOwnTerritory
+  const territoryHolderLine: typeof autoImports.territoryHolderLine
+  const territoryStandingText: typeof autoImports.territoryStandingText
+  const territoryActionLabel: typeof autoImports.territoryActionLabel
+  const territoryIdFrom: typeof autoImports.territoryIdFrom
+  const TERRITORY_LIMIT: typeof autoImports.TERRITORY_LIMIT
+  const TERRITORY_FILTERS: typeof autoImports.TERRITORY_FILTERS
+  const TERRITORY_FILTER_LABELS: typeof autoImports.TERRITORY_FILTER_LABELS
   const classifyBattleOutcome: typeof autoImports.classifyBattleOutcome
   const territoryColor: typeof autoImports.territoryColor
   const territoryAppearance: typeof autoImports.territoryAppearance
@@ -331,6 +448,10 @@ declare global {
   const decodeRouteParts: typeof autoImports.decodeRouteParts
   const primaryRoutePart: typeof autoImports.primaryRoutePart
   const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
+  const trailSegmentMiles: typeof autoImports.trailSegmentMiles
+  const trailDirectionSigns: typeof autoImports.trailDirectionSigns
+  const trailSurfaceTypes: typeof autoImports.trailSurfaceTypes
+  const trailGpx: typeof autoImports.trailGpx
   const placeOfLocation: typeof autoImports.placeOfLocation
   const whereLocation: typeof autoImports.whereLocation
   const wholeTrailFigures: typeof autoImports.wholeTrailFigures
