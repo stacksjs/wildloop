@@ -51,6 +51,7 @@ export default new Action({
       const blockedIds = await blockedUserIdsFor(viewerId)
       if (!canViewActivity(a, viewerId, viewerFollowing, blockedIds))
         return response.json({ success: false, error: 'This activity is private' }, 403)
+      const viewerKudosed = viewerId !== null && Boolean(await Kudos.where('giver_id', '=', viewerId).where('activity_id', '=', a.id).first())
 
       // gpx_data is a GeoJSON LineString / JSON coords string; parse to [{lat,lng}].
       const exactRoute = a.gpx_data ? parseGpsData(a.gpx_data) : []
@@ -131,6 +132,7 @@ export default new Action({
           }),
           elevationProfile: profile,
           kudosCount: a.kudos_count ?? 0,
+          viewerKudosed,
           notes: a.notes,
           hasGps: !!a.gpx_data,
           visibility: a.visibility ?? 'public',

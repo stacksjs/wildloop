@@ -99,6 +99,10 @@ export default new Action({
   async handle(request) {
     const userId = request.get<number>('user_id')
     const page = readPageParams(request, { defaultLimit: 100, maxLimit: 500 })
+    const scope = String(request.get('scope') ?? 'all')
+    const activityType = String(request.get('activity_type') ?? '')
+    if (!['all', 'following'].includes(scope) || (activityType && !['Trail Run', 'Hike', 'Walk', 'Bike'].includes(activityType)))
+      return response.json({ success: false, error: 'Invalid activity filter' }, 422)
 
     try {
       // The session drives visibility; `user_id` above filters the profile and
@@ -113,7 +117,10 @@ export default new Action({
         ? Activity.where('user_id', '=', userId)
         : Activity.query()
       const allRows = (await query.orderBy('completed_at', 'desc').get()) ?? []
-      const rows = allRows.filter((a: any) => canViewActivity(a, viewerId, viewerFollowing, blockedIds))
+      const rows = allRows.filter((a: any) => canViewActivity(a, viewerId, viewerFollowing, blockedIds)
+        && (scope !== 'following' || viewerFollowing.has(a.user_id))
+        && (!activityType || a.activity_type === activityType))
+      const viewerKudos = viewerId === null ? new Set<number>() : new Set(((await Kudos.where('giver_id', '=', viewerId).get()) ?? []).map((row: any) => Number(row.activity_id)))
 
       // Batch-load owners + trails so the feed gets names without N+1 lookups.
       const userIds = [...new Set(rows.map((a: any) => a.user_id).filter(Boolean))]
@@ -226,6 +233,7 @@ export default new Action({
             elevationGainFeet: a.elevation,
           }),
           kudosCount: a.kudos_count ?? 0,
+          viewerKudosed: viewerKudos.has(Number(a.id)),
           route: activityRoutePreview(a, previewContext),
           notes: a.notes,
           hasGps: !!a.gpx_data,
