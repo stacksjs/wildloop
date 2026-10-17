@@ -75,8 +75,13 @@ export async function runNativeTrailE2e(): Promise<void> {
     validateIosAppBundle(app)
     await command(['codesign','--verify','--strict',app],'app-signature.log')
     await command(['codesign','--display','--entitlements',':-',app],'app-entitlements.log')
-    const entitlements=await Bun.file(join(root,'app-entitlements.log')).text()
-    if(!entitlements.includes('<key>application-identifier</key>'))throw new Error('Native signed-in QA requires the simulator application-identifier entitlement for Keychain access.')
+    // Xcode embeds simulator entitlements in __TEXT,__entitlements rather than
+    // the code-signature slot returned by codesign --display. Inspect the
+    // linked simulator entitlement input, and retain both forms as evidence.
+    const simulated=join(root,'app-build/Build/Intermediates.noindex/Wildloop.build/Debug-iphonesimulator/Wildloop.build/Wildloop.app-Simulated.xcent')
+    await command(['plutil','-extract','application-identifier','raw','-o','-',simulated],'app-simulator-identifier.log')
+    const identifier=(await Bun.file(join(root,'app-simulator-identifier.log')).text()).trim()
+    if(identifier!==mobile.ios.bundleId && !identifier.endsWith(`.${mobile.ios.bundleId}`))throw new Error('The simulator entitlement does not identify the application under test.')
     await command(['xcrun','simctl','install',device,app],'app-install.log')
     const tool=await resolveXcodegen(process.cwd())
     generateXcodeProject(tool,driver.output)
