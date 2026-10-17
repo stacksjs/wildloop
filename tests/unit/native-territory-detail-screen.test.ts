@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 import { territoryIdFrom } from '../../resources/functions/territories'
 
 /**
@@ -188,7 +188,7 @@ describe('Wildloop native territory detail screen', () => {
     const { screen } = await open()
     await waitForVisibility(screen, 'detail-map-frame', 'flex')
 
-    const [drawn] = geometries(screen).filter(g => g.length > 0)
+    const [drawn] = await waitForGeometry(screen)
     expect(drawn).toBeDefined()
     expect(drawn.slice(0, 2)).toEqual(drawn.slice(-2))
     // [lat, lng], not GeoJSON's [lng, lat].

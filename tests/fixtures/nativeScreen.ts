@@ -225,6 +225,27 @@ export async function waitForVisibility(
   )
 }
 
+/** Wait for nonempty map geometry, which can arrive after the frame is visible. */
+export async function waitForGeometry(session: NativeSession, count = 1): Promise<number[][]> {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const byNode = new Map<string, number[]>()
+    for (const message of session.sent) {
+      if (message.type !== 'MUTATE')
+        continue
+      for (const operation of message.payload.operations) {
+        const geometry = operation.patch?.props?.geometry
+        if (operation.op === 'updateNode' && Array.isArray(geometry))
+          byNode.set(String(operation.id), geometry)
+      }
+    }
+    const drawn = [...byNode.values()].filter(geometry => geometry.length > 0)
+    if (drawn.length >= count)
+      return drawn
+    await Bun.sleep(1)
+  }
+  throw new Error(`The host never received geometry for ${count} map overlay(s)`)
+}
+
 /**
  * The strings the screen has displayed *since* a point in the conversation.
  *

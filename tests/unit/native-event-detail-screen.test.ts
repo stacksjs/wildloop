@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * One event's live board, natively.
@@ -89,13 +89,6 @@ async function open(id: unknown, body: unknown = detail(), status = 200) {
   return { screen, request }
 }
 
-function geometries(screen: any): number[][] {
-  return screen.sent
-    .filter((m: any) => m.type === 'MUTATE')
-    .flatMap((m: any) => m.payload.operations)
-    .filter((op: any) => op.op === 'updateNode' && op.patch?.props?.geometry)
-    .map((op: any) => op.patch.props.geometry)
-}
 
 function textOf(screen: any, testID: string): string {
   const ids = new Map<string, string>()
@@ -228,7 +221,7 @@ describe('Wildloop native event detail screen', () => {
     const { screen } = await open('9')
     await waitForVisibility(screen, 'event-map-frame', 'flex')
 
-    const [drawn] = geometries(screen).filter(g => g.length > 0)
+    const [drawn] = await waitForGeometry(screen)
     expect(drawn).toEqual([32.80, -117.03, 32.81, -117.04, 32.82, -117.03])
     expect(drawn.slice(0, 2)).not.toEqual(drawn.slice(-2))
   })

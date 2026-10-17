@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 /**
  * The territory map, natively.
@@ -122,7 +122,7 @@ describe('Wildloop native territories screen', () => {
     const { screen } = await board()
     await waitForText(screen, 'Balboa Loop')
 
-    const drawn = geometries(screen)
+    const drawn = await waitForGeometry(screen, 2)
     expect(drawn.length).toBeGreaterThanOrEqual(2)
     expect(drawn.every(geometry => geometry.length % 2 === 0)).toBe(true)
   })
@@ -136,7 +136,7 @@ describe('Wildloop native territories screen', () => {
     const { screen } = await board()
     await waitForText(screen, 'Balboa Loop')
 
-    const [first] = geometries(screen)
+    const [first] = await waitForGeometry(screen, 2)
     for (let index = 0; index < first.length; index += 2) {
       expect(Math.abs(first[index])).toBeLessThanOrEqual(90)
       expect(Math.abs(first[index + 1])).toBeGreaterThan(90)
@@ -148,7 +148,7 @@ describe('Wildloop native territories screen', () => {
     const { screen } = await board()
     await waitForText(screen, 'Balboa Loop')
 
-    for (const geometry of geometries(screen)) {
+    for (const geometry of await waitForGeometry(screen, 2)) {
       expect(geometry.slice(0, 2)).toEqual(geometry.slice(-2))
     }
   })

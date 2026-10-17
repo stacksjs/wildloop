@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * One record attempt, natively.
@@ -95,13 +95,6 @@ async function open(id: unknown, body: unknown = effortBody(), status = 200, tra
   return { screen, request, course }
 }
 
-function geometries(screen: any): number[][] {
-  return screen.sent
-    .filter((m: any) => m.type === 'MUTATE')
-    .flatMap((m: any) => m.payload.operations)
-    .filter((op: any) => op.op === 'updateNode' && op.patch?.props?.geometry)
-    .map((op: any) => op.patch.props.geometry)
-}
 
 function networkCalls(screen: any) {
   return requests(screen).filter((r: any) => r.payload?.module === 'Network').map((r: any) => ({
@@ -172,7 +165,7 @@ describe('Wildloop native effort detail screen', () => {
     const { screen } = await open('31')
     await waitForVisibility(screen, 'effort-map-frame', 'flex')
 
-    const [drawn] = geometries(screen).filter(g => g.length > 0)
+    const [drawn] = await waitForGeometry(screen)
     expect(drawn).toEqual([37.90, -122.64, 37.91, -122.65, 37.92, -122.66])
   })
 
@@ -181,7 +174,7 @@ describe('Wildloop native effort detail screen', () => {
     const { screen } = await open('31')
     await waitForVisibility(screen, 'effort-map-frame', 'flex')
 
-    const [drawn] = geometries(screen).filter(g => g.length > 0)
+    const [drawn] = await waitForGeometry(screen)
     expect(drawn.slice(0, 2)).not.toEqual(drawn.slice(-2))
   })
 
