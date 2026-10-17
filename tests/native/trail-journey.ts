@@ -54,7 +54,7 @@ const maps:SimulatorStep[] = [
  {command:'tapid',text:'map-layer'},
  {command:'tree',name:'native-layer-picker'},
  {command:'tapexact',text:'Satellite'},
- {command:'expect',text:'Satellite',seconds:10},
+ {command:'expect',text:'Map layer: Satellite',seconds:10},
  {command:'tree',name:'native-satellite'},
  {command:'shot',name:'native-satellite'},
  {command:'back'},
