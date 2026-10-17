@@ -217,8 +217,6 @@ jobs:
 
   publish-commit:
     runs-on: ubuntu-latest
-    env:
-      STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
 
     steps:
       - uses: actions/checkout@v6
@@ -244,16 +242,7 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
-      - name: Checkout STX
-        uses: actions/checkout@v6
-        with:
-          repository: stacksjs/stx
-          ref: ${{ env.STX_REVISION }}
-          path: .stx-source
-
       - name: Build
-        env:
-          STX_SOURCE_ROOT: ${{ github.workspace }}/.stx-source
         run: bun run build
 
       # Commit builds go to the pantry registry, which is where this project
