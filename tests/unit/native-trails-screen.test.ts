@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, chooseNativeOption, nativeNodeProps, nativeNodeStyle, compileNativeBundle, nativeBundle, nodesByTestId, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { trailPlaceLine, trailRoutePoints, trailStatsLine } from '../../resources/functions/trails'
 
 /**
@@ -10,8 +10,7 @@ import { trailPlaceLine, trailRoutePoints, trailStatsLine } from '../../resource
  * Sixth list screen, and the first that draws something. What it pins: the
  * route reaches the screen as a bound `:points` on a real SVG polyline, the
  * numbers come from the shared module rather than the template, searching goes
- * back to the server, and a row hands off to the web trail page because that
- * page is a map.
+ * back to the server, and a row opens the native trail detail screen.
  *
  * It also pins the shape of the row thumbnail. This screen draws its line as
  * an SVG polyline because the row is 96x64, not because a `Map` could not be
@@ -74,14 +73,28 @@ describe('Wildloop native trails screen', () => {
   })
 
   /*
-   * The route is bound, not baked. `:geometry` on a MapPolyline is dropped by
-   * the compiler; `:points` on a polyline is not, and this is what proves the
-   * difference holds in the compiled bundle rather than only in a probe.
+   * The lightweight row thumbnail carries this trail's recorded line through
+   * a bound SVG polyline. Full trail screens use native Maps.
    */
   it('binds the route as geometry the compiler actually keeps', () => {
     expect(SOURCE).toContain(':points="line(row)"')
     expect(nativeBundle()).toContain('"Polyline"')
     expect(nativeBundle()).toContain(':points')
+  })
+
+  it('labels native collection and difficulty controls and sends the selected filter', async () => {
+    const { screen, request } = await catalog()
+    answer(screen, request, ok(TRAILS))
+    await waitForText(screen, 'Eagle Creek Loop')
+    expect(nativeNodeProps(screen, 'trails-list').title).toBe('Trail collection: All trails')
+    expect(nativeNodeStyle(screen, 'trails-list').minHeight).toBe(44)
+    expect(nativeNodeProps(screen, 'trails-search').accessibilityLabel).toBe('Search trails')
+    expect(nativeNodeProps(screen, 'trails-search').placeholder).toBe('Name, park or forest')
+    const before = requests(screen).length
+    await chooseNativeOption(screen, 'trails-difficulty', 'Hard')
+    const filtered = await waitForRequest(screen, before, r => r.payload.module === 'Network')
+    expect(filtered.payload.args[0].url).toContain('difficulty=hard')
+    expect(nativeNodeProps(screen, 'trails-difficulty').title).toBe('Difficulty: Hard')
   })
 
   it('asks the public catalog, and sends no token', async () => {
@@ -140,7 +153,7 @@ describe('Wildloop native trails screen', () => {
     expect(second.payload.args[0].url).toContain('q=eagle%20creek')
   })
 
-  it('hands a row to the web trail page, which is a map screen', async () => {
+  it('opens the native trail detail path for a row', async () => {
     const { screen, request } = await catalog()
     answer(screen, request, ok(TRAILS))
     await waitForText(screen, 'Eagle Creek Loop')

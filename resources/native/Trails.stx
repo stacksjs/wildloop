@@ -1,5 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
+import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
+import { nativeUi as ui } from '../functions/native-ui'
 import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
 import {
   trailPath,
@@ -162,10 +164,13 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); mine.set([]); v
     <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Find a trail by name, park, or forest.</Text>
 
     <View class="mt-4 gap-2">
+      <Text :class="ui.caption">Search trails</Text>
       <TextInput
         testID="trails-search"
-        class="rounded-xl bg-white dark:bg-[#1b2c22] p-3 text-[#192414] dark:text-[#f0f5ec]"
+        :class="ui.input"
+        accessibilityLabel="Search trails"
         placeholder="Name, park or forest"
+        placeholderTextColor="#65725f"
         :value="query"
         @input="query.set(eventText($event))"
       />
