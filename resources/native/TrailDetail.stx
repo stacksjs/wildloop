@@ -9,7 +9,7 @@ import { decodeRouteParts } from '../functions/trail-geometry'
 import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
 import { exportNativeGpx } from '../functions/native-export'
 import { trailDirectionSigns, trailSurfaceTypes } from '../functions/trail-map'
-import { trailProfilePath, type TrailProfilePoint } from '../functions/trail-profile'
+import { trailProfilePath, trailProfileRange, type TrailProfilePoint } from '../functions/trail-profile'
 import { trailStatsLine } from '../functions/trails'
 import { forecastDayLabel } from '../functions/trail-page'
 import { planDirections } from '../functions/trip-plans'
@@ -42,6 +42,7 @@ const basemap = derived(() => nativeBasemap(mapType()))
 const region = state<any>(null)
 const inspected = state<TrailProfilePoint | null>(null)
 const profileOpen = state(true)
+const profileFigures = derived(() => trailProfileRange(profile()))
 const pitch = state(0)
 const heading = state(0)
 const showLocation = state(false)
@@ -278,19 +279,21 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       <Text :class="ui.header">Explore the route</Text>
       <View :class="ui.card">
         <View class="relative h-[480px] -mx-4 -mt-4 overflow-hidden rounded-[12px]">
-        <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :rotateEnabled="true" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
+        <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
           <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
           <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
           <MapMarker id="trailhead" title="Trailhead" :geometry="[trail()?.lat, trail()?.lng]" />
           <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
         </Map>
+        <Button testID="trail-map-preview-expand" accessibilityLabel="Open interactive map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
           <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
-        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" accessibilityLabel="Toggle elevation profile" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
+        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
         <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full">
           <path :d="profilePath()" fill="none" stroke="#24724b" stroke-width="3" />
         </svg>
         <Text :show="!profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
+        <Text :show="profile().some(point => point.ft !== null)" :text="profileFigures().miles.toFixed(1) + ' mi · ' + Math.round(profileFigures().low) + '–' + Math.round(profileFigures().high) + ' ft'" :class="ui.caption" />
         <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
         <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi, ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
           </View>
@@ -309,7 +312,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <Button testID="trail-map-fullscreen" :class="ui.secondary" @click="craft.navigation.open('/trail/' + wanted + '/map')">Expand map</Button>
         </View>
         <Button testID="trail-map-export" :disabled="!routeAvailable()" :class="ui.secondary" class="mt-2" @click="exportRoute()">Export GPX</Button>
-        <Button testID="trail-map-layer" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" :accessibilityValue="{text:nativeChoiceLabel(nativeBasemapOptions,mapType())}" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
+        <Button testID="trail-map-layer" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
 
       </View>
       <Text :class="ui.header">Conditions</Text>
@@ -343,9 +346,9 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
     <Text :show="notice" :text="notice" :class="ui.caption" class="m-4" testID="trail-notice" />
   </ScrollView>
   <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-white dark:bg-[#1b2c22]" testID="trail-sticky-actions">
-    <Button testID="trail-save" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()" :title="loading() ? 'Loading…' : !viewerReady() ? 'Save unavailable' : saved() ? 'Saved' : 'Save'" />
-    <Button testID="trail-directions" :class="ui.secondary" @click="directions()">Directions</Button>
-    <Button testID="trail-share" :class="ui.secondary" @click="shareTrail()">Share</Button>
+    <Button testID="trail-save" class="flex-1" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()" :title="loading() ? 'Loading…' : !viewerReady() ? 'Save unavailable' : saved() ? 'Saved' : 'Save'" />
+    <Button testID="trail-directions" class="flex-1" :class="ui.secondary" @click="directions()">Directions</Button>
+    <Button testID="trail-share" class="flex-1" :class="ui.secondary" @click="shareTrail()">Share</Button>
   </View>
   <Modal :visible="composer" presentationStyle="pageSheet" @requestClose="composer.set(false)" testID="trail-review-composer">
     <KeyboardAvoidingView :class="ui.screen">
@@ -363,9 +366,9 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <Button testID="trail-review-clear-date" @click="visitDate.set('')">Clear date</Button>
         </View>
         <Text :class="ui.caption">Conditions (optional)</Text>
-        <Button testID="trail-review-conditions" :class="ui.secondary" :title="'Conditions' + ': ' + nativeChoiceLabel([{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],conditions())" :accessibilityValue="{text:nativeChoiceLabel([{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],conditions())}" @click="chooseNativeChoice(craft,'Conditions',[{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],choice=>{conditions.set(choice)},message=>error.set(message))" />
+        <Button testID="trail-review-conditions" :class="ui.secondary" :title="'Conditions' + ': ' + nativeChoiceLabel([{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],conditions())" accessibilityLabel="Conditions" :accessibilityValue="nativeChoiceLabel([{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],conditions())" @click="chooseNativeChoice(craft,'Conditions',[{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))],choice=>{conditions.set(choice)},message=>error.set(message))" />
         <Text :class="ui.caption">Difficulty (optional)</Text>
-        <Button testID="trail-review-difficulty" :class="ui.secondary" :title="'Difficulty' + ': ' + nativeChoiceLabel([{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],difficulty())" :accessibilityValue="{text:nativeChoiceLabel([{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],difficulty())}" @click="chooseNativeChoice(craft,'Difficulty',[{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],choice=>{difficulty.set(choice)},message=>error.set(message))" />
+        <Button testID="trail-review-difficulty" :class="ui.secondary" :title="'Difficulty' + ': ' + nativeChoiceLabel([{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],difficulty())" accessibilityLabel="Difficulty" :accessibilityValue="nativeChoiceLabel([{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],difficulty())" @click="chooseNativeChoice(craft,'Difficulty',[{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS],choice=>{difficulty.set(choice)},message=>error.set(message))" />
         <Button testID="trail-review-add-photo" :disabled="busy" @click="pickReviewPhoto()">Add a photo</Button>
         <Text :show="photoDrafts().length" :text="photoDrafts().length + ' new photos selected. Existing review photos will be kept.'" :class="ui.caption" />
         <View :for="(draft,index) in photoDrafts()" :key="draft.file.path" class="gap-2 my-2"><Image :source="{uri:draft.file.path}" class="h-32 w-full rounded-[8px]" resizeMode="cover" /><Button :disabled="busy" @click="photoDrafts.set(photoDrafts().filter((entry,at)=>at!==index))">Remove selected photo</Button></View>

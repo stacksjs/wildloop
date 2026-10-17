@@ -14,7 +14,7 @@ describe('native full trail map',()=>{
   beforeAll(compileNativeBundle,30000)
   it('fits the recorded route with room for its floating card and supports zoom, layers and 3D',async()=>{
     const screen=await open()
-    expect(nativeNodeProps(screen,'trail-full-map')).toMatchObject({fitToBounds:true,edgePadding:{bottom:240},showsCompass:true,showsScale:true,tileOverlay:{attribution:expect.stringContaining('Esri'),urlTemplate:expect.stringContaining('World_Topo_Map')}})
+    expect(nativeNodeProps(screen,'trail-full-map')).toMatchObject({fitToBounds:true,edgePadding:{bottom:240},showsCompass:true,showsScale:true,scrollEnabled:true,zoomEnabled:true,rotateEnabled:true,tileOverlay:{attribution:expect.stringContaining('Esri'),urlTemplate:expect.stringContaining('World_Topo_Map')}})
     await chooseNativeOption(screen,'map-layer','Satellite')
     await screen.event('map-3d','onPress')
     await screen.event('map-zoom-in','onPress')
@@ -23,6 +23,9 @@ describe('native full trail map',()=>{
     expect(nativeNodeProps(screen,'trail-full-map')).toMatchObject({region:null,fitToBounds:true})
     await screen.event('map-profile-toggle','onPress')
     expect(nativeNodeProps(screen,'trail-full-map').edgePadding.bottom).toBe(100)
+    expect(nativeNodeProps(screen,'map-profile-toggle').accessibilityValue).toBe('Elevation profile collapsed')
+    await screen.event('map-profile-toggle','onPress')
+    expect(nativeNodeProps(screen,'map-profile-toggle').accessibilityValue).toBe('Elevation profile expanded')
   })
   it('tracks gesture camera changes, resets north and inspects actual elevation positions',async()=>{
     const screen=await open()

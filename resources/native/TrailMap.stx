@@ -90,7 +90,7 @@ onMount(() => { void load(); return () => { alive = false } })
   <View class="relative flex-1 overflow-hidden" testID="trail-map-screen">
     <Map :show="trail()" class="absolute inset-0 w-full h-full" testID="trail-full-map"
       :region="parts().some(part=>part.length>2) ? region() : currentRegion()" :fitToBounds="region() === null && parts().some(part=>part.length>2)" :edgePadding="{top:88,left:40,right:40,bottom:profileOpen() ? 240 : 100}"
-      :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :cameraPitch="pitch" :cameraHeading="heading" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation"
+      :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :cameraPitch="pitch" :cameraHeading="heading" :showsCompass="true" :showsScale="true" :scrollEnabled="true" :zoomEnabled="true" :rotateEnabled="true" :showsUserLocation="showLocation"
       @region-change-complete="camera($event)">
       <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
       <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
@@ -98,14 +98,14 @@ onMount(() => { void load(); return () => { alive = false } })
       <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
     </Map>
     <View class="absolute top-3 left-3 right-3 flex-row flex-wrap gap-2">
-      <Button testID="map-layer" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" :accessibilityValue="{text:nativeChoiceLabel(nativeBasemapOptions,mapType())}" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
+      <Button testID="map-layer" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
       <Button testID="map-3d" :class="ui.secondary" :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" />
       <Button testID="map-north" :class="ui.secondary" @click="heading.set(0)">North</Button>
     </View>
     <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white dark:bg-[#1b2c22] p-3 shadow-lg" testID="map-floating-profile">
       <View class="flex-row justify-between items-center">
         <Text :class="ui.title">Elevation profile</Text>
-        <Button testID="map-profile-toggle" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
+        <Button testID="map-profile-toggle" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
       </View>
       <View :show="profileOpen">
         <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full"><path :d="trailProfilePath(profile())" fill="none" stroke="#24724b" stroke-width="3" /></svg>

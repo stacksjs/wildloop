@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, nativeNodeStyle, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 const LINE = [[37.7, -119.5], [37.71, -119.51], [37.72, -119.5]]
 const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.7, longitude: -119.5, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
@@ -31,11 +31,24 @@ describe('native trail details', () => {
     expect(shownText(screen)).toContain('Natural')
     expect(shownText(screen)).toContain('Rock')
     expect(shownText(screen)).toContain('68°F, Clear')
+    expect(shownText(screen)).toContain('3.0 mi · 4000–4500 ft')
+    expect(nativeNodeProps(screen,'trail-native-map')).toMatchObject({scrollEnabled:false,zoomEnabled:false,rotateEnabled:false})
+    for (const id of ['trail-save','trail-directions','trail-share']) expect(nativeNodeStyle(screen,id).flexGrow).toBe(1)
     expect(props(screen).some(p => JSON.stringify(p.geometry) === JSON.stringify(LINE.flat()))).toBe(true)
+  })
+  it('opens the interactive map from the preview and exposes the floating profile state',async()=>{
+    const screen=await open()
+    expect(nativeNodeProps(screen,'trail-profile-toggle').accessibilityValue).toBe('Elevation profile expanded')
+    await screen.event('trail-profile-toggle','onPress')
+    expect(nativeNodeProps(screen,'trail-profile-toggle').accessibilityValue).toBe('Elevation profile collapsed')
+    expect(nativeNodeProps(screen,'trail-native-map').edgePadding.bottom).toBe(88)
+    await screen.event('trail-map-preview-expand','onPress')
+    expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/trail/7/map')).toBe(true)
   })
   it('changes map layer and camera through native bindings', async () => {
     const screen = await open()
     await chooseNativeOption(screen,'trail-map-layer','Satellite')
+    expect(nativeNodeProps(screen,'trail-map-layer')).toMatchObject({accessibilityLabel:'Map layer',accessibilityValue:'Satellite'})
     await screen.event('trail-zoom-in', 'onPress')
     await screen.event('trail-fit-route', 'onPress')
     expect(props(screen).some(p => p.mapType === 'satellite')).toBe(true)
