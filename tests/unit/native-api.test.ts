@@ -250,3 +250,41 @@ describe('createNativeApi', () => {
     }
   })
 })
+
+describe('signed-out native mutation security', () => {
+  it('gets a Stacks CSRF cookie and echoes the exact token without an authorization header', async () => {
+    const previous = globalThis.fetch
+    const calls: Array<{url:string, init:any}> = []
+    const token = 'b'.repeat(64)
+    globalThis.fetch = (async (url:any, init:any) => {
+      calls.push({url:String(url),init})
+      return String(url).endsWith('/api/csrf')
+        ? new Response('{"success":true}', {headers:{'Set-Cookie':`X-CSRF-Token=${token}; Path=/; SameSite=Lax`}})
+        : new Response('{"success":true}')
+    }) as typeof fetch
+    try {
+      await createNativeApi(keychain(null).host).send('/api/login','POST',{email:'qa@example.test',password:'test-only'})
+      expect(calls.map(call=>call.url)).toEqual([`${WILDLOOP_ORIGIN}/api/csrf`,`${WILDLOOP_ORIGIN}/api/login`])
+      expect(calls[1].init.headers).toMatchObject({'X-CSRF-Token':token,Cookie:`X-CSRF-Token=${token}`})
+      expect(calls[1].init.headers.Authorization).toBeUndefined()
+    } finally { globalThis.fetch=previous }
+  })
+  it('refuses a mutation when the server does not issue its security cookie', async () => {
+    const previous=globalThis.fetch, calls:string[]=[]
+    globalThis.fetch=(async(url:any)=>{calls.push(String(url));return new Response('{"success":true}')}) as typeof fetch
+    try {
+      await expect(createNativeApi(keychain(null).host).send('/api/register','POST',{})).rejects.toThrow('security token could not be loaded')
+      expect(calls).toEqual([`${WILDLOOP_ORIGIN}/api/csrf`])
+    } finally {globalThis.fetch=previous}
+  })
+  it('does not submit a guest form if the account changes during its security exchange', async () => {
+    const previous=globalThis.fetch, calls:string[]=[]
+    let account:any=null
+    const host={secureStorage:{get:()=>''},snapshots:{get:()=>account}}
+    globalThis.fetch=(async(url:any)=>{calls.push(String(url));account={user:{id:7}};return new Response('{}',{headers:{'Set-Cookie':`X-CSRF-Token=${'c'.repeat(64)}; Path=/`}})}) as typeof fetch
+    try {
+      await expect(createNativeApi(host).send('/api/login','POST',{})).rejects.toThrow('Your account changed')
+      expect(calls).toEqual([`${WILDLOOP_ORIGIN}/api/csrf`])
+    } finally {globalThis.fetch=previous}
+  })
+})

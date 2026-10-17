@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { nativeNodeProps, answer, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeNodeProps, answer, answerNativeCsrf, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 describe('native account forms',()=>{
   beforeAll(compileNativeBundle,30000)
@@ -9,8 +9,10 @@ describe('native account forms',()=>{
     await screen.event('login-password','onChangeText',{text:'Native-QA-password'})
     await screen.event('login-submit','onPress')
     answer(screen,await waitForRequest(screen,0,r=>r.payload.module==='SecureStorage'),null)
-    const post=await waitForRequest(screen,0,r=>r.payload.module==='Network')
+    await answerNativeCsrf(screen)
+    const post=await waitForRequest(screen,0,r=>r.payload.module==='Network' && r.payload.args[0].method==='POST')
     expect(nativeNodeProps(screen,'login-submit').title).toBe('Signing in…')
+    expect(post.payload.args[0].headers).toMatchObject({'x-csrf-token':'a'.repeat(64),cookie:`X-CSRF-Token=${'a'.repeat(64)}`})
     expect(JSON.parse(post.payload.args[0].body)).toMatchObject({email:'native@example.test',password:'Native-QA-password'})
     answer(screen,post,{status:200,headers:{'content-type':'application/json'},body:JSON.stringify({token:'native-login-token',user:{id:7,name:'Native tester'}})})
     const bearer=await waitForRequest(screen,requests(screen).indexOf(post)+1,r=>r.payload.module==='SecureStorage' && r.payload.method==='set')
@@ -29,7 +31,8 @@ describe('native account forms',()=>{
     await screen.event('login-password','onChangeText',{text:'incorrect'})
     await screen.event('login-submit','onPress')
     answer(screen,await waitForRequest(screen,0,r=>r.payload.module==='SecureStorage'),null)
-    answer(screen,await waitForRequest(screen,0,r=>r.payload.module==='Network'),{status:401,headers:{'content-type':'application/json'},body:JSON.stringify({error:'Incorrect email or password'})})
+    await answerNativeCsrf(screen)
+    answer(screen,await waitForRequest(screen,0,r=>r.payload.module==='Network' && r.payload.args[0].method==='POST'),{status:401,headers:{'content-type':'application/json'},body:JSON.stringify({error:'Incorrect email or password'})})
     await waitForText(screen,'Incorrect email or password')
     expect(requests(screen).some(r=>r.payload.module==='SecureStorage' && r.payload.method==='set')).toBe(false)
     expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN')).toBe(false)

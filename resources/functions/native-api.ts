@@ -109,13 +109,25 @@ export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(ho
     }
   }
 
+  // Signed-out native forms follow the same Stacks double-submit contract
+  // as the browser. Cookie headers are explicit because the Android host and
+  // JavaScriptCore expose no document.cookie API or shared browser cookie jar.
+  const guestMutationHeaders = async (): Promise<Record<string, string>> => {
+    const response = await fetch(`${origin}/api/csrf`, { headers: { Accept: 'application/json' } })
+    const cookie = response.headers.get('set-cookie') ?? ''
+    const token = /(?:^|,\s*)X-CSRF-Token=([a-f0-9]{64})(?:;|$)/i.exec(cookie)?.[1]
+    if (!response.ok || !token) throw new Error('The security token could not be loaded. Please try again.')
+    return { 'X-CSRF-Token': token, Cookie: `X-CSRF-Token=${token}` }
+  }
+
   const request = async (path: string, method: string, body: string | FormData | undefined, json: boolean): Promise<NativeResponse> => {
     const account = sessionKey()
     const bearer = await readToken()
+    const csrf = !bearer && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase()) ? await guestMutationHeaders() : {}
     if (account !== sessionKey()) throw new Error('Your account changed. Please try again.')
     const response = await fetch(`${origin}${path}`, {
       method,
-      headers: nativeHeaders(bearer, json),
+      headers: { ...nativeHeaders(bearer, json), ...csrf },
       ...body === undefined ? {} : { body },
     })
     // A body that is not JSON is not an exception — an error page is text, and

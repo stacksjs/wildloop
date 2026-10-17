@@ -1,3 +1,4 @@
+import { createCsrfCookie } from '../../Middleware/Csrf'
 import { PRIVATE_CACHE_CONTROL } from '../../Support/edgeCache'
 
 /**
@@ -9,19 +10,23 @@ import { PRIVATE_CACHE_CONTROL } from '../../Support/edgeCache'
  * visitor can reach the sign-in form holding none. The form asks here first
  * (`ensureCsrfToken` in resources/assets/scripts/auth.ts).
  *
- * The router does the planting, as it does for any JSON GET from a visitor
- * without the cookie. This answer only has to be one the edge never keeps.
+ * Issue a fresh framework cookie even when native networking already holds
+ * one: native clients must be able to read the returned token and echo it.
+ * Shared caches must never keep this response.
  */
 export default new Action({
   name: 'CSRF Cookie',
   description: 'Set the CSRF double-submit cookie for a visitor who has none',
   method: 'GET',
 
-  async handle() {
+  async handle(request: RequestInstance) {
     return new Response(JSON.stringify({ success: true }), {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': PRIVATE_CACHE_CONTROL,
+        // Preserve the router's enriched request and trusted-transport hint,
+        // as the framework auth actions do when calling Request-based helpers.
+        'Set-Cookie': createCsrfCookie(request as unknown as Request),
       },
     })
   },

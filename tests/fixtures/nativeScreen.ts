@@ -358,3 +358,9 @@ export async function chooseNativeOption(session:NativeSession,testID:string,lab
   answer(session,sheet,option.id)
   await Bun.sleep(0)
 }
+
+/** Answer the real preflight emitted by a compiled signed-out native form. */
+export async function answerNativeCsrf(session: NativeSession, after = 0): Promise<void> {
+  const request = await waitForRequest(session, after, item => item.payload.module === 'Network' && item.payload.args?.[0]?.url?.endsWith('/api/csrf'))
+  answer(session, request, { status: 200, headers: { 'set-cookie': `X-CSRF-Token=${'a'.repeat(64)}; Path=/; SameSite=Lax` }, body: '{"success":true}' })
+}

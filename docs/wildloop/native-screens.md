@@ -38,6 +38,8 @@ must be published before the application adopts them.
 - `native-api.ts` reads the keychain bearer and scopes its cached promise to
   the current account snapshot. Screen teardown and account changes must clear
   private state and prevent an old request from restoring another account.
+  Signed-out mutations first fetch the framework CSRF cookie and echo it as
+  both cookie and header; signed-in requests use the normal bearer contract.
 - Native recording uses Craft location, background recording and checkpoints.
   Saving an activity must remain available when an optional Health write is
   declined. Background and locked-device behavior need physical-device tests.

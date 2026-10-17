@@ -56,7 +56,10 @@ export async function runNativeTrailE2e(): Promise<void> {
       if(url.pathname==='/script')return new Response(journey)
       if(url.pathname==='/note' && request.method==='POST'){
         const line=await request.text()
-        if(line.startsWith('FAIL '))failed=true
+        if(line.startsWith('FAIL ')) {
+          failed=true
+          await command(['xcrun','simctl','io',device,'screenshot',join(root,'native-failure.png')],'failure-screenshot.log').catch(cause=>console.warn(String(cause)))
+        }
         await appendFile(join(root,'driver.log'),`${line}\n`)
         return new Response('ok')
       }
@@ -70,6 +73,9 @@ export async function runNativeTrailE2e(): Promise<void> {
     }})
     await command(['bun','run','build:ios'],'app-generation.log',{MOBILE_URL:`${origin}/feed`})
     validateGeneratedNativeApp('storage/framework/mobile/ios')
+    const generated=await Bun.file('storage/framework/mobile/ios/craft.config.json').json()
+    await writeFile(join(root,'native-app-origin.log'),JSON.stringify({url:generated.devServerURL,renderer:generated.renderer}))
+    if(generated.devServerURL!==`${origin}/feed`)throw new Error('The native QA app must target its isolated server.')
     await command(['xcodebuild','-project','storage/framework/mobile/ios/Wildloop.xcodeproj','-scheme','Wildloop','-configuration','Debug','-destination',`id=${device}`,'-derivedDataPath',join(root,'app-build'),'-jobs','2',...IOS_SIMULATOR_SIGNING,'build'],'app-build.log')
     const app=join(root,'app-build/Build/Products/Debug-iphonesimulator/Wildloop.app')
     validateIosAppBundle(app)
@@ -88,7 +94,10 @@ export async function runNativeTrailE2e(): Promise<void> {
     await writeFile(join(root,'driver-generation.log'),JSON.stringify({package:tool.pkg,version:tool.version})+'\n')
     nativeRun=Bun.spawn(['xcodebuild','-project',join(driver.output,`${driver.projectName}.xcodeproj`),'-scheme',driver.projectName,'-destination',`id=${device}`,'-derivedDataPath',join(root,'driver-build'),'-resultBundlePath',join(root,'results.xcresult'),'-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1','-collect-test-diagnostics','never','-jobs','2','CODE_SIGNING_ALLOWED=NO','test'],{stdout:Bun.file(join(root,'driver-build-test.log')),stderr:'inherit'})
     const status=await nativeRun.exited
-    if(status || failed)throw new Error('Native trail journey failed. Inspect its XCTest result, driver log and screenshots.')
+    if(status || failed) {
+      await command(['xcrun','simctl','spawn',device,'log','show','--last','5m','--style','compact','--predicate','process == "Wildloop"'],'app-runtime.log').catch(cause=>console.warn(String(cause)))
+      throw new Error('Native trail journey failed. Inspect its XCTest result, driver log and screenshots.')
+    }
     const notes=await Bun.file(join(root,'driver.log')).text()
     if(!notes.includes(`PASS absent ${review}`))throw new Error('Native review lifecycle did not reach its final deletion assertion.')
     console.log('Native trail map, sticky save and review create/edit/delete journey passed.')
