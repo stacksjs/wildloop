@@ -98,7 +98,7 @@ const tilejson = {
   bounds: [header.minLon, header.minLat, header.maxLon, header.maxLat],
   center: [header.centerLon, header.centerLat, header.centerZoom],
   vector_layers: metadata?.vector_layers ?? [],
-  attribution: 'Tiles by <a href="https://wildloop.org/">Wildloop</a> | <a href="https://openmaptiles.org/">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>',
+  attribution: '<a href="https://wildloop.org/map-attribution">Data attribution</a> | &copy; <a href="https://wildloop.org/map-attribution">Wildloop</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }
 await s3.file('tiles.json').write(JSON.stringify(tilejson), { type: 'application/json' })
 console.log(`publish: ${publicUrl}/tiles.json → ${key}`)

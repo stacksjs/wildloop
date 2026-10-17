@@ -1,0 +1,46 @@
+@extends('layouts/default')
+
+@section('title', 'Map data attribution - Wildloop')
+
+@section('content')
+<script server>
+  useSeoMeta({
+    title: 'Map data attribution — Wildloop',
+    description: 'The map data, cartography and open source projects behind Wildloop maps.',
+    canonical: 'https://wildloop.org/map-attribution',
+    robots: 'index, follow',
+    ogTitle: 'Map data attribution — Wildloop',
+    ogUrl: 'https://wildloop.org/map-attribution',
+    ogType: 'website',
+    ogSiteName: 'Wildloop',
+  })
+</script>
+
+  <article class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="mb-4 text-3xl font-bold text-slate-900 dark:text-white">Map data attribution</h1>
+    <p class="mb-10 leading-relaxed text-slate-600 dark:text-slate-300">Wildloop builds and serves its own map tiles. Our maps combine community map data with an open map schema and our own presentation. These credits also apply when Wildloop maps appear in partner apps and share images.</p>
+
+    <div class="space-y-8 leading-relaxed text-slate-600 dark:text-slate-300">
+      <section>
+        <h2 class="mb-2 text-xl font-semibold text-slate-900 dark:text-white">OpenStreetMap</h2>
+        <p>Map data © <a href="https://www.openstreetmap.org/copyright" class="text-emerald-600 hover:underline dark:text-emerald-400">OpenStreetMap contributors</a>, available under the <a href="https://opendatacommons.org/licenses/odbl/1-0/" class="text-emerald-600 hover:underline dark:text-emerald-400">Open Database License (ODbL)</a>. OpenStreetMap's copyright page lists additional data sources and licence information.</p>
+        <p class="mt-2">A road or trail missing or incorrect? <a href="https://www.openstreetmap.org/fixthemap" class="text-emerald-600 hover:underline dark:text-emerald-400">Improve this map through OpenStreetMap</a>.</p>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xl font-semibold text-slate-900 dark:text-white">OpenMapTiles</h2>
+        <p>Our vector tiles use the © <a href="https://openmaptiles.org/" class="text-emerald-600 hover:underline dark:text-emerald-400">OpenMapTiles</a> schema. Its cartographic design is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" class="text-emerald-600 hover:underline dark:text-emerald-400">Creative Commons Attribution 4.0</a>; its code is covered by the <a href="https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md" class="text-emerald-600 hover:underline dark:text-emerald-400">BSD 3-Clause licence</a>. Wildloop generates and hosts the tiles itself.</p>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xl font-semibold text-slate-900 dark:text-white">Map software</h2>
+        <p><a href="https://github.com/onthegomap/planetiler" class="text-emerald-600 hover:underline dark:text-emerald-400">Planetiler</a> builds the tiles, <a href="https://github.com/protomaps/PMTiles" class="text-emerald-600 hover:underline dark:text-emerald-400">PMTiles</a> stores the archive, and <a href="https://github.com/stacksjs/ts-maps" class="text-emerald-600 hover:underline dark:text-emerald-400">ts-maps</a> renders interactive maps and static share maps.</p>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xl font-semibold text-slate-900 dark:text-white">Other map providers</h2>
+        <p>Partner apps may use <a href="https://openfreemap.org/" class="text-emerald-600 hover:underline dark:text-emerald-400">OpenFreeMap</a> or <a href="https://carto.com/attributions" class="text-emerald-600 hover:underline dark:text-emerald-400">CARTO</a> as a fallback. The credit on each map identifies the provider currently in use. OpenStreetMap data remains attributed when these sources are used.</p>
+      </section>
+    </div>
+  </article>
+@endsection
