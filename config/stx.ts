@@ -65,6 +65,7 @@ export default {
    * the Stacks defaults, which is how it rendered on stx 0.2.313.
    */
   componentPackages: [],
+  plugins: ['./resources/plugins/dialogs.ts'],
 
   css: './crosswind.ts',
 

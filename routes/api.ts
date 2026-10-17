@@ -579,6 +579,7 @@ route.group({ middleware: 'auth' }, () => {
     route.post('/activities/{id}/comments', 'Actions/Activity/ActivityCommentStoreAction')
     // Trail reviews - one per user per trail, upserts (#972/#973)
     route.post('/trails/{id}/reviews', 'Actions/Trail/TrailReviewStoreAction')
+    route.delete('/trails/{id}/reviews', 'Actions/Trail/TrailReviewDestroyAction')
     // Saved trails - deduped per user+trail (#969). Save, kudos, follow and
     // block take PUT to add and DELETE to remove; POST is the old toggle,
     // kept for apps still open across a deploy (app/Support/toggleIntent.ts).

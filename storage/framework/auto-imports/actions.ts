@@ -119,6 +119,7 @@ export const actions = {
   'Actions/Trail/TrailForecastAction': '../../../app/Actions/Trail/TrailForecastAction.ts',
   'Actions/Trail/TrailIndexAction': '../../../app/Actions/Trail/TrailIndexAction.ts',
   'Actions/Trail/TrailProfileAction': '../../../app/Actions/Trail/TrailProfileAction.ts',
+  'Actions/Trail/TrailReviewDestroyAction': '../../../app/Actions/Trail/TrailReviewDestroyAction.ts',
   'Actions/Trail/TrailReviewIndexAction': '../../../app/Actions/Trail/TrailReviewIndexAction.ts',
   'Actions/Trail/TrailReviewStoreAction': '../../../app/Actions/Trail/TrailReviewStoreAction.ts',
   'Actions/Trail/TrailReviewersAction': '../../../app/Actions/Trail/TrailReviewersAction.ts',

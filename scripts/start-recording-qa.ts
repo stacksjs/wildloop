@@ -57,6 +57,9 @@ for (const [name, distance, latitude, longitude, sourceId, image] of [
 // suite cannot turn up in another one's catalog assertions.
 db.run(`INSERT INTO trails (name, location, state, country, distance, elevation, difficulty, latitude, longitude)
   VALUES ('Condition Report Loop', 'Ojai, CA', 'CA', 'US', 3.1, 250, 'easy', 34.4480, -119.2429)`)
+// A separate trail for review lifecycle checks, independent of condition fixtures.
+db.run(`INSERT INTO trails (name, location, state, country, distance, elevation, difficulty, latitude, longitude)
+  VALUES ('Review Lifecycle Loop', 'Ojai, CA', 'CA', 'US', 2.8, 180, 'easy', 34.4480, -119.2429)`)
 // More than one country, so the filter row offers the Country dropdown at
 // all — it appears only past one — and so the regions inside a country are a
 // real choice. A region outside the US is ISO 3166-2 (DE-BY), which the API

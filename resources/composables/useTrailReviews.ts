@@ -1,8 +1,9 @@
-import { onMount, state } from 'stx'
+import { derived, onMount, onUnmounted, state } from 'stx'
 import type { TrailConditionSummary } from '../assets/scripts/game-api'
-import { fetchTrailReviewPage, postTrailReview, uploadTrailPhoto } from '../assets/scripts/game-api'
+import { deleteTrailReview, fetchTrailReviewPage, postTrailReview, uploadTrailPhoto } from '../assets/scripts/game-api'
 import type { DifficultyTally } from '../functions/review-form'
 import { REVIEW_PHOTO_LIMIT, reviewFormError } from '../functions/review-form'
+import { parsePhotoList } from '../functions/trail-photos'
 import { activeDanger, conditionReports, TRAIL_CONDITIONS } from '../functions/trail-conditions'
 
 /**
@@ -68,7 +69,19 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
   const formPhotos = state<ReviewPhotoDraft[]>([])
   const submittingReview = state(false)
   const reviewError = state<string | null>(null)
-  const reviewSaved = state(false)
+  const reviewNotice = state('')
+  const deleteReviewOpen = state(false)
+  const deletingReview = state(false)
+  const deleteReviewError = state<string | null>(null)
+  const ownReview = derived(() => wl ? reviews().find(review => review.user_id === wl.currentUserId()) ?? null : null)
+  const existingReviewPhotos = derived(() => parsePhotoList(ownReview()?.photos))
+  let noticeTimer: ReturnType<typeof setTimeout> | null = null
+
+  function showNotice(message: string): void {
+    if (noticeTimer) clearTimeout(noticeTimer)
+    reviewNotice.set(message)
+    noticeTimer = setTimeout(() => reviewNotice.set(''), 5000)
+  }
 
   function mapApiReview(r: any): ReviewRow {
     return {
@@ -126,7 +139,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
    * already wrote one edits it rather than starting over.
    */
   function openReviewSheet(): void {
-    const mine = wl ? reviews().find(r => r.user_id === wl.currentUserId()) : undefined
+    const mine = ownReview()
     if (mine && formRating() === 0 && !formContent()) {
       formRating.set(mine.rating)
       formContent.set(mine.text)
@@ -145,7 +158,7 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
   function addReviewPhotos(files: FileList | File[] | null | undefined): void {
     if (!files)
       return
-    const room = REVIEW_PHOTO_LIMIT - formPhotos().length
+    const room = REVIEW_PHOTO_LIMIT - existingReviewPhotos().length - formPhotos().length
     const picked = Array.from(files).filter(file => file.type.startsWith('image/')).slice(0, Math.max(0, room))
     if (!picked.length) {
       if (room <= 0)
@@ -195,54 +208,103 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     submittingReview.set(true)
     reviewError.set(null)
 
-    const uploadProblem = await uploadPendingPhotos()
-    if (uploadProblem) {
+    try {
+      const uploadProblem = await uploadPendingPhotos()
+      if (uploadProblem) {
+        submittingReview.set(false)
+        reviewError.set(uploadProblem)
+        return
+      }
+
+      const photoIds = formPhotos().map(draft => draft.uploadedId).filter((id): id is string => Boolean(id))
+      const res = await postTrailReview(trailId(), {
+        rating: formRating(),
+        content: formContent().trim(),
+        conditions: formConditions() || null,
+        visit_date: formVisitDate() || null,
+        difficulty: formDifficulty() || null,
+        // Only sent when photos were added, so editing a review without touching
+        // its photos keeps the ones it already has.
+        ...(photoIds.length ? { photo_ids: photoIds, retain_photos: true } : {}),
+      })
       submittingReview.set(false)
-      reviewError.set(uploadProblem)
-      return
+
+      if (!res || !res.success || !res.review) {
+        const field = res?.fields ? Object.values(res.fields)[0] : null
+        reviewError.set(field ?? res?.error ?? 'Could not save your review.')
+        return
+      }
+
+      // Upsert semantics: replace any previous review by this user, then
+      // mirror the recomputed trail aggregates into the store.
+      const me = wl.currentUserId()
+      const mine = mapApiReview({ ...res.review, userName: wl.findUser(me)?.name ?? res.review.userName })
+      reviews.set([mine, ...reviews().filter(r => r.user_id !== me)])
+      // Show the report just made without waiting for the server to be asked
+      // again. A hazard the server knows about and this page cannot see — one
+      // on a review past the page it holds — is kept, so posting a review can
+      // only ever add a warning here, never take one away.
+      const posted = conditionReports(reviews())
+      conditionSummary.set({ reports: posted, danger: activeDanger(posted) ?? conditionSummary()?.danger ?? null })
+      if (res.trail)
+        wl.setTrailRating(res.trail.id, res.trail.rating, res.trail.reviewCount)
+
+      resetForm()
+      reviewSheetOpen.set(false)
+      showNotice(res.updated ? 'Your review has been updated.' : 'Your review has been published.')
+      // The vote changed the tally; the list itself is already current.
+      // Past the 15-minute browser cache, so the review just posted shows.
+      void loadReviews(true).catch(() => {})
     }
-
-    const photoIds = formPhotos().map(draft => draft.uploadedId).filter((id): id is string => Boolean(id))
-    const res = await postTrailReview(trailId(), {
-      rating: formRating(),
-      content: formContent().trim(),
-      conditions: formConditions() || null,
-      visit_date: formVisitDate() || null,
-      difficulty: formDifficulty() || null,
-      // Only sent when photos were added, so editing a review without touching
-      // its photos keeps the ones it already has.
-      ...(photoIds.length ? { photo_ids: photoIds } : {}),
-    })
-    submittingReview.set(false)
-
-    if (!res || !res.success || !res.review) {
-      const field = res?.fields ? Object.values(res.fields)[0] : null
-      reviewError.set(field ?? res?.error ?? 'Could not save your review.')
-      return
+    catch {
+      reviewError.set('Could not save your review. Please try again.')
     }
-
-    // Upsert semantics: replace any previous review by this user, then
-    // mirror the recomputed trail aggregates into the store.
-    const me = wl.currentUserId()
-    const mine = mapApiReview({ ...res.review, userName: wl.findUser(me)?.name ?? res.review.userName })
-    reviews.set([mine, ...reviews().filter(r => r.user_id !== me)])
-    // Show the report just made without waiting for the server to be asked
-    // again. A hazard the server knows about and this page cannot see — one
-    // on a review past the page it holds — is kept, so posting a review can
-    // only ever add a warning here, never take one away.
-    const posted = conditionReports(reviews())
-    conditionSummary.set({ reports: posted, danger: activeDanger(posted) ?? conditionSummary()?.danger ?? null })
-    if (res.trail)
-      wl.setTrailRating(res.trail.id, res.trail.rating, res.trail.reviewCount)
-
-    resetForm()
-    reviewSheetOpen.set(false)
-    reviewSaved.set(true)
-    setTimeout(() => reviewSaved.set(false), 2500)
-    // The vote changed the tally; the list itself is already current.
-    // Past the 15-minute browser cache, so the review just posted shows.
-    void loadReviews(true)
+    finally {
+      submittingReview.set(false)
+    }
   }
+
+  function requestDeleteReview(): void {
+    if (!ownReview()) return
+    deleteReviewError.set(null)
+    deleteReviewOpen.set(true)
+  }
+
+  function closeDeleteReview(): void {
+    deleteReviewOpen.set(false)
+  }
+
+  async function removeReview(): Promise<void> {
+    if (!wl || !ownReview() || deletingReview()) return
+    deletingReview.set(true)
+    deleteReviewError.set(null)
+    try {
+      const result = await deleteTrailReview(trailId())
+      if (!result.success) {
+        deleteReviewError.set(result.error ?? 'Could not delete your review.')
+        return
+      }
+      reviews.set(reviews().filter(review => review.id !== result.deleted))
+      if (result.trail)
+        wl.setTrailRating(result.trail.id, result.trail.rating, result.trail.reviewCount)
+      resetForm()
+      deleteReviewOpen.set(false)
+      showNotice('Your review has been deleted.')
+      // Reload the full server summary, including hazards and difficulty votes.
+      await loadReviews(true)
+    }
+    catch {
+      deleteReviewError.set('Could not delete your review. Please try again.')
+    }
+    finally {
+      deletingReview.set(false)
+    }
+  }
+
+  onUnmounted(() => {
+    releasePhotos(formPhotos())
+    if (noticeTimer) clearTimeout(noticeTimer)
+  })
 
   return {
     reviews,
@@ -258,7 +320,15 @@ export function useTrailReviews(wl: ReviewStoreLike | null, trailId: () => numbe
     formPhotos,
     submittingReview,
     reviewError,
-    reviewSaved,
+    reviewNotice,
+    ownReview,
+    existingReviewPhotos,
+    deleteReviewOpen,
+    deletingReview,
+    deleteReviewError,
+    requestDeleteReview,
+    closeDeleteReview,
+    removeReview,
     openReviewSheet,
     closeReviewSheet,
     addReviewPhotos,

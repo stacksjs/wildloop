@@ -14,8 +14,10 @@ import { db } from '@stacksjs/orm'
 import { isReviewDifficulty, REVIEW_DIFFICULTIES } from '../../Support/reviewDifficulty'
 import { trailPhotoUrl } from '../../Support/trailPhotoPayload'
 import { invalidateTrailReviews } from '../../Support/reviewCache'
+import { rebuildTrailReviewRating } from '../../Support/trailReviewRating'
 import { conditionReportedAt, VISIT_DATE_MESSAGE, visitDateProblem } from '../../Support/reviewConditions'
 
+import { parsePhotoList } from '../../../resources/functions/trail-photos'
 import { TRAIL_CONDITION_IDS } from '../../../resources/functions/trail-conditions'
 import { avatarOf } from '../../Support/avatars'
 
@@ -69,6 +71,8 @@ export default new Action({
     if (photoIds !== undefined && photoIds !== null
       && (!Array.isArray(photoIds) || photoIds.length > MAX_REVIEW_PHOTOS || photoIds.some(id => typeof id !== 'string' || !PHOTO_ID.test(id))))
       fields.photo_ids = `must be a list of up to ${MAX_REVIEW_PHOTOS} photo ids`
+    if (request.get('retain_photos') !== undefined && typeof request.get('retain_photos') !== 'boolean')
+      fields.retain_photos = 'must be a boolean'
     if (Object.keys(fields).length)
       return response.json({ success: false, error: 'Validation failed', fields }, 422)
 
@@ -76,6 +80,8 @@ export default new Action({
       const trail = await Trail.find(trailId)
       if (!trail)
         return response.json({ success: false, error: 'Trail not found' }, 404)
+
+      const existing = await Review.where('user_id', '=', userId).where('trail_id', '=', trailId).first()
 
       // Only photos this reviewer uploaded to this trail can be attached. The
       // column is rendered straight into <img src>, so it never stores a URL
@@ -93,7 +99,11 @@ export default new Action({
           if (ids.some(id => !ownedIds.has(id)))
             return response.json({ success: false, error: 'Validation failed', fields: { photo_ids: 'can only attach photos you uploaded to this trail' } }, 422)
         }
-        photos = ids.length ? JSON.stringify(ids.map(id => trailPhotoUrl(trailId, id))) : null
+        const retained = request.get('retain_photos') === true ? parsePhotoList(existing?.photos) : []
+        const urls = [...new Set([...retained, ...ids.map(id => trailPhotoUrl(trailId, id))])]
+        if (urls.length > MAX_REVIEW_PHOTOS)
+          return response.json({ success: false, error: 'Validation failed', fields: { photo_ids: `A review can have up to ${MAX_REVIEW_PHOTOS} photos` } }, 422)
+        photos = urls.length ? JSON.stringify(urls) : null
       }
 
       const now = new Date().toISOString()
@@ -118,10 +128,6 @@ export default new Action({
 
       let reviewId: number
       let updated = false
-      const existing = await Review
-        .where('user_id', '=', userId)
-        .where('trail_id', '=', trailId)
-        .first()
       if (existing) {
         await Review.forceUpdate(existing.id, { ...fields, conditions_reported_at: reportedAt(existing) })
         reviewId = existing.id
@@ -160,14 +166,9 @@ export default new Action({
       // this trail are stale, before anything below can fail.
       invalidateTrailReviews(trailId)
 
-      // After-write hook (#973): rebuild this trail's aggregates from rows.
-      const trailReviews = (await Review.where('trail_id', '=', trailId).get()) ?? []
-      const reviewCount = trailReviews.length
-      const avgRating = reviewCount
-        ? Math.round(trailReviews.reduce((sum: number, r: any) => sum + (r.rating ?? 0), 0) / reviewCount * 10) / 10
-        : 0
-      await Trail.forceUpdate(trailId, { rating: avgRating, review_count: reviewCount })
+      const aggregate = await rebuildTrailReviewRating(trailId)
 
+      const savedReview = await Review.find(reviewId)
       const user = await User.find(userId)
       return response.json({
         success: true,
@@ -183,11 +184,12 @@ export default new Action({
           content,
           conditions,
           difficulty,
-          photos: photos ?? (existing?.photos ?? null),
+          photos: savedReview?.photos ?? null,
+          createdAt: savedReview?.created_at,
           visitDate,
-          conditionsReportedAt: reportedAt(existing ?? null),
+          conditionsReportedAt: savedReview?.conditions_reported_at ?? null,
         },
-        trail: { id: trailId, rating: avgRating, reviewCount },
+        trail: aggregate,
       }, updated ? 200 : 201)
     }
     catch (error) {
