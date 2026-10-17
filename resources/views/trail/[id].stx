@@ -3,7 +3,7 @@
 @section('title', 'Trail Details - Wildloop')
 
 @section('content')
-<link rel="stylesheet" href="/css/trail-explorer.css">
+<link rel="stylesheet" href="../../../public/css/trail-explorer.css">
 <script server>
   import { trailFacts, wholeTrailFigures } from '../../functions/trail-page'
 
