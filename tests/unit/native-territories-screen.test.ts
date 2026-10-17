@@ -92,7 +92,7 @@ describe('Wildloop native territories screen', () => {
   })
 
   it('draws zones as polylines, because there is no polygon primitive', () => {
-    expect(SOURCE).toContain('<mappolyline')
+    expect(SOURCE).toContain('<MapPolyline')
     expect(SOURCE).toContain(':geometry="shape.geometry"')
     expect(SOURCE).not.toContain('<mappolygon')
   })

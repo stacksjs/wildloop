@@ -296,7 +296,7 @@ onDestroy(() => {
            and joining its ends would draw a leg nobody ran. --}}
       <View :show="shape().length > 0" testID="effort-map-frame" class="h-56 overflow-hidden rounded-2xl bg-slate-900">
         <Map testID="effort-map" class="flex-1" :fitToBounds="true" mapType="standard">
-          <mappolyline :geometry="shape()" strokeColor="#059669" :strokeWidth="4" />
+          <MapPolyline :geometry="shape()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>
 

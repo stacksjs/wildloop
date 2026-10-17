@@ -339,7 +339,7 @@ onDestroy(() => {
            nobody ran. --}}
       <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-slate-900">
         <Map testID="event-map" class="flex-1" :fitToBounds="true" mapType="standard">
-          <mappolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
+          <MapPolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>
 

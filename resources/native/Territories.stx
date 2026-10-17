@@ -185,7 +185,7 @@ onDestroy(() => {
            on the athlete's own ground rather than the middle of the ocean. --}}
       <View :show="shapes().length > 0" testID="territory-map-frame" class="h-64 overflow-hidden rounded-2xl bg-slate-900">
         <Map testID="territory-map" class="flex-1" :fitToBounds="true" :showsUserLocation="true" mapType="standard">
-          <mappolyline :for="shape in shapes()" :key="shape.id" :geometry="shape.geometry" :strokeColor="shape.color" :strokeWidth="3" />
+          <MapPolyline :for="shape in shapes()" :key="shape.id" :geometry="shape.geometry" :strokeColor="shape.color" :strokeWidth="3" />
         </Map>
       </View>
 

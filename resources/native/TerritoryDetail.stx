@@ -213,7 +213,7 @@ onDestroy(() => {
            thing drawn, so the map opens on the ground rather than the ocean. --}}
       <View :show="shape().length > 0" testID="detail-map-frame" class="h-56 overflow-hidden rounded-2xl bg-slate-900">
         <Map testID="detail-map" class="flex-1" :fitToBounds="true" mapType="standard">
-          <mappolyline :geometry="shape()" :strokeColor="shapeColor()" :strokeWidth="3" />
+          <MapPolyline :geometry="shape()" :strokeColor="shapeColor()" :strokeWidth="3" />
         </Map>
       </View>
 
