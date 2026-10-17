@@ -1,5 +1,5 @@
 import { summarizeDifficulty } from '../../Support/reviewDifficulty'
-import { cachedReviews, cacheReviews, REVIEW_CACHE_TTL_MS } from '../../Support/reviewCache'
+import { cachedReviews, cacheReviews } from '../../Support/reviewCache'
 import { avatarOf } from '../../Support/avatars'
 import { activeDanger, conditionReports } from '../../../resources/functions/trail-conditions'
 
@@ -13,7 +13,7 @@ const MAX_CONDITION_REPORTS = 100
 
 /**
  * Reviews carry the trail's condition reports and change only when someone
- * reviews it, so they are kept 15 minutes here and in the browser. Private:
+ * reviews it, so they are kept 15 minutes in the API process. Private:
  * the server forgets a trail the moment a review is written, and a shared
  * cache in front of it would not.
  */
@@ -21,7 +21,9 @@ function cachedJson(body: unknown, hit: boolean): Response {
   return new Response(JSON.stringify(body), {
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': `private, max-age=${REVIEW_CACHE_TTL_MS / 1000}`,
+      // A write invalidates the API cache, but cannot invalidate a browser or
+      // URLSession's cached GET. Every read must reach this current API body.
+      'Cache-Control': 'private, no-cache',
       'X-Cache': hit ? 'HIT' : 'MISS',
     },
   })

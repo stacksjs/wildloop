@@ -27,8 +27,9 @@ function write(token: string | null, method: 'POST' | 'DELETE', body: object = {
 }
 
 async function read(): Promise<any> {
-  const res = await fetch(`${API}/trails/${trailId}/reviews`, { cache: 'reload' })
+  const res = await fetch(`${API}/trails/${trailId}/reviews`)
   expect(res.status).toBe(200)
+  expect(res.headers.get('cache-control')).toBe('private, no-cache')
   return res.json()
 }
 
