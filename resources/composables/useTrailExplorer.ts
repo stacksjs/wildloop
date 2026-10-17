@@ -111,14 +111,14 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
     return { low: Math.min(...values), high: Math.max(...values), miles: profile().at(-1)?.mi ?? 0 }
   }
 
-  function profilePaths(): string[] {
+  function profilePath(): string {
     const { low, high, miles } = profileRange()
     const paths: string[] = []
     let segment: string[] = []
     for (const point of profile()) {
       if (point.ft === null) {
         if (segment.length)
-          paths.push(segment.join(' '))
+          paths.push(`M${segment.join(' L')}`)
         segment = []
         continue
       }
@@ -127,8 +127,8 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
       segment.push(`${x.toFixed(1)},${y.toFixed(1)}`)
     }
     if (segment.length)
-      paths.push(segment.join(' '))
-    return paths
+      paths.push(`M${segment.join(' L')}`)
+    return paths.join(' ')
   }
 
   function inspectProfile(event: Event) {
@@ -141,5 +141,5 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   }
 
   onUnmounted(() => controller?.abort())
-  return { mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePaths, inspectProfile }
+  return { mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
 }

@@ -350,7 +350,7 @@
     mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen,
     profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief,
     fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile,
-    profileRange, profilePaths, inspectProfile,
+    profileRange, profilePath, inspectProfile,
   } = useTrailExplorer(() => detailMap, () => mapRouteParts(), trail)
   const reviewToday = derived(() => deviceToday())
   useEventListener('keydown', (event) => {
@@ -1422,15 +1422,15 @@
                 </div>
               </div>
               <div class="absolute bottom-4 right-4 z-[500] flex flex-col gap-2">
-                <button type="button" @click="toggle3D()" :aria-pressed="map3D() ? 'true' : 'false'" aria-label="Toggle 3D terrain" class="grid h-12 w-12 place-items-center rounded-full bg-white text-lg font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">{{ map3D() ? '2D' : '3D' }}</button>
-                <button type="button" @click="fitRoute()" aria-label="Fit route to map" title="Fit route" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-focus h-5 w-5" aria-hidden="true"></i></button>
-                <button type="button" @click="fullscreenMap()" aria-label="Expand map" title="Expand map" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-maximize h-5 w-5" aria-hidden="true"></i></button>
+                <button type="button" @click="toggle3D()" :aria-pressed="map3D() ? 'true' : 'false'" aria-label="Toggle 3D terrain" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-lg font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">{{ map3D() ? '2D' : '3D' }}</button>
+                <button type="button" @click="fitRoute()" aria-label="Fit route to map" title="Fit route" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-focus h-5 w-5" aria-hidden="true"></i></button>
+                <button type="button" @click="fullscreenMap()" aria-label="Expand map" title="Expand map" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-maximize h-5 w-5" aria-hidden="true"></i></button>
               </div>
               <div class="absolute bottom-4 left-4 z-[500] flex gap-2">
-                <button type="button" @click="downloadGpx()" aria-label="Download route GPX" title="Download GPX" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-download h-5 w-5" aria-hidden="true"></i></button>
-                <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" aria-label="Driving directions to trailhead" title="Get directions" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-car-front h-5 w-5" aria-hidden="true"></i></a>
-                <button type="button" @click="printMap()" aria-label="Print trail map" title="Print map" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-printer h-5 w-5" aria-hidden="true"></i></button>
-                <StxLink x-to="customizeRouteUrl()" aria-label="Customize this route" title="Customize route" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-pencil h-5 w-5" aria-hidden="true"></i></StxLink>
+                <button type="button" @click="downloadGpx()" aria-label="Download route GPX" title="Download GPX" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-download h-5 w-5" aria-hidden="true"></i></button>
+                <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" aria-label="Driving directions to trailhead" title="Get directions" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-car-front h-5 w-5" aria-hidden="true"></i></a>
+                <button type="button" @click="printMap()" aria-label="Print trail map" title="Print map" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-printer h-5 w-5" aria-hidden="true"></i></button>
+                <StxLink x-to="customizeRouteUrl()" aria-label="Customize this route" title="Customize route" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-pencil h-5 w-5" aria-hidden="true"></i></StxLink>
               </div>
             </div>
             <p :if="mapMessage()" role="status" class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">{{ mapMessage() }}</p>
@@ -1443,7 +1443,7 @@
               <p :if="profileStatus() === 'unavailable'" class="py-5 text-sm text-slate-500">Elevation data is unavailable for this route.</p>
               <div :if="profileStatus() === 'ready'">
                 <svg viewBox="0 0 1000 108" preserveAspectRatio="none" class="mt-3 h-28 w-full text-emerald-900 dark:text-emerald-300" role="img" aria-label="Elevation along the trail">
-                  <template :for="line in profilePaths()"><polyline x-points="line" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" /></template>
+                  <path x-d="profilePath()" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
                 </svg>
                 <div class="flex justify-between text-xs tabular-nums text-slate-500"><span>0 mi</span><span>{{ profileRange().low.toLocaleString() + '–' + profileRange().high.toLocaleString() + ' ft' }}</span><span>{{ profileRange().miles.toFixed(1) + ' mi' }}</span></div>
                 <input type="range" min="0" :max="profile().length - 1" value="0" @input="inspectProfile($event)" aria-label="Explore elevation and position along the route" class="mt-3 w-full accent-emerald-700" />
@@ -2008,9 +2008,9 @@
     <div class="h-28" aria-hidden="true"></div>
     <div class="trail-action-bar trail-floating-actions" x-class="wl && wl.currentUserId() > 0 ? 'trail-floating-with-tabs' : ''">
       <div class="mx-auto flex max-w-2xl items-center gap-2 p-2">
-        <button type="button" @click="onToggleSaveTrail()" :aria-pressed="saved ? 'true' : 'false'" class="flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-lime-300 px-5 text-sm font-semibold text-slate-950 transition hover:bg-lime-400 sm:text-base"><i class="i-lucide-heart h-5 w-5" aria-hidden="true"></i>{{ saved ? 'Saved' : 'Save' }}</button>
-        <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 sm:text-base dark:bg-slate-700 dark:text-white"><i class="i-lucide-navigation h-5 w-5 sm:hidden" aria-hidden="true"></i><span class="sm:hidden">Directions</span><span class="hidden sm:inline">Get directions</span></a>
-        <button type="button" @click="phoneOpen.set(true)" class="flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 sm:text-base dark:bg-slate-700 dark:text-white"><i class="i-lucide-smartphone h-5 w-5 sm:hidden" aria-hidden="true"></i><span class="hidden sm:inline">Send to phone</span><span class="sm:hidden">Phone</span></button>
+        <button type="button" @click="onToggleSaveTrail()" :aria-pressed="saved ? 'true' : 'false'" class="flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-lime-300 px-3 text-sm sm:px-5 font-semibold text-slate-950 transition hover:bg-lime-400 sm:text-base"><i class="i-lucide-heart h-5 w-5" aria-hidden="true"></i>{{ saved ? 'Saved' : 'Save' }}</button>
+        <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" class="flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-slate-100 px-3 text-sm sm:px-4 font-semibold text-slate-900 transition hover:bg-slate-200 sm:text-base dark:bg-slate-700 dark:text-white"><span class="sm:hidden">Directions</span><span class="hidden sm:inline">Get directions</span></a>
+        <button type="button" @click="phoneOpen.set(true)" class="flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-slate-100 px-3 text-sm sm:px-4 font-semibold text-slate-900 transition hover:bg-slate-200 sm:text-base dark:bg-slate-700 dark:text-white"><span class="hidden sm:inline">Send to phone</span><span class="sm:hidden">Phone</span></button>
       </div>
     </div>
   </div>
