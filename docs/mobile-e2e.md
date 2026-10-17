@@ -52,10 +52,11 @@ XCTest driver for native accessibility trees, screenshots, interaction scripts
 and physical-device attachments; applications contain no Swift test generator.
 
 `native-trail-ios` in the hosted workflow creates its own simulator and runs
-`scripts/run-native-trail-e2e.ts`. That journey uses a fresh QA database to
+`scripts/run-native-trail-e2e.ts`. Its independent map and review journeys use a fresh QA database to
 exercise map cameras and layers, floating elevation controls, sticky saves,
-and review creation, editing and deletion, retaining screenshots and XCTest
-results. To run it locally, explicitly supply an owned, booted simulator:
+and review creation, editing and deletion. A map failure does not skip review
+testing; either journey failing keeps the job red. Screenshots, driver logs
+and XCTest results are retained separately for each journey. To run it locally, explicitly supply an owned, booted simulator:
 
 ```bash
 QA_PORT_BASE=6320 NATIVE_QA_DEVICE=<simulator-udid> bun scripts/run-native-trail-e2e.ts

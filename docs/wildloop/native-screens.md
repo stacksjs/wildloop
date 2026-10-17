@@ -81,7 +81,8 @@ cover these boundaries.
 
 For actual installed-app acceptance, the hosted `native-trail-ios` journey uses
 the published Stacks XCTest driver against an isolated QA database. It retains
-native screenshots, accessibility trees and an XCTest result. It exercises
+native screenshots, accessibility trees and separate XCTest results for map
+and review journeys. It exercises
 map controls, floating profile controls, sticky saves and review creation,
 editing and deletion. See [mobile-e2e.md](../mobile-e2e.md) for local invocation
 and the current acceptance status.
