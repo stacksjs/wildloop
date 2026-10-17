@@ -1,6 +1,16 @@
 import type { RoutePair as LatLng } from './trail-geometry'
+import { primaryRoutePart } from './trail-geometry'
 
 const RADIANS = Math.PI / 180
+
+/** Catalog coordinates can be a trail's center; navigation uses its recorded start. */
+export function trailheadPosition(geometry: unknown, fallback?: { lat: number, lng: number } | null): { lat: number, lng: number } | null {
+  const first = primaryRoutePart(geometry)[0]
+  if (first) return { lat: first[0], lng: first[1] }
+  if (fallback && Number.isFinite(fallback.lat) && Math.abs(fallback.lat) <= 90 && Number.isFinite(fallback.lng) && Math.abs(fallback.lng) <= 180)
+    return { lat: fallback.lat, lng: fallback.lng }
+  return null
+}
 
 export function trailSegmentMiles(a: LatLng, b: LatLng): number {
   const dLat = (b[0] - a[0]) * RADIANS

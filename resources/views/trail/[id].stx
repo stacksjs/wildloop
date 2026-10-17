@@ -172,7 +172,7 @@
 
 <script client>
   import { useTrailExplorer } from '../../composables/useTrailExplorer'
-  import { trailSurfaceTypes } from '../../functions/trail-map'
+  import { trailheadPosition, trailSurfaceTypes } from '../../functions/trail-map'
   import { apiFetch } from '../../assets/scripts/auth'
   import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
   import { readRouteParam } from '../../composables/useRouteParam'
@@ -355,6 +355,7 @@
 
   /** The trail's own route, when the catalog has a line for it. */
   const routeCoords = derived(() => (wl ? wl.trailRoutes()[trailId()] ?? [] : []))
+  const trailhead = derived(() => trailheadPosition(routeCoords(), trail()))
   const mapRouteParts = state<Array<Array<[number, number]>>>([])
   const surfaces = derived(() => trailSurfaceTypes(trail()?.surface))
   const {
@@ -532,11 +533,11 @@
    * https links rather than `maps://` or `geo:`: on a phone each opens its
    * app (Google Maps when installed, the web otherwise), and the native shell
    * hands any link that is not wildloop.org to the system. The coordinates
-   * are the trailhead, the only part of a trail a car can reach.
+   * come from the recorded route start; a catalog point can be its center.
    */
   function trailDirections() {
-    const current = trail()
-    return current ? planDirections({ latitude: current.lat, longitude: current.lng, activity_type: null }) : null
+    const start = trailhead()
+    return start ? planDirections({ latitude: start.lat, longitude: start.lng, activity_type: null }) : null
   }
 
   /** The route planner, starting from this trail's line. */
@@ -618,13 +619,14 @@
     const current = trail()
     if (!current)
       return
+    const start = trailhead() ?? current
     planSaving.set(true)
     planError.set(null)
     const result = await tripPlans.create({
       trail_id: current.id,
       title: current.name,
-      latitude: current.lat,
-      longitude: current.lng,
+      latitude: start.lat,
+      longitude: start.lng,
       place_label: current.location || null,
       planned_for: planDate(),
       start_time: planTime() || null,

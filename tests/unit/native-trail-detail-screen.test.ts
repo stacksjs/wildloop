@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, nativeNodeStyle, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 const LINE = [[37.7, -119.5], [37.71, -119.51], [37.72, -119.5]]
-const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.7, longitude: -119.5, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
+const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.75, longitude: -119.55, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
 const OWN = { id: 5, userId: 12, userName: 'Tester', rating: 4, content: 'A quiet loop with great views.', visitDate: '2026-10-15', conditions: 'dry', photos: '["https://wildloop.org/photo.jpg"]' }
 function ok(body: unknown) { return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } }
 async function open(signedIn = true, geometry: string | null = TRAIL.geometry, reviewRows: any[] = signedIn ? [OWN] : [], personalReview: any = reviewRows.find(row=>row.userId===12) ?? null, personalStatus = 200) {
@@ -155,8 +155,8 @@ describe('native trail details', () => {
     const screen=await open(),before=requests(screen).length
     await screen.event('trail-directions','onPress')
     const directions=await waitForRequest(screen,before,r=>r.payload.module==='Linking')
-    expect(directions.payload.args[0]).toContain('37.7')
-    expect(directions.payload.args[0]).toContain('-119.5')
+    const destination=new URL(directions.payload.args[0])
+    expect(destination.searchParams.get('daddr') ?? destination.searchParams.get('destination')).toBe('37.7,-119.5')
     answer(screen,directions,true)
     await screen.event('trail-share','onPress')
     const share=await waitForRequest(screen,before,r=>r.payload.module==='Share')

@@ -7,7 +7,7 @@ import { nativeUi as ui } from '../functions/native-ui'
 import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { decodeRouteParts } from '../functions/trail-geometry'
 import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
-import { trailDirectionSigns } from '../functions/trail-map'
+import { trailheadPosition, trailDirectionSigns } from '../functions/trail-map'
 import { trailProfilePath, trailProfileRange, type TrailProfilePoint } from '../functions/trail-profile'
 import { exportNativeGpx } from '../functions/native-export'
 import { planDirections } from '../functions/trip-plans'
@@ -27,6 +27,7 @@ const heading = state(0)
 const showLocation = state(false)
 const profileOpen = state(true)
 const inspected = state<TrailProfilePoint | null>(null)
+const trailhead = derived(() => trailheadPosition(nativeMapParts(parts()), trail()))
 const signs = derived(() => trailDirectionSigns(nativeMapParts(parts()), 12))
 const figures = derived(() => trailProfileRange(profile()))
 const currentRegion = derived(() => region() ?? nativeRouteRegion(parts(), { lat: trail()?.lat ?? 0, lng: trail()?.lng ?? 0 }))
@@ -58,7 +59,7 @@ async function exportRoute() {
   catch (cause) { error.set(cause instanceof Error ? cause.message : 'The route could not be exported.') }
 }
 async function directions() {
-  const links = planDirections({ latitude: trail()?.lat, longitude: trail()?.lng, activity_type: null })
+  const links = planDirections({ latitude: trailhead()?.lat, longitude: trailhead()?.lng, activity_type: null })
   if (links) {
     try { await craft.linking?.openURL(craft.platform === 'ios' ? links.apple : links.google) }
     catch { error.set('Directions could not be opened.') }
@@ -94,7 +95,7 @@ onMount(() => { void load(); return () => { alive = false } })
       @region-change-complete="camera($event)">
       <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
       <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
-      <MapMarker id="trailhead" title="Trailhead" :geometry="[trail()?.lat, trail()?.lng]" />
+      <MapMarker id="trailhead" title="Trailhead" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
       <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
     </Map>
     <View class="absolute top-3 left-3 right-3 flex-row flex-wrap gap-2">

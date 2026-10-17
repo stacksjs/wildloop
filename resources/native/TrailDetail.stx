@@ -8,7 +8,7 @@ import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { decodeRouteParts } from '../functions/trail-geometry'
 import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
 import { exportNativeGpx } from '../functions/native-export'
-import { trailDirectionSigns, trailSurfaceTypes } from '../functions/trail-map'
+import { trailheadPosition, trailDirectionSigns, trailSurfaceTypes } from '../functions/trail-map'
 import { trailProfilePath, trailProfileRange, type TrailProfilePoint } from '../functions/trail-profile'
 import { trailStatsLine } from '../functions/trails'
 import { forecastDayLabel } from '../functions/trail-page'
@@ -60,6 +60,7 @@ let generation = 0
 
 const surfaces = derived(() => trailSurfaceTypes(rawTrail()?.surface))
 const routeAvailable = derived(() => parts().some(part => part.length >= 4))
+const trailhead = derived(() => trailheadPosition(nativeMapParts(parts()), trail()))
 const mapRegion = derived(() => region() ?? nativeRouteRegion(parts(), {lat:trail()?.lat ?? 0,lng:trail()?.lng ?? 0}))
 const photos = derived(() => trailGallery(trail(),reviews()))
 
@@ -94,7 +95,7 @@ function inspect(event: any) {
   region.set({ ...mapRegion(), center: { latitude: point.lat, longitude: point.lng } })
 }
 async function directions() {
-  const url = planDirections({ latitude: trail()?.lat, longitude: trail()?.lng, activity_type: null })
+  const url = planDirections({ latitude: trailhead()?.lat, longitude: trailhead()?.lng, activity_type: null })
   if (!url) return
   try { await craft.linking?.openURL(craft.platform === 'ios' ? url.apple : url.google) }
   catch { notice.set('Directions could not be opened.') }
@@ -282,7 +283,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
           <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
           <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
-          <MapMarker id="trailhead" title="Trailhead" :geometry="[trail()?.lat, trail()?.lng]" />
+          <MapMarker id="trailhead" title="Trailhead" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
           <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
         </Map>
         <Button testID="trail-map-preview-expand" accessibilityLabel="Open interactive map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />

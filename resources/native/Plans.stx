@@ -3,6 +3,9 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
 import { readNativeAccount } from '../functions/native-session'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
+import { trailheadPosition } from '../functions/trail-map'
+import { decodeRouteParts } from '../functions/trail-geometry'
+import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { nativeUi as ui } from '../functions/native-ui'
 import { addDays, localDate, planDirections, PLAN_ACTIVITIES, planReminderBody, validateTripPlan, type TripPlan } from '../functions/trip-plans'
 const craft=(globalThis as typeof globalThis & {craft:NativeCraft}).craft
@@ -63,7 +66,12 @@ async function edit(plan?:TripPlan){
   const wanted=Number(craft.route.params.trail)
   if(!plan && wanted){
     const response=await createNativeApi(craft).send(`/api/trails/${wanted}`)
-    if(response.ok){const row=response.body.trail;title.set(row.name);latitude.set(String(row.lat ?? row.latitude));longitude.set(String(row.lng ?? row.longitude));trailId.set(wanted)}
+    if(response.ok){
+      const row=response.body.trail
+      const start=trailheadPosition([...decodeRouteParts(row.geometry),...(Array.isArray(row.pieceRoutes)?row.pieceRoutes:[])],normalizeTrailsPayload(response.body).trails[0])
+      if(!start)throw new Error('This trail has no recorded location for your plan.')
+      title.set(row.name);latitude.set(String(start.lat));longitude.set(String(start.lng));trailId.set(wanted)
+    }
   }
   const route=Number(craft.route.params.route)
   if(!plan && route){

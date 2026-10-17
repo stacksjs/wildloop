@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'bun:test'
-import { trailDirectionSigns, trailGpx, trailSurfaceTypes } from '../../resources/functions/trail-map'
+import { trailDirectionSigns, trailGpx, trailheadPosition, trailSurfaceTypes } from '../../resources/functions/trail-map'
+
+describe('trailhead navigation', () => {
+  it('uses the recorded route start instead of its catalog center', () => {
+    expect(trailheadPosition([[37.73282,-119.55778],[37.72614,-119.53038]],{lat:37.726737,lng:-119.542904})).toEqual({lat:37.73282,lng:-119.55778})
+  })
+  it('uses the primary recorded section without joining disconnected lines', () => {
+    expect(trailheadPosition([[[34,-118],[34.001,-118]],[[35,-119],[35.1,-119]]])).toEqual({lat:35,lng:-119})
+  })
+  it('retains a valid catalog location only when no route is recorded', () => {
+    expect(trailheadPosition(null,{lat:0,lng:0})).toEqual({lat:0,lng:0})
+    expect(trailheadPosition(null,{lat:NaN,lng:0})).toBeNull()
+    expect(trailheadPosition(null,{lat:91,lng:0})).toBeNull()
+    expect(trailheadPosition(null)).toBeNull()
+  })
+})
 
 describe('route direction signs', () => {
   it('spaces signs along the route and points in the travel direction', () => {

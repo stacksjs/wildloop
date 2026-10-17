@@ -6,7 +6,7 @@ function ok(body: unknown) { return {status:200,headers:{'content-type':'applica
 async function open(points:TrailProfilePoint[]=[{mi:0,ft:4000,lat:37.7,lng:-119.5},{mi:3,ft:4500,lat:37.71,lng:-119.51}]) {
   const screen = await start('TrailMap',{id:'7'},['fetch','secureStorage','linking','share','files','geolocation','dialog'])
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='SecureStorage'),null)
-  answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='Network'),ok({trail:{id:7,name:'Ridge Loop',latitude:37.7,longitude:-119.5,geometry:JSON.stringify([[37.7,-119.5],[37.71,-119.51],[37.7,-119.5]])}}))
+  answer(screen,await waitForRequest(screen,0,r=>r.payload?.module==='Network'),ok({trail:{id:7,name:'Ridge Loop',latitude:37.75,longitude:-119.55,geometry:JSON.stringify([[37.7,-119.5],[37.71,-119.51],[37.7,-119.5]])}}))
   answer(screen,await waitForRequest(screen,0,r=>r.payload?.args?.[0]?.url?.endsWith('/profile')),ok({points}))
   await waitForGeometry(screen)
   return screen
@@ -57,8 +57,8 @@ describe('native full trail map',()=>{
     const screen=await open(),before=requests(screen).length
     await screen.event('map-directions','onPress')
     const link=await waitForRequest(screen,before,r=>r.payload?.module==='Linking')
-    expect(link.payload.args[0]).toContain('37.7')
-    expect(link.payload.args[0]).toContain('-119.5')
+    const destination=new URL(link.payload.args[0])
+    expect(destination.searchParams.get('daddr') ?? destination.searchParams.get('destination')).toBe('37.7,-119.5')
     answer(screen,link,true)
     await screen.event('map-customize','onPress')
     expect(screen.sent.some(m=>m.type==='NAVIGATE_OPEN' && JSON.stringify(m.payload).includes('/routes?trail=7'))).toBe(true)
