@@ -119,15 +119,17 @@ onMount(() => { void load(); return () => { alive = false } })
     <ActivityIndicator :show="loading" class="absolute top-24 left-4" />
   </View>
   <Text :show="error" :text="error" :class="ui.danger" class="mx-4 my-2" testID="map-error" />
-  <ScrollView horizontal class="max-h-[64px] bg-white dark:bg-[#1b2c22]" :contentContainerStyle="{padding:8}" testID="map-actions">
+  <View class="bg-white dark:bg-[#1b2c22] p-2 gap-2" testID="map-actions">
     <View class="flex-row gap-2">
-      <Button testID="map-fit" :class="ui.secondary" @click="fit()">Fit route</Button>
-      <Button testID="map-zoom-in" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),0.5))" accessibilityLabel="Zoom in">+</Button>
-      <Button testID="map-zoom-out" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),2))" accessibilityLabel="Zoom out">−</Button>
-      <Button testID="map-locate" :class="ui.secondary" @click="locate()">My location</Button>
-      <Button testID="map-export" :class="ui.secondary" @click="exportRoute()">Export GPX</Button>
-      <Button testID="map-directions" :class="ui.secondary" @click="directions()">Directions</Button>
-      <Button testID="map-customize" :class="ui.secondary" @click="craft.navigation.open('/routes?trail=' + id)">Customize</Button>
+      <Button testID="map-fit" class="flex-1" :class="ui.secondary" @click="fit()">Fit route</Button>
+      <Button testID="map-zoom-in" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),0.5))" accessibilityLabel="Zoom in">+</Button>
+      <Button testID="map-zoom-out" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),2))" accessibilityLabel="Zoom out">−</Button>
+      <Button testID="map-locate" class="flex-1" :class="ui.secondary" @click="locate()">My location</Button>
     </View>
-  </ScrollView>
+    <View class="flex-row gap-2">
+      <Button testID="map-export" class="flex-1" :class="ui.secondary" @click="exportRoute()">Export GPX</Button>
+      <Button testID="map-directions" class="flex-1" :class="ui.secondary" @click="directions()">Directions</Button>
+      <Button testID="map-customize" class="flex-1" :class="ui.secondary" @click="craft.navigation.open('/routes?trail=' + id)">Customize</Button>
+    </View>
+  </View>
 </View>

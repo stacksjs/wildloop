@@ -1,6 +1,6 @@
 import type { TrailProfilePoint } from '../../resources/functions/trail-profile'
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForGeometry, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, nativeNodeStyle, requests, start, waitForGeometry, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 function ok(body: unknown) { return {status:200,headers:{'content-type':'application/json'},body:JSON.stringify(body)} }
 async function open(points:TrailProfilePoint[]=[{mi:0,ft:4000,lat:37.7,lng:-119.5},{mi:3,ft:4500,lat:37.71,lng:-119.51}]) {
@@ -15,6 +15,7 @@ describe('native full trail map',()=>{
   beforeAll(compileNativeBundle,30000)
   it('fits the recorded route with room for its floating card and supports zoom, layers and 3D',async()=>{
     const screen=await open()
+    for(const id of ['map-export','map-directions','map-customize'])expect(nativeNodeStyle(screen,id).flexGrow).toBe(1)
     expect(nativeNodeProps(screen,'trail-full-map')).toMatchObject({fitToBounds:true,edgePadding:{bottom:240},showsCompass:true,showsScale:true,scrollEnabled:true,zoomEnabled:true,rotateEnabled:true,tileOverlay:{attribution:expect.stringContaining('Esri'),urlTemplate:expect.stringContaining('World_Topo_Map')}})
     await chooseNativeOption(screen,'map-layer','Satellite')
     await screen.event('map-3d','onPress')
