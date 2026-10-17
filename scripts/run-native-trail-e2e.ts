@@ -7,7 +7,7 @@ import mobile from '../config/mobile'
 import { nativeTrailJourney } from '../tests/native/trail-journey'
 import { QA_PORTS } from '../tests/browser/qa-ports'
 import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
-import { validateGeneratedNativeApp } from './run-mobile-e2e'
+import { IOS_SIMULATOR_SIGNING, validateGeneratedNativeApp, validateIosAppBundle } from './run-mobile-e2e'
 
 /** The caller supplies its own simulator; this runner never selects somebody else's. */
 export async function runNativeTrailE2e(): Promise<void> {
@@ -70,8 +70,14 @@ export async function runNativeTrailE2e(): Promise<void> {
     }})
     await command(['bun','run','build:ios'],'app-generation.log',{MOBILE_URL:`${origin}/feed`})
     validateGeneratedNativeApp('storage/framework/mobile/ios')
-    await command(['xcodebuild','-project','storage/framework/mobile/ios/Wildloop.xcodeproj','-scheme','Wildloop','-configuration','Debug','-destination',`id=${device}`,'-derivedDataPath',join(root,'app-build'),'-jobs','2','CODE_SIGNING_ALLOWED=NO','build'],'app-build.log')
-    await command(['xcrun','simctl','install',device,join(root,'app-build/Build/Products/Debug-iphonesimulator/Wildloop.app')],'app-install.log')
+    await command(['xcodebuild','-project','storage/framework/mobile/ios/Wildloop.xcodeproj','-scheme','Wildloop','-configuration','Debug','-destination',`id=${device}`,'-derivedDataPath',join(root,'app-build'),'-jobs','2',...IOS_SIMULATOR_SIGNING,'build'],'app-build.log')
+    const app=join(root,'app-build/Build/Products/Debug-iphonesimulator/Wildloop.app')
+    validateIosAppBundle(app)
+    await command(['codesign','--verify','--strict',app],'app-signature.log')
+    await command(['codesign','--display','--entitlements',':-',app],'app-entitlements.log')
+    const entitlements=await Bun.file(join(root,'app-entitlements.log')).text()
+    if(!entitlements.includes('<key>application-identifier</key>'))throw new Error('Native signed-in QA requires the simulator application-identifier entitlement for Keychain access.')
+    await command(['xcrun','simctl','install',device,app],'app-install.log')
     const tool=await resolveXcodegen(process.cwd())
     generateXcodeProject(tool,driver.output)
     await writeFile(join(root,'driver-generation.log'),JSON.stringify({package:tool.pkg,version:tool.version})+'\n')

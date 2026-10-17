@@ -409,6 +409,9 @@ async function warnIfServerIsDown(server: string): Promise<void> {
   console.warn(`${server} is not answering. Native screens still open; online data needs the API to return. ${hint}`)
 }
 
+/** Simulator keychain access requires an ad-hoc signed application. No team is needed. */
+export const IOS_SIMULATOR_SIGNING = ['CODE_SIGN_IDENTITY=-', 'CODE_SIGN_STYLE=Manual', 'DEVELOPMENT_TEAM=']
+
 function runIos(preview: boolean, signedInURL: string | null): void {
   requireCommand('xcodebuild')
   requireCommand('xcrun')
@@ -435,9 +438,7 @@ function runIos(preview: boolean, signedInURL: string | null): void {
     // Signed to run locally, not unsigned: an unsigned app carries no
     // entitlements, and without its application-identifier iOS refuses it the
     // Keychain. Every sign-in then ended at the next launch. No team needed.
-    'CODE_SIGN_IDENTITY=-',
-    'CODE_SIGN_STYLE=Manual',
-    'DEVELOPMENT_TEAM=',
+    ...IOS_SIMULATOR_SIGNING,
     'build',
   ])
 
