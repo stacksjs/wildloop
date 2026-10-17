@@ -13,6 +13,7 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   const reliefVisible = state(true)
   const mapMessage = state('')
   const phoneOpen = state(false)
+  const profileOpen = state(true)
   const { isFullscreen, isSupported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen(() => document.getElementById('trail-map-explorer'))
   const profileStatus = state<'loading' | 'ready' | 'unavailable'>('loading')
   const profile = state<ProfilePoint[]>([])
@@ -44,7 +45,10 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
       return
     }
     activePoint.set(null)
-    handle()?.fitPoints(points, [48, 48])
+    handle()?.highlightPoint(null)
+    const card = document.getElementById('trail-elevation-card')
+    const height = card?.getBoundingClientRect().height ?? 180
+    handle()?.fitPoints(points, { topLeft: [56, 60], bottomRight: [56, height + 56] })
   }
 
   async function fullscreenMap() {
@@ -102,6 +106,7 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
       }
       profile.set(body.points)
       profileStatus.set('ready')
+      requestAnimationFrame(fitRoute)
     }
     catch {
       if (!request.signal.aborted)
@@ -117,15 +122,41 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
     return trailProfilePath(profile())
   }
 
+  function toggleProfile() {
+    profileOpen.set(!profileOpen())
+    requestAnimationFrame(fitRoute)
+  }
+
+  function showProfilePoint(index: number) {
+    const point = profile()[Math.max(0, Math.min(profile().length - 1, Math.round(index)))]
+    if (!point) return
+    activePoint.set(point)
+    handle()?.highlightPoint([point.lat, point.lng])
+  }
+
+  function hoverProfile(event: PointerEvent) {
+    if (event.pointerType !== 'mouse') return
+    const box = (event.currentTarget as SVGElement).getBoundingClientRect()
+    const ratio = Math.max(0, Math.min(1, ((event.clientX - box.left) / box.width * 1000 - 8) / 984))
+    const mi = ratio * profileRange().miles
+    let closest = 0
+    for (let i = 1; i < profile().length; i++) {
+      if (Math.abs(profile()[i].mi - mi) < Math.abs(profile()[closest].mi - mi)) closest = i
+    }
+    showProfilePoint(closest)
+  }
+
+  function profileCursor() {
+    const point = activePoint()
+    const range = profileRange()
+    return point ? { x: 8 + point.mi / (range.miles || 1) * 984, y: point.ft === null ? null : 92 - (point.ft - range.low) / (range.high - range.low || 1) * 76 } : null
+  }
+
   function inspectProfile(event: Event) {
     const index = Number((event.target as HTMLInputElement).value)
-    const point = profile()[index]
-    if (!point)
-      return
-    activePoint.set(point)
-    handle()?.map.panTo([point.lat, point.lng])
+    showProfilePoint(index)
   }
 
   onUnmounted(() => controller?.abort())
-  return { isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
+  return { profileOpen, toggleProfile, hoverProfile, profileCursor, isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
 }

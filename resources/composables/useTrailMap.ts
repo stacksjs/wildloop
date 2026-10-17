@@ -1,5 +1,5 @@
 import { trailDirectionSigns } from '../functions/trail-map'
-import type { CircleMarker as CircleMarkerType } from 'ts-maps'
+import type { CircleMarker as CircleMarkerType, Marker as MarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { Polyline as PolylineType } from 'ts-maps'
 import type { RunTrailLayer as RunTrailLayerType } from 'ts-maps'
@@ -357,6 +357,8 @@ export function buildStyle(
   return spec
 }
 
+export type TrailMapPadding = [number, number] | { topLeft: [number, number], bottomRight: [number, number] }
+
 export interface TrailMapHandle {
   map: TsMapType
   setBasemap: (mode: 'outdoors' | 'topographic' | 'satellite' | 'street') => void
@@ -364,7 +366,9 @@ export interface TrailMapHandle {
   set3D: (enabled: boolean) => void
   destroy: () => void
   /** Frame these points. Deferred if the container has not been laid out yet. */
-  fitPoints: (points: LatLng[], padding?: [number, number]) => void
+  fitPoints: (points: LatLng[], padding?: TrailMapPadding) => void
+  /** Cursor on the recorded route, shared with the elevation profile. */
+  highlightPoint: (point: LatLng | null) => void
 }
 
 interface TrailMapElement extends HTMLElement {
@@ -422,7 +426,7 @@ export async function createTrailMap(
 ): Promise<TrailMapHandle | null> {
   try {
     const maps = await ensureTsMaps()
-    const { TsMap, Polyline, LocateControl, NavigationControl, ScaleControl, FullscreenControl, GeocoderControl } = maps
+    const { TsMap, Polyline, Marker, DivIcon, LocateControl, NavigationControl, ScaleControl, FullscreenControl, GeocoderControl } = maps
     // Loading the map chunk yields to STX hydration. Resolve the target after
     // that await so a structural render cannot leave us mounting into a
     // detached copy of the original container.
@@ -589,7 +593,8 @@ export async function createTrailMap(
      * moved since — otherwise resizing the window would throw away whatever
      * the player had panned to and snap them back to the opening view.
      */
-    let lastFit: { points: LatLng[], padding: [number, number] } | null = null
+    let lastFit: { points: LatLng[], padding: TrailMapPadding } | null = null
+    let profileMarker: MarkerType | null = null
     let fitCamera: { center: { lat: number, lng: number }, zoom: number } | null = null
 
     function applyFit() {
@@ -604,7 +609,7 @@ export async function createTrailMap(
       }
       else {
         const guide = new Polyline(points, { weight: 0, opacity: 0 }).addTo(map)
-        map.fitBounds(guide.getBounds(), { padding })
+        map.fitBounds(guide.getBounds(), Array.isArray(padding) ? { padding } : { paddingTopLeft: padding.topLeft, paddingBottomRight: padding.bottomRight })
         map.removeLayer(guide)
       }
       const centre = map.getCenter()
@@ -669,6 +674,15 @@ export async function createTrailMap(
           mapElement._tsMap = undefined
           mapElement._tsMapHandle = undefined
         }
+      },
+      highlightPoint(point) {
+        if (!point) {
+          if (profileMarker) map.removeLayer(profileMarker)
+          profileMarker = null
+          return
+        }
+        if (profileMarker) profileMarker.setLatLng(point)
+        else profileMarker = new Marker(point, { icon: new DivIcon({ className: 'wildloop-elevation-marker', html: '<span aria-hidden="true"></span>', iconSize: [26, 26], iconAnchor: [13, 13] }), interactive: false, keyboard: false, zIndexOffset: 2000 }).addTo(map)
       },
       fitPoints(points, padding = [32, 32]) {
         const usable = points.filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))

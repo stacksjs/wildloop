@@ -358,7 +358,7 @@
   const mapRouteParts = state<Array<Array<[number, number]>>>([])
   const surfaces = derived(() => trailSurfaceTypes(trail()?.surface))
   const {
-    isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen,
+    profileOpen, toggleProfile, hoverProfile, profileCursor, isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen,
     profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief,
     fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile,
     profileRange, profilePath, inspectProfile,
@@ -764,7 +764,7 @@
         const drawn = [...(parts && parts.length > 1 ? parts : [coords]), ...pieces]
         mapRouteParts.set(drawn)
         await drawTrailRoute(detailMap.map, drawn, { weight: 5, directions: true })
-        detailMap.fitPoints(drawn.flat(), [48, 48])
+        fitRoute()
         detailMap.setBasemap(mapMode())
         detailMap.setRelief(reliefVisible())
         detailMap.set3D(map3D())
@@ -1418,11 +1418,11 @@
           <section id="trail-map-explorer" class="relative isolate scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white md:col-span-2 dark:border-slate-700 dark:bg-slate-900" aria-label="Interactive trail map">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
               <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">Explore the route</h2>
-              <p :if="hasRoute()" class="text-xs text-slate-500 dark:text-slate-400">Arrows follow the recorded route direction</p>
+              <p :if="hasRoute()" class="hidden text-xs text-slate-500 sm:block dark:text-slate-400">Arrows follow the recorded route direction</p>
             </div>
-            <div class="relative">
+            <div class="relative trail-map-stage">
               <div id="trail-map" data-stx-ignore class="scroll-mt-24 trail-map-panel ts-map-container h-[32rem] lg:h-[38rem]"></div>
-              <div class="absolute left-4 top-4 z-[500] max-w-[15rem]">
+              <div class="absolute left-4 top-4 z-[600] max-w-[15rem]">
                 <button type="button" @click="layersOpen.set(!layersOpen())" :aria-expanded="layersOpen() ? 'true' : 'false'" aria-controls="trail-map-layers" class="flex min-h-12 items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">
                   <i class="i-lucide-layers h-5 w-5 text-emerald-700" aria-hidden="true"></i>Map layers<i class="i-lucide-chevron-down h-4 w-4" aria-hidden="true"></i>
                 </button>
@@ -1436,34 +1436,39 @@
                   <button type="button" @click="toggleRelief()" :aria-pressed="reliefVisible() ? 'true' : 'false'" class="flex min-h-11 w-full items-center gap-3 border-t border-slate-100 px-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"><i class="i-lucide-mountain-snow h-5 w-5" aria-hidden="true"></i>Shaded terrain<i :if="reliefVisible()" class="i-lucide-check ml-auto h-4 w-4" aria-hidden="true"></i></button>
                 </div>
               </div>
-              <div class="absolute bottom-4 right-4 z-[500] flex flex-col gap-2">
+              <div x-class="profileOpen() ? 'bottom-60 sm:bottom-64' : 'bottom-24'" class="absolute right-3 sm:right-4 lg:!bottom-8 z-[500] flex flex-row lg:flex-col gap-2">
                 <button type="button" @click="toggle3D()" :aria-pressed="map3D() ? 'true' : 'false'" aria-label="Toggle 3D terrain" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-lg font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">{{ map3D() ? '2D' : '3D' }}</button>
                 <button type="button" @click="fitRoute()" aria-label="Fit route to map" title="Fit route" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-focus h-5 w-5" aria-hidden="true"></i></button>
                 <button type="button" @click="fullscreenMap()" :aria-label="isFullscreen.value ? 'Exit full screen' : 'Expand map'" :title="isFullscreen.value ? 'Exit full screen' : 'Expand map'" :aria-pressed="isFullscreen.value ? 'true' : 'false'" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i x-class="(isFullscreen.value ? 'i-lucide-minimize' : 'i-lucide-maximize') + ' h-5 w-5'" aria-hidden="true"></i></button>
               </div>
-              <div class="absolute bottom-4 left-4 z-[500] flex gap-2">
+              <div x-class="profileOpen() ? 'bottom-74 sm:bottom-80' : 'bottom-38'" class="absolute left-3 sm:left-4 lg:!bottom-8 z-[500] flex gap-2">
                 <button type="button" @click="downloadGpx()" aria-label="Download route GPX" title="Download GPX" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-download h-5 w-5" aria-hidden="true"></i></button>
                 <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" aria-label="Driving directions to trailhead" title="Get directions" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-car-front h-5 w-5" aria-hidden="true"></i></a>
                 <button type="button" @click="printMap()" aria-label="Print trail map" title="Print map" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-printer h-5 w-5" aria-hidden="true"></i></button>
                 <StxLink x-to="customizeRouteUrl()" aria-label="Customize this route" title="Customize route" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-pencil h-5 w-5" aria-hidden="true"></i></StxLink>
               </div>
+              <section id="trail-elevation-card" aria-label="Elevation profile" class="absolute bottom-8 left-3 right-3 z-[450] mx-auto max-w-3xl rounded-3xl border border-slate-200/70 bg-white p-4 shadow-xl sm:left-5 sm:right-5 sm:px-6 dark:border-slate-600 dark:bg-slate-900">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Elevation profile</h3>
+                  <button type="button" @click="toggleProfile()" :aria-expanded="profileOpen() ? 'true' : 'false'" aria-controls="trail-elevation-chart" :aria-label="profileOpen() ? 'Collapse elevation profile' : 'Expand elevation profile'" class="-my-3 -mr-2 grid h-11 w-11 place-items-center rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><i x-class="(profileOpen() ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up') + ' h-5 w-5'" aria-hidden="true"></i></button>
+                </div>
+                <div id="trail-elevation-chart" :if="profileOpen()">
+                  <p :if="profileStatus() === 'loading'" class="py-5 text-sm text-slate-500" role="status">Loading elevation…</p>
+                  <p :if="profileStatus() === 'unavailable'" class="py-5 text-sm text-slate-500">Elevation data is unavailable for this route.</p>
+                  <div :if="profileStatus() === 'ready'">
+                    <svg viewBox="0 0 1000 108" preserveAspectRatio="none" @pointermove="hoverProfile($event)" class="mt-1 h-20 w-full text-emerald-950 sm:h-24 dark:text-emerald-200" role="img" aria-label="Elevation along the trail">
+                      <path d="M8,54 H992" fill="none" stroke="currentColor" stroke-opacity="0.1" stroke-dasharray="8 8" vector-effect="non-scaling-stroke" />
+                      <path x-d="profilePath()" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+                      <line :if="profileCursor()" :x1="profileCursor().x" :x2="profileCursor().x" y1="8" y2="100" stroke="#2878c8" stroke-width="1" vector-effect="non-scaling-stroke" />
+                    </svg>
+                    <div class="flex justify-between text-xs tabular-nums text-slate-500 dark:text-slate-400"><span>0 mi</span><span>{{ profileRange().low.toLocaleString() + '–' + profileRange().high.toLocaleString() + ' ft' }}</span><span>{{ profileRange().miles.toFixed(1) + ' mi' }}</span></div>
+                    <input type="range" min="0" :max="profile().length - 1" :value="activePoint() ? profile().indexOf(activePoint()) : 0" @input="inspectProfile($event)" aria-label="Explore elevation and position along the route" class="mt-1 h-5 w-full accent-emerald-700" />
+                    <p role="status" class="mt-1 min-h-4 text-center text-xs tabular-nums text-slate-600 dark:text-slate-300">{{ activePoint() ? activePoint().mi.toFixed(2) + ' mi · ' + (activePoint().ft === null ? 'Elevation unavailable' : activePoint().ft.toLocaleString() + ' ft') : 'Explore elevation along the route' }}</p>
+                  </div>
+                </div>
+              </section>
             </div>
             <p :if="mapMessage()" role="status" class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">{{ mapMessage() }}</p>
-            <div class="border-t border-slate-100 px-5 py-4 dark:border-slate-700">
-              <div class="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Elevation profile <span class="font-normal text-slate-500">· Main recorded route</span></h3>
-                <p :if="activePoint()" role="status" class="text-sm tabular-nums text-slate-600 dark:text-slate-300">{{ activePoint().mi.toFixed(2) + ' mi · ' + (activePoint().ft === null ? 'Elevation unavailable' : activePoint().ft.toLocaleString() + ' ft') }}</p>
-              </div>
-              <p :if="profileStatus() === 'loading'" class="py-5 text-sm text-slate-500" role="status">Loading elevation…</p>
-              <p :if="profileStatus() === 'unavailable'" class="py-5 text-sm text-slate-500">Elevation data is unavailable for this route.</p>
-              <div :if="profileStatus() === 'ready'">
-                <svg viewBox="0 0 1000 108" preserveAspectRatio="none" class="mt-3 h-28 w-full text-emerald-900 dark:text-emerald-300" role="img" aria-label="Elevation along the trail">
-                  <path x-d="profilePath()" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
-                </svg>
-                <div class="flex justify-between text-xs tabular-nums text-slate-500"><span>0 mi</span><span>{{ profileRange().low.toLocaleString() + '–' + profileRange().high.toLocaleString() + ' ft' }}</span><span>{{ profileRange().miles.toFixed(1) + ' mi' }}</span></div>
-                <input type="range" min="0" :max="profile().length - 1" value="0" @input="inspectProfile($event)" aria-label="Explore elevation and position along the route" class="mt-3 w-full accent-emerald-700" />
-              </div>
-            </div>
           </section>
 
           {{-- What the trail is like, as the managing agency lists it: one row
