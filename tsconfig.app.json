@@ -78,6 +78,8 @@
     "scripts/test-recording-app.ts",
     "scripts/test-recording-api.ts",
     "scripts/start-recording-qa.ts",
+    "scripts/run-native-trail-e2e.ts",
+    "tests/native/**/*.ts",
     "tests/unit/account-deletion.test.ts",
     "tests/unit/battle-rows.test.ts",
     "tests/unit/toggle-intent.test.ts",

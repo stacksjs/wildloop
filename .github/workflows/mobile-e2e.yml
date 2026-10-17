@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - '.maestro/**'
+      - 'tests/native/**'
+      - 'scripts/run-native-trail-e2e.ts'
       - 'app/**'
       - 'config/mobile.ts'
       # The app icon config/mobile.ts points at; a bad one fails the iOS build.
@@ -17,6 +19,8 @@ on:
   pull_request:
     paths:
       - '.maestro/**'
+      - 'tests/native/**'
+      - 'scripts/run-native-trail-e2e.ts'
       - 'app/**'
       - 'config/mobile.ts'
       # The app icon config/mobile.ts points at; a bad one fails the iOS build.
@@ -117,4 +121,56 @@ jobs:
         with:
           name: mobile-e2e-android
           path: storage/framework/runtime/e2e/android
+          if-no-files-found: warn
+
+  native-trail-ios:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      QA_PORT_BASE: '6320'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: Setup Pantry
+        uses: home-lang/pantry/packages/action@main
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Install iOS toolchain
+        run: ./buddy setup:ios
+      - name: Create owned trail QA simulator
+        run: |
+          bun -e '
+            const { appendFileSync } = await import("node:fs");
+            const list = JSON.parse(Bun.spawnSync(["xcrun", "simctl", "list", "devices", "available", "--json"]).stdout.toString());
+            const candidates = Object.entries(list.devices).filter(([runtime]) => runtime.includes("iOS")).sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }));
+            const [runtime, devices] = candidates[0] ?? [];
+            const model = devices?.find(device => device.name.startsWith("iPhone") && device.deviceTypeIdentifier);
+            if (!model) throw new Error("No available iPhone simulator runtime");
+            const created = Bun.spawnSync(["xcrun", "simctl", "create", "Wildloop Trail QA", model.deviceTypeIdentifier, runtime]);
+            if (created.exitCode) throw new Error(created.stderr.toString());
+            appendFileSync(process.env.GITHUB_ENV, `NATIVE_QA_DEVICE=${created.stdout.toString().trim()}\n`);
+          '
+      - name: Boot owned trail QA simulator
+        run: |
+          xcrun simctl boot "$NATIVE_QA_DEVICE"
+          xcrun simctl bootstatus "$NATIVE_QA_DEVICE" -b
+      - name: Test native maps, sticky saves and review lifecycle
+        run: bun scripts/run-native-trail-e2e.ts
+      - name: Release owned trail QA simulator
+        if: always() && env.NATIVE_QA_DEVICE != ''
+        run: |
+          xcrun simctl shutdown "$NATIVE_QA_DEVICE" || true
+          xcrun simctl delete "$NATIVE_QA_DEVICE"
+      - name: Upload native trail evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: native-trail-ios
+          path: |
+            storage/framework/runtime/e2e/native-trail/*.log
+            storage/framework/runtime/e2e/native-trail/*.txt
+            storage/framework/runtime/e2e/native-trail/*.png
+            storage/framework/runtime/e2e/native-trail/results.xcresult
           if-no-files-found: warn

@@ -1,0 +1,93 @@
+import { mkdir, appendFile, writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+import process from 'node:process'
+import { generateXcodeProject, resolveXcodegen } from '@stacksjs/actions/build/ios-toolchain'
+import { prepareIosSimulatorDriver, serializeSimulatorSteps } from '@stacksjs/mobile/testing'
+import mobile from '../config/mobile'
+import { nativeTrailJourney } from '../tests/native/trail-journey'
+import { QA_PORTS } from '../tests/browser/qa-ports'
+import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
+import { validateGeneratedNativeApp } from './run-mobile-e2e'
+
+/** The caller supplies its own simulator; this runner never selects somebody else's. */
+export async function runNativeTrailE2e(): Promise<void> {
+  const device=process.env.NATIVE_QA_DEVICE
+  if(process.platform!=='darwin' || !device)throw new Error('Native trail QA requires macOS and NATIVE_QA_DEVICE naming an owned simulator.')
+  const root=resolve('storage/framework/runtime/e2e/native-trail')
+  await mkdir(root,{recursive:true})
+  const origin=`http://127.0.0.1:${QA_PORTS.app}`
+  for(const port of [QA_PORTS.app,QA_PORTS.api]) {
+    const occupied=await fetch(`http://127.0.0.1:${port}/api/health`,{signal:AbortSignal.timeout(1000)}).then(()=>true).catch(()=>false)
+    if(occupied)throw new Error(`QA port ${port} is already in use. Select a separate QA_PORT_BASE.`)
+  }
+  const command=async(args:string[],log:string,env:Record<string,string>={})=>{
+    console.log(`Native trail QA: ${log}`)
+    const child=Bun.spawn(args,{env:{...process.env,...env},stdout:Bun.file(join(root,log)),stderr:'pipe'})
+    const stderr=await new Response(child.stderr).text()
+    const status=await child.exited
+    if(stderr)await appendFile(join(root,log),`\n${stderr}`)
+    if(status)throw new Error(`${args[0]} exited ${status}; see ${join(root,log)}`)
+  }
+  const qa=Bun.spawn(['bun','scripts/start-recording-qa.ts'],{stdout:Bun.file(join(root,'qa-server.log')),stderr:'inherit'})
+  let control:ReturnType<typeof Bun.serve>|undefined
+  let nativeRun:ReturnType<typeof Bun.spawn>|undefined
+  let failed=false
+  try {
+    const deadline=Date.now()+180000
+    while(true){
+      const ready=await fetch(`${origin}/api/health`,{signal:AbortSignal.timeout(1000)}).then(r=>r.ok).catch(()=>false)
+      if(ready)break
+      if(qa.exitCode!==null || Date.now()>deadline)throw new Error('Isolated native QA server did not become ready.')
+      await Bun.sleep(250)
+    }
+    const listed=await (await fetch(`${origin}/api/trails?q=Craggy&country=all&limit=10`)).json() as any
+    let trail:any
+    for(const candidate of listed.trails ?? []) {
+      const detail=await (await fetch(`${origin}/api/trails/${candidate.id}`)).json() as any
+      if(detail.trail?.hasGeometry){trail=detail.trail;break}
+    }
+    if(!trail)throw new Error('Native trail QA requires its seeded recorded route.')
+    const review=`Native QA ${crypto.randomUUID().slice(0,8)}: clear signposts and a beautiful ridge.`
+    const journey=serializeSimulatorSteps(nativeTrailJourney({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit:' Updated after a return visit.'}))
+    const controlPort=QA_PORTS.app+15
+    const driver=prepareIosSimulatorDriver({...mobile.ios,simulator:{output:join(root,'driver'),projectName:'WildloopTrailDriver',bundleIdPrefix:'org.wildloop.trailqa',controlUrl:`http://127.0.0.1:${controlPort}`}})
+    control=Bun.serve({hostname:'127.0.0.1',port:controlPort,async fetch(request){
+      const url=new URL(request.url)
+      if(url.pathname==='/script')return new Response(journey)
+      if(url.pathname==='/note' && request.method==='POST'){
+        const line=await request.text()
+        if(line.startsWith('FAIL '))failed=true
+        await appendFile(join(root,'driver.log'),`${line}\n`)
+        return new Response('ok')
+      }
+      if(url.pathname==='/save' && request.method==='POST'){
+        const name=url.searchParams.get('name') ?? ''
+        if(!/^[a-z0-9-]+\.(png|txt)$/.test(name))return new Response('Invalid name',{status:422})
+        await writeFile(join(root,name),new Uint8Array(await request.arrayBuffer()))
+        return new Response('ok')
+      }
+      return new Response('Not found',{status:404})
+    }})
+    await command(['bun','run','build:ios'],'app-generation.log',{MOBILE_URL:`${origin}/feed`})
+    validateGeneratedNativeApp('storage/framework/mobile/ios')
+    await command(['xcodebuild','-project','storage/framework/mobile/ios/Wildloop.xcodeproj','-scheme','Wildloop','-configuration','Debug','-destination',`id=${device}`,'-derivedDataPath',join(root,'app-build'),'-jobs','2','CODE_SIGNING_ALLOWED=NO','build'],'app-build.log')
+    await command(['xcrun','simctl','install',device,join(root,'app-build/Build/Products/Debug-iphonesimulator/Wildloop.app')],'app-install.log')
+    const tool=await resolveXcodegen(process.cwd())
+    generateXcodeProject(tool,driver.output)
+    await writeFile(join(root,'driver-generation.log'),JSON.stringify({package:tool.pkg,version:tool.version})+'\n')
+    nativeRun=Bun.spawn(['xcodebuild','-project',join(driver.output,`${driver.projectName}.xcodeproj`),'-scheme',driver.projectName,'-destination',`id=${device}`,'-derivedDataPath',join(root,'driver-build'),'-resultBundlePath',join(root,'results.xcresult'),'-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1','-collect-test-diagnostics','never','-jobs','2','CODE_SIGNING_ALLOWED=NO','test'],{stdout:Bun.file(join(root,'driver-build-test.log')),stderr:'inherit'})
+    const status=await nativeRun.exited
+    if(status || failed)throw new Error('Native trail journey failed. Inspect its XCTest result, driver log and screenshots.')
+    const notes=await Bun.file(join(root,'driver.log')).text()
+    if(!notes.includes(`PASS absent ${review}`))throw new Error('Native review lifecycle did not reach its final deletion assertion.')
+    console.log('Native trail map, sticky save and review create/edit/delete journey passed.')
+  }
+  finally {
+    if(nativeRun && nativeRun.exitCode===null)nativeRun.kill()
+    control?.stop(true)
+    qa.kill('SIGTERM')
+    await qa.exited
+  }
+}
+
+if(import.meta.main)await runNativeTrailE2e()
