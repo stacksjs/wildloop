@@ -32,6 +32,18 @@ describe('the native route table', () => {
    * `/territory/:id` are one character apart, and a table that let the
    * parameter win would send the list screen's own path to the detail screen.
    */
+  it('opens trail details as a native map screen', () => {
+    expect(match('/trail/7')).toMatchObject({ screen: 'TrailDetail', params: { id: '7' } })
+  })
+
+  it('keeps all app tabs and map utilities on native screens', () => {
+    for (const [path, screen] of [['/feed','Feed'],['/settings','Settings'],['/','Feed'],['/routes','Routes'],['/trail/7/map','TrailMap']])
+      expect(match(path)?.screen).toBe(screen)
+  })
+  it('opens the reset URL used by the Stacks password-reset mailer',()=>{
+    expect(match('/password/reset/reset-token?email=qa%40example.test')).toMatchObject({screen:'ResetPassword',params:{token:'reset-token',email:'qa@example.test'}})
+  })
+
   it('keeps the list path on the list screen', () => {
     expect(match('/territories')?.screen).toBe('Territories')
     expect(match('/territories')?.params).toEqual({})
@@ -42,8 +54,8 @@ describe('the native route table', () => {
     expect(match('/territory/7/edit')).toBeNull()
   })
 
-  it('leaves a path with no entry to the web view', () => {
-    for (const path of ['/feed', '/trail/7', '/settings', '/'])
+  it('leaves legal pages and external destinations outside the application screens', () => {
+    for (const path of ['/privacy', '/terms', '/unknown-destination'])
       expect(match(path)).toBeNull()
   })
 

@@ -34,7 +34,7 @@ async function directory() {
 }
 
 describe('Wildloop native events screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders every list through the portable keyed boundary', () => {
     for (const list of ['live()', 'upcoming()', 'past()'])

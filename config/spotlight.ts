@@ -14,7 +14,7 @@
  *
  * That is the whole reason `slots` is a number here rather than "index
  * everything": it is a budget. Every slot is one line in the generated
- * `Info.plist` (see scripts/generate-ios-shortcuts.ts), and raising it is the
+ * `Info.plist` (written by the Stacks mobile build), and raising it is the
  * only way to widen the index.
  *
  * Adding a kind takes an entry below and nothing else: the plist declarations,

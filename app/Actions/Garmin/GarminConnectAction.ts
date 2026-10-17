@@ -12,8 +12,7 @@ import process from 'node:process'
 import garminConfig from '../../../config/garmin'
 import { buildAuthorizeUrl, createPkcePair, isConfigured, sealOAuthState } from '../../Support/garminConnect'
 
-/** Cookie carrying the in-flight attempt across the redirect to Garmin. */
-export const OAUTH_COOKIE = 'garmin_oauth'
+import { OAUTH_COOKIE, NATIVE_GARMIN_STATE_PREFIX } from '../../Support/garminOAuth'
 
 export default new Action({
   name: 'Garmin Connect',
@@ -33,7 +32,8 @@ export default new Action({
     }
 
     const { verifier, challenge } = createPkcePair()
-    const state = randomBytes(16).toString('base64url')
+    const native=request.get('native') === '1'
+    const state = (native ? NATIVE_GARMIN_STATE_PREFIX : '') + randomBytes(16).toString('base64url')
 
     // Signed with the app key so the athlete cannot edit the userId in their
     // own cookie and attach their watch to somebody else's account.
@@ -73,6 +73,7 @@ export default new Action({
     // top-level navigation cannot send - so the browser has to fetch this
     // with its token and then navigate itself. The cookie set here is stored
     // all the same, which is what the callback later reads.
+    if(native) {const json=response.json({success:true,url,state,handoff:sealed});json.headers.set('Cache-Control','no-store');return json}
     const json = response.json({ success: true, url })
     json.headers.append('Set-Cookie', cookie)
     return json

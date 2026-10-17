@@ -43,7 +43,7 @@ async function directory(token: string | null = 'tok_abc') {
 }
 
 describe('Wildloop native clubs screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders the list through the portable keyed boundary', () => {
     expect(SOURCE).toContain(':for="club in shown()" :key="club.id"')

@@ -1,0 +1,169 @@
+import { beforeAll, describe, expect, it } from 'bun:test'
+import { answer, compileNativeBundle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+
+const LINE = [[37.7, -119.5], [37.71, -119.51], [37.72, -119.5]]
+const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.7, longitude: -119.5, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
+const OWN = { id: 5, userId: 12, userName: 'Tester', rating: 4, content: 'A quiet loop with great views.', visitDate: '2026-10-15', conditions: 'dry', photos: '["https://wildloop.org/photo.jpg"]' }
+function ok(body: unknown) { return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } }
+async function open(signedIn = true, geometry: string | null = TRAIL.geometry, reviewRows: any[] = signedIn ? [OWN] : [], personalReview: any = reviewRows.find(row=>row.userId===12) ?? null, personalStatus = 200) {
+  const screen = await start('TrailDetail', { id: '7' }, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog', 'share', 'linking', 'files'])
+  answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage'), signedIn ? 'test_token' : null)
+  answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'Network'), ok({ success: true, trail: { ...TRAIL, geometry } }))
+  const review = await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/reviews'))
+  answer(screen, review, ok({ reviews: reviewRows }))
+  answer(screen, await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/forecast')), ok({ current: { temperature: 68, label: 'Clear' }, days: [{ date: '2026-10-17', low: 50, high: 70, label: 'Clear' }], attribution: { label: 'MET Norway', url: 'https://api.met.no' } }))
+  answer(screen, await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/profile')), ok({ points: geometry ? [{ mi: 0, ft: 4000, lat: 37.7, lng: -119.5 }, { mi: 3, ft: 4500, lat: 37.72, lng: -119.5 }] : [] }))
+  if (signedIn) answer(screen, await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/viewer')), {...ok({ userId:12, saved:false, review:personalReview }),status:personalStatus})
+  await waitForVisibility(screen, 'trail-detail-loading', 'none')
+  return screen
+}
+function props(screen: any) {
+  return screen.sent.filter((m: any) => m.type === 'MUTATE').flatMap((m: any) => m.payload.operations).filter((o: any) => o.op === 'updateNode').map((o: any) => o.patch.props ?? {})
+}
+
+describe('native trail details', () => {
+  beforeAll(compileNativeBundle, 30000)
+  it('loads the actual route into native map geometry and displays forecast and surfaces', async () => {
+    const screen = await open()
+    expect(shownText(screen)).toContain('Native Ridge Loop')
+    expect(shownText(screen)).toContain('Natural')
+    expect(shownText(screen)).toContain('Rock')
+    expect(shownText(screen)).toContain('68°F, Clear')
+    expect(props(screen).some(p => JSON.stringify(p.geometry) === JSON.stringify(LINE.flat()))).toBe(true)
+  })
+  it('changes map layer and camera through native bindings', async () => {
+    const screen = await open()
+    await screen.event('trail-map-layer', 'onValueChange', { value: 'satellite' })
+    await screen.event('trail-zoom-in', 'onPress')
+    await screen.event('trail-fit-route', 'onPress')
+    expect(props(screen).some(p => p.mapType === 'satellite')).toBe(true)
+    expect(nativeNodeProps(screen, 'trail-native-map')).toMatchObject({fitToBounds:true,region:null,edgePadding:{bottom:220}})
+  })
+  it('saves using explicit intent and waits for the server response', async () => {
+    const screen = await open()
+    const before = requests(screen).length
+    await screen.event('trail-save', 'onPress')
+    const request = await waitForRequest(screen, before, r => r.payload?.module === 'Network')
+    expect(request.payload.args[0].method).toBe('PUT')
+    expect(request.payload.args[0].url).toBe('https://wildloop.org/api/trails/7/save')
+    answer(screen, request, ok({ saved: true }))
+    await waitForText(screen, 'Trail saved.')
+  })
+  it('creates a review through native stars and the composer', async () => {
+    const screen=await open(true,TRAIL.geometry,[])
+    await screen.event('trail-write-review','onPress')
+    await screen.event('trail-review-star-5','onPress')
+    await screen.event('trail-review-content','onChangeText',{text:'A wonderful loop with clear signposts.'})
+    const before=requests(screen).length
+    await screen.event('trail-review-submit','onPress')
+    const request=await waitForRequest(screen,before,r=>r.payload?.module==='Network')
+    expect(JSON.parse(request.payload.args[0].body)).toMatchObject({rating:5,content:'A wonderful loop with clear signposts.'})
+    answer(screen,request,ok({success:true}))
+    answer(screen,await waitForRequest(screen,before,r=>r.payload?.args?.[0]?.url?.endsWith('/reviews') && r.payload?.args?.[0]?.method === 'GET'),ok({reviews:[{...OWN,rating:5,content:'A wonderful loop with clear signposts.'}]}))
+    answer(screen,await waitForRequest(screen,before,r=>r.payload?.args?.[0]?.url?.endsWith('/viewer')),ok({userId:12,saved:false,review:OWN}))
+    await waitForText(screen,'Your review has been saved.')
+    expect(nativeNodeProps(screen,'trail-review-composer').visible).toBe(false)
+  })
+  it('edits an existing review without overwriting its photos', async () => {
+    const screen = await open()
+    await screen.event('trail-write-review', 'onPress')
+    await waitForVisibility(screen, 'trail-review-composer', 'shown')
+    await screen.event('trail-review-content', 'onChangeText', { text: 'Updated native review after a second visit.' })
+    const before = requests(screen).length
+    await screen.event('trail-review-submit', 'onPress')
+    const request = await waitForRequest(screen, before, r => r.payload?.module === 'Network')
+    const body = JSON.parse(request.payload.args[0].body)
+    expect(body.rating).toBe(4)
+    expect(body.content).toBe('Updated native review after a second visit.')
+    expect(body.visit_date).toBe('2026-10-15')
+    expect(body.photo_ids).toBeUndefined()
+    answer(screen, request, ok({ success: true }))
+    const reload = await waitForRequest(screen, before, r => r.payload?.args?.[0]?.url?.endsWith('/reviews') && r.payload?.args?.[0]?.method === 'GET')
+    answer(screen, reload, ok({ reviews: [{ ...OWN, content: body.content }] }))
+    answer(screen,await waitForRequest(screen,before,r=>r.payload?.args?.[0]?.url?.endsWith('/viewer')),ok({userId:12,saved:false,review:{...OWN,content:body.content}}))
+    await waitForText(screen, 'Your review has been saved.')
+    expect(props(screen).some(p => p.visible === false)).toBe(true)
+  })
+  it('edits the authenticated review even when it is outside the community page',async()=>{
+    const screen=await open(true,TRAIL.geometry,[],OWN)
+    await screen.event('trail-write-review','onPress')
+    expect(nativeNodeProps(screen,'trail-review-content').value).toBe(OWN.content)
+    expect(nativeNodeProps(screen,'trail-review-date').value).toBe(OWN.visitDate)
+    expect(shownText(screen)).toContain('Edit your review')
+  })
+  it('blocks mutations while personal state is unavailable instead of opening a blank review',async()=>{
+    const screen=await open(true,TRAIL.geometry,[],null,503)
+    expect(nativeNodeProps(screen,'trail-write-review').disabled).toBe(true)
+    expect(nativeNodeProps(screen,'trail-save').disabled).toBe(true)
+    const before=requests(screen).length
+    await screen.event('trail-write-review','onPress')
+    await screen.event('trail-save','onPress')
+    expect(nativeNodeProps(screen,'trail-review-composer').visible).toBe(false)
+    expect(requests(screen).slice(before).filter(r=>['Network','Navigation'].includes(r.payload?.module))).toHaveLength(0)
+    expect(shownText(screen).join(' ')).toContain('Pull down to retry before making changes.')
+  })
+  it('uses the native date picker and lets an optional visit date be cleared',async()=>{
+    const screen=await open()
+    await screen.event('trail-write-review','onPress')
+    expect(nativeNodeProps(screen,'trail-review-date').value).toBe('2026-10-15')
+    await screen.event('trail-review-date','onValueChange',{value:'2026-10-14',iso:'2026-10-14T12:00:00Z',timestamp:1791979200000})
+    expect(nativeNodeProps(screen,'trail-review-date').value).toBe('2026-10-14')
+    await screen.event('trail-review-clear-date','onPress')
+    const before=requests(screen).length
+    await screen.event('trail-review-submit','onPress')
+    const post=await waitForRequest(screen,before,r=>r.payload.module==='Network')
+    expect(JSON.parse(post.payload.args[0].body).visit_date).toBeNull()
+  })
+  it('uploads a picked native photo before attaching its stored id to the review',async()=>{
+    const screen=await open()
+    await screen.event('trail-write-review','onPress')
+    let before=requests(screen).length
+    await screen.event('trail-review-add-photo','onPress')
+    const picker=await waitForRequest(screen,before,r=>r.payload.module==='Files')
+    answer(screen,picker,{path:'/tmp/review.jpg',name:'review.jpg',type:'image/jpeg',size:20000})
+    await Bun.sleep(0)
+    before=requests(screen).length
+    await screen.event('trail-review-submit','onPress')
+    const upload=await waitForRequest(screen,before,r=>r.payload.module==='Network')
+    expect(upload.payload.args[0]).toMatchObject({url:'https://wildloop.org/api/trails/7/photos',method:'POST',form:[{name:'photo',path:'/tmp/review.jpg',filename:'review.jpg',type:'image/jpeg'}]})
+    expect(upload.payload.args[0].headers['content-type']).toBeUndefined()
+    answer(screen,upload,ok({photo:{id:'photo-7',url:'/photos/photo-7.jpg'}}))
+    const post=await waitForRequest(screen,requests(screen).indexOf(upload)+1,r=>r.payload.module==='Network')
+    expect(JSON.parse(post.payload.args[0].body)).toMatchObject({photo_ids:['photo-7'],retain_photos:true})
+    answer(screen,post,ok({success:true}))
+    const reload=await waitForRequest(screen,requests(screen).indexOf(post)+1,r=>r.payload.module==='Network')
+    answer(screen,reload,ok({reviews:[OWN]}))
+    answer(screen,await waitForRequest(screen,before,r=>r.payload?.args?.[0]?.url?.endsWith('/viewer')),ok({userId:12,saved:false,review:OWN}))
+    await waitForText(screen,'Your review has been saved.')
+  })
+  it('opens native directions and the share sheet from the persistent trail actions',async()=>{
+    const screen=await open(),before=requests(screen).length
+    await screen.event('trail-directions','onPress')
+    const directions=await waitForRequest(screen,before,r=>r.payload.module==='Linking')
+    expect(directions.payload.args[0]).toContain('37.7')
+    expect(directions.payload.args[0]).toContain('-119.5')
+    answer(screen,directions,true)
+    await screen.event('trail-share','onPress')
+    const share=await waitForRequest(screen,before,r=>r.payload.module==='Share')
+    expect(share.payload.args[0]).toMatchObject({title:'Native Ridge Loop',url:'https://wildloop.org/trail/7'})
+    answer(screen,share,true)
+  })
+  it('uses native confirmation before deleting, then refreshes reviews', async () => {
+    const screen = await open()
+    const before = requests(screen).length
+    void screen.event('trail-delete-review', 'onPress')
+    const confirm = await waitForRequest(screen, before, r => r.payload?.module === 'Dialog')
+    answer(screen, confirm, true)
+    const deletion = await waitForRequest(screen, before, r => r.payload?.args?.[0]?.method === 'DELETE')
+    answer(screen, deletion, ok({ success: true }))
+    const reload = await waitForRequest(screen, before, r => r.payload?.args?.[0]?.url?.endsWith('/reviews') && r.payload?.args?.[0]?.method === 'GET')
+    answer(screen, reload, ok({ reviews: [] }))
+    answer(screen,await waitForRequest(screen,before,r=>r.payload?.args?.[0]?.url?.endsWith('/viewer')),ok({userId:12,saved:false,review:null}))
+    await waitForText(screen, 'Your review has been deleted.')
+  })
+  it('shows the trailhead for trails without recorded geometry', async () => {
+    const screen = await open(false, null)
+    expect(shownText(screen)).toContain('No recorded route line. The map shows the trailhead.')
+    expect(shownText(screen)).toContain('Elevation data is unavailable for this route.')
+  })
+})

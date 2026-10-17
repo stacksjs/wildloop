@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi, loadOutcome } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, loadOutcome } from '../functions/native-api'
 import { settledFollowerCount } from '../functions/athletes'
 import {
   canDeleteClub,
@@ -350,12 +350,14 @@ async function loadInvites(): Promise<void> {
     invites.set(inviteRowsFrom(result.body))
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     if (wanted === null) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         missing.set(true)
       return
     }
@@ -365,7 +367,7 @@ async function load(): Promise<void> {
       viewerId.set(Number(me.body.user.id))
 
     const result = await api.send(clubApiPath(wanted))
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     // A record that does not exist is an answer, not a failure to load.
     const outcome = loadOutcome(result)
@@ -390,11 +392,11 @@ async function load(): Promise<void> {
     await loadInvites()
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load this club')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -407,15 +409,16 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { club.set(null); invites.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="club-detail-scroll">
     <ActivityIndicator :show="loading" testID="club-loading" class="mt-6" />
-    <Text :show="error" testID="club-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="club-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
 
     <View :show="missing" testID="club-missing" class="mt-6 gap-3">
-      <Text class="text-lg font-semibold text-white">No such club</Text>
+      <Text class="text-lg font-semibold text-[#192414] dark:text-[#f0f5ec]">No such club</Text>
       <Button testID="back-to-clubs" @click="backToClubs()">See the directory</Button>
     </View>
 
@@ -423,64 +426,64 @@ onDestroy(() => {
 
     <View :show="club()" testID="club-body" class="gap-4">
       <View class="gap-1">
-        <Text testID="club-name" class="text-2xl font-bold text-white" :text="nameText()" />
-        <Text testID="club-place" class="text-sm text-slate-400" :text="placeText()" />
+        <Text testID="club-name" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="nameText()" />
+        <Text testID="club-place" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="placeText()" />
         <View class="mt-1 flex-row gap-2">
-          <Text testID="club-type" class="text-xs uppercase text-slate-500" :text="typeText()" />
-          <Text testID="club-members" class="text-xs text-slate-500" :text="membersText()" />
+          <Text testID="club-type" class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]" :text="typeText()" />
+          <Text testID="club-members" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="membersText()" />
           <Text :show="roleText()" testID="club-role" class="text-xs uppercase text-emerald-400" :text="roleText()" />
         </View>
       </View>
 
-      <Text :show="aboutText()" testID="club-about" class="text-sm text-slate-300" :text="aboutText()" />
+      <Text :show="aboutText()" testID="club-about" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="aboutText()" />
 
       <Button :show="canJoin()" testID="club-join" @click="toggleMembership()" :text="joinText()" />
 
       {{-- An invite-only club is reached with a code, not a button. The door
            label says which kind of club this is. --}}
-      <View :show="isClosedDoor()" testID="club-closed" class="gap-2 rounded-xl bg-slate-900 p-3">
+      <View :show="isClosedDoor()" testID="club-closed" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
         <Text testID="club-door" class="text-sm text-amber-300" :text="doorText()" />
         <TextInput testID="redeem-code" placeholder="Invite code" :value="redeemCode" @input="redeemCode.set(eventText($event))" />
         <Button testID="club-redeem" @click="redeem()">Redeem</Button>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">This week</Text>
-          <Text testID="club-week-distance" class="text-lg font-bold text-white" :text="weekDistanceText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">This week</Text>
+          <Text testID="club-week-distance" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="weekDistanceText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Activities</Text>
-          <Text testID="club-week-activities" class="text-lg font-bold text-white" :text="weekActivitiesText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Activities</Text>
+          <Text testID="club-week-activities" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="weekActivitiesText()" />
         </View>
       </View>
 
       <View :show="board().length > 0" testID="club-board" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">This week's leaders</Text>
-        <View :for="row in board()" :key="row.rank" class="flex-row justify-between rounded-xl bg-slate-900 p-3">
-          <Text testID="board-line" class="flex-1 text-sm text-white" :text="boardLine(row)" />
-          <Text testID="board-distance" class="text-sm text-slate-400" :text="boardDistance(row)" />
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">This week's leaders</Text>
+        <View :for="row in board()" :key="row.rank" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text testID="board-line" class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="boardLine(row)" />
+          <Text testID="board-distance" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="boardDistance(row)" />
         </View>
       </View>
 
       <View :show="members().length > 0" testID="club-roster" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Members</Text>
-        <Pressable :for="member in members()" :key="member.userId" testID="club-member" @click="openMember(member)" class="flex-row justify-between rounded-xl bg-slate-900 p-3">
-          <Text class="flex-1 text-sm text-white" :text="memberText(member)" />
-          <Text testID="member-role" class="text-xs text-slate-500" :text="roleOf(member)" />
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Members</Text>
+        <Pressable :for="member in members()" :key="member.userId" testID="club-member" @click="openMember(member)" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="memberText(member)" />
+          <Text testID="member-role" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="roleOf(member)" />
         </Pressable>
       </View>
 
       {{-- Owners and admins only, read off the roster. The code is shown as
            text: `enableClipboard` is false, so a copy button would do nothing. --}}
-      <View :show="mayInvite()" testID="club-invites" class="gap-2 rounded-xl bg-slate-900 p-3">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Invites</Text>
+      <View :show="mayInvite()" testID="club-invites" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Invites</Text>
         <TextInput testID="invite-email" placeholder="their@email.com" :value="inviteEmail" @input="inviteEmail.set(eventText($event))" />
         <Button testID="club-invite" @click="createInvite()">Create an invite</Button>
-        <View :for="invite in invites()" :key="invite.id" class="gap-1 rounded-lg bg-slate-950 p-2">
-          <Text testID="invite-line" class="text-sm text-white" :text="inviteText(invite)" />
+        <View :for="invite in invites()" :key="invite.id" class="gap-1 rounded-lg bg-[#f2f4ef] dark:bg-[#101c16] p-2">
+          <Text testID="invite-line" class="text-sm text-[#192414] dark:text-[#f0f5ec]" :text="inviteText(invite)" />
           <Text testID="invite-code" class="text-xs text-emerald-400" :text="invite.code" />
-          <Text testID="invite-status" class="text-xs text-slate-500" :text="inviteStatus(invite)" />
+          <Text testID="invite-status" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="inviteStatus(invite)" />
         </View>
       </View>
 

@@ -16,6 +16,7 @@ function keychain(value: unknown) {
   return {
     reads: () => reads,
     host: {
+      snapshots: { get: () => null },
       secureStorage: {
         get: (key: string) => {
           expect(key).toBe('auth_token')
@@ -42,6 +43,18 @@ function recorder(answer: { status?: number, body?: string } = {}) {
   }) as any
   return { calls, restore: () => { globalThis.fetch = previous } }
 }
+
+describe('native multipart requests',()=>{
+  it('keeps native form data intact and lets the host set the multipart boundary',async()=>{
+    const capture=recorder(),keys=keychain('token')
+    try {
+      const form=new FormData();form.append('photo','test-file-descriptor')
+      await createNativeApi(keys.host).upload('/api/trails/7/photos',form)
+      expect(capture.calls[0]).toMatchObject({method:'POST',body:form})
+      expect(capture.calls[0].headers).toEqual({Accept:'application/json',Authorization:'Bearer token'})
+    }finally{capture.restore()}
+  })
+})
 
 describe('nativeHeaders', () => {
   it('always asks for JSON', () => {
@@ -104,6 +117,36 @@ describe('createNativeApi', () => {
     finally {
       fetched.restore()
     }
+  })
+
+  it('replaces a warm screen bearer after a native account switch or sign-out', async () => {
+    let session: unknown = {user:{id:1}}
+    let token: string | null = 'account-one'
+    const api = createNativeApi({snapshots:{get:()=>session},secureStorage:{get:()=>token}})
+    const fetched = recorder()
+    try {
+      await api.send('/api/me')
+      session = {user:{id:2}}
+      token = 'account-two'
+      await api.send('/api/me')
+      session = null
+      token = null
+      await api.send('/api/me')
+      expect(fetched.calls.map(call=>call.headers.Authorization)).toEqual(['Bearer account-one','Bearer account-two',undefined])
+    }
+    finally { fetched.restore() }
+  })
+
+  it('refreshes a warm bearer when a password change keeps the same account', async () => {
+    let token='old-bearer',version=1
+    const api=createNativeApi({snapshots:{get:()=>({user:{id:7},version})},secureStorage:{get:()=>token}})
+    const fetched=recorder()
+    try {
+      await api.send('/api/me')
+      token='new-bearer';version++
+      await api.send('/api/me')
+      expect(fetched.calls.map(call=>call.headers.Authorization)).toEqual(['Bearer old-bearer','Bearer new-bearer'])
+    } finally {fetched.restore()}
   })
 
   it('carries the token on every request', async () => {

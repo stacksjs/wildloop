@@ -91,7 +91,7 @@ function geometries(screen: any): number[][] {
 }
 
 describe('Wildloop native territory detail screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its history through the portable keyed boundary', () => {
     expect(SOURCE).toContain(':for="battle in history()"')

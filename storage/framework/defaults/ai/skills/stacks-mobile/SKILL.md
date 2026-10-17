@@ -74,6 +74,20 @@ with Xcode or Gradle respectively.
 
 ## Configuration
 
+Declare iOS Siri/Spotlight App Intents and home-screen quick actions with
+`ios.appShortcuts` (Craft >= 0.0.237). Each entry has `id`, `title`, optional
+`subtitle`, `symbol`, an app-scheme `url`, and `phrases` containing exactly one
+`{app}` token. Register that scheme in `ios.urlSchemes`. Craft generates and
+restores the Swift; never write an application Swift generator. Intents open
+their URLs through native routing. Home-screen actions deliver `craftShortcut`
+to the app script, which resolves the configured action id to its destination.
+For example:
+
+```ts
+appShortcuts: [{ id: 'saved', title: 'Saved trails', symbol: 'heart.fill',
+  url: 'outdoors://profile?tab=saved', phrases: ['Show my saved trails in {app}'] }],
+```
+
 ```ts
 import type { MobileConfig } from '@stacksjs/types'
 
@@ -344,6 +358,24 @@ prompt with `ios.usageDescriptions.NSAppleMusicUsageDescription`. The
 simulator's Music app has nothing to play; launch a simulator build with
 `-CraftFakeMusicPlayer YES` for three made-up songs that play and skip.
 
+## Crash reporting (bughq)
+
+`crashReporting` in `config/mobile.ts` turns on Craft's native reporter (craft-native >= 0.0.179; the build refuses an older one). It sends crashes, hangs (MetricKit), ANRs and native crashes (ApplicationExitInfo) and uncaught JavaScript errors in native screens and the app script to bughq from an on-disk outbox, with app version and build, OS, device model, session and breadcrumbs (screens shown, failed requests).
+
+```ts
+export default {
+  crashReporting: { host: env.BUGHQ_HOST || undefined, environment: 'production' },
+  ios: { /* ... */ crashReporting: { key: env.BUGHQ_IOS_KEY } },
+  android: { /* ... */ crashReporting: { key: env.BUGHQ_ANDROID_KEY } },
+} satisfies MobileConfig
+```
+
+- Platform settings override the shared ones field by field; no key means off.
+- `release` defaults to `<version>+<build>`; one session per launch feeds crash-free sessions.
+- Symbols: `build:ios` writes `ci_scripts/ci_post_xcodebuild.sh`, which uploads Xcode Cloud archive dSYMs (`symbols | gzip | curl`) when the workflow has the secret `BUGHQ_UPLOAD_TOKEN`; `build:android --bundle` uploads the R8 `mapping.txt` the same way. `uploadSymbols: false` turns both off. The token never goes in the app.
+- JavaScript: `crashReporting.start()` from `@stacksjs/mobile` runs `@bughq/sdk` in web views with a transport into the native outbox (no key needed in the app; a no-op in a browser without one). `crashReporting.setUser(id)` names the user by id only. On a native screen or the app script use `craft.crashReporter` (`capture`, `setUser`, `addBreadcrumb`, `flush`, `context`).
+- Test crashes are Debug-only: `xcrun simctl launch <device> <bundle id> -CraftCrashTest swift|signal|exception|js`, or `--es craftCrashTest native|js` on Android.
+
 ## Runtime API
 
 ```ts
@@ -434,7 +466,14 @@ option the original metres heuristic remains for unlabelled inputs.
 - `<NativeSheet v-model:open="editing" title="…">` raises a bottom sheet for a
   task that belongs to the screen: dragged down from its grabber or header to
   dismiss, the page behind inert. `detents="medium large"` makes it full
-  height with detents, the page pressed into a card at large.
+  height with detents, the page pressed into a card at large. An open sheet is
+  a layer on stx's overlay stack (`window.stx.overlays`) with Dialog, Drawer,
+  stxConfirm and the HTML alerts: the stack locks the page, makes it inert,
+  gives Escape and Tab to the top layer and returns focus, so a confirm opened
+  from a sheet closes alone. `lockBackground` and `trapFocus` no longer exist;
+  an app's own overlay uses `openOverlay` / `closeOverlay` from
+  `@stacksjs/components/overlays` (in `<script client>`), passing `root` for
+  an element lifted into `<body>` and `zIndex` to stack by opening order.
 - `<NativeContextMenu :items="[...]" @select="…">` opens a menu on a
   half-second press: UIMenu in the shell, an HTML menu elsewhere.
 - `<NativeActionSheet v-model:open="choosing" :actions="[...]" @select="…">`
@@ -448,10 +487,12 @@ option the original metres heuristic remains for unlabelled inputs.
 - A screen that is a task of its own (a workout player, a composer) marks an
   element `data-native-hide-tab-bar`, and the tab bar steps away while it is
   shown, its reserved space with it.
-- `<Video :src="current.url">` is the framework's player (ts-video-player):
-  YouTube, Vimeo, HLS, DASH or a file. `src` is reactive, so one player in a
-  sheet can show whichever video is chosen; clearing it pauses the player.
-  Craft lets an https iframe load inside the app, so embeds play inline.
+- `<Video :src="current.url" autoplay>` is the player from
+  `@stacksjs/components` (ts-video-player): YouTube, Vimeo, HLS, DASH or a
+  file, with controls in the page's language. `src`, `poster`, `aspectRatio`
+  and `label` are reactive, so one player in a sheet can show whichever video
+  is chosen, `autoplay` starts each one, and clearing `src` pauses it. Craft
+  lets an https iframe load inside the app, so embeds play inline.
 
 `<NativeTabItem match="/m/workout">` keeps a tab lit on the detail screens
 opened from it. A tab bar is a `<nav>`, where a link is otherwise current only
@@ -565,3 +606,19 @@ observable from the generated project: search a record's name from the home
 screen, confirm the entry appears and opens that record rather than the last
 screen, then make it stop being the person's (leave, unsave, withdraw, sign
 out) and confirm it stops being findable.
+
+## Bundled native fonts
+
+`ios.nativeFonts` and `android.nativeFonts` map a font's PostScript name to local
+`{ src, license? }` paths, resolved against the application root. Use the same
+name in a native Text node's `fontFamily` style. For example:
+
+```ts
+nativeFonts: {
+  'Allura-Regular': { src: 'public/assets/fonts/allura/Allura-Regular.ttf', license: 'public/assets/fonts/allura/OFL.txt' },
+}
+```
+
+Craft >= 0.0.229 packages the files and licenses into both apps. iOS registers
+`UIAppFonts`; Android loads asset typefaces. The build rejects older builders,
+missing font files and invalid names. Fonts work without a network request.

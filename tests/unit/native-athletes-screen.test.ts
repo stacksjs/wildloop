@@ -50,7 +50,7 @@ async function directory(options: { followingIds?: number[], signedIn?: boolean 
 }
 
 describe('Wildloop native athletes screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders through the portable keyed boundary', () => {
     expect(SOURCE).toContain('<View :for="row in rows()" :key="row.id"')

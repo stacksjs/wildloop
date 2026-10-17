@@ -1,0 +1,377 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { onNativeAccountChange, createNativeApi, loadOutcome, nativeApiOrigin } from '../functions/native-api'
+import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { nativeUi as ui } from '../functions/native-ui'
+import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
+import { decodeRouteParts } from '../functions/trail-geometry'
+import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
+import { exportNativeGpx } from '../functions/native-export'
+import { trailDirectionSigns, trailSurfaceTypes } from '../functions/trail-map'
+import { trailProfilePath, type TrailProfilePoint } from '../functions/trail-profile'
+import { trailStatsLine } from '../functions/trails'
+import { forecastDayLabel } from '../functions/trail-page'
+import { planDirections } from '../functions/trip-plans'
+import { reviewFormError, REVIEW_DIFFICULTY_OPTIONS } from '../functions/review-form'
+import { TRAIL_CONDITIONS } from '../functions/trail-conditions'
+import { parsePhotoList, trailGallery } from '../functions/trail-photos'
+import { todayLocal } from '../functions/manual-activity'
+
+// Same View/Text/Map/Modal primitives as HQ.training: Craft draws the screen,
+// including the route and review composer. No embedded application web view.
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const wanted = /^\d+$/.test(String(craft.route.params.id)) ? Number(craft.route.params.id) : 0
+let api = createNativeApi(craft)
+const trail = state<any>(null)
+const rawTrail = state<any>(null)
+const parts = state<number[][]>([])
+const reviews = state<any[]>([])
+const profile = state<TrailProfilePoint[]>([])
+const forecast = state<any>(null)
+const viewer = state(0)
+const viewerReady = state(false)
+const ownReview = state<any>(null)
+const saved = state(false)
+const loading = state(true)
+const busy = state(false)
+const error = state('')
+const notice = state('')
+const mapType = state('outdoors')
+const basemap = derived(() => nativeBasemap(mapType()))
+const region = state<any>(null)
+const inspected = state<TrailProfilePoint | null>(null)
+const profileOpen = state(true)
+const pitch = state(0)
+const heading = state(0)
+const showLocation = state(false)
+const directionSigns = derived(() => trailDirectionSigns(nativeMapParts(parts()),8))
+const composer = state(false)
+const rating = state(0)
+const content = state('')
+const conditions = state('')
+const difficulty = state('')
+const visitDate = state('')
+const formError = state('')
+const photoDrafts = state<Array<{file:any,id?:string}>>([])
+let alive = true
+let generation = 0
+
+const surfaces = derived(() => trailSurfaceTypes(rawTrail()?.surface))
+const routeAvailable = derived(() => parts().some(part => part.length >= 4))
+const mapRegion = derived(() => region() ?? nativeRouteRegion(parts(), {lat:trail()?.lat ?? 0,lng:trail()?.lng ?? 0}))
+const photos = derived(() => trailGallery(trail(),reviews()))
+
+function textOf(event: any): string { return String(event?.text ?? '') }
+function profilePath(): string { return trailProfilePath(profile()) }
+function photoUrls(row: any): string[] { return parsePhotoList(row.photos).map(url=>url.startsWith('/') ? nativeApiOrigin(craft)+url : url) }
+function photoUrl(url:string):string {return url.startsWith('/') ? nativeApiOrigin(craft)+url : url}
+function weatherLine(day: any, index: number): string {
+  return `${forecastDayLabel(day.date, index)}: ${day.label}, ${Math.round(day.low)} to ${Math.round(day.high)}°F`
+}
+function fitRoute() {
+  region.set(null)
+  inspected.set(null)
+}
+function zoom(factor:number) {region.set(nativeZoomRegion(mapRegion(),factor))}
+function camera(event:any) {
+  if (!event?.center || !event?.span) return
+  region.set({center:event.center,span:event.span})
+  heading.set(Number(event.heading)||0);pitch.set(Number(event.pitch)||0)
+}
+async function locate() {
+  try {
+    if (!craft.location) throw new Error('Location is unavailable in this app build.')
+    const point=await craft.location.getCurrentPosition({enableHighAccuracy:true,timeout:15000})
+    showLocation.set(true);region.set({...mapRegion(),center:{latitude:point.latitude,longitude:point.longitude}})
+  }catch(cause){notice.set(cause instanceof Error?cause.message:'Your position could not be found. Check location permission.')}
+}
+function inspect(event: any) {
+  const point = profile()[Math.round(Number(event?.value) || 0)]
+  if (!point) return
+  inspected.set(point)
+  region.set({ ...mapRegion(), center: { latitude: point.lat, longitude: point.lng } })
+}
+async function directions() {
+  const url = planDirections({ latitude: trail()?.lat, longitude: trail()?.lng, activity_type: null })
+  if (!url) return
+  try { await craft.linking?.openURL(craft.platform === 'ios' ? url.apple : url.google) }
+  catch { notice.set('Directions could not be opened.') }
+}
+async function exportRoute() {
+  try { await exportNativeGpx(craft, trail()?.name ?? 'Trail', nativeMapParts(parts())) }
+  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The GPX could not be exported.') }
+}
+async function shareTrail() {
+  try { await craft.share?.({ title: trail()?.name, url: `https://wildloop.org/trail/${wanted}` }) }
+  catch { notice.set('Sharing could not be opened.') }
+}
+function signedIn(): boolean {
+  if (viewer() > 0) return true
+  craft.navigation.open(`/login?next=${encodeURIComponent(`/trail/${wanted}`)}`)
+  return false
+}
+async function toggleSaved() {
+  if (loading() || !viewerReady() || busy() || !signedIn()) return
+  busy.set(true)
+  try {
+    const response = await api.send(`/api/trails/${wanted}/save`, saved() ? 'DELETE' : 'PUT')
+    if (!response.ok) throw new Error(response.body?.error || 'The trail could not be saved.')
+    saved.set(Boolean(response.body.saved))
+    notice.set(saved() ? 'Trail saved.' : 'Trail removed from saved trails.')
+  }
+  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The trail could not be saved.') }
+  finally { busy.set(false) }
+}
+function editReview() {
+  if (loading() || !viewerReady() || busy() || !signedIn()) return
+  const own = ownReview()
+  rating.set(own?.rating ?? 0)
+  content.set(own?.content ?? '')
+  conditions.set(own?.conditions ?? '')
+  difficulty.set(own?.difficulty ?? '')
+  visitDate.set(own?.visitDate ?? '')
+  formError.set('')
+  photoDrafts.set([])
+  composer.set(true)
+}
+async function reloadReviews() {
+  const current = generation
+  viewerReady.set(false)
+  const [response, personal] = await Promise.all([api.send(`/api/trails/${wanted}/reviews`), api.send(`/api/trails/${wanted}/viewer`)])
+  if (!alive || current !== generation) return
+  if (personal.ok) { ownReview.set(personal.body.review ?? null); viewerReady.set(true) }
+  if (response.ok) reviews.set(response.body.reviews ?? [])
+  if (!response.ok || !personal.ok) throw new Error('Your change was saved, but reviews could not refresh. Pull down to retry.')
+}
+async function pickReviewPhoto() {
+  if (busy()) return
+  if (photoDrafts().length + photoUrls(ownReview() ?? {}).length >= 10) { formError.set('A review can have up to 10 photos.'); return }
+  try {
+    if (!craft.files) throw new Error('Photo picking is unavailable in this app build.')
+    const file = await craft.files.pickImage({source:'library',maxPixels:2400,quality:0.88})
+    if (file) photoDrafts.set([...photoDrafts(),{file}])
+  }
+  catch (cause) { formError.set(cause instanceof Error ? cause.message : 'A photo could not be selected.') }
+}
+async function submitReview() {
+  if (busy()) return
+  const problem = reviewFormError(rating(), content())
+  if (problem) { formError.set(problem); return }
+  busy.set(true)
+  formError.set('')
+  try {
+    for (let index=0;index<photoDrafts().length;index++) {
+      const draft=photoDrafts()[index]
+      if (draft.id) continue
+      const form=new FormData()
+      form.append('photo',draft.file)
+      const response=await api.upload(`/api/trails/${wanted}/photos`,form)
+      const body=response.body
+      if (!response.ok || !body.photo?.id) throw new Error(body.error || 'A photo could not be uploaded. Try saving again.')
+      photoDrafts.set(photoDrafts().map((entry,at)=>at===index ? {...entry,id:body.photo.id}:entry))
+    }
+    const response = await api.send(`/api/trails/${wanted}/reviews`, 'POST', {
+      rating: rating(), content: content().trim(), conditions: conditions() || null,
+      difficulty: difficulty() || null, visit_date: visitDate() || null,
+      ...(photoDrafts().length ? {photo_ids:photoDrafts().map(draft=>draft.id),retain_photos:true}:{}),
+    })
+    if (!response.ok) throw new Error(Object.values(response.body?.fields ?? {}).join('. ') || response.body?.error || 'The review could not be saved.')
+    if (response.body.trail) trail.set({...trail(),...response.body.trail})
+    composer.set(false)
+    notice.set('Your review has been saved.')
+    try { await reloadReviews() } catch (cause) { notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
+  }
+  catch (cause) { formError.set(cause instanceof Error ? cause.message : 'The review could not be saved.') }
+  finally { busy.set(false) }
+}
+async function deleteReview() {
+  if (loading() || !viewerReady() || !ownReview() || busy()) return
+  const confirmed = await craft.dialog?.confirm({ title: 'Delete your review?', message: 'Your rating, review, and condition report will be removed from this trail.', confirmLabel: 'Delete review', destructive: true })
+  if (!confirmed) return
+  busy.set(true)
+  try {
+    const response = await api.send(`/api/trails/${wanted}/reviews`, 'DELETE')
+    if (!response.ok) throw new Error(response.body?.error || 'The review could not be deleted.')
+    if (response.body.trail) trail.set({...trail(),...response.body.trail})
+    ownReview.set(null)
+    notice.set('Your review has been deleted.')
+    try { await reloadReviews() } catch (cause) { notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
+  }
+  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The review could not be deleted.') }
+  finally { busy.set(false) }
+}
+async function load() {
+  const current = ++generation
+  loading.set(true)
+  viewerReady.set(false)
+  error.set('')
+  // Returning after native sign-in reads the current keychain session.
+  api = createNativeApi(craft)
+  try {
+    const response = await api.send(`/api/trails/${wanted}`)
+    if (!alive || current !== generation) return
+    if (loadOutcome(response) !== 'ok') throw new Error(loadOutcome(response) === 'missing' ? 'This trail could not be found.' : 'The trail could not be loaded. Pull down to retry.')
+    const raw = response.body?.trail
+    const normalized = normalizeTrailsPayload(response.body).trails[0]
+    if (!normalized) throw new Error('The trail has no recorded trailhead.')
+    rawTrail.set(raw)
+    trail.set(normalized)
+    parts.set([...decodeRouteParts(raw.geometry), ...(Array.isArray(raw.pieceRoutes) ? raw.pieceRoutes : [])].map(part => part.flat()))
+    fitRoute()
+    craft.navigation.setOptions({ title: normalized.name, largeTitle: false })
+    const token = await api.readToken()
+    if (!alive || current !== generation) return
+    const [reviewResponse, weatherResponse, profileResponse, personalResponse] = await Promise.all([
+      api.send(`/api/trails/${wanted}/reviews`), api.send(`/api/trails/${wanted}/forecast`),
+      api.send(`/api/trails/${wanted}/profile`), token ? api.send(`/api/trails/${wanted}/viewer`) : Promise.resolve(null),
+    ])
+    if (!alive || current !== generation) return
+    reviews.set(reviewResponse.ok ? reviewResponse.body.reviews ?? [] : [])
+    if (!reviewResponse.ok) notice.set('Reviews could not be loaded. Pull down to retry.')
+    forecast.set(weatherResponse.ok ? weatherResponse.body : null)
+    profile.set(profileResponse.ok ? profileResponse.body.points ?? [] : [])
+    if (!personalResponse || personalResponse.status === 401) {
+      viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(true)
+    }
+    else if (personalResponse.ok) {
+      viewer.set(Number(personalResponse.body.userId) || 0)
+      saved.set(Boolean(personalResponse.body.saved))
+      ownReview.set(personalResponse.body.review ?? null)
+      viewerReady.set(true)
+    }
+    else notice.set('Your saved state and review could not load. Pull down to retry before making changes.')
+  }
+  catch (cause) { if (alive && current === generation) error.set(cause instanceof Error ? cause.message : 'The trail could not be loaded.') }
+  finally { if (alive && current === generation) loading.set(false) }
+}
+onMount(() => {
+  void load()
+  const stop = craft.navigation.onAppear(() => { void load() })
+  return () => { alive = false; generation++; stop() }
+})
+onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(false); reviews.set([]); composer.set(false); void load() }))
+</script>
+
+<View :class="ui.screen">
+  <ScrollView class="flex-1" @refresh="load()" :refreshing="loading" keyboardDismissMode="on-drag" testID="trail-detail-scroll">
+    <ActivityIndicator :show="loading" testID="trail-detail-loading" />
+    <Text :show="error" :text="error" :class="ui.caption" testID="trail-detail-error" />
+    <View :show="trail()">
+      <View class="mx-4 mt-4 gap-2">
+        <Text :text="trail()?.name" class="text-[28px] font-bold text-[#192414] dark:text-white" />
+        <Text :text="trail()?.location" :class="ui.caption" />
+        <Text :text="trail()?.difficultyLabel + ' · ' + (trail()?.routeType || 'Route type unrecorded')" :class="ui.caption" />
+        <Text :text="trailStatsLine(trail())" :class="ui.body" />
+        <Text :text="trail()?.description || 'Trail details provided by the land manager and mapping community.'" :class="ui.body" />
+      </View>
+      <ScrollView :show="photos().length" horizontal class="mt-4 max-h-[260px]" :contentContainerStyle="{paddingLeft:16,paddingRight:16}" accessibilityLabel="Trail photos">
+        <View class="flex-row gap-3">
+          <View :for="photo in photos()" :key="photo.url" class="w-[300px] gap-2">
+            <Image :source="{uri:photoUrl(photo.url)}" class="h-[180px] w-full rounded-[16px]" resizeMode="cover" :accessibilityLabel="photo.illustrative ? 'Illustrative outdoor photo' : photo.scope === 'area' ? 'Photo of ' + (photo.place || 'the surrounding area') : 'Community trail photo'" />
+            <Text :text="(photo.illustrative ? 'Illustrative photo' : photo.scope === 'area' ? 'Area photo · ' + (photo.place || 'surrounding area') : '') + (photo.credit ? ' · Photo: ' + photo.credit : '')" :class="ui.caption" />
+            <Button :show="photo.sourceUrl" :text="photo.license || 'Photo source'" :class="ui.caption" @click="craft.linking.openURL(photo.sourceUrl)" />
+          </View>
+        </View>
+      </ScrollView>
+      <Button class="mx-4 mt-3" :class="ui.secondary" @click="craft.navigation.open('/plans?trail=' + wanted)">Plan a visit</Button>
+      <Text :class="ui.header">Explore the route</Text>
+      <View :class="ui.card">
+        <View class="relative h-[480px] -mx-4 -mt-4 overflow-hidden rounded-[12px]">
+        <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :rotateEnabled="true" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
+          <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
+          <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
+          <MapMarker id="trailhead" title="Trailhead" :geometry="[trail()?.lat, trail()?.lng]" />
+          <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
+        </Map>
+          <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
+        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" accessibilityLabel="Toggle elevation profile" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
+          <View :show="profileOpen">
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full">
+          <path :d="profilePath()" fill="none" stroke="#24724b" stroke-width="3" />
+        </svg>
+        <Text :show="!profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
+        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
+        <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi, ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
+          </View>
+          </View>
+        </View>
+        <Text :show="!routeAvailable()" :class="ui.caption">No recorded route line. The map shows the trailhead.</Text>
+        <View class="mt-3 flex-row gap-2">
+          <Button testID="trail-zoom-in" accessibilityLabel="Zoom in" :class="ui.secondary" @click="zoom(0.5)">+</Button>
+          <Button testID="trail-zoom-out" accessibilityLabel="Zoom out" :class="ui.secondary" @click="zoom(2)">−</Button>
+          <Button testID="trail-fit-route" :class="ui.secondary" @click="fitRoute()">Fit route</Button>
+        </View>
+        <View class="mt-2 flex-row flex-wrap gap-2">
+          <Button testID="trail-map-3d" :class="ui.secondary" @click="pitch.set(pitch() > 0 ? 0 : 45)" :text="pitch() > 0 ? '2D' : '3D'" />
+          <Button :class="ui.secondary" @click="heading.set(0)">North</Button>
+          <Button testID="trail-map-locate" :class="ui.secondary" @click="locate()">My location</Button>
+          <Button testID="trail-map-fullscreen" :class="ui.secondary" @click="craft.navigation.open('/trail/' + wanted + '/map')">Expand map</Button>
+        </View>
+        <Button testID="trail-map-export" :disabled="!routeAvailable()" :class="ui.secondary" class="mt-2" @click="exportRoute()">Export GPX</Button>
+        <Picker testID="trail-map-layer" accessibilityLabel="Map layer" :value="mapType" :options="nativeBasemapOptions" @change="mapType.set($event.value)" />
+
+      </View>
+      <Text :class="ui.header">Conditions</Text>
+      <View :class="ui.card">
+        <Text :class="ui.title">Weather</Text>
+        <Text :show="!forecast()" :class="ui.caption">No forecast is available right now. Pull down to retry.</Text>
+        <View :show="forecast()" class="gap-3 mt-2">
+          <Text :show="forecast()?.current" :text="Math.round(forecast()?.current.temperature) + '°F, ' + forecast()?.current.label" :class="ui.body" />
+          <Text :for="(day, index) in forecast()?.days ?? []" :key="day.date" :text="weatherLine(day, index)" :class="ui.body" />
+          <Button @click="craft.linking.openURL(forecast()?.attribution.url)" :class="ui.caption" :text="forecast()?.attribution.label" />
+        </View>
+        <Text class="mt-5" :class="ui.title">Surface types</Text>
+        <Text :for="surface in surfaces()" :key="surface.label" :text="surface.label" :class="ui.body" />
+        <Text :show="!surfaces().length" :class="ui.caption">Surface information has not been recorded for this trail.</Text>
+      </View>
+      <Text :class="ui.header">Reviews</Text>
+      <View :class="ui.card">
+        <Text :text="trail()?.reviewCount ? trail().rating.toFixed(1) + ' out of 5, ' + trail().reviewCount + ' reviews' : 'No ratings yet'" :class="ui.title" />
+        <Button testID="trail-write-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.action" @click="editReview()"><Text :class="ui.actionText" :text="ownReview() ? 'Edit your review' : 'Leave a review'" /></Button>
+        <Button :show="ownReview()" testID="trail-delete-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.danger" @click="deleteReview()">Delete your review</Button>
+        <Text :show="!reviews().length" :class="ui.caption">No reviews yet. Yours would be the first.</Text>
+        <View :for="review in reviews()" :key="review.id" class="mt-5 gap-2">
+          <Text :text="review.userName + (Number(review.userId) === viewer() ? ' (your review)' : '')" :class="ui.title" />
+          <Text :text="review.rating + ' out of 5 stars' + (review.visitDate ? ', visited ' + review.visitDate : '')" :class="ui.caption" />
+          <Text :text="review.content" :class="ui.body" />
+          <Text :show="review.conditions" :text="'Conditions: ' + review.conditions" :class="ui.caption" />
+          <Image :for="url in photoUrls(review)" :key="url" :source="{ uri: url }" class="h-40 w-full rounded-[8px]" resizeMode="cover" accessibilityLabel="Trail review photo" />
+        </View>
+      </View>
+    </View>
+    <Text :show="notice" :text="notice" :class="ui.caption" class="m-4" testID="trail-notice" />
+  </ScrollView>
+  <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-white dark:bg-[#1b2c22]" testID="trail-sticky-actions">
+    <Button testID="trail-save" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()"><Text :class="ui.actionText" :text="saved() ? 'Saved' : 'Save'" /></Button>
+    <Button testID="trail-directions" :class="ui.secondary" @click="directions()">Directions</Button>
+    <Button testID="trail-share" :class="ui.secondary" @click="shareTrail()">Share</Button>
+  </View>
+  <Modal :visible="composer" presentationStyle="pageSheet" @requestClose="composer.set(false)" testID="trail-review-composer">
+    <KeyboardAvoidingView :class="ui.screen">
+      <ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
+        <Text :class="ui.title">Your trail review</Text>
+        <Text :class="ui.caption">Rating</Text>
+        <View class="flex-row gap-2" testID="trail-review-rating"><Pressable :for="stars in [1,2,3,4,5]" :key="stars" :testID="'trail-review-star-' + stars" :accessibilityLabel="'Rate ' + stars + ' out of 5 stars'" :accessibilityState="{selected:rating()===stars}" class="h-11 w-11 items-center justify-center" @click="rating.set(stars)"><Icon :name="rating() >= stars ? 'star.fill' : 'star'" class="h-8 w-8 text-[#24724b] dark:text-[#9be579]" /></Pressable></View>
+        <Text :class="ui.caption" :text="rating() ? rating() + ' out of 5 stars' : 'Choose a rating'" />
+        <Text :class="ui.caption">What should others know?</Text>
+        <TextInput testID="trail-review-content" :class="ui.input" class="min-h-[120px]" :value="content" :multiline="true" :maxLength="2000" @input="content.set(textOf($event))" />
+        <Text :class="ui.caption">Visit date (optional)</Text>
+        <Button :show="!visitDate()" testID="trail-review-add-date" @click="visitDate.set(todayLocal())">Add visit date</Button>
+        <View :show="visitDate()" class="flex-row items-center gap-3">
+          <DatePicker testID="trail-review-date" accessibilityLabel="Visit date" mode="date" display="compact" :maximumDate="todayLocal()" :value="visitDate" @change="visitDate.set($event.value)" />
+          <Button testID="trail-review-clear-date" @click="visitDate.set('')">Clear date</Button>
+        </View>
+        <Text :class="ui.caption">Conditions (optional)</Text>
+        <Picker testID="trail-review-conditions" accessibilityLabel="Conditions" :value="conditions" :options="[{label:'Not reported', value:''}, ...TRAIL_CONDITIONS.map(option => ({label: option.label, value:option.id}))]" @change="conditions.set($event.value)" />
+        <Text :class="ui.caption">Difficulty (optional)</Text>
+        <Picker testID="trail-review-difficulty" accessibilityLabel="Difficulty" :value="difficulty" :options="[{label:'Not reported', value:''}, ...REVIEW_DIFFICULTY_OPTIONS]" @change="difficulty.set($event.value)" />
+        <Button testID="trail-review-add-photo" :disabled="busy" @click="pickReviewPhoto()">Add a photo</Button>
+        <Text :show="photoDrafts().length" :text="photoDrafts().length + ' new photos selected. Existing review photos will be kept.'" :class="ui.caption" />
+        <View :for="(draft,index) in photoDrafts()" :key="draft.file.path" class="gap-2 my-2"><Image :source="{uri:draft.file.path}" class="h-32 w-full rounded-[8px]" resizeMode="cover" /><Button :disabled="busy" @click="photoDrafts.set(photoDrafts().filter((entry,at)=>at!==index))">Remove selected photo</Button></View>
+        <Text :show="formError" :text="formError" :class="ui.danger" testID="trail-review-error" />
+        <Button testID="trail-review-submit" :disabled="busy" :class="ui.action" @click="submitReview()"><Text :class="ui.actionText" :text="busy() ? 'Saving…' : 'Save review'" /></Button>
+        <Button testID="trail-review-cancel" :disabled="busy" :class="ui.secondary" @click="composer.set(false)">Cancel</Button>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </Modal>
+</View>

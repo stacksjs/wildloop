@@ -4,6 +4,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
 import mobileConfig from '../config/mobile'
+import { validateGeneratedNativeApp } from './run-mobile-e2e'
 import { isLoopback, PRODUCTION_URL, resolveMobileServer, serverArgument } from './mobile-target'
 
 /**
@@ -144,12 +145,6 @@ function availableIphone(xcode: string): IosPhone {
   return phone
 }
 
-function localSource(packageName: 'craft' | 'stx'): string | undefined {
-  const relative = packageName === 'craft' ? '../../Tools/craft/packages/ios/src/index.ts' : '../../Tools/stx'
-  const path = resolve(projectRoot, relative)
-  return existsSync(path) ? path : undefined
-}
-
 /**
  * The server a phone build loads: wildloop.org, or an https `--server` (a
  * tunnel to this Mac, say). Deliberately not MOBILE_URL from the shell: a
@@ -167,14 +162,10 @@ export function assertDeviceServer(config: { devServerURL?: unknown }): void {
     throw new Error(`This build loads ${config.devServerURL}, which an iPhone cannot reach. Rebuild without --skip-generate.`)
 }
 
-function generateProject(xcode: string, teamId: string, bundled: boolean, server: string, personalTeam: boolean): void {
-  if (!Bun.which('xcodegen') && !existsSync(join(homedir(), '.local/bin/xcodegen'))) {
-    throw new Error('XcodeGen is required. Install it with `brew install xcodegen` or place `xcodegen` in ~/.local/bin.')
-  }
+function generateProject(xcode: string, teamId: string, server: string, personalTeam: boolean): void {
   const shared = {
     DEVELOPER_DIR: xcode,
     APPLE_TEAM_ID: teamId,
-    MOBILE_E2E: bundled ? '1' : '0',
     MOBILE_URL: server,
     // Signing with any team rewrote the tracked apple-app-site-association
     // for that team, and a push to main deploys it: universal links for the
@@ -182,18 +173,14 @@ function generateProject(xcode: string, teamId: string, bundled: boolean, server
     SKIP_MOBILE_ASSOCIATIONS: '1',
     IOS_PERSONAL_TEAM: personalTeam ? '1' : '0',
   }
-  execute(['bun', 'run', 'build:frontend'], {
-    env: { ...shared, STX_SOURCE_ROOT: process.env.STX_SOURCE_ROOT ?? localSource('stx') },
-  })
-  execute(['bun', 'run', 'build:ios'], {
-    env: { ...shared, CRAFT_IOS_SRC: process.env.CRAFT_IOS_SRC ?? localSource('craft') },
-  })
+  execute(['bun', 'run', 'build:ios'], { env: shared })
+  validateGeneratedNativeApp(generatedRoot)
 }
 
 export function requiredIosAppPaths(app: string, includeWatchApp = watchAppEnabled): string[] {
   return [
     join(app, 'Wildloop'),
-    join(app, 'dist/index.html'),
+    join(app, 'dist/native-screen.js'),
     join(app, 'PlugIns/WildloopLiveActivity.appex'),
     ...(includeWatchApp ? [join(app, 'Watch/WildloopWatch.app')] : []),
   ]
@@ -263,8 +250,8 @@ if (import.meta.main) {
     const xcode = developerDir()
     const teamId = requiresDevelopmentTeam(argv) ? developmentTeam() : ''
     const phone = buildOnly ? null : availableIphone(xcode)
-    if (!args.has('--skip-generate')) generateProject(xcode, teamId, args.has('--bundled'), server, args.has('--personal-team') || process.env.IOS_PERSONAL_TEAM === '1')
-    if (!args.has('--bundled')) console.log(`This iPhone build loads ${server}.`)
+    if (!args.has('--skip-generate')) generateProject(xcode, teamId, server, args.has('--personal-team') || process.env.IOS_PERSONAL_TEAM === '1')
+    console.log(`This iPhone build uses native screens and the API at ${server}.`)
     const app = buildForDevice(xcode, teamId, phone, compileOnly)
     if (phone) installAndLaunch(app, phone, xcode)
     else console.log(`Validated iPhone build: ${app}`)

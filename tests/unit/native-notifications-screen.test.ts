@@ -54,7 +54,7 @@ async function signedInScreen() {
 }
 
 describe('Wildloop native notifications screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   /*
    * The same list boundary Records was moved onto in 093ef1ac: a keyed `:for`

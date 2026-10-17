@@ -5,7 +5,7 @@
  * iOS surfaces these in three places, all fed from this one list:
  *
  *   - Spotlight's Top Hit row and Siri, through the App Intents generated into
- *     the iOS project (scripts/generate-ios-shortcuts.ts).
+ *     the iOS project by Craft from config/mobile.ts.
  *   - The home-screen long-press menu, through Craft's `shortcuts` bridge.
  *   - Siri Suggestions, through the donated activity each carries.
  *

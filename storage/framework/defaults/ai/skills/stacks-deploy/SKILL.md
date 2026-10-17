@@ -51,6 +51,12 @@ a versioned `STACKS_DEPLOY_PREVIEW_JSON=` line for API and tool consumers.
 
 ## Deployment Prerequisites
 
+Automated production deployments on GitHub Actions and ReviewOS require a full provider
+commit SHA and branch ref. Before prerequisite setup, Buddy verifies the checkout against
+that SHA and reads the current branch head from `origin`. A stale commit, tag/PR ref,
+missing metadata or unavailable remote stops the deployment. Ordinary manual deployments
+and staging deployments keep their existing behavior; dry-run previews remain read-only.
+
 **AWS** (`provider: 'aws'`)
 
 1. **AWS credentials configured**: `buddy configure:aws`
@@ -199,6 +205,11 @@ buddy cloud:cleanup           # clean retained resources
 ```
 
 ## Gotchas
+- The API reachability guard recognises `serve:api`, source `serve/api.js`
+  entrypoints and compiled `storage/framework/runtime/production/api.js`
+  bundles, including wrapper commands and custom site names. Page sites still
+  need `API_URL` or `PORT_API` pointing to their API; a compiled API site does
+  not need a proxy back to itself.
 - Check `cloud.provider` before advising anything provider-specific. Half the AWS advice is wrong
   for a Hetzner or SSH box, and vice versa.
 - `buddy deploy --prod` from a non-interactive shell refuses without `--yes`, rather than hanging

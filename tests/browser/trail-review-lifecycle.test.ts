@@ -115,6 +115,28 @@ describe.skipIf(!qa)('trail review lifecycle', () => {
     expect((await write(tokens[0], 'DELETE')).status).toBe(200)
   })
 
+  it('reads only the authenticated athlete state without community or saved-list pagination',async()=>{
+    const viewer=(token:string|null, suffix='')=>fetch(`${API}/trails/${trailId}/viewer${suffix}`,{headers:token?{Authorization:`Bearer ${token}`}:{}})
+    expect([401,403]).toContain((await viewer(null)).status)
+    expect((await viewer(tokens[0])).headers.get('cache-control')).toBe('private, no-store')
+    expect(await (await viewer(tokens[0])).json()).toMatchObject({saved:false,review:null})
+    expect((await write(tokens[0],'POST',{rating:4,content:'My own review must be available outside the community page.'})).status).toBe(201)
+    const saved=await fetch(`${API}/trails/${trailId}/save`,{method:'PUT',headers:{Authorization:`Bearer ${tokens[0]}`}})
+    expect(saved.status).toBe(200)
+    const mine=await (await viewer(tokens[0],'?limit=1&offset=200&user_id=999999')).json()
+    expect(mine).toMatchObject({saved:true,review:{rating:4,content:'My own review must be available outside the community page.'}})
+    expect(mine.review.userId).toBe(mine.userId)
+    expect(await (await viewer(tokens[1],`?user_id=${mine.userId}`)).json()).toMatchObject({saved:false,review:null})
+    expect((await write(tokens[0],'DELETE')).status).toBe(200)
+    const unsaved=await fetch(`${API}/trails/${trailId}/save`,{method:'DELETE',headers:{Authorization:`Bearer ${tokens[0]}`}})
+    expect(unsaved.status).toBe(200)
+    expect(await (await viewer(tokens[0])).json()).toMatchObject({saved:false,review:null})
+    const missing=await fetch(`${API}/trails/999999999/viewer`,{headers:{Authorization:`Bearer ${tokens[0]}`}})
+    expect(missing.status).toBe(404)
+    const malformed=await fetch(`${API}/trails/invalid/viewer`,{headers:{Authorization:`Bearer ${tokens[0]}`}})
+    expect(malformed.status).toBe(422)
+  })
+
   it('validates trail identifiers and refuses missing reviews', async () => {
     expect((await write(tokens[0], 'DELETE', {}, 'invalid')).status).toBe(422)
     expect((await write(tokens[0], 'DELETE', {}, 999_999_999)).status).toBe(404)

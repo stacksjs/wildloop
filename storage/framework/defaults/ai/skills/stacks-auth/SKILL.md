@@ -337,18 +337,43 @@ const result = await actions.resetPassword(token, newPassword)
 - `logout(): Promise<void>`
 - `refresh(): Promise<void>`
 
-## Passkey/WebAuthn (passkey.ts)
+## Passkey/WebAuthn
 
-- `getUserPasskeys(userId): Promise<PasskeyAttribute[]>`
-- `getUserPasskey(userId, passkeyId): Promise<PasskeyAttribute | undefined>`
-- `setCurrentRegistrationOptions(user, verified): Promise<void>`
+Opt in with `config.auth.passkeys: { enabled: true, origin?: string, name?: string }`.
+The canonical origin defaults to `config.app.url`; production requires HTTPS.
+`buddy migrate` / `buddy auth:setup` create `passkey_ceremonies` and `passkeys`.
 
-### Re-exported from @stacksjs/ts-auth
-- `generateRegistrationOptions`, `generateAuthenticationOptions`
-- `verifyRegistrationResponse`, `verifyAuthenticationResponse`
-- `startRegistration`, `startAuthentication` (browser)
-- `browserSupportsWebAuthn`, `browserSupportsWebAuthnAutofill`
-- `platformAuthenticatorIsAvailable`
+- `beginPasskeyRegistration({ id, email?, name? }, { origin, name })` returns
+  `{ ceremony, options }` as JSON. Call only for the authenticated account.
+- `finishPasskeyRegistration(userId, ceremony, credentialJSON, party)` consumes
+  the account-bound challenge and saves only verified resident credentials.
+- `beginPasskeyAuthentication(party)` returns discoverable options without an
+  email lookup, usable with conditional mediation and `autocomplete="username webauthn"`.
+- `finishPasskeyAuthentication(ceremony, credentialJSON, party)` returns the
+  verified user ID; the application then issues its usual session.
+- `listPasskeys(userId)` returns display-safe metadata, never public-key material.
+- `removePasskey(userId, id, hasAlternativeSignIn?)` serializes removals and
+  refuses to remove the last key without another login method. Supply a callback
+  when password hashes may be unusable placeholders or other factors exist.
+
+Default routes under `/auth/passkeys` expose registration/options, registration,
+authentication/options, authentication (POST), listing (GET) and deletion (DELETE
+`/{id}`). Public authentication endpoints require the canonical Origin header;
+enrollment/removal also require auth and CSRF protection. Deleting the last key
+requires proving the fallback password in the request. All responses are no-store.
+
+Browser code imports **`@stacksjs/auth/passkeys-browser`**, never the server barrel.
+It exports `startRegistration`, `startAuthentication(options, { signal?, mediation? })`,
+`browserSupportsWebAuthn`, `browserSupportsWebAuthnAutofill`, the JSON option/credential
+codecs and types. Abort a pending conditional request before explicit sign-in or
+password submission, and on unmount. Serialize results using
+`registrationCredentialToJSON` / `authenticationCredentialToJSON` before POSTing.
+Native JS contexts require a platform passkey bridge; web support alone does not
+provide one. Keep existing native sign-in available until that bridge exists.
+
+Legacy helpers (`getUserPasskeys`, `getUserPasskey`, `storeWebAuthnChallenge`,
+`consumeWebAuthnChallenge`) remain for existing integrations. New flows should
+use the ceremony API, which supports concurrent anonymous browser attempts.
 
 ## Auth Middleware (middleware.ts)
 
@@ -569,3 +594,59 @@ requests. Revocation-sensitive reads use the primary DB path. Retained evidence:
 `request-token.test.ts`, `session-read-routing.test.ts`,
 `rbac-default-store.test.ts` and `browser-session-policy.test.ts` under
 `storage/framework/core/`.
+
+
+## Remote MCP authorization
+
+Use `oauthProtectedResourceMetadata` and `oauthProtectedResourceMetadataPath`
+for RFC 9728 discovery, with the exact canonical resource URL as the audience.
+The authorization server metadata advertises RFC 9207 issuer identification;
+`handleOAuthAuthorizationPageRequest` and `handleOAuthAuthorizationConsentRequest`
+include the provider issuer in success and error callbacks. Custom adapters using
+`oauthAuthorizationConsentResponse` or `oauthAuthorizationRequestErrorResponse`
+must pass `provider.issuer` too.
+
+Opt in to RFC 7591 registration with `oauthProvider.dynamicRegistration`:
+`{ endpoint?: string, allowedRedirectOrigins: ['https://client.example'] }`.
+Origins must be explicit HTTPS origins. The native auth bundle mounts the endpoint
+with bounded JSON, CSRF exemption for protocol clients and an IP quota. Custom
+route registries can use `handleDynamicOAuthRegistration(provider, metadata)`
+after the same bounded read and quota. Registration accepts only authorization
+code / refresh grants, `none` or `client_secret_basic`, and exact validated
+callback URIs. Anonymous clients have no account owner and no user access until
+consent. It never fetches client-controlled URLs. CIMD and private_key_jwt are
+not advertised.
+
+Consent may include a `scope` form value containing a non-empty subset of the
+requested scopes. `approvedScopes` on the native approval operation enforces
+that subset within the authorization transaction. The native consent handler
+can return `{ redirect_uri }` JSON for an authenticated first-party SPA that
+explicitly sends `Accept: application/json`; ordinary forms still receive a 302.
+The browser-bound opaque request, authenticated subject and CSRF policy still
+apply. Never construct callback URLs or accept an identity from browser input.
+
+Token and refresh requests retain RFC 8707 `resource` parameters. When supplied,
+they must match the complete approved audience set; this provider does not
+silently issue a broader token for a narrower resource request. Scope narrowing
+continues to use the `scope` parameter. MCP resource servers use
+`authorizeOAuthDelegatedToken` with their exact resource, audience, workspace,
+required scopes and current subject eligibility. Delegated grants are not login
+sessions. Real persistence and HTTP evidence lives in the OAuth code-store and
+HTTP lifecycle fixtures, with discovery policy in `oauth-mcp-discovery.test.ts`.
+
+For an application-rendered consent UI, use `createOAuthAuthorizationServer` from
+`@stacksjs/auth`. Supply the resolved provider, local consent page, ordinary
+server-authenticated identity callback and optional exact connection audience.
+It owns bounded registration/token/revocation reads, opaque browser-bound consent,
+selected permissions, discovery and subject-owned disconnect. Mount protocol
+POST handlers with `parseBody(false)` and `skipCsrf()`; keep router login and CSRF
+protection on consent and connection management. Do not duplicate these HTTP
+boundaries in applications or accept a subject from client input.
+
+Delegated OAuth bearers are not ordinary login credentials. `Auth.validateToken`,
+`Auth.getUserFromToken`, `Auth.currentAccessToken` and `Auth.rotateToken` reject
+them even while their grant is active. Generic `auth` middleware therefore does
+not authenticate them. OAuth resource endpoints must explicitly use
+`authorizeOAuthDelegatedToken` with the exact resource, audience, workspace and
+required scopes. Ordinary refresh also refuses delegated refresh credentials;
+use the OAuth token endpoint and the registered client's protocol authentication.

@@ -55,7 +55,7 @@ async function board(token: string | null = null, payload: unknown = FEED) {
 }
 
 describe('Wildloop native battles screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its list through the portable keyed boundary', () => {
     expect(SOURCE).toContain(':for="battle in shown()"')

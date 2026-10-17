@@ -17,6 +17,14 @@ The service worker caches only a static offline shell and cacheable same-origin 
 
 Trail detail is fetched directly by id, so a search result is deep-linkable. Missing route geometry stays missing; Wildloop never fabricates a line. Saved custom routes use verified catalog geometry, and downloaded routes remain available offline. The recorder emits a wrong-turn warning around 425 feet from the selected trail.
 
+Every mobile destination is a Craft native screen compiled from STX, with a
+shared TypeScript startup script and platform keychain sessions. Trail maps
+use native map views, route geometry, direction markers, attributed outdoor
+tiles and floating elevation controls. The native trail editor reads its
+saved state and existing review from the authenticated per-trail viewer
+endpoint, independently of community and saved-list pagination. Review writes
+invalidate the API cache; subsequent reads revalidate with the server.
+
 ## Portable formats
 
 GPX and TCX parsers retain coordinates, timestamps, and elevation. FIT decoding uses the published `ts-health`/`ts-watches` implementation and requires a valid FIT checksum. Imports are bounded, private, and non-scoring. Activity owners can export the server-returned route as escaped, standards-shaped GPX.
@@ -39,7 +47,7 @@ Everything downstream derives from it. `resources/functions/spotlight.ts` turns
 a kind into slot identifiers, assigns records to slots, evicts the oldest when
 a kind fills up, and reads a tapped action back to a route;
 `resources/composables/useSpotlightIndex.ts` stores that assignment and makes
-the bridge calls; `scripts/generate-ios-shortcuts.ts` declares each slot's
+the bridge calls; the Stacks mobile build declares each slot's
 activity type in the generated `Info.plist`, without which iOS keeps a tapped
 entry to itself.
 

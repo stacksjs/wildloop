@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Bundled cold start with offline enforcement
+name: Native cold start and navigation offline
 tags:
   - mobile
   - offline
@@ -9,30 +9,24 @@ onFlowComplete:
 - setAirplaneMode: enabled
 - launchApp:
     clearState: true
-    permissions:
-      all: allow
-# The app opens on the Feed. The landing page hands a native shell straight
-# to /feed (index.stx), so its hero is never on screen long enough to assert;
-# waiting for it passed or failed on timing.
 - extendedWaitUntil:
-    visible: Runs, kudos and turf changing hands.
-    timeout: 90000
-# Record through its deep link: a guest has no tab bar (c3e28d79). What this
-# proves is unchanged, that a second bundled page loads with the network off.
+    visible:
+      id: native-feed-scroll
+    timeout: 30000
+- tapOn: "^Menu$"
+- extendedWaitUntil:
+    visible:
+      id: native-menu
+    timeout: 30000
 - openLink: wildloop://record
 - runFlow:
     when:
       visible: "^Open$"
     commands:
       - tapOn: "^Open$"
-# The record control itself, not the copy around it. This waited on the page's
-# subtitle, "Close a loop and the ground inside it is yours." — which 62d6dd93
-# replaced with the run's own settings when it moved setup into a modal, and
-# every one of these journeys has failed on the missing line since. The button
-# is what the screen is for: it carries a stable accessibility label, it is on
-# screen without scrolling, and it cannot be reworded by a copy change.
 - extendedWaitUntil:
-    visible: "^Start recording$"
+    visible:
+      id: record-start
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
-- takeScreenshot: offline-bundle
+- takeScreenshot: native-offline-record

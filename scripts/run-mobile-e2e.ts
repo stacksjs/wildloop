@@ -199,25 +199,29 @@ export function validateAnalyticsScriptCount(outputRoot: string): void {
 export function validateIosAppBundle(app: string): string {
   const index = readdirSync(app, { recursive: true })
     .map(path => path.toString())
-    .find(path => path === 'index.html' || path.endsWith('/index.html'))
-  if (!index) throw new Error(`Built iOS app is missing its bundled index.html: ${app}`)
+    .find(path => path === 'native-screen.js' || path.endsWith('/native-screen.js'))
+  if (!index) throw new Error(`Built iOS app is missing its native-screen.js: ${app}`)
+  const config = JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8'))
+  if (config.renderer !== 'native') throw new Error('Built iOS app must use the native renderer')
   const bundledIndex = join(app, index)
-  console.log(`Verified bundled iOS entry point: ${bundledIndex}`)
+  if (!readFileSync(bundledIndex, 'utf8').trim()) throw new Error('Built iOS native screen bundle is empty')
+  console.log(`Verified native iOS entry point: ${bundledIndex}`)
   return bundledIndex
 }
 
-function craftSource(platform: MobilePlatform): string | undefined {
-  const envName = platform === 'ios' ? 'CRAFT_IOS_SRC' : 'CRAFT_ANDROID_SRC'
-  if (process.env[envName]) return process.env[envName]
-
-  const local = resolve(projectRoot, '../../Tools/craft/packages', platform, 'src/index.ts')
-  return existsSync(local) ? local : undefined
-}
-
-function stxSourceRoot(): string | undefined {
-  if (process.env.STX_SOURCE_ROOT) return process.env.STX_SOURCE_ROOT
-  const local = resolve(projectRoot, '../../Tools/stx')
-  return existsSync(join(local, 'packages/stx/src/build.ts')) ? local : undefined
+/** Refuse testing a web shell or a local SDK override as a native release. */
+export function validateGeneratedNativeApp(outputRoot: string): void {
+  const provenance = JSON.parse(readFileSync(join(outputRoot, 'stacks-mobile.json'), 'utf8'))
+  const config = JSON.parse(readFileSync(join(outputRoot, 'craft.config.json'), 'utf8'))
+  if (provenance.builder?.source !== 'package') throw new Error('Mobile QA requires the installed published Craft package')
+  if (provenance.source?.kind !== 'native' || config.renderer !== 'native') throw new Error('Mobile QA requires the native renderer')
+  for (const route of ['/feed', '/record', '/menu', '/profile', '/settings', '/login', '/plans', '/routes', '/trail/:id', '/trail/:id/map']) {
+    if (!config.nativeScreens?.[route]) throw new Error(`Native app is missing screen ${route}`)
+  }
+  const bundle = provenance.platform === 'android' ? 'app/src/main/assets/native-screen.js' : 'dist/native-screen.js'
+  const file = join(outputRoot, bundle)
+  requirePath(file, 'compiled native screens')
+  if (!readFileSync(file, 'utf8').trim()) throw new Error('Compiled native screen bundle is empty')
 }
 
 export function signedInTargetURL(environment: Record<string, string | undefined> = process.env): string | null {
@@ -240,31 +244,13 @@ export function signedInTargetURL(environment: Record<string, string | undefined
 }
 
 function buildGeneratedApp(platform: MobilePlatform, remoteURL: string | null = signedInTargetURL()): void {
-  const envName = platform === 'ios' ? 'CRAFT_IOS_SRC' : 'CRAFT_ANDROID_SRC'
-  const source = craftSource(platform)
-  // Use the project script so Bun applies the checked-in STX patch. `bunx
-  // @stacksjs/stx` may execute an isolated cache copy and silently bypass it.
-  execute(['bun', 'run', 'build:frontend'], {
-    env: {
-      MOBILE_E2E: '1',
-      ...(stxSourceRoot() ? { STX_SOURCE_ROOT: stxSourceRoot() } : {}),
-    },
-  })
-  validateBundledFrontend(join(projectRoot, 'dist'))
-  validateNativeTabLinks(join(projectRoot, 'dist'))
-  validateNativeShellStyles(join(projectRoot, 'dist'))
-  validateAnalyticsScriptCount(join(projectRoot, 'dist'))
   execute(['bun', 'run', `build:${platform}`], {
     env: {
-      // Anonymous smoke and offline journeys need the deterministic bundle.
-      // The authenticated flow instead loads its explicitly supplied server,
-      // which is the only way credentials, API persistence, and secure
-      // storage can be tested together.
-      MOBILE_E2E: remoteURL ? '0' : '1',
+      // Native screens always ship in the app. This selects only their API.
       ...(remoteURL ? { MOBILE_URL: remoteURL } : {}),
-      ...(source ? { [envName]: source } : {}),
     },
   })
+  validateGeneratedNativeApp(join(generatedRoot, platform))
 }
 
 function runMaestroFlow(
@@ -420,7 +406,7 @@ async function warnIfServerIsDown(server: string): Promise<void> {
   const hint = isLoopback(new URL(server))
     ? 'Start it in a terminal with `./buddy dev` (it exits if run in the background).'
     : 'Check the connection, or the deploy.'
-  console.warn(`${server} is not answering. The app will open on its bundled copy and return once the server is up. ${hint}`)
+  console.warn(`${server} is not answering. Native screens still open; online data needs the API to return. ${hint}`)
 }
 
 function runIos(preview: boolean, signedInURL: string | null): void {
@@ -465,7 +451,7 @@ function runIos(preview: boolean, signedInURL: string | null): void {
     execute(['open', '-a', 'Simulator'])
     execute(['xcrun', 'simctl', 'launch', '--terminate-running-process', device.udid, appId('ios')])
     const server = JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8')).devServerURL
-    console.log(`Wildloop is open in Simulator on ${device.name}, ${server ? `loading ${server}` : 'running its bundled copy'}.`)
+    console.log(`Wildloop is open in Simulator on ${device.name}, ${server ? `using API ${server}` : 'running native screens'}.`)
   }
   else {
     seedTestLocation('ios', device.udid)

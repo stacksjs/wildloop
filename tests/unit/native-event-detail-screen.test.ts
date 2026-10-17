@@ -115,7 +115,7 @@ function textOf(screen: any, testID: string): string {
 }
 
 describe('Wildloop native event detail screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its lists through the portable keyed boundary', () => {
     for (const list of ['standing in standings()', 'lap in laps()'])

@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Signed-in native recording on iOS
+name: Native recording account and checkpoint recovery
 tags:
   - ios
   - local-server
@@ -7,71 +7,34 @@ tags:
 ---
 - launchApp:
     clearState: true
-- runFlow:
-    when:
-      visible: "Don’t Allow"
-    commands:
-      - tapOn: "Don’t Allow"
-# The app opens on the Feed. The landing page hands a native shell straight
-# to /feed (index.stx), so its hero is never on screen long enough to assert;
-# waiting for it passed or failed on timing.
 - extendedWaitUntil:
-    visible: Runs, kudos and turf changing hands.
-    timeout: 90000
-# Signed in from an earlier run: only members have the tab bar, and Log out
-# lives in Settings, in the Menu.
-- runFlow:
-    when:
-      visible: "^Menu$"
-    commands:
-      - tapOn: "^Menu$"
-      - tapOn: "^Settings$"
-      - scrollUntilVisible:
-          element:
-            text: "^Log out$"
-          direction: DOWN
-          timeout: 30000
-      - tapOn: "^Log out$"
-      - extendedWaitUntil:
-          visible: Runs, kudos and turf changing hands.
-          timeout: 90000
-# A guest signs in from the header, which opens the full sign-in page.
-- tapOn: "^Log in$"
-- extendedWaitUntil:
-    visible: Welcome Back
+    visible:
+      id: native-feed-scroll
     timeout: 30000
-- tapOn: you@example.com
-- eraseText
+- openLink: wildloop://login?next=/record
+- runFlow:
+    when:
+      visible: "^Open$"
+    commands:
+      - tapOn: "^Open$"
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 30000
+- tapOn:
+    id: login-email
 - inputText: ${E2E_EMAIL}
-- tapOn: Enter your password
-- eraseText
+- tapOn:
+    id: login-password
 - inputText: ${E2E_PASSWORD}
-- tapOn: Sign In
+- tapOn:
+    id: login-submit
 - extendedWaitUntil:
-    visible: Runs, kudos and turf changing hands.
-    timeout: 90000
-- runFlow:
-    when:
-      visible: "Don’t Allow"
-    commands:
-      - tapOn: "Don’t Allow"
-- tapOn: "^Record$"
-# The record control itself, not the copy around it. This waited on the page's
-# subtitle, "Close a loop and the ground inside it is yours." — which 62d6dd93
-# replaced with the run's own settings when it moved setup into a modal, and
-# every one of these journeys has failed on the missing line since. The button
-# is what the screen is for: it carries a stable accessibility label, it is on
-# screen without scrolling, and it cannot be reworded by a copy change.
-- extendedWaitUntil:
-    visible: "^Start recording$"
+    visible:
+      id: record-start
     timeout: 30000
-- scrollUntilVisible:
-    element:
-      text: Start recording
-    direction: DOWN
-    centerElement: true
-    timeout: 30000
-- tapOn: Start recording
+- tapOn:
+    id: record-start
 - runFlow:
     when:
       visible: "Allow While Using App"
@@ -82,50 +45,42 @@ tags:
       visible: "Allow Once"
     commands:
       - tapOn: "Allow Once"
-# A previous opt-in can make Craft re-register push at app start. This is
-# unrelated to route recording, so keep the journey focused on location.
-- runFlow:
-    when:
-      visible: "Don’t Allow"
-    commands:
-      - tapOn: "Don’t Allow"
 - extendedWaitUntil:
-    visible: Pause recording
+    visible: "^Pause$"
     timeout: 30000
-- tapOn: Pause recording
+- setLocation:
+    latitude: 37.7752
+    longitude: -122.4194
+- tapOn:
+    id: record-pause
 - extendedWaitUntil:
-    visible: Resume recording
+    visible: "^Resume$"
     timeout: 30000
-# Background and foreground without a restart. This verifies the lifecycle
-# checkpoint path without relying on a system kill that behaves differently on
-# each iOS Simulator runtime.
 - pressKey: Home
 - launchApp:
     stopApp: false
 - extendedWaitUntil:
-    visible: Resume recording
+    visible: "^Resume$"
     timeout: 30000
-# A full relaunch must restore the account-owned checkpoint. Native background
-# recording can be active or stopped at this point; the web state must still
-# recover the paused draft rather than losing it or assigning it to another
-# account.
 - stopApp
 - launchApp
+- openLink: wildloop://record
 - extendedWaitUntil:
-    visible: Recovered your in-progress activity
+    visible: "Your recording has been recovered from this device."
     timeout: 30000
-- assertVisible: Resume recording
-- takeScreenshot: signed-in-recording-recovered
-- tapOn: Resume recording
+- assertVisible: "^Resume$"
+- takeScreenshot: native-recording-recovered
+- tapOn:
+    id: record-pause
 - extendedWaitUntil:
-    visible: Pause recording
+    visible: "^Pause$"
     timeout: 30000
-- tapOn: Finish recording
-# Back to idle. The hint under the button reads "Tap to start GPS capture" in
-# the source and TAP TO START GPS CAPTURE on the device, because the style
-# uppercases it and iOS reports what it drew — and Maestro matches case. The
-# button's own label is not restyled, so match that instead.
+- setLocation:
+    latitude: 37.7755
+    longitude: -122.4194
+- tapOn:
+    id: record-finish
 - extendedWaitUntil:
-    visible: "^Start recording$"
+    visible: "Edit activity"
     timeout: 30000
-- takeScreenshot: signed-in-recording-finished
+- takeScreenshot: native-recording-saved

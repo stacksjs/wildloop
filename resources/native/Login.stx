@@ -1,0 +1,43 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi } from '../functions/native-api'
+import { storeNativeSession } from '../functions/native-session'
+import { nativeDestination } from '../functions/native-destinations'
+import { nativeUi as ui } from '../functions/native-ui'
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const email = state('')
+const password = state('')
+const busy = state(false)
+const error = state('')
+async function login() {
+  if (busy()) return
+  if (!email().trim() || !password()) { error.set('Enter your email and password.'); return }
+  busy.set(true)
+  error.set('')
+  try {
+    const response = await createNativeApi(craft).send('/api/login', 'POST', { email: email().trim(), password: password(), remember: true })
+    if (!response.ok || !response.body?.token) throw new Error(response.body?.error || 'Sign-in failed. Please try again.')
+    await storeNativeSession(craft, response.body.token, response.body.user)
+    password.set('')
+    const next = String(craft.route.params.next || '/feed')
+    craft.navigation.open(nativeDestination(next) ?? '/feed')
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'Sign-in failed.') }
+  finally { busy.set(false) }
+}
+onMount(() => { craft.navigation.setOptions({ title: 'Log in', largeTitle: false }) })
+</script>
+<KeyboardAvoidingView :class="ui.screen">
+  <ScrollView class="flex-1 p-6" keyboardDismissMode="on-drag">
+    <Text class="text-[30px] font-bold text-[#192414] dark:text-white">Welcome back</Text>
+    <Text :class="ui.body" class="mt-3 mb-6">Keep your trails, activities, and territory together.</Text>
+    <Text :class="ui.caption">Email</Text>
+    <TextInput testID="login-email" accessibilityLabel="Email" :class="ui.input" :value="email" keyboardType="email-address" autoCapitalize="none" textContentType="username" @input="email.set($event.text || '')" />
+    <Text :class="ui.caption" class="mt-4">Password</Text>
+    <TextInput testID="login-password" accessibilityLabel="Password" :class="ui.input" :value="password" :secureTextEntry="true" textContentType="password" @input="password.set($event.text || '')" />
+    <Text :show="error" :text="error" :class="ui.danger" testID="login-error" class="my-4" />
+    <Button testID="login-submit" :disabled="busy" :class="ui.action" @click="login()"><Text :class="ui.actionText" :text="busy() ? 'Signing in…' : 'Log in'" /></Button>
+    <Button :class="ui.secondary" class="mt-4" @click="craft.navigation.open('/register')">Create an account</Button>
+    <Button class="mt-4" @click="craft.navigation.open('/forgot-password')">Forgot your password?</Button>
+  </ScrollView>
+</KeyboardAvoidingView>

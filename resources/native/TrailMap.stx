@@ -1,0 +1,131 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi } from '../functions/native-api'
+import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { nativeUi as ui } from '../functions/native-ui'
+import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
+import { decodeRouteParts } from '../functions/trail-geometry'
+import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
+import { trailDirectionSigns } from '../functions/trail-map'
+import { trailProfilePath, trailProfileRange, type TrailProfilePoint } from '../functions/trail-profile'
+import { exportNativeGpx } from '../functions/native-export'
+import { planDirections } from '../functions/trip-plans'
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const id = Number(craft.route.params.id)
+const trail = state<any>(null)
+const parts = state<number[][]>([])
+const profile = state<TrailProfilePoint[]>([])
+const region = state<any>(null)
+const loading = state(true)
+const error = state('')
+const mapType = state('outdoors')
+const basemap = derived(() => nativeBasemap(mapType()))
+const pitch = state(0)
+const heading = state(0)
+const showLocation = state(false)
+const profileOpen = state(true)
+const inspected = state<TrailProfilePoint | null>(null)
+const signs = derived(() => trailDirectionSigns(nativeMapParts(parts()), 12))
+const figures = derived(() => trailProfileRange(profile()))
+const currentRegion = derived(() => region() ?? nativeRouteRegion(parts(), { lat: trail()?.lat ?? 0, lng: trail()?.lng ?? 0 }))
+let alive = true
+function fit() { region.set(null); inspected.set(null) }
+function camera(event: any) {
+  if (!event?.center || !event?.span) return
+  region.set({ center: event.center, span: event.span })
+  heading.set(Number(event.heading) || 0)
+  pitch.set(Number(event.pitch) || 0)
+}
+function inspect(event: any) {
+  const point = profile()[Math.round(Number(event?.value) || 0)]
+  if (!point) return
+  inspected.set(point)
+  region.set({ ...currentRegion(), center: { latitude: point.lat, longitude: point.lng } })
+}
+async function locate() {
+  try {
+    if (!craft.location) throw new Error('Location is unavailable in this app build.')
+    const point = await craft.location.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 })
+    showLocation.set(true)
+    region.set({ ...currentRegion(), center: { latitude: point.latitude, longitude: point.longitude } })
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your position could not be found.') }
+}
+async function exportRoute() {
+  try { await exportNativeGpx(craft, trail()?.name ?? 'Trail', nativeMapParts(parts())) }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The route could not be exported.') }
+}
+async function directions() {
+  const links = planDirections({ latitude: trail()?.lat, longitude: trail()?.lng, activity_type: null })
+  if (links) {
+    try { await craft.linking?.openURL(craft.platform === 'ios' ? links.apple : links.google) }
+    catch { error.set('Directions could not be opened.') }
+  }
+}
+let loadVersion = 0
+async function load() {
+  const currentLoad = ++loadVersion
+  try {
+    const api = createNativeApi(craft)
+    const response = await api.send(`/api/trails/${id}`)
+    if (!alive || currentLoad !== loadVersion) return
+    if (!response.ok) throw new Error('The trail could not be loaded. Go back and try again.')
+    const row = normalizeTrailsPayload(response.body).trails[0]
+    if (!row) throw new Error('This trail has no recorded trailhead.')
+    trail.set(row)
+    const raw = response.body.trail
+    parts.set([...decodeRouteParts(raw.geometry), ...(Array.isArray(raw.pieceRoutes) ? raw.pieceRoutes : [])].map(part => part.flat()))
+    craft.navigation.setOptions({ title: row.name, largeTitle: false })
+    const elevations = await api.send(`/api/trails/${id}/profile`)
+    if (alive && currentLoad === loadVersion) profile.set(elevations.ok ? elevations.body.points ?? [] : [])
+  }
+  catch (cause) { if (alive && currentLoad === loadVersion) error.set(cause instanceof Error ? cause.message : 'The map could not be loaded.') }
+  finally { if (alive && currentLoad === loadVersion) loading.set(false) }
+}
+onMount(() => { void load(); return () => { alive = false } })
+</script>
+<View :class="ui.screen">
+  <View class="relative flex-1 overflow-hidden" testID="trail-map-screen">
+    <Map :show="trail()" class="absolute inset-0 w-full h-full" testID="trail-full-map"
+      :region="parts().some(part=>part.length>2) ? region() : currentRegion()" :fitToBounds="region() === null && parts().some(part=>part.length>2)" :edgePadding="{top:88,left:40,right:40,bottom:profileOpen() ? 240 : 100}"
+      :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :cameraPitch="pitch" :cameraHeading="heading" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation"
+      @region-change-complete="camera($event)">
+      <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
+      <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
+      <MapMarker id="trailhead" title="Trailhead" :geometry="[trail()?.lat, trail()?.lng]" />
+      <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
+    </Map>
+    <View class="absolute top-3 left-3 right-3 flex-row flex-wrap gap-2">
+      <Picker testID="map-layer" accessibilityLabel="Map layer" :value="mapType" :options="nativeBasemapOptions" @change="mapType.set($event.value)" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" />
+      <Button testID="map-3d" :class="ui.secondary" :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" />
+      <Button testID="map-north" :class="ui.secondary" @click="heading.set(0)">North</Button>
+    </View>
+    <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white dark:bg-[#1b2c22] p-3 shadow-lg" testID="map-floating-profile">
+      <View class="flex-row justify-between items-center">
+        <Text :class="ui.title">Elevation profile</Text>
+        <Button testID="map-profile-toggle" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
+      </View>
+      <View :show="profileOpen">
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full"><path :d="trailProfilePath(profile())" fill="none" stroke="#24724b" stroke-width="3" /></svg>
+        <Text :show="!loading() && !profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
+        <Text :show="profile().length" :text="figures().miles.toFixed(1) + ' mi · ' + Math.round(figures().low) + '–' + Math.round(figures().high) + ' ft'" :class="ui.caption" />
+        <Slider testID="map-elevation-slider" :show="profile().length > 1" :minimumValue="0" :maximumValue="Math.max(0,profile().length - 1)" :step="1" @change="inspect($event)" accessibilityLabel="Explore elevation and position along the route" />
+        <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi · ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
+      </View>
+    </View>
+    <ActivityIndicator :show="loading" class="absolute top-24 left-4" />
+  </View>
+  <Text :show="error" :text="error" :class="ui.danger" class="mx-4 my-2" testID="map-error" />
+  <ScrollView horizontal class="max-h-[64px] bg-white dark:bg-[#1b2c22]" :contentContainerStyle="{padding:8}" testID="map-actions">
+    <View class="flex-row gap-2">
+      <Button testID="map-fit" :class="ui.secondary" @click="fit()">Fit route</Button>
+      <Button testID="map-zoom-in" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),0.5))" accessibilityLabel="Zoom in">+</Button>
+      <Button testID="map-zoom-out" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),2))" accessibilityLabel="Zoom out">−</Button>
+      <Button testID="map-locate" :class="ui.secondary" @click="locate()">My location</Button>
+      <Button testID="map-export" :class="ui.secondary" @click="exportRoute()">Export GPX</Button>
+      <Button testID="map-directions" :class="ui.secondary" @click="directions()">Directions</Button>
+      <Button testID="map-customize" :class="ui.secondary" @click="craft.navigation.open('/routes?trail=' + id)">Customize</Button>
+    </View>
+  </ScrollView>
+</View>

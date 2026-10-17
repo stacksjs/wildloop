@@ -1,4 +1,5 @@
 <script client>
+import { nativeApiOrigin } from '../functions/native-api'
 import type { NativeCraft } from '@stacksjs/stx/native'
 import {
   allTrailsPath,
@@ -74,7 +75,7 @@ function rowDetail(row: any): string {
 
 async function ask(path: string): Promise<any> {
   try {
-    const response = await fetch(`https://wildloop.org${path}`, { headers: { Accept: 'application/json' } })
+    const response = await fetch(`${nativeApiOrigin(craft)}${path}`, { headers: { Accept: 'application/json' } })
     return await response.json().catch(() => null)
   }
   catch {
@@ -158,14 +159,14 @@ onDestroy(() => {
 })
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="search-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Places, trails, athletes, clubs and events.</Text>
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Places, trails, athletes, clubs and events.</Text>
 
     <View class="mt-4 gap-2">
       <TextInput
         testID="search-input"
-        class="rounded-xl bg-slate-900 p-3 text-white"
+        class="rounded-xl bg-white dark:bg-[#1b2c22] p-3 text-[#192414] dark:text-[#f0f5ec]"
         placeholder="Search for anything"
         :value="query"
         @input="query.set(eventText($event))"
@@ -177,28 +178,28 @@ onDestroy(() => {
     </View>
 
     <ActivityIndicator :show="loading" testID="search-loading" class="mt-6" />
-    <Text :show="failed" testID="search-error" class="mt-4 text-rose-300">Could not search just now.</Text>
-    <Text :show="nothingFound()" testID="search-empty" class="mt-6 text-sm text-slate-400" :text="nothingText()" />
+    <Text :show="failed" testID="search-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]">Could not search just now.</Text>
+    <Text :show="nothingFound()" testID="search-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="nothingText()" />
 
     {{-- Where to go before anything has been typed. --}}
     <View :show="showQuickLinks()" testID="quick-links" class="mt-6 gap-2">
-      <Text class="text-xs font-semibold uppercase text-slate-500">Start here</Text>
-      <Pressable :for="link in quickLinks" :key="link.label" testID="quick-link" class="rounded-xl bg-slate-900 p-3" @click="openQuickLink(link)">
-        <Text class="text-base font-semibold text-white" :text="link.label" />
-        <Text class="text-xs text-slate-400" :text="link.detail" />
+      <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Start here</Text>
+      <Pressable :for="link in quickLinks" :key="link.label" testID="quick-link" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openQuickLink(link)">
+        <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="link.label" />
+        <Text class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="link.detail" />
       </Pressable>
     </View>
 
     <View :for="section in sections()" :key="section.key" class="mt-6 gap-2">
-      <Text testID="section-title" class="text-xs font-semibold uppercase text-slate-500" :text="section.title" />
-      <Pressable :for="row in section.rows" :key="row.href" testID="result-row" class="rounded-xl bg-slate-900 p-3" @click="openRow(row)">
-        <Text class="text-base font-semibold text-white" :text="row.label" />
-        <Text :show="rowDetail(row)" class="text-xs text-slate-400" :text="rowDetail(row)" />
+      <Text testID="section-title" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="section.title" />
+      <Pressable :for="row in section.rows" :key="row.href" testID="result-row" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openRow(row)">
+        <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.label" />
+        <Text :show="rowDetail(row)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="rowDetail(row)" />
       </Pressable>
     </View>
 
-    <Pressable :show="sections().length > 0" testID="all-trails" class="mt-4 rounded-xl bg-slate-900 p-3" @click="openAllTrails()">
-      <Text class="text-sm text-emerald-300" :text="allTrails()" />
+    <Pressable :show="sections().length > 0" testID="all-trails" class="mt-4 rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openAllTrails()">
+      <Text class="text-sm text-[#24724b] dark:text-[#9be579]" :text="allTrails()" />
     </Pressable>
   </ScrollView>
 </SafeAreaView>

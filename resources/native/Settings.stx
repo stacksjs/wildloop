@@ -1,0 +1,253 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { clearNativeSession, storeNativeSession } from '../functions/native-session'
+import { nativeOAuthCallback } from '../functions/native-oauth'
+import { formatHealthSummary } from '../functions/health-summary'
+import { nativeUi as ui } from '../functions/native-ui'
+import { validateProfileInput } from '../functions/profile-form'
+import { passwordChangeError } from '../functions/password-change'
+import { garminCardState, garminConnectedLabel } from '../functions/garmin-status'
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+let api = createNativeApi(craft)
+const user = state<any>(null)
+const name = state('')
+const bio = state('')
+const place = state('')
+const visibility = state('followers')
+const mask = state('400')
+const homeLat = state('')
+const homeLng = state('')
+const homeRadius = state('500')
+const excludeHome = state(true)
+const precise = state(false)
+const loading = state(true)
+const privacyReady = state(false)
+const busy = state(false)
+const error = state('')
+const notice = state('')
+const garmin = state<any>(null)
+const healthSummary=state('')
+const pushEnabled=state(false)
+const currentPassword = state('')
+const newPassword = state('')
+const confirmation = state('')
+const deleteOpen = state(false)
+const deleteProof = state('')
+let active = true
+function field(event: any): string { return String(event?.text || '') }
+function failure(response: any, fallback: string): string { return Object.values(response.body?.fields ?? {}).flat().join(' ') || response.body?.error || response.body?.message || fallback }
+let loadVersion = 0
+async function load() {
+  const currentLoad = ++loadVersion
+  loading.set(true)
+  privacyReady.set(false)
+  error.set('')
+  api = createNativeApi(craft)
+  try {
+    if (!await api.readToken()) { user.set(null); return }
+    const me = await api.send('/api/me')
+    if (!me.ok) throw new Error('Log in again to change your settings.')
+    if (!active || currentLoad !== loadVersion) return
+    user.set(me.body.user)
+    name.set(me.body.user.name || '')
+    bio.set(me.body.user.bio || '')
+    place.set(me.body.user.location || '')
+    const [privacy, connection] = await Promise.all([api.send('/api/privacy-settings'),api.send('/api/garmin/status')])
+    if (!active || currentLoad !== loadVersion) return
+    if (!privacy.ok) throw new Error('Privacy settings could not be loaded. Pull down to retry.')
+    const value = privacy.body.settings
+    visibility.set(value.defaultActivityVisibility)
+    mask.set(String(value.hideStartEndMeters))
+    homeLat.set(value.homeLat == null ? '' : String(value.homeLat))
+    homeLng.set(value.homeLng == null ? '' : String(value.homeLng))
+    homeRadius.set(String(value.homeRadiusMeters))
+    excludeHome.set(value.excludeHomeFromGame)
+    precise.set(value.showPreciseTerritories)
+    privacyReady.set(true)
+    garmin.set(connection.ok ? connection.body : null)
+  }
+  catch (cause) { if (active && currentLoad === loadVersion) error.set(cause instanceof Error ? cause.message : 'Settings could not be loaded.') }
+  finally { if (active && currentLoad === loadVersion) loading.set(false) }
+}
+async function perform(work: () => Promise<void>) {
+  if (busy()) return
+  busy.set(true); error.set(''); notice.set('')
+  try { await work() }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The change could not be saved.') }
+  finally { busy.set(false) }
+}
+function saveProfile() { void perform(async () => {
+  const checked = validateProfileInput({name:name(),bio:bio(),location:place()})
+  if ('errors' in checked) throw new Error(Object.values(checked.errors).join(' '))
+  const response = await api.send('/api/me/profile','PUT',checked.value)
+  if (!response.ok) throw new Error(failure(response,'Profile could not be saved.'))
+  user.set(response.body.user)
+  await craft.snapshots.set('wildloop-session',{user:response.body.user})
+  notice.set('Profile saved.')
+}) }
+function savePrivacy() { void perform(async () => {
+  if (!privacyReady()) throw new Error('Load your current privacy settings before saving changes.')
+  const response = await api.send('/api/privacy-settings','PATCH',{
+    default_activity_visibility:visibility(),hide_start_end_meters:Number(mask()),
+    home_lat:homeLat().trim() === '' ? null : Number(homeLat()),home_lng:homeLng().trim() === '' ? null : Number(homeLng()),
+    home_radius_meters:Number(homeRadius()),exclude_home_from_game:excludeHome(),show_precise_territories:precise(),
+  })
+  if (!response.ok) throw new Error(failure(response,'Privacy settings could not be saved.'))
+  notice.set('Privacy and location-safety settings saved.')
+}) }
+function changePassword() { void perform(async () => {
+  const problem = passwordChangeError(currentPassword(),newPassword(),confirmation())
+  if (problem) throw new Error(problem)
+  const response = await api.send('/api/me/password','PUT',{current_password:currentPassword(),password:newPassword(),password_confirmation:confirmation()})
+  if (!response.ok) throw new Error(failure(response,'Your password could not be changed.'))
+  if (!response.body?.token) throw new Error('Your password changed, but the new session was unavailable. Log in again with your new password.')
+  await storeNativeSession(craft,response.body.token,user())
+  currentPassword.set('');newPassword.set('');confirmation.set('')
+  notice.set('Password changed.')
+}) }
+function uploadAvatar() { void perform(async () => {
+  const file = await craft.files?.pickImage({maxPixels:1024,quality:0.85})
+  if (!file) return
+  const form = new FormData()
+  form.append('avatar', file)
+  const response = await api.upload('/api/me/avatar',form)
+  const body = response.body
+  if (!response.ok) throw new Error(body.error || 'The photo could not be uploaded.')
+  user.set(body.user)
+  await craft.snapshots.set('wildloop-session',{user:body.user})
+  notice.set('Profile photo saved.')
+}) }
+function removeAvatar() { void perform(async () => {
+  const response = await api.send('/api/me/avatar','DELETE')
+  if (!response.ok) throw new Error(failure(response,'The photo could not be removed.'))
+  user.set(response.body.user)
+  await craft.snapshots.set('wildloop-session',{user:response.body.user})
+  notice.set('Profile photo removed.')
+}) }
+function connectHealth(){void perform(async()=>{
+  if(!craft.health)throw new Error('Health is unavailable in this app build.')
+  if(!await craft.health.requestAuthorization(['steps','distance','activeEnergy','workouts']))throw new Error('Health permission was not granted. You can change it in device settings.')
+  const startDate=new Date().setHours(0,0,0,0)
+  const [steps,distance,energy]=await Promise.all([craft.health.getData('steps',{startDate}),craft.health.getData('distance',{startDate}),craft.health.getData('activeEnergy',{startDate})])
+  healthSummary.set(formatHealthSummary({steps:steps?.value,distanceMetres:distance?.value,activeEnergy:energy?.value}))
+  await craft.secureStorage.set('wildloop_health_connected','true')
+})}
+async function disablePush(){
+  const token=await craft.secureStorage.get('wildloop_push_token')
+  if(token){const response=await api.send('/api/notifications/push-token','DELETE',{token});if(!response.ok)throw new Error('Device notifications could not be disconnected. Try again before logging out.')}
+  await craft.secureStorage.delete('wildloop_push_token');await craft.secureStorage.set('wildloop_push_enabled','false');pushEnabled.set(false)
+}
+function togglePush(){void perform(async()=>{
+  if(pushEnabled()){await disablePush();return}
+  if(!craft.push)throw new Error('Push notifications are unavailable in this app build.')
+  const token=await craft.push.register()
+  const response=await api.send('/api/notifications/push-token','POST',{token,platform:craft.platform,environment:nativeApiOrigin(craft)==='https://wildloop.org'?'production':'development'})
+  if(!response.ok)throw new Error(response.body?.error || 'Device notifications could not be enabled.')
+  await craft.secureStorage.set('wildloop_push_token',token);await craft.secureStorage.set('wildloop_push_enabled','true');pushEnabled.set(true)
+})}
+function connectGarmin() { void perform(async () => {
+  if (!craft.browser) throw new Error('Secure sign-in is unavailable in this app build.')
+  const response = await api.send('/api/garmin/connect?native=1')
+  if (!response.ok || !response.body.url || !response.body.handoff) throw new Error(failure(response,'Garmin could not be connected.'))
+  const result=await craft.browser.open(response.body.url,{mode:'auth',callbackScheme:'wildloop'})
+  if(result.cancelled){notice.set('Garmin connection cancelled.');return}
+  const returned=nativeOAuthCallback(result.url)
+  if(!returned || returned.state!==response.body.state || returned.error || !returned.code) throw new Error('Garmin did not approve this connection. Start again.')
+  const connected=await api.send('/api/garmin/native-session','POST',{code:returned.code,state:returned.state,handoff:response.body.handoff})
+  if(!connected.ok)throw new Error(failure(connected,'Garmin could not be connected.'))
+  await load();notice.set('Garmin connected.')
+}) }
+function disconnectGarmin() { void perform(async () => {
+  const response = await api.send('/api/garmin/disconnect','POST')
+  if (!response.ok) throw new Error(failure(response,'Garmin could not be disconnected.'))
+  await load(); notice.set('Garmin disconnected.')
+}) }
+async function logout() {
+  const recording = await craft.location?.getRecordingState()
+  if (recording?.active) { error.set('Finish or save your active recording before logging out.'); return }
+  void perform(async () => {
+    await disablePush()
+    const response = await api.send('/api/logout','POST')
+    if (!response.ok) throw new Error('You could not be logged out. Try again.')
+    await clearNativeSession(craft)
+    user.set(null)
+    craft.navigation.open('/login')
+  })
+}
+function destroyAccount() { void perform(async () => {
+  if ((await craft.location?.getRecordingState())?.active) throw new Error('Finish or save your active recording before deleting your account.')
+  if (!deleteProof()) throw new Error(user()?.hasPassword === false ? 'Type DELETE to confirm.' : 'Enter your current password to confirm.')
+  const approved = await craft.dialog?.confirm({title:'Delete your account?',message:'Your account and activities will be permanently deleted.',confirmLabel:'Delete account',destructive:true})
+  if (!approved) return
+  const response = await api.send('/api/me','DELETE',user()?.hasPassword === false ? {confirmation:deleteProof()} : {password:deleteProof()})
+  if (!response.ok) throw new Error(failure(response,'Your account could not be deleted.'))
+  await clearNativeSession(craft)
+  user.set(null); deleteProof.set(''); craft.navigation.open('/login')
+}) }
+onMount(() => { void craft.secureStorage.get('wildloop_push_enabled').then(value=>pushEnabled.set(value==='true')); craft.navigation.setOptions({title:'Settings',largeTitle:true});void load();const appear=craft.navigation.onAppear(()=>{void load()});return () => {active=false;appear()} })
+onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(null); currentPassword.set(''); newPassword.set(''); confirmation.set(''); deleteProof.set(''); void load() }))
+</script>
+<KeyboardAvoidingView :class="ui.screen">
+  <ScrollView class="flex-1 pb-6" :refreshing="loading" @refresh="load()" keyboardDismissMode="on-drag" testID="native-settings">
+    <ActivityIndicator :show="loading" />
+    <Text :show="error" :text="error" :class="ui.danger" class="m-4" testID="settings-error" />
+    <Text :show="notice" :text="notice" :class="ui.body" class="m-4" testID="settings-notice" />
+    <Button :show="!user() && !loading()" :class="ui.action" class="m-4" @click="craft.navigation.open('/login?next=/settings')"><Text :class="ui.actionText">Log in</Text></Button>
+    <View :show="user()">
+      <Text :class="ui.header">Profile</Text>
+      <View :class="ui.card" class="gap-3">
+        <Image :show="user()?.avatar" :source="{uri:String(user()?.avatar ?? '').startsWith('/') ? nativeApiOrigin(craft)+user()?.avatar : user()?.avatar}" class="h-20 w-20 rounded-full" />
+        <Button :disabled="busy" @click="uploadAvatar()">Change profile photo</Button>
+        <Button :show="user()?.avatar" :disabled="busy" @click="removeAvatar()">Remove photo</Button>
+        <Text :class="ui.caption">Name</Text><TextInput testID="settings-name" accessibilityLabel="Name" :class="ui.input" :value="name" @input="name.set(field($event))" />
+        <Text :class="ui.caption">Bio</Text><TextInput testID="settings-bio" accessibilityLabel="Bio" :class="ui.input" :value="bio" :multiline="true" :maxLength="280" @input="bio.set(field($event))" />
+        <Text :class="ui.caption">Location</Text><TextInput testID="settings-location" accessibilityLabel="Location" :class="ui.input" :value="place" @input="place.set(field($event))" />
+        <Button testID="settings-save-profile" :disabled="busy" :class="ui.action" @click="saveProfile()"><Text :class="ui.actionText">Save profile</Text></Button>
+      </View>
+      <Text :class="ui.header">Privacy and location safety</Text>
+      <View :class="ui.card" class="gap-3">
+        <Text :class="ui.caption">Default activity visibility</Text>
+        <Picker testID="settings-visibility" :value="visibility" :options="['public','followers','private'].map(value => ({value,label:value}))" @change="visibility.set($event.value)" />
+        <Text :class="ui.caption">Hide the start and end of routes (metres)</Text><TextInput testID="settings-mask" :class="ui.input" :value="mask" keyboardType="decimal-pad" @input="mask.set(field($event))" />
+        <Text :class="ui.caption">Home latitude and longitude (optional)</Text>
+        <TextInput :class="ui.input" accessibilityLabel="Home latitude" :value="homeLat" keyboardType="numbers-and-punctuation" @input="homeLat.set(field($event))" />
+        <TextInput :class="ui.input" accessibilityLabel="Home longitude" :value="homeLng" keyboardType="numbers-and-punctuation" @input="homeLng.set(field($event))" />
+        <Text :class="ui.caption">Home safety radius (metres)</Text><TextInput :class="ui.input" :value="homeRadius" keyboardType="decimal-pad" @input="homeRadius.set(field($event))" />
+        <View :class="ui.row"><Text :class="ui.body" class="flex-1">Exclude home from territory claims</Text><Switch :value="excludeHome" @change="excludeHome.set($event.value)" /></View>
+        <View :class="ui.row"><Text :class="ui.body" class="flex-1">Show precise territories</Text><Switch :value="precise" @change="precise.set($event.value)" /></View>
+        <Button testID="settings-save-privacy" :disabled="busy || loading || !privacyReady()" :class="ui.action" @click="savePrivacy()"><Text :class="ui.actionText">Save privacy settings</Text></Button>
+      </View>
+      <Text :class="ui.header">Connected devices</Text>
+      <View :class="ui.card" class="gap-3">
+        <View :show="Boolean(craft.health)" class="gap-2"><Text :class="ui.title">Health</Text><Text :show="healthSummary" :text="healthSummary" :class="ui.caption" /><Button testID="settings-health" :disabled="busy" @click="connectHealth()">Connect or refresh health summary</Button></View>
+        <View :show="Boolean(craft.push)" class="gap-2 mt-4"><Text :class="ui.title">Device notifications</Text><Button testID="settings-push" :disabled="busy" @click="togglePush()" :text="pushEnabled() ? 'Turn off device notifications' : 'Enable device notifications'" /></View>
+        <Text :class="ui.title">Garmin</Text><Text :text="garmin() ? garminConnectedLabel(garmin()) : 'Status unavailable'" :class="ui.caption" />
+        <Button :disabled="busy" @click="connectGarmin()">Connect Garmin</Button>
+        <Button :show="garminCardState(garmin() || {}) === 'connected'" :disabled="busy" @click="disconnectGarmin()">Disconnect Garmin</Button>
+        <Button @click="craft.permissions.openSettings()">Device permissions and notifications</Button>
+      </View>
+      <Text :class="ui.header">Account</Text>
+      <View :class="ui.card" class="gap-3">
+        <Text :class="ui.caption">Current password</Text><TextInput :class="ui.input" :secureTextEntry="true" :value="currentPassword" @input="currentPassword.set(field($event))" />
+        <Text :class="ui.caption">New password</Text><TextInput :class="ui.input" :secureTextEntry="true" :value="newPassword" @input="newPassword.set(field($event))" />
+        <Text :class="ui.caption">Confirm new password</Text><TextInput :class="ui.input" :secureTextEntry="true" :value="confirmation" @input="confirmation.set(field($event))" />
+        <Button :disabled="busy" @click="changePassword()">Change password</Button>
+        <Button testID="settings-logout" :disabled="busy" @click="logout()">Log out</Button>
+        <Button :class="ui.danger" @click="deleteOpen.set(!deleteOpen())">Delete account</Button>
+        <View :show="deleteOpen" class="gap-3">
+          <Text :class="ui.caption" :text="user()?.hasPassword === false ? 'Type DELETE to permanently delete your account.' : 'Enter your password to permanently delete your account.'" />
+          <TextInput :class="ui.input" :value="deleteProof" :secureTextEntry="user()?.hasPassword !== false" @input="deleteProof.set(field($event))" />
+          <Button :class="ui.danger" :disabled="busy" @click="destroyAccount()">Permanently delete account</Button>
+        </View>
+      </View>
+    </View>
+    <Text :class="ui.header">About Wildloop</Text>
+    <View :class="ui.card" class="gap-3">
+      <Button @click="craft.navigation.open('/privacy')">Privacy policy</Button>
+      <Button @click="craft.navigation.open('/terms')">Terms of use</Button>
+      <Button @click="craft.navigation.open('/support')">Support</Button>
+      <Button @click="craft.navigation.open('/map-attribution')">Map data attribution</Button>
+    </View>
+  </ScrollView>
+</KeyboardAvoidingView>

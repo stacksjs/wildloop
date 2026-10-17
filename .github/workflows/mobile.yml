@@ -32,9 +32,7 @@ jobs:
   source-projects:
     env:
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
-      # Craft v0.0.91, pinned to the annotated release tag's commit.
-      CRAFT_REVISION: 186cd8398573e912afd79f674cc39eec3dd35fa2
-      STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
+      ANDROID_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,27 +56,14 @@ jobs:
         if: matrix.platform == 'android'
         with:
           gradle-version: '8.11.1'
-      - name: Install XcodeGen
+      - name: Setup Pantry
         if: matrix.platform == 'ios'
-        run: brew install xcodegen
+        uses: home-lang/pantry/packages/action@main
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Checkout STX
-        uses: actions/checkout@v5
-        with:
-          repository: stacksjs/stx
-          ref: ${{ env.STX_REVISION }}
-          path: .stx-source
-      - name: Build shared STX application
-        env:
-          STX_SOURCE_ROOT: ${{ github.workspace }}/.stx-source
-        run: bun run build
-      - name: Checkout Craft
-        uses: actions/checkout@v5
-        with:
-          repository: craft-native/craft
-          ref: ${{ env.CRAFT_REVISION }}
-          path: .craft
+      - name: Install iOS toolchain
+        if: matrix.platform == 'ios'
+        run: ./buddy setup:ios
       - name: Configure Firebase
         if: matrix.platform == 'android' && env.ANDROID_GOOGLE_SERVICES_JSON != ''
         env:
@@ -89,7 +74,7 @@ jobs:
           echo "ANDROID_GOOGLE_SERVICES_FILE=$PWD/.mobile-secrets/google-services.json" >> "$GITHUB_ENV"
       - name: Generate iOS project
         if: matrix.platform == 'ios'
-        run: CRAFT_IOS_SRC="$PWD/.craft/packages/ios/src/index.ts" bun run build:ios
+        run: bun run build:ios
       - name: Parse generated Swift
         if: matrix.platform == 'ios'
         run: find storage/framework/mobile/ios -name '*.swift' -print0 | xargs -0 swiftc -frontend -parse
@@ -101,10 +86,10 @@ jobs:
         run: xcodebuild -project storage/framework/mobile/ios/Wildloop.xcodeproj -scheme Wildloop -destination 'generic/platform=iOS' -configuration Release CODE_SIGNING_ALLOWED=NO build
       - name: Generate Android project
         if: matrix.platform == 'android'
-        run: CRAFT_ANDROID_SRC="$PWD/.craft/packages/android/src/index.ts" bun run build:android
+        run: bun run build:android
       - name: Compile Android release app
         if: matrix.platform == 'android'
         working-directory: storage/framework/mobile/android
         run: ./gradlew assembleRelease
       - name: Verify provenance
-        run: bun -e "const manifest = JSON.parse(await Bun.file('storage/framework/mobile/${{ matrix.platform }}/stacks-mobile.json').text()); if (manifest.builder?.revision !== process.env.CRAFT_REVISION) throw new Error('Craft revision mismatch')"
+        run: bun -e "const manifest = JSON.parse(await Bun.file('storage/framework/mobile/${{ matrix.platform }}/stacks-mobile.json').text()); if (manifest.builder?.source !== 'package') throw new Error('Expected the frozen published Craft SDK')"

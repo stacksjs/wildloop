@@ -1,7 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { settledFollowerCount } from '../functions/athletes'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import {
   CLUB_FILTER_LABELS,
   CLUB_FILTERS,
@@ -84,23 +84,25 @@ function action(club: any): string {
   return clubActionLabel(club)
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     const result = await api.send(clubsPath())
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!result.ok)
       throw new Error('Could not load clubs')
     rows.set(clubRowsFrom(result.body))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load clubs')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -179,35 +181,36 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="clubs-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Crews training together — join one, or start your own on the web.</Text>
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Crews training together — join one, or start your own on the web.</Text>
 
     <View class="mt-4 gap-2">
-      <Text testID="clubs-filter" class="text-sm text-slate-300" :text="filterName()" />
+      <Text testID="clubs-filter" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="filterName()" />
       <Button testID="cycle-filter" @click="cycleFilter()">Change the filter</Button>
     </View>
 
     <ActivityIndicator :show="loading" testID="clubs-loading" class="mt-6" />
-    <Text :show="error" testID="clubs-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="clubs-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
     <Text :show="signedOut" testID="clubs-signed-out" class="mt-4 text-amber-300">Sign in on the web to join a club.</Text>
 
-    <Text :show="heading()" testID="clubs-count" class="mt-5 text-xs font-semibold uppercase text-slate-500" :text="heading()" />
+    <Text :show="heading()" testID="clubs-count" class="mt-5 text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="heading()" />
 
     <View class="mt-2 gap-2">
-      <View :for="club in shown()" :key="club.id" class="rounded-xl bg-slate-900 p-3">
+      <View :for="club in shown()" :key="club.id" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
         <Pressable testID="club-row" @click="openClub(club)">
-          <Text class="text-base font-semibold text-white" :text="club.name" />
-          <Text :show="place(club)" class="text-xs text-slate-400" :text="place(club)" />
-          <Text class="mt-1 text-xs text-slate-300" :text="members(club) + ' · ' + week(club)" />
+          <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="club.name" />
+          <Text :show="place(club)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="place(club)" />
+          <Text class="mt-1 text-xs text-[#253321] dark:text-[#e3ecdf]" :text="members(club) + ' · ' + week(club)" />
           <Text :show="door(club)" testID="club-door" class="mt-1 text-xs text-amber-300" :text="door(club)" />
         </Pressable>
         <Button testID="club-action" class="mt-2" @click="toggleMembership(club)" :text="action(club)" />
       </View>
     </View>
 
-    <Text :show="!loading && !error && shown().length === 0" testID="clubs-empty" class="mt-6 text-sm text-slate-400">No club under that filter yet.</Text>
+    <Text :show="!loading && !error && shown().length === 0" testID="clubs-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">No club under that filter yet.</Text>
   </ScrollView>
 </SafeAreaView>

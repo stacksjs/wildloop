@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
 import { avatarInitial, avatarUrl } from '../functions/avatars'
 import {
   LEADERBOARD_METRICS,
@@ -93,7 +93,9 @@ function initial(row: any): string {
   return avatarInitial(row?.userName ?? '')
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   needsSignIn.set(false)
@@ -102,7 +104,7 @@ async function load(): Promise<void> {
     if (scope() === 'following') {
       const token = await api.readToken()
       if (!token) {
-        if (active) {
+        if (active && currentLoad === loadVersion) {
           needsSignIn.set(true)
           rows.set([])
           loading.set(false)
@@ -113,20 +115,20 @@ async function load(): Promise<void> {
     }
 
     const query = leaderboardQuery({ period: period(), metric: metric(), scope: scope() })
-    const response = await fetch(`https://wildloop.org/api/activities/leaderboard?${query}`, { headers })
+    const response = await fetch(`${nativeApiOrigin(craft)}/api/activities/leaderboard?${query}`, { headers })
     const body = await response.json().catch(() => null)
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!response.ok)
       throw new Error('Could not load the leaderboard')
     rows.set(leaderRowsFrom(body))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load the leaderboard')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -164,42 +166,43 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="leaderboard-scroll">
-    <Text testID="headline" class="mt-1 text-sm text-slate-400" :text="headline()" />
+    <Text testID="headline" class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="headline()" />
 
     <View class="mt-4 gap-2">
-      <Text testID="scope-label" class="text-sm text-slate-300" :text="scopeName()" />
+      <Text testID="scope-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="scopeName()" />
       <Button testID="cycle-scope" @click="cycleScope()">Change who is ranked</Button>
-      <Text testID="period-label" class="text-sm text-slate-300" :text="periodName()" />
+      <Text testID="period-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="periodName()" />
       <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
-      <Text testID="metric-label" class="text-sm text-slate-300" :text="metricName()" />
+      <Text testID="metric-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="metricName()" />
       <Button testID="cycle-metric" @click="cycleMetric()">Change the measure</Button>
     </View>
 
     <ActivityIndicator :show="loading" testID="leaderboard-loading" class="mt-6" />
-    <Text :show="error" testID="leaderboard-error" class="mt-4 text-rose-300" :text="error" />
-    <Text :show="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-slate-400">
+    <Text :show="error" testID="leaderboard-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <Text :show="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-[#51604e] dark:text-[#b0bfac]">
       Sign in to see how you rank against the people you follow.
     </Text>
 
     {{-- Keyed `:for` on the element: the portable list boundary (093ef1ac). --}}
     <View testID="leaderboard-list" class="mt-5 gap-3">
-      <Pressable :for="row in rows()" :key="row.rank" testID="leader-row" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3" @click="openAthlete(row)">
-        <Text testID="leader-rank" class="w-7 text-center text-base font-bold text-slate-400" :text="row.rank" />
+      <Pressable :for="row in rows()" :key="row.rank" testID="leader-row" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openAthlete(row)">
+        <Text testID="leader-rank" class="w-7 text-center text-base font-bold text-[#51604e] dark:text-[#b0bfac]" :text="row.rank" />
         <Image :show="photo(row)" testID="leader-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
-        <Text :show="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-slate-800 text-center text-base font-bold text-slate-300" :text="initial(row)" />
+        <Text :show="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-[#e7edde] dark:bg-[#314536] text-center text-base font-bold text-[#253321] dark:text-[#e3ecdf]" :text="initial(row)" />
         <View class="flex-1">
-          <Text class="text-base font-semibold text-white" :text="row.userName" />
-          <Text class="text-xs text-slate-400" :text="secondary(row)" />
+          <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.userName" />
+          <Text class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="secondary(row)" />
         </View>
-        <Text class="text-lg font-bold text-emerald-300" :text="figure(row)" />
+        <Text class="text-lg font-bold text-[#24724b] dark:text-[#9be579]" :text="figure(row)" />
       </Pressable>
     </View>
 
-    <Text :show="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
       Nobody has logged anything in this period yet.
     </Text>
   </ScrollView>

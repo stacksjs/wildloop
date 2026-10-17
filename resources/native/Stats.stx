@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import { activitiesPath } from '../functions/achievements'
 import {
   activityBreakdown,
@@ -94,27 +94,29 @@ function cyclePeriod(): void {
   periodIndex.set((periodIndex() + 1) % STATS_PERIODS.length)
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     const token = await api.readToken()
     if (!token) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         signedOut.set(true)
       return
     }
 
     const me = await api.send('/api/me')
     if (!me.ok || !me.body?.user?.id) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         signedOut.set(true)
       return
     }
     const userId = Number(me.body.user.id)
 
     const result = await api.send(activitiesPath(userId))
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!result.ok)
       throw new Error('Could not load your training')
@@ -124,11 +126,11 @@ async function load(): Promise<void> {
     stats.set(computeTrainingStats(userId, rows))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load your training')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -141,50 +143,51 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { stats.set(null); activities.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="stats-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Your training, folded from everything you record.</Text>
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Your training, folded from everything you record.</Text>
 
     <ActivityIndicator :show="loading" testID="stats-loading" class="mt-6" />
-    <Text :show="error" testID="stats-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="stats-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
     <Text :show="signedOut" testID="stats-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your training stats.</Text>
 
     <View :show="stats()" testID="stats-body" class="mt-5 gap-4">
       <View class="gap-2">
-        <Text testID="stats-period" class="text-xs font-semibold uppercase text-slate-500" :text="periodName()" />
+        <Text testID="stats-period" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="periodName()" />
         <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Miles</Text>
-          <Text testID="stat-miles" class="text-2xl font-bold text-white" :text="milesText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Miles</Text>
+          <Text testID="stat-miles" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="milesText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Climbing</Text>
-          <Text testID="stat-elevation" class="text-2xl font-bold text-white" :text="elevationText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Climbing</Text>
+          <Text testID="stat-elevation" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="elevationText()" />
         </View>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Activities</Text>
-          <Text testID="stat-activities" class="text-base font-semibold text-white" :text="activitiesText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Activities</Text>
+          <Text testID="stat-activities" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="activitiesText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Day streak</Text>
-          <Text testID="stat-streak" class="text-base font-semibold text-white" :text="streakText()" />
-          <Text testID="stat-best-streak" class="text-xs text-slate-400" :text="bestStreakText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Day streak</Text>
+          <Text testID="stat-streak" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="streakText()" />
+          <Text testID="stat-best-streak" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="bestStreakText()" />
         </View>
       </View>
 
       {{-- Six weeks of history. A week that was run always gets a sliver; a
            week nobody ran gets no bar, which is the honest shape of it. --}}
       <View :show="bars().length > 0" testID="week-chart" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Last six weeks</Text>
-        <View class="h-20 w-full rounded-xl bg-slate-900 p-2">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Last six weeks</Text>
+        <View class="h-20 w-full rounded-xl bg-white dark:bg-[#1b2c22] p-2">
           <svg :viewBox="chartBox()" class="h-full w-full">
             <rect :for="bar in bars()" :key="bar.week" :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" fill="#34d399" />
           </svg>
@@ -192,10 +195,10 @@ onDestroy(() => {
       </View>
 
       <View :show="breakdown().length > 0" testID="breakdown" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">What you do</Text>
-        <View :for="row in breakdown()" :key="row.type" class="flex-row justify-between rounded-xl bg-slate-900 p-3">
-          <Text class="text-sm text-white" :text="row.label" />
-          <Text testID="breakdown-count" class="text-sm text-slate-400" :text="breakdownText(row)" />
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">What you do</Text>
+        <View :for="row in breakdown()" :key="row.type" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-sm text-[#192414] dark:text-[#f0f5ec]" :text="row.label" />
+          <Text testID="breakdown-count" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="breakdownText(row)" />
         </View>
       </View>
     </View>

@@ -1,0 +1,150 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { exportNativeGpx } from '../functions/native-export'
+import { nativeOutdoorTiles } from '../functions/native-basemaps'
+import { nativeUi as ui } from '../functions/native-ui'
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const id = Number(craft.route.params.id)
+const activity = state<any>(null)
+const savedNotice=craft.snapshots.get<any>('wildloop-activity-notice')
+const saveNotice=state(savedNotice?.activityId===id ? String(savedNotice.message ?? '') : '')
+const loading = state(true)
+const busy = state(false)
+const error = state('')
+const comment = state('')
+const viewer = state(0)
+const kudosed = state(false)
+const editing = state(false)
+const editType = state('Trail Run')
+const editNotes = state('')
+const editVisibility = state('followers')
+const editDistance = state('')
+const editElevation = state('')
+const editDuration = state('')
+const own = derived(()=>viewer()>0 && viewer()===Number(activity()?.userId))
+let alive = true
+function route(): number[] { return (activity()?.route ?? []).flatMap((point: any) => Array.isArray(point) ? point : [point.lat, point.lng]) }
+function photoUrl(photo: any): string { return String(photo.url ?? '').startsWith('/') ? nativeApiOrigin(craft) + photo.url : photo.url }
+let loadVersion = 0
+async function load() {
+  const currentLoad = ++loadVersion
+  loading.set(true)
+  error.set('')
+  try {
+    const api=createNativeApi(craft)
+    const response = await api.send(`/api/activities/${id}`)
+    if (!response.ok) throw new Error(response.body?.error || 'This activity could not be loaded.')
+    if (alive && currentLoad === loadVersion) {activity.set(response.body.activity);kudosed.set(Boolean(response.body.activity.viewerKudosed))}
+    if(await api.readToken()){const me=await api.send('/api/me');if (alive && currentLoad === loadVersion)viewer.set(Number(me.body?.user?.id)||0)}
+    else viewer.set(0)
+  }
+  catch (cause) { if (alive && currentLoad === loadVersion) error.set(cause instanceof Error ? cause.message : 'This activity could not be loaded.') }
+  finally { if (alive && currentLoad === loadVersion) loading.set(false) }
+}
+async function postComment() {
+  if (!comment().trim() || busy()) return
+  const api = createNativeApi(craft)
+  if (!await api.readToken()) { craft.navigation.open(`/login?next=${encodeURIComponent(`/activity/${id}`)}`); return }
+  busy.set(true)
+  try {
+    const response = await api.send(`/api/activities/${id}/comments`, 'POST', {body: comment().trim()})
+    if (!response.ok) throw new Error(response.body?.error || 'Your comment could not be saved.')
+    comment.set('')
+    await load()
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your comment could not be saved.') }
+  finally { busy.set(false) }
+}
+async function perform(work:()=>Promise<void>) {
+  if(busy())return
+  busy.set(true);error.set('')
+  try{await work()}catch(cause){error.set(cause instanceof Error?cause.message:'This activity could not be updated.')}finally{busy.set(false)}
+}
+function edit() {
+  editType.set(activity().activityType);editNotes.set(activity().notes ?? '');editVisibility.set(activity().visibility)
+  editDistance.set(String(activity().distance));editElevation.set(String(activity().elevation));editDuration.set(activity().duration)
+  editing.set(true)
+}
+function save(){void perform(async()=>{
+  const measured=activity().hasGps ? {} : {distance:Number(editDistance()),elevation:Number(editElevation()),duration:editDuration()}
+  const response=await createNativeApi(craft).send(`/api/activities/${id}`,'PATCH',{activity_type:editType(),notes:editNotes(),visibility:editVisibility(),...measured})
+  if(!response.ok)throw new Error(response.body?.error || 'The activity could not be saved.')
+  editing.set(false);await load()
+})}
+function remove(){void perform(async()=>{
+  if(!await craft.dialog?.confirm({title:'Delete this activity?',message:'The activity, comments and kudos will be removed. Captured territory stays in the game.',confirmLabel:'Delete activity',destructive:true}))return
+  const response=await createNativeApi(craft).send(`/api/activities/${id}`,'DELETE')
+  if(!response.ok)throw new Error(response.body?.error || 'The activity could not be deleted.')
+  craft.navigation.open('/feed')
+})}
+function kudos(){void perform(async()=>{
+  const api=createNativeApi(craft)
+  if(!await api.readToken()){craft.navigation.open('/login?next='+encodeURIComponent('/activity/'+id));return}
+  const response=await api.send(`/api/activities/${id}/kudos`,kudosed()?'DELETE':'PUT')
+  if(!response.ok)throw new Error('Kudos could not be updated.')
+  kudosed.set(Boolean(response.body.kudosed));activity.set({...activity(),kudosCount:response.body.kudosCount})
+})}
+function addPhoto(){void perform(async()=>{
+  if(!craft.files)throw new Error('Photo picking is unavailable in this app build.')
+  const file=await craft.files.pickImage({source:'library',maxPixels:2400,quality:0.88})
+  if(!file)return
+  const form=new FormData();form.append('photo',file)
+  const response=await createNativeApi(craft).upload(`/api/activities/${id}/photos`,form)
+  if(!response.ok)throw new Error(response.body?.error || 'The photo could not be uploaded.')
+  await load()
+})}
+function removePhoto(photo:any){void perform(async()=>{
+  if(!await craft.dialog?.confirm({title:'Delete this photo?',message:'This removes it from your activity.',confirmLabel:'Delete photo',destructive:true}))return
+  const response=await createNativeApi(craft).send(`/api/activity-photos/${photo.id}`,'DELETE')
+  if(!response.ok)throw new Error('The photo could not be deleted.')
+  await load()
+})}
+function exportRoute(){void perform(async()=>{await exportNativeGpx(craft,activity()?.notes?.split('\n')[0] || 'Wildloop activity',[(activity()?.route ?? []).map((point:any)=>Array.isArray(point)?point:[point.lat,point.lng])])})}
+function share(){void perform(async()=>{await craft.share?.({title:'Wildloop activity',url:`https://wildloop.org/activity/${id}`})})}
+onMount(() => { craft.navigation.setOptions({title:'Activity',largeTitle:false}); void load(); return () => {alive=false} })
+onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotice.set(''); viewer.set(0);editing.set(false);comment.set(''); void load() }))
+</script>
+<KeyboardAvoidingView :class="ui.screen">
+  <ScrollView class="flex-1 pb-6" :refreshing="loading" @refresh="load()" keyboardDismissMode="on-drag">
+    <ActivityIndicator :show="loading" />
+    <Text :show="error" :text="error" :class="ui.danger" class="m-4" />
+    <View :show="activity()">
+      <Text :show="saveNotice" :text="saveNotice" :class="ui.caption" class="m-4" />
+      <View :class="ui.card" class="mt-4 gap-3">
+        <Button :text="activity()?.userName || 'Athlete'" @click="craft.navigation.open('/athlete/' + activity().userId)" />
+        <Text :text="activity()?.activityType || ''" :class="ui.title" />
+        <Text :text="(activity()?.distance || 0) + ' mi · ' + (activity()?.duration || '') + ' · ' + (activity()?.elevation || 0) + ' ft'" :class="ui.body" />
+        <Text :show="activity()?.notes" :text="activity()?.notes || ''" :class="ui.body" />
+        <Map :tileOverlay="nativeOutdoorTiles" :show="route().length >= 4" :fitToBounds="true" :showsCompass="true" class="h-[320px] rounded-[12px]">
+          <MapPolyline :geometry="route()" strokeColor="#24724b" :strokeWidth="4" />
+        </Map>
+        <View :for="photo in activity()?.photos ?? []" :key="photo.id"><Image :source="{uri:photoUrl(photo)}" class="h-48 w-full rounded-[12px]" resizeMode="cover" /><Button :show="own" :disabled="busy" @click="removePhoto(photo)">Delete photo</Button></View>
+        <View class="flex-row flex-wrap gap-3"><Button testID="activity-kudos" :disabled="busy" @click="kudos()" :text="(kudosed() ? 'Kudos given' : 'Give kudos') + ' · ' + (activity()?.kudosCount ?? 0)" /><Button @click="share()">Share</Button><Button :show="route().length >= 4" @click="exportRoute()">Export GPX</Button></View>
+        <View :show="own" class="flex-row flex-wrap gap-3"><Button testID="activity-edit" :disabled="busy" @click="edit()">Edit activity</Button><Button :disabled="busy" @click="addPhoto()">Add a photo</Button><Button testID="activity-delete" :disabled="busy" :class="ui.danger" @click="remove()">Delete activity</Button></View>
+        <Button :show="activity()?.trailId" :class="ui.secondary" @click="craft.navigation.open('/trail/' + activity().trailId)">View trail</Button>
+      </View>
+      <Text :class="ui.header">Comments</Text>
+      <View :class="ui.card" class="gap-3">
+        <View :for="entry in activity()?.comments ?? []" :key="entry.id" class="gap-1 mb-3">
+          <Text :text="entry.userName" :class="ui.title" />
+          <Text :text="entry.body" :class="ui.body" />
+        </View>
+        <TextInput testID="activity-comment" accessibilityLabel="Comment" :value="comment" :multiline="true" :class="ui.input" placeholder="Add a comment" @input="comment.set($event.text || '')" />
+        <Button testID="activity-comment-submit" :disabled="busy || !comment().trim()" :class="ui.action" @click="postComment()"><Text :class="ui.actionText">Post comment</Text></Button>
+      </View>
+    </View>
+  </ScrollView>
+  <Modal :visible="editing" presentationStyle="pageSheet" @requestClose="editing.set(false)">
+    <KeyboardAvoidingView :class="ui.screen"><ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
+      <Text :class="ui.title">Edit activity</Text>
+      <Text :class="ui.caption" class="mt-4">Activity type</Text><Picker :value="editType" :options="['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value}))" @change="editType.set($event.value)" />
+      <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="activity-edit-notes" :class="ui.input" :value="editNotes" :multiline="true" @input="editNotes.set($event.text)" />
+      <Text :class="ui.caption" class="mt-4">Visibility</Text><Picker :value="editVisibility" :options="['public','followers','private'].map(value=>({value,label:value}))" @change="editVisibility.set($event.value)" />
+      <View :show="!activity()?.hasGps" class="gap-3 mt-4"><Text :class="ui.caption">Distance (mi)</Text><TextInput :class="ui.input" :value="editDistance" keyboardType="decimal-pad" @input="editDistance.set($event.text)" /><Text :class="ui.caption">Elevation gain (ft)</Text><TextInput :class="ui.input" :value="editElevation" keyboardType="decimal-pad" @input="editElevation.set($event.text)" /><Text :class="ui.caption">Elapsed time (m:ss or h:mm:ss)</Text><TextInput :class="ui.input" :value="editDuration" @input="editDuration.set($event.text)" /></View>
+      <Text :show="activity()?.hasGps" :class="ui.caption" class="mt-4">GPS distance, elevation and time are recorded measurements.</Text>
+      <Text :show="error" :text="error" :class="ui.danger" class="my-4" />
+      <Button testID="activity-edit-save" :disabled="busy" :class="ui.action" class="mt-4" @click="save()"><Text :class="ui.actionText">Save changes</Text></Button><Button :disabled="busy" @click="editing.set(false)">Cancel</Button>
+    </ScrollView></KeyboardAvoidingView>
+  </Modal>
+</KeyboardAvoidingView>

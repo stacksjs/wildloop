@@ -1,0 +1,21 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { MOBILE_MENU_GROUPS } from '../functions/mobile-menu'
+import { nativeUi as ui } from '../functions/native-ui'
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+onMount(() => { craft.navigation.setOptions({ title: 'Menu', largeTitle: true }) })
+</script>
+<View :class="ui.screen">
+  <ScrollView class="flex-1 pb-6" testID="native-menu">
+    <View :for="group in MOBILE_MENU_GROUPS" :key="group.title">
+      <Text :class="ui.header" :text="group.title" />
+      <View :class="ui.card">
+        <Pressable :for="item in group.items" :key="item.href" :class="ui.row" :testID="'menu-' + item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')" @click="craft.navigation.open(item.href)" :accessibilityLabel="item.label">
+          <Icon :name="item.symbol" class="h-6 w-6 text-[#24724b] dark:text-[#9be579]" />
+          <Text :class="ui.body" class="flex-1" :text="item.label" />
+          <Icon name="chevron.right" class="h-4 w-4 text-[#75856f]" />
+        </Pressable>
+      </View>
+    </View>
+  </ScrollView>
+</View>

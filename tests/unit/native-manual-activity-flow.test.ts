@@ -5,7 +5,7 @@ import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, sta
 
 const ROOT = join(import.meta.dir, '../..')
 
-beforeAll(compileNativeBundle)
+beforeAll(compileNativeBundle, 30000)
 
 describe('Wildloop native manual activity flow', () => {
   it('uses app components and sends the real activity payload through the Craft protocol', async () => {

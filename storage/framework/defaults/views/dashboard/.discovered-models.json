@@ -1,6 +1,23 @@
 {
   "models": [
     {
+      "id": "achievement",
+      "name": "Achievement",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "activity-comment",
+      "name": "ActivityComment",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
       "id": "analytics-event",
       "name": "AnalyticsEvent",
       "icon": "tablecells.fill",
@@ -116,6 +133,13 @@
       }
     },
     {
+      "id": "card-attachment",
+      "name": "CardAttachment",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "data"
+    },
+    {
       "id": "card-comment",
       "name": "CardComment",
       "icon": "tablecells.fill",
@@ -163,6 +187,40 @@
       }
     },
     {
+      "id": "challenge",
+      "name": "Challenge",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "club",
+      "name": "Club",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "club-invite",
+      "name": "ClubInvite",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "club-member",
+      "name": "ClubMember",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
       "id": "comment",
       "name": "Comment",
       "icon": "bubble.left.fill",
@@ -182,6 +240,13 @@
       "icon": "tablecells.fill",
       "hasDedicatedPage": false,
       "category": "data"
+    },
+    {
+      "id": "content-report",
+      "name": "ContentReport",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
     },
     {
       "id": "coupon",
@@ -221,6 +286,13 @@
       }
     },
     {
+      "id": "custom-route",
+      "name": "CustomRoute",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
       "id": "delivery-route",
       "name": "DeliveryRoute",
       "icon": "map.fill",
@@ -249,6 +321,13 @@
       "dashboard": {
         "highlight": true
       }
+    },
+    {
+      "id": "device-push-token",
+      "name": "DevicePushToken",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
     },
     {
       "id": "digital-delivery",
@@ -305,6 +384,44 @@
       }
     },
     {
+      "id": "event",
+      "name": "Event",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "event-entrant",
+      "name": "EventEntrant",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "event-lap",
+      "name": "EventLap",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "feedback-token",
+      "name": "FeedbackToken",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "data"
+    },
+    {
+      "id": "follow",
+      "name": "Follow",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
       "id": "form",
       "name": "Form",
       "icon": "tablecells.fill",
@@ -348,6 +465,13 @@
       "icon": "briefcase.fill",
       "hasDedicatedPage": true,
       "category": "system"
+    },
+    {
+      "id": "kudos",
+      "name": "Kudos",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
     },
     {
       "id": "label",
@@ -648,10 +772,27 @@
       "name": "Review",
       "icon": "star.fill",
       "hasDedicatedPage": true,
-      "category": "commerce",
+      "category": "userland",
       "dashboard": {
         "highlight": true
       }
+    },
+    {
+      "id": "route-effort",
+      "name": "RouteEffort",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "saved-trail",
+      "name": "SavedTrail",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
     },
     {
       "id": "sender-domain",
@@ -817,6 +958,50 @@
       }
     },
     {
+      "id": "territory",
+      "name": "Territory",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "territory-history",
+      "name": "TerritoryHistory",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "territory-stats",
+      "name": "TerritoryStats",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "trail",
+      "name": "Trail",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": true
+      }
+    },
+    {
+      "id": "trail-ingest-shard",
+      "name": "TrailIngestShard",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland",
+      "dashboard": {
+        "highlight": false
+      }
+    },
+    {
       "id": "transaction",
       "name": "Transaction",
       "icon": "arrow.left.arrow.right.circle.fill",
@@ -825,6 +1010,13 @@
       "dashboard": {
         "highlight": true
       }
+    },
+    {
+      "id": "trip-plan",
+      "name": "TripPlan",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
     },
     {
       "id": "usage-event",
@@ -838,10 +1030,42 @@
       "name": "User",
       "icon": "person.fill",
       "hasDedicatedPage": true,
-      "category": "data",
-      "dashboard": {
-        "highlight": true
-      }
+      "category": "userland"
+    },
+    {
+      "id": "user-achievement",
+      "name": "UserAchievement",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "user-block",
+      "name": "UserBlock",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "user-notification",
+      "name": "UserNotification",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "user-privacy-setting",
+      "name": "UserPrivacySetting",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
+    },
+    {
+      "id": "user-stats",
+      "name": "UserStats",
+      "icon": "tablecells.fill",
+      "hasDedicatedPage": false,
+      "category": "userland"
     },
     {
       "id": "waitlist-product",

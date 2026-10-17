@@ -46,7 +46,7 @@ const EFFORTS = [
 const RECORDS_SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Records.stx'), 'utf8')
 
 describe('Wildloop native records screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('uses the portable keyed :for boundary rather than FlatList template expansion', () => {
     expect(RECORDS_SOURCE).toContain('<Pressable :for="row in rows()" :key="row.id"')

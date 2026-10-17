@@ -24,21 +24,21 @@ onMount(() => {
 })
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950 p-4">
-  <Text testID="saved-title" class="text-3xl font-bold text-white" :text="activityType() + ' saved'" />
-  <Text testID="saved-id" class="mt-1 text-sm text-slate-400" :text="'Wildloop activity #' + id()" />
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16] p-4">
+  <Text testID="saved-title" class="text-3xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="activityType() + ' saved'" />
+  <Text testID="saved-id" class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="'Wildloop activity #' + id()" />
   <View class="mt-5 gap-2">
     <NativeRunMetric label="Distance" testID="saved-distance">
-      <Text class="text-xl font-bold text-white" :text="distance() + ' mi'" />
+      <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="distance() + ' mi'" />
     </NativeRunMetric>
     <NativeRunMetric label="Duration" testID="saved-duration">
-      <Text class="text-xl font-bold text-white" :text="duration" />
+      <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="duration" />
     </NativeRunMetric>
     <NativeRunMetric label="Pace" testID="saved-pace">
-      <Text class="text-xl font-bold text-white" :text="pace" />
+      <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="pace" />
     </NativeRunMetric>
     <NativeRunMetric label="Elevation" testID="saved-elevation">
-      <Text class="text-xl font-bold text-white" :text="elevation() + ' ft'" />
+      <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="elevation() + ' ft'" />
     </NativeRunMetric>
   </View>
   <Button testID="activity-back" class="mt-5" @click="goBack()">Back to feed</Button>

@@ -1,5 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
 import {
   trailPath,
   trailPlaceLine,
@@ -39,7 +40,20 @@ const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 /* A phone row is taller than a web card; 30 is about two screens of scrolling. */
 const NATIVE_PAGE = 30
 
-const query = state('')
+const query = state(String(craft.route.params.q ?? ''))
+const listMode=state(['saved','completed'].includes(String(craft.route.params.list)) ? String(craft.route.params.list) : 'all')
+const mine=state<any[]>([])
+const signedOut=state(false)
+const difficulty=state(String(craft.route.params.difficulty ?? 'all'))
+const routeType=state(String(craft.route.params.routeType ?? 'all'))
+const country=state(String(craft.route.params.country ?? ''))
+const stateCode=state(String(craft.route.params.state ?? ''))
+const dogs=state(false)
+const accessible=state(false)
+const showFilters=state(false)
+const nearby=state<{lat:number,lng:number}|null>(null)
+const moreAvailable=state(false)
+const mineShown=derived(()=>mine().filter(entry=>!query().trim() || (entry.trail.name+' '+entry.trail.location).toLowerCase().includes(query().trim().toLowerCase())))
 const rows = state<any[]>([])
 const routes = state<Record<number, any>>({})
 const loading = state(true)
@@ -76,29 +90,48 @@ function line(row: any): string {
   return trailRoutePoints(routes()[row?.id])
 }
 
-async function load(): Promise<void> {
+let loadVersion = 0
+async function load(more=false): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
-    const response = await fetch(`https://wildloop.org${trailsPath({ q: query(), limit: NATIVE_PAGE })}`, {
+    craft.navigation.setOptions({title:listMode()==='saved'?'Saved trails':listMode()==='completed'?'Completed trails':'Trails',largeTitle:true})
+    if(listMode()!=='all'){
+      const api=createNativeApi(craft)
+      if(!await api.readToken()){if(active && currentLoad===loadVersion){signedOut.set(true);mine.set([])}return}
+      const me=await api.send('/api/me')
+      if(!active || currentLoad!==loadVersion)return
+      if(!me.ok){signedOut.set(true);mine.set([]);return}
+      signedOut.set(false)
+      const response=await api.send(listMode()==='saved'?`/api/users/${me.body.user.id}/saved-trails?limit=200&offset=${more?mine().length:0}`:'/api/me/completed-trails')
+      if(!active || currentLoad!==loadVersion)return
+      if(!response.ok)throw new Error('Your trails could not be loaded. Pull down to retry.')
+      const entries=response.body.savedTrails ?? response.body.completedTrails ?? []
+      mine.set(more?[...mine(),...entries]:entries)
+      moreAvailable.set(listMode()==='saved' && Boolean(response.body.meta?.hasMore))
+      return
+    }
+    const response = await fetch(`${nativeApiOrigin(craft)}${trailsPath({ q: query(), difficulty:difficulty(),routeType:routeType(),country:country().trim().toUpperCase(),state:stateCode().trim(),dogsAllowed:dogs(),accessible:accessible(),...(nearby() ?? {}),radius:50,limit:NATIVE_PAGE,offset:more?rows().length:0 })}`, {
       headers: { Accept: 'application/json' },
     })
     const body = await response.json().catch(() => null)
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!response.ok)
       throw new Error('Could not load trails')
     const result = trailRowsFrom(body)
-    rows.set(result.rows)
-    routes.set(result.routeById)
+    rows.set(more?[...rows(),...result.rows]:result.rows)
+    routes.set(more?{...routes(),...result.routeById}:result.routeById)
+    moreAvailable.set(result.hasMore)
     total.set(result.total)
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load trails')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -123,24 +156,38 @@ function openTrail(row: any): void {
   craft.navigation.open(trailPath(row.id))
 }
 
+async function locate() {
+  try {
+    if(!craft.location)throw new Error('Location is unavailable in this app build.')
+    const point=await craft.location.getCurrentPosition({enableHighAccuracy:true,timeout:15000})
+    nearby.set({lat:point.latitude,lng:point.longitude});listMode.set('all');await load()
+  }
+  catch(cause){error.set(cause instanceof Error?cause.message:'Your position could not be found.')}
+}
+function chooseList(value:string){listMode.set(value);void load()}
+function resetFilters(){difficulty.set('all');routeType.set('all');country.set('');stateCode.set('');dogs.set(false);accessible.set(false);nearby.set(null);void load()}
 onMount(() => {
   craft.navigation.setOptions({ title: 'Trails', largeTitle: true })
-  void load()
+  if(craft.route.params.near==='me')void locate();else void load()
+  const stop=craft.route.onParams(params=>{listMode.set(['saved','completed'].includes(String(params.list))?String(params.list):'all');query.set(String(params.q ?? ''));if(params.near==='me')void locate();else void load()})
+  return stop
 })
 
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); mine.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
-  <ScrollView class="p-4" testID="trails-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Half a million, by name, park or forest.</Text>
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+  <ScrollView class="p-4" testID="trails-scroll" @refresh="load()" :refreshing="loading">
+    <Picker testID="trails-list" accessibilityLabel="Trail collection" :value="listMode" :options="[{label:'All trails',value:'all'},{label:'Saved',value:'saved'},{label:'Completed',value:'completed'}]" @change="chooseList($event.value)" />
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Half a million, by name, park or forest.</Text>
 
     <View class="mt-4 gap-2">
       <TextInput
         testID="trails-search"
-        class="rounded-xl bg-slate-900 p-3 text-white"
+        class="rounded-xl bg-white dark:bg-[#1b2c22] p-3 text-[#192414] dark:text-[#f0f5ec]"
         placeholder="Name, park or forest"
         :value="query"
         @input="query.set(eventText($event))"
@@ -151,32 +198,48 @@ onDestroy(() => {
       </View>
     </View>
 
+    <View :show="listMode() === 'all'" class="mt-3 gap-3">
+      <View class="flex-row gap-3"><Button testID="trails-near-me" @click="locate()">Near me</Button><Button @click="showFilters.set(!showFilters())">Filters</Button><Button :show="nearby()" @click="nearby.set(null);load()">Anywhere</Button></View>
+      <View :show="showFilters" class="gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-4">
+        <Text class="text-[#51604e] dark:text-[#b0bfac]">Difficulty</Text><Picker testID="trails-difficulty" :value="difficulty" :options="[{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}]" @change="difficulty.set($event.value);load()" />
+        <Text class="text-[#51604e] dark:text-[#b0bfac]">Route type</Text><Picker :value="routeType" :options="[{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}]" @change="routeType.set($event.value);load()" />
+        <TextInput class="rounded-xl bg-[#f2f4ef] dark:bg-[#314536] p-3 text-[#192414] dark:text-white" placeholder="Country code, e.g. US" :value="country" autoCapitalize="characters" :maxLength="2" @input="country.set(eventText($event))" /><TextInput class="rounded-xl bg-[#f2f4ef] dark:bg-[#314536] p-3 text-[#192414] dark:text-white" placeholder="State or region code, e.g. CA" :value="stateCode" autoCapitalize="characters" @input="stateCode.set(eventText($event))" />
+        <View class="flex-row justify-between items-center"><Text class="text-[#192414] dark:text-white">Dog friendly</Text><Switch :value="dogs" @change="dogs.set($event.value);load()" /></View><View class="flex-row justify-between items-center"><Text class="text-[#192414] dark:text-white">Accessible</Text><Switch :value="accessible" @change="accessible.set($event.value);load()" /></View>
+        <View class="flex-row gap-4"><Button @click="load()">Apply location filters</Button><Button @click="resetFilters()">Reset filters</Button></View>
+      </View>
+    </View>
+    <View :show="listMode() !== 'all'" class="mt-3 gap-3">
+      <Button :show="signedOut" @click="craft.navigation.open('/login?next='+encodeURIComponent('/trails?list='+listMode()))">Log in to view your trails</Button>
+      <Pressable :for="entry in mineShown()" :key="entry.trailId" class="rounded-xl bg-white dark:bg-[#1b2c22] p-4 gap-2" @click="openTrail(entry.trail)"><Text class="text-base font-semibold text-[#192414] dark:text-white" :text="entry.trail.name" /><Text class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="entry.trail.location" /><Text class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="entry.trail.distance+' mi · '+entry.trail.elevation+' ft gain'" /></Pressable>
+      <Text :show="!loading() && !signedOut() && !mineShown().length" class="text-[#51604e] dark:text-[#b0bfac]">No trails in this collection yet.</Text>
+    </View>
     <ActivityIndicator :show="loading" testID="trails-loading" class="mt-6" />
-    <Text :show="error" testID="trails-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="trails-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
 
-    <Text :show="heading()" testID="trails-count" class="mt-5 text-xs font-semibold uppercase text-slate-500" :text="heading()" />
+    <Text :show="listMode() === 'all' && heading()" testID="trails-count" class="mt-5 text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="heading()" />
 
     {{-- The route, then the words. A trail with no line in the catalog gets the
          words alone rather than an empty box pretending to be a picture. --}}
-    <View class="mt-2 gap-2">
-      <Pressable :for="row in rows()" :key="row.id" testID="trail-row" class="flex-row gap-3 rounded-xl bg-slate-900 p-3" @click="openTrail(row)">
+    <View :show="listMode() === 'all'" class="mt-2 gap-2">
+      <Pressable :for="row in rows()" :key="row.id" testID="trail-row" class="flex-row gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openTrail(row)">
         {{-- The size lives on the box, as style. A native renderer does not
              read an `<svg>`'s own width/height attributes, so without this the
              drawing expands to fill and every row is a screen tall. --}}
-        <View :show="line(row) !== ''" class="h-16 w-24 rounded-lg bg-slate-950 p-1">
+        <View :show="line(row) !== ''" class="h-16 w-24 rounded-lg bg-[#f2f4ef] dark:bg-[#101c16] p-1">
           <svg viewBox="0 0 96 64" class="h-full w-full">
             <polyline testID="trail-route" :points="line(row)" stroke="#34d399" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </View>
         <View class="flex-1">
-          <Text class="text-base font-semibold text-white" :text="row.name" />
-          <Text :show="place(row)" class="text-xs text-slate-400" :text="place(row)" />
-          <Text :show="stats(row)" class="mt-1 text-xs text-slate-300" :text="stats(row)" />
-          <Text :show="grade(row)" testID="trail-grade" class="mt-1 text-xs capitalize text-emerald-300" :text="grade(row)" />
+          <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
+          <Text :show="place(row)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="place(row)" />
+          <Text :show="stats(row)" class="mt-1 text-xs text-[#253321] dark:text-[#e3ecdf]" :text="stats(row)" />
+          <Text :show="grade(row)" testID="trail-grade" class="mt-1 text-xs capitalize text-[#24724b] dark:text-[#9be579]" :text="grade(row)" />
         </View>
       </Pressable>
     </View>
 
-    <Text :show="!loading && !error && rows().length === 0" testID="trails-empty" class="mt-6 text-sm text-slate-400">No trail matches that.</Text>
+    <Text :show="listMode() === 'all' && !loading && !error && rows().length === 0" testID="trails-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">No trail matches that.</Text>
+    <Button :show="moreAvailable" :disabled="loading" class="mt-4 mb-6" testID="trails-load-more" @click="load(true)">Load more</Button>
   </ScrollView>
 </SafeAreaView>

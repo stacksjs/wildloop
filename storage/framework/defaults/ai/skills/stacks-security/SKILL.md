@@ -169,13 +169,38 @@ the receiver's check (tolerance applies both ways). `generateWebhookSecret()`
 mints a `whsec_` secret; store it encrypted, since signing needs the plaintext.
 
 Outbound requests to a URL a user typed (webhook endpoints, import-from-URL)
-go through `outboundUrlProblem(url, { allowHttp?, allowPrivate? })` when the
-URL is saved and `await assertPublicOutboundUrl(url, opts)` right before the
-request: https only, no credentials, and every resolved address public
-(`isPrivateAddress` covers loopback, RFC 1918, CGNAT, link-local metadata,
-IPv4-mapped/NAT64/6to4 forms). It throws `OutboundUrlError` with a `reason`.
+go through `await fetchPublicUrl(url, init?, opts?)`, which makes the request
+rather than blessing it: https only, no credentials, every resolved address
+public (`isPrivateAddress` covers loopback, RFC 1918, CGNAT, link-local
+metadata, IPv4-mapped/NAT64/6to4 forms), **every redirect hop re-checked by
+the same rules**, the connection pinned to an address that was checked (name
+kept in `Host` and TLS SNI), `Authorization`/`Cookie` dropped across an
+origin change, and the body and duration capped. It throws `OutboundUrlError`
+with a `reason`.
+
+`outboundUrlProblem(url, opts)` is the cheap check for when the URL is saved,
+and `assertPublicOutboundUrl(url, opts)` the check alone. **Checking is not
+fetching.** A caller that validates and then calls `fetch` has given the
+guarantee back: `fetch` defaults to `redirect: 'follow'`, so a validated host
+answering `302 Location: http://169.254.169.254/...` is followed unchecked,
+and `fetch` resolves the name a second time, so the address that was approved
+is not the address connected to (stacksjs/stacks#2909). Use `fetchPublicUrl`
+unless you know you want only the check.
 API keys handed to integrations: `generateApiKey('myapp_live_')` returns
 `{ key, hash, hint }`; show `key` once, store `hash` (`hashApiKey`), list `hint`.
+
+Configured or user-supplied regex patterns: `matchBoundedRegex(source, input, options)`
+accepts optional `flags` and `timeoutMs`, and returns `{ value, index }` for the first complete
+match, or `null`. Every call runs in an isolated Bun process with an OS-enforced
+deadline and `SIGKILL`, including process startup (25ms by default, integer
+1-1000ms). It requires `bun` on PATH. Timeouts throw `RegexTimeoutError`;
+invalid patterns throw `SyntaxError`. Do not treat either as a clean security
+scan. Source is capped at 8Ki UTF-16 code units, input at 64Ki, and flags at 8.
+The helper does not inherit app preloads, environment variables or .env files.
+It matches statelessly and does not return captures. Use ordinary RegExp for
+trusted application constants to avoid process startup for normal matching.
+Timing a synchronous match afterward or vetting one sample input cannot bound
+an untrusted expression on its next input.
 
 Generated model API exposure and ownership live under `config/security.ts`
 api settings. Read `stacks-models`/`stacks-router` before opening generated

@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi, loadOutcome } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, loadOutcome } from '../functions/native-api'
 import { pathIdFrom } from '../functions/route-id'
 import {
   CATEGORY_LABELS,
@@ -216,18 +216,20 @@ function refresh(): void {
   void load()
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     if (wanted === null) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         missing.set(true)
       return
     }
 
     const result = await api.send(effortPath(wanted), 'GET')
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     // A record that does not exist is an answer, not a failure to load.
     const outcome = loadOutcome(result)
@@ -256,11 +258,11 @@ async function load(): Promise<void> {
     }
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load this attempt')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -273,59 +275,60 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { effort.set(null); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="effort-detail-scroll">
     <ActivityIndicator :show="loading" testID="effort-loading" class="mt-6" />
-    <Text :show="error" testID="effort-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="effort-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
 
     <View :show="missing" testID="effort-missing" class="mt-6 gap-3">
-      <Text class="text-lg font-semibold text-white">That attempt could not be found.</Text>
+      <Text class="text-lg font-semibold text-[#192414] dark:text-[#f0f5ec]">That attempt could not be found.</Text>
       <Button testID="back-to-records" @click="backToRecords()">See the records board</Button>
     </View>
 
     <View :show="effort()" testID="effort-body" class="gap-4">
       <View class="gap-1">
-        <Text testID="effort-route" class="text-2xl font-bold text-white" :text="routeText()" />
-        <Text testID="effort-athlete" class="text-sm text-slate-400" :text="athleteText()" />
-        <Text testID="effort-style" class="text-xs uppercase text-slate-500" :text="styleText()" />
+        <Text testID="effort-route" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="routeText()" />
+        <Text testID="effort-athlete" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="athleteText()" />
+        <Text testID="effort-style" class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]" :text="styleText()" />
       </View>
 
       {{-- The course. Open, not closed: a route is a line that goes somewhere,
            and joining its ends would draw a leg nobody ran. --}}
-      <View :show="shape().length > 0" testID="effort-map-frame" class="h-56 overflow-hidden rounded-2xl bg-slate-900">
+      <View :show="shape().length > 0" testID="effort-map-frame" class="h-56 overflow-hidden rounded-2xl bg-white dark:bg-[#1b2c22]">
         <Map testID="effort-map" class="flex-1" :fitToBounds="true" mapType="standard">
           <MapPolyline :geometry="shape()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Time</Text>
-          <Text testID="effort-clock" class="text-xl font-bold text-white" :text="clockText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Time</Text>
+          <Text testID="effort-clock" class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="clockText()" />
           <Text :show="liveText()" testID="effort-live" class="text-xs text-amber-400" :text="liveText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Pace</Text>
-          <Text testID="effort-pace" class="text-xl font-bold text-white" :text="paceText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Pace</Text>
+          <Text testID="effort-pace" class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="paceText()" />
         </View>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Status</Text>
-          <Text testID="effort-status" class="text-base font-semibold text-white" :text="statusText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Status</Text>
+          <Text testID="effort-status" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="statusText()" />
         </View>
-        <View :show="rankText()" class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Rank</Text>
-          <Text testID="effort-rank" class="text-base font-semibold text-white" :text="rankText()" />
+        <View :show="rankText()" class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Rank</Text>
+          <Text testID="effort-rank" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="rankText()" />
         </View>
       </View>
 
       <Button testID="effort-refresh" @click="refresh()">Refresh</Button>
 
-      <Text :show="actionError" testID="effort-action-error" class="text-sm text-rose-300" :text="actionError" />
+      <Text :show="actionError" testID="effort-action-error" class="text-sm text-[#b4232a] dark:text-[#ff8487]" :text="actionError" />
 
       {{-- The athlete's own attempt. Which buttons exist comes from the
            server's `isOwner`, so the screen cannot offer one the API refuses. --}}
@@ -337,7 +340,7 @@ onDestroy(() => {
 
       {{-- A reviewer's decision. The note is required for a reject and
            optional otherwise, which is why the field sits above all three. --}}
-      <View :show="actions().review" testID="effort-review" class="gap-2 rounded-xl bg-slate-900 p-3">
+      <View :show="actions().review" testID="effort-review" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
         <Text class="text-sm text-amber-300">This attempt is waiting on a decision.</Text>
         <TextInput testID="review-note" placeholder="Why? (required to reject)" :value="note" @input="note.set(eventText($event))" />
         <Button testID="effort-verify" @click="verify()">Verify it</Button>
@@ -345,21 +348,21 @@ onDestroy(() => {
         <Button testID="effort-reopen" @click="reopen()">Send it back</Button>
       </View>
 
-      <View :show="reviewNote()" testID="effort-note" class="gap-1 rounded-xl bg-slate-900 p-3">
-        <Text class="text-xs uppercase text-slate-500">Reviewer's note</Text>
-        <Text testID="effort-note-text" class="text-sm text-slate-300" :text="reviewNote()" />
+      <View :show="reviewNote()" testID="effort-note" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Reviewer's note</Text>
+        <Text testID="effort-note-text" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="reviewNote()" />
       </View>
 
       <View :show="evidence().length > 0" testID="effort-evidence" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Evidence</Text>
-        <Pressable :for="row in evidence()" :key="row.label" testID="evidence-row" @click="openEvidence(row)" class="rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Evidence</Text>
+        <Pressable :for="row in evidence()" :key="row.label" testID="evidence-row" @click="openEvidence(row)" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <Text class="text-sm text-emerald-400" :text="row.label" />
         </Pressable>
       </View>
 
-      <Pressable testID="effort-owner" @click="openAthlete()" class="rounded-xl bg-slate-900 p-3">
-        <Text class="text-xs uppercase text-slate-500">Athlete</Text>
-        <Text class="text-sm font-semibold text-white" :text="athleteText()" />
+      <Pressable testID="effort-owner" @click="openAthlete()" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Athlete</Text>
+        <Text class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="athleteText()" />
       </Pressable>
     </View>
   </ScrollView>

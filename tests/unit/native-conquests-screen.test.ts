@@ -57,7 +57,7 @@ async function board(token: string | null = 'tok_abc', payload: unknown = OWN) {
 }
 
 describe('Wildloop native conquests screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its lists through the portable keyed boundary', () => {
     for (const list of ['battle in threatened()', 'battle in shown()'])

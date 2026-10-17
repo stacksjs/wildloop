@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import {
   CHALLENGE_TAB_LABELS,
   CHALLENGE_TABS,
@@ -87,13 +87,15 @@ function waiting(row: any): string {
   return challengeWaitingText(row, viewerId())
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     const token = await api.readToken()
     if (!token) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         signedOut.set(true)
       return
     }
@@ -104,26 +106,26 @@ async function load(): Promise<void> {
      */
     const me = await api.send('/api/me')
     if (!me.ok || !me.body?.user?.id) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         signedOut.set(true)
       return
     }
-    if (active)
+    if (active && currentLoad === loadVersion)
       viewerId.set(Number(me.body.user.id))
 
     const result = await api.send(challengesPath())
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!result.ok)
       throw new Error('Could not load challenges')
     rows.set(challengeRowsFrom(result.body))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load challenges')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -174,31 +176,32 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="challenges-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Other athletes, for the ground they hold.</Text>
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Other athletes, for the ground they hold.</Text>
 
     <View class="mt-4 gap-2">
-      <Text testID="challenges-tab" class="text-sm text-slate-300" :text="tabName()" />
+      <Text testID="challenges-tab" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="tabName()" />
       <Button testID="cycle-tab" @click="cycleTab()">Change the tab</Button>
     </View>
 
     <ActivityIndicator :show="loading" testID="challenges-loading" class="mt-6" />
-    <Text :show="error" testID="challenges-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="challenges-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
     <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your challenges.</Text>
 
     <View class="mt-4 gap-2">
-      <View :for="row in shown()" :key="row.id" class="rounded-xl bg-slate-900 p-3">
+      <View :for="row in shown()" :key="row.id" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
         <Text testID="challenge-status" class="text-xs font-semibold uppercase text-amber-300" :text="standing(row)" />
-        <Text testID="challenge-sides" class="mt-1 text-base font-semibold text-white" :text="sides(row)" />
+        <Text testID="challenge-sides" class="mt-1 text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="sides(row)" />
 
         <Pressable testID="challenge-territory" class="mt-2" @click="openTerritory(row)">
-          <Text class="text-xs text-slate-300" :text="stake(row)" />
+          <Text class="text-xs text-[#253321] dark:text-[#e3ecdf]" :text="stake(row)" />
         </Pressable>
 
-        <Text :show="waiting(row)" testID="challenge-waiting" class="mt-2 text-xs text-slate-500" :text="waiting(row)" />
+        <Text :show="waiting(row)" testID="challenge-waiting" class="mt-2 text-xs text-[#64745f] dark:text-[#91a28b]" :text="waiting(row)" />
 
         {{-- Only the defender answers, and only while it is still being asked. --}}
         <View :show="canAnswer(row)" testID="challenge-answer" class="mt-3 flex-row gap-2">
@@ -208,6 +211,6 @@ onDestroy(() => {
       </View>
     </View>
 
-    <Text :show="!loading && !error && !signedOut && shown().length === 0" testID="challenges-empty" class="mt-6 text-sm text-slate-400" :text="emptyText()" />
+    <Text :show="!loading && !error && !signedOut && shown().length === 0" testID="challenges-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyText()" />
   </ScrollView>
 </SafeAreaView>

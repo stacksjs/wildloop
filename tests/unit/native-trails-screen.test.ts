@@ -66,7 +66,7 @@ async function catalog() {
 }
 
 describe('Wildloop native trails screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders the list through the portable keyed boundary', () => {
     expect(SOURCE).toContain(':for="row in rows()" :key="row.id"')

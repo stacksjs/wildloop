@@ -31,9 +31,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Craft v0.0.91, pinned to the annotated release tag's commit.
-  CRAFT_REVISION: 186cd8398573e912afd79f674cc39eec3dd35fa2
-  STX_REVISION: fa6f59b2bf0cfa599014b3a80f2cb119b3a69504
   MAESTRO_SHA256: b3e561161904fb391875ca5834d5b22cf0b01c052dd1b408ad83e30d8f8951b3
   MAESTRO_VERSION: cli-2.8.0
 
@@ -50,8 +47,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install native build tools
-        run: brew install xcodegen
+      - name: Setup Pantry
+        uses: home-lang/pantry/packages/action@main
       - name: Install Maestro
         run: |
           curl -fsSL "https://github.com/mobile-dev-inc/Maestro/releases/download/${MAESTRO_VERSION}/maestro.zip" -o "$RUNNER_TEMP/maestro.zip"
@@ -60,22 +57,9 @@ jobs:
           echo "$RUNNER_TEMP/maestro-cli/maestro/bin" >> "$GITHUB_PATH"
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Checkout STX
-        uses: actions/checkout@v5
-        with:
-          repository: stacksjs/stx
-          ref: ${{ env.STX_REVISION }}
-          path: .stx-source
-      - name: Checkout Craft
-        uses: actions/checkout@v5
-        with:
-          repository: craft-native/craft
-          ref: ${{ env.CRAFT_REVISION }}
-          path: .craft
+      - name: Install iOS toolchain
+        run: ./buddy setup:ios
       - name: Run iOS E2E flows
-        env:
-          CRAFT_IOS_SRC: ${{ github.workspace }}/.craft/packages/ios/src/index.ts
-          STX_SOURCE_ROOT: ${{ github.workspace }}/.stx-source
         run: bun scripts/run-mobile-e2e.ts ios
       - name: Upload iOS diagnostics
         if: always()
@@ -86,6 +70,8 @@ jobs:
           if-no-files-found: warn
 
   android:
+    env:
+      ANDROID_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -113,22 +99,7 @@ jobs:
           echo "$RUNNER_TEMP/maestro-cli/maestro/bin" >> "$GITHUB_PATH"
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Checkout STX
-        uses: actions/checkout@v5
-        with:
-          repository: stacksjs/stx
-          ref: ${{ env.STX_REVISION }}
-          path: .stx-source
-      - name: Checkout Craft
-        uses: actions/checkout@v5
-        with:
-          repository: craft-native/craft
-          ref: ${{ env.CRAFT_REVISION }}
-          path: .craft
       - name: Build Android E2E app
-        env:
-          CRAFT_ANDROID_SRC: ${{ github.workspace }}/.craft/packages/android/src/index.ts
-          STX_SOURCE_ROOT: ${{ github.workspace }}/.stx-source
         run: bun scripts/run-mobile-e2e.ts android --build-only
       - name: Run Android E2E flows
         uses: reactivecircus/android-emulator-runner@v2

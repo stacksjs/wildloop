@@ -61,6 +61,26 @@ Full pagination provides counts and page jumps. Simple/cursor results do not
 have a last page; render previous/next controls using their URLs/cursors.
 Outside a request, missing URL context is normal rather than a broken query.
 
+## Membership completion
+
+`<MembershipCard>` renders a metal keepsake with an engraved name, a finite
+entrance and light sweep, and a brief confetti burst. Pass localized `brand`,
+`label`, `nameLabel`, `name` and optional `detail` props. Mount it only after
+the operation succeeds; it does not grant membership or represent a check-in
+credential. Set `:celebrate="false"` when displaying an existing card. Motion
+is gated by `prefers-reduced-motion`; the card remains readable without it.
+
+```stx
+<MembershipCard :if="joined" :name="memberName" brand="My club"
+  label="Membership card" nameLabel="Member" :detail="planName" />
+```
+
+Pass `logo` to use your brand image in place of the text wordmark; `brand` remains its accessible name. The engraved name uses a cursive title treatment. Set `nameFont` to your self-hosted signature font family and load it through your app's fonts config (`font-display: swap`). Long names wrap without covering the Member ID.
+
+Pass `memberId` and a localized `memberIdLabel` to engrave a permanent account identifier. Keep IDs stable across plans and organizations. Increment the optional numeric `replay` prop to remount the reveal through a keyed signal loop; no DOM access or timers are needed. Reduced motion still displays the complete card without confetti.
+
+Theme the finish through inherited CSS custom properties on the card's container or the application's root. Every property falls back to the original graphite finish: `--membership-card-background`, `--membership-card-color`, `--membership-card-border`, `--membership-card-shadow`, `--membership-card-inset-border`, `--membership-card-grain`, `--membership-card-label`, `--membership-card-name`, `--membership-card-divider`, `--membership-card-serial`, and `--membership-card-detail`. `--membership-card-confetti-1` through `--membership-card-confetti-4` color the celebration. Keep label and name colors readable against every stop of a custom gradient; the component's layout, stable identifier and reduced-motion behavior remain the same.
+
 ## Gotchas
 
 - `config/ui.ts` configures STX topology; `config/css.ts` configures utilities.

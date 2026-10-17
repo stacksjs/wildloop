@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import {
   groupNotificationsByDay,
   matchesNotificationFilter,
@@ -60,13 +60,15 @@ function unread(): number {
  */
 const api = createNativeApi(craft)
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     const token = await api.readToken()
     if (!token) {
-      if (active) {
+      if (active && currentLoad === loadVersion) {
         signedOut.set(true)
         loading.set(false)
       }
@@ -74,7 +76,7 @@ async function load(): Promise<void> {
     }
     const response = await api.send('/api/notifications')
     const body = response.body
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (response.status === 401) {
       signedOut.set(true)
@@ -87,11 +89,11 @@ async function load(): Promise<void> {
     rows.set(notificationRowsFrom(body))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load your notifications')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -137,14 +139,15 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="notifications-scroll">
-    <Text testID="unread-count" class="mt-1 text-sm text-slate-400" :text="unread() > 0 ? unread() + ' unread' : 'All caught up'" />
+    <Text testID="unread-count" class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="unread() > 0 ? unread() + ' unread' : 'All caught up'" />
 
     <View class="mt-4 gap-2">
-      <Text testID="filter-label" class="text-sm text-slate-300" :text="filterLabel()" />
+      <Text testID="filter-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="filterLabel()" />
       <Button testID="cycle-filter" @click="cycleFilter()">Change filter</Button>
       {{-- Behind an `:if` again. It was rendered unconditionally while
            stacksjs/stx#2067 was open: a Button revealed by a condition that
@@ -155,8 +158,8 @@ onDestroy(() => {
     </View>
 
     <ActivityIndicator :show="loading" testID="notifications-loading" class="mt-6" />
-    <Text :show="error" testID="notifications-error" class="mt-4 text-rose-300" :text="error" />
-    <Text :show="signedOut" testID="notifications-signed-out" class="mt-4 text-sm text-slate-400">
+    <Text :show="error" testID="notifications-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <Text :show="signedOut" testID="notifications-signed-out" class="mt-4 text-sm text-[#51604e] dark:text-[#b0bfac]">
       Sign in to hear when somebody gives you kudos, challenges you, or takes your ground.
     </Text>
 
@@ -167,19 +170,19 @@ onDestroy(() => {
          Nested here because the list has day headings. --}}
     <View testID="notifications-list" class="mt-5 gap-5">
       <View :for="day in sections()" :key="day.label" class="gap-2">
-        <Text testID="day-heading" class="text-xs font-semibold uppercase text-slate-500" :text="day.label" />
-        <Pressable :for="row in day.items" :key="row.id" testID="notification-row" class="rounded-xl bg-slate-900 p-3" @click="openRow(row)">
+        <Text testID="day-heading" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="day.label" />
+        <Pressable :for="row in day.items" :key="row.id" testID="notification-row" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openRow(row)">
           <View class="flex-row items-baseline gap-2">
-            <Text class="text-base font-semibold text-white" :text="row.title" />
-            <Text class="text-xs text-slate-500" :text="timeAgo(row.created_at)" />
+            <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.title" />
+            <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="timeAgo(row.created_at)" />
           </View>
-          <Text class="mt-1 text-sm text-slate-300" :text="row.message" />
-          <Text :show="!row.read" testID="row-unread" class="mt-1 text-xs text-emerald-300">New</Text>
+          <Text class="mt-1 text-sm text-[#253321] dark:text-[#e3ecdf]" :text="row.message" />
+          <Text :show="!row.read" testID="row-unread" class="mt-1 text-xs text-[#24724b] dark:text-[#9be579]">New</Text>
         </Pressable>
       </View>
     </View>
 
-    <Text :show="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-slate-400">
+    <Text :show="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
       Nothing under this filter.
     </Text>
   </ScrollView>

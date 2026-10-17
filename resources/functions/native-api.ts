@@ -59,6 +59,7 @@ export function loadOutcome(response: Pick<NativeResponse, 'ok' | 'status'>): 'o
 export interface NativeApiHost {
   secureStorage: { get: (key: string) => unknown }
   app?: { url?: string }
+  snapshots?: { get: (name: string) => unknown, onChange?: (callback: (name: string) => void) => () => void }
 }
 
 /** The configured server, shared by the native app and its simulator builds. */
@@ -67,49 +68,79 @@ export function nativeApiOrigin(host: Pick<NativeApiHost, 'app'>): string {
 }
 
 export interface NativeApi {
-  /** The stored bearer token, or '' when nobody is signed in. Read once. */
+  /** The stored bearer token, cached only within the current native account session. */
   readToken: () => Promise<string>
   send: (path: string, method?: string, body?: unknown) => Promise<NativeResponse>
+  /** Native FormData carries on-device files through Craft's multipart transport. */
+  upload: (path: string, form: FormData) => Promise<NativeResponse>
 }
 
 /**
  * A token reader and sender bound to one screen.
  *
- * The keychain read is memoized in this closure rather than in a signal: it is
- * a cache and nothing renders from it, which is how all twelve screens used it
- * even though they each spent a `state()` on it.
+ * Keychain reads share one promise within the native account snapshot. Login
+ * and logout replace that shared snapshot, invalidating warm screens before
+ * another request. Hosts without snapshots read the keychain for every request.
  *
  * Called once per screen, so two screens in one bundle do not share a token
  * cache — same as when each screen held its own.
  */
 export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(host)): NativeApi {
   let reading: Promise<string> | null = null
-  let token = ''
-
+  let session = ''
+  const sessionKey = (): string => host.snapshots ? JSON.stringify(host.snapshots.get('wildloop-session')) ?? 'null' : ''
   const readToken = async (): Promise<string> => {
-    if (token)
+    const current = sessionKey()
+    if (!host.snapshots || session !== current) {
+      session = current
+      reading = null
+    }
+    const pending = reading ??= Promise.resolve(host.secureStorage.get('auth_token')).then(value => typeof value === 'string' ? value : '')
+    try {
+      const token = await pending
+      // A keychain request can finish after a sign-out/account switch. Never
+      // send the previous account's bearer after the shared session changed.
+      if (current !== sessionKey()) return readToken()
       return token
-
-    reading ??= Promise.resolve(host.secureStorage.get('auth_token')).then((value) => {
-      token = typeof value === 'string' ? value : ''
-      return token
-    })
-
-    return reading
+    }
+    catch (error) {
+      if (reading === pending) reading = null
+      throw error
+    }
   }
 
-  const send = async (path: string, method = 'GET', body?: unknown): Promise<NativeResponse> => {
+  const request = async (path: string, method: string, body: string | FormData | undefined, json: boolean): Promise<NativeResponse> => {
+    const account = sessionKey()
     const bearer = await readToken()
+    if (account !== sessionKey()) throw new Error('Your account changed. Please try again.')
     const response = await fetch(`${origin}${path}`, {
       method,
-      headers: nativeHeaders(bearer, body !== undefined),
-      ...body === undefined ? {} : { body: JSON.stringify(body) },
+      headers: nativeHeaders(bearer, json),
+      ...body === undefined ? {} : { body },
     })
     // A body that is not JSON is not an exception — an error page is text, and
     // the status is what the screen reads anyway.
     const payload = await response.json().catch(() => null)
+    if (account !== sessionKey()) throw new Error('Your account changed. Please try again.')
     return { ok: response.ok, status: response.status, body: payload }
   }
 
-  return { readToken, send }
+  return {
+    readToken,
+    send: (path, method = 'GET', body) => request(path, method, body === undefined ? undefined : JSON.stringify(body), body !== undefined),
+    upload: (path, form) => request(path, 'POST', form, false),
+  }
+}
+
+/** Clear private screen state immediately when a warm tab changes accounts. */
+export function onNativeAccountChange(host: NativeApiHost, clear: () => void): () => void {
+  const owner = (): number => Number((host.snapshots?.get('wildloop-session') as {user?:{id?:number}} | null)?.user?.id) || 0
+  let previous = owner()
+  return host.snapshots?.onChange?.((name) => {
+    if (name !== 'wildloop-session') return
+    const next = owner()
+    if (next === previous) return
+    previous = next
+    clear()
+  }) ?? (() => {})
 }

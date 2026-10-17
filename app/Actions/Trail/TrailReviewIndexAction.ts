@@ -1,6 +1,7 @@
 import { summarizeDifficulty } from '../../Support/reviewDifficulty'
 import { cachedReviews, cacheReviews } from '../../Support/reviewCache'
 import { avatarOf } from '../../Support/avatars'
+import { trailReviewPayload } from '../../Support/trailReviewPayload'
 import { activeDanger, conditionReports } from '../../../resources/functions/trail-conditions'
 
 /**
@@ -60,26 +61,7 @@ export default new Action({
       const userName = new Map(users.map((u: any) => [u.id, u.name]))
       const userAvatar = new Map(users.map((u: any) => [u.id, avatarOf(u)]))
 
-      const reviews = rows.map((r: any) => ({
-        id: r.id,
-        userId: r.user_id,
-        userName: userName.get(r.user_id) ?? 'Unknown',
-        userAvatar: userAvatar.get(r.user_id) ?? null,
-        rating: r.rating ?? 0,
-        title: r.title,
-        content: r.content,
-        conditions: r.conditions,
-        difficulty: r.difficulty ?? null,
-        // Passed through as stored. The column has held JSON arrays, comma
-        // separated lists and single URLs, and the client parses all three —
-        // re-encoding one of those shapes here would only add a fourth.
-        photos: r.photos ?? null,
-        visitDate: r.visit_date,
-        createdAt: r.created_at,
-        // When the condition was seen, which is not when the review was
-        // written: a months-old review can report today's flooding.
-        conditionsReportedAt: r.conditions_reported_at ?? null,
-      }))
+      const reviews = rows.map((r: any) => trailReviewPayload(r, {name:userName.get(r.user_id),avatar:userAvatar.get(r.user_id)}))
 
       // Generous default - the reviews tab renders the full set, no load-more
       // (#978 review); ?limit/?offset still paginate on demand.

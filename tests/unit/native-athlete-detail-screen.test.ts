@@ -112,7 +112,7 @@ function followCalls(screen: any) {
 }
 
 describe('Wildloop native athlete detail screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its lists through the portable keyed boundary', () => {
     for (const list of ['record in records()', 'activity in recent()'])

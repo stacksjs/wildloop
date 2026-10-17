@@ -1,6 +1,6 @@
 import { Auth } from '@stacksjs/auth'
 
-import { routeResponse } from './CustomRouteIndexAction'
+import { routeResponse } from '../../Support/customRouteResponse'
 import { readRouteInput } from '../../Support/customRouteRequest'
 import CustomRoute from '../../Models/CustomRoute'
 

@@ -14,6 +14,7 @@
 <script client>
   import { openAuthGate } from '../composables/useAuthGate'
   import { avatarUrl } from '../functions/avatars'
+  import { MOBILE_MENU_GROUPS } from '../functions/mobile-menu'
 
   useHead({ title: 'Menu — Wildloop' })
 
@@ -31,44 +32,7 @@
   const isAdmin = derived(() => Boolean(account()?.roles?.includes('admin')))
   const unreadCount = derived(() => (account() ? wl.unreadCount() : 0))
 
-  const GROUPS = [
-    {
-      title: 'Explore',
-      items: [
-        { label: 'Trails', href: '/trails', icon: 'i-lucide-map' },
-        { label: 'Plans', href: '/plans', icon: 'i-lucide-calendar-days' },
-        { label: 'Draw a route', href: '/routes', icon: 'i-lucide-route' },
-        { label: 'Saved trails', href: '/trails?list=saved', icon: 'i-lucide-heart' },
-        { label: 'Completed trails', href: '/trails?list=completed', icon: 'i-lucide-circle-check' },
-      ],
-    },
-    {
-      title: 'You',
-      items: [
-        { label: 'Achievements', href: '/achievements', icon: 'i-lucide-trophy' },
-        { label: 'Stats', href: '/stats', icon: 'i-lucide-chart-column' },
-      ],
-    },
-    {
-      title: 'Compete',
-      items: [
-        { label: 'Territory', href: '/territories', icon: 'i-lucide-flag' },
-        { label: 'Leaderboard', href: '/leaderboard', icon: 'i-lucide-crown' },
-        { label: 'Battles', href: '/battles', icon: 'i-lucide-swords' },
-        { label: 'Conquests', href: '/conquests', icon: 'i-lucide-target' },
-        { label: 'Challenges', href: '/challenges', icon: 'i-lucide-medal' },
-        { label: 'Records', href: '/records', icon: 'i-lucide-timer' },
-      ],
-    },
-    {
-      title: 'People',
-      items: [
-        { label: 'Find athletes', href: '/athletes', icon: 'i-lucide-user-search' },
-        { label: 'Clubs', href: '/clubs', icon: 'i-lucide-users' },
-        { label: 'Events', href: '/events', icon: 'i-lucide-calendar-days' },
-      ],
-    },
-  ]
+  const GROUPS = MOBILE_MENU_GROUPS.map(group => ({ ...group, items: group.items.filter(item => !['/profile', '/settings', '/notifications'].includes(item.href)) }))
 
   function openLogin(): void {
     openAuthGate('Sign in to keep your runs, trails and territory.', 'login')

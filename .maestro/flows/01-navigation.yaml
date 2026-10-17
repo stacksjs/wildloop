@@ -1,35 +1,32 @@
 appId: ${APP_ID}
-name: Native shell navigation
+name: Craft native navigation
 tags:
   - mobile
   - smoke
 ---
 - launchApp:
     clearState: true
-    permissions:
-      all: allow
-# The app opens on the Feed. The landing page hands a native shell straight
-# to /feed (index.stx), so its hero is never on screen long enough to assert;
-# waiting for it passed or failed on timing.
-# 90s, not 30s: a cold CI Simulator spent 33s in launchApp and then longer
-# than 30s before the WebView painted, twice in a row (22 Sep 2026), while the
-# same build passed locally in 38s. The wait returns as soon as the Feed shows.
 - extendedWaitUntil:
-    visible: Runs, kudos and turf changing hands.
-    timeout: 90000
-- takeScreenshot: launch
-- extendedWaitUntil:
-    visible: "^Everyone$"
+    visible:
+      id: native-feed-scroll
     timeout: 30000
-- takeScreenshot: feed
-# This journey runs signed out, on the bundled app with no server behind it.
-# The tab bar is for signed-in members (c3e28d79), so a guest must not see it,
-# and the header's Log in is how a guest gets in. Tab navigation itself is
-# covered by the signed-in journey, which has a server to sign in against.
-- assertNotVisible: "^Menu$"
-- assertNotVisible: "^Record$"
-- tapOn: "^Log in$"
+- takeScreenshot: native-feed
+- tapOn: "^Menu$"
 - extendedWaitUntil:
-    visible: "Welcome [Bb]ack"
+    visible:
+      id: native-menu
     timeout: 30000
-- takeScreenshot: sign-in
+- tapOn:
+    id: menu-trails
+- extendedWaitUntil:
+    visible:
+      id: trails-scroll
+    timeout: 30000
+- takeScreenshot: native-trails
+- tapOn: "^Record$"
+- extendedWaitUntil:
+    visible:
+      id: record-start
+    timeout: 30000
+- assertNotVisible: "would like to use your current location"
+- takeScreenshot: native-record

@@ -1,7 +1,7 @@
 import { expect } from 'bun:test'
 import { join } from 'node:path'
 import vm from 'node:vm'
-import { nativeScreenFiles } from '@stacksjs/actions/build/native-screens'
+import { nativeAppFile, nativeScreenFiles } from '@stacksjs/actions/build/native-screens'
 import { compileNativeBundle as compileBundle } from '@stacksjs/stx/native'
 import mobile from '../../config/mobile'
 
@@ -26,7 +26,7 @@ export async function compileNativeBundle(): Promise<void> {
   // also what the generated craft.config.json carries — so a test cannot pass
   // against a screen list the app does not ship.
   const screens = nativeScreenFiles(mobile.ios, ROOT)
-  bundle = (await compileBundle({ screens, root: ROOT })).code
+  bundle = (await compileBundle({ screens, root: ROOT, app: nativeAppFile(mobile.ios,ROOT) ?? undefined })).code
 }
 
 /** The compiled bundle itself, for assertions about what it does not contain. */
@@ -49,7 +49,7 @@ export function nodesByTestId(node: any, found = new Map<string, string>()): Map
   return found
 }
 
-export async function start(route: string, params: Record<string, unknown> = {}): Promise<NativeSession> {
+export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle']): Promise<NativeSession> {
   const sent: any[] = []
   let callback: (raw: string) => void = () => {}
   /*
@@ -74,7 +74,22 @@ export async function start(route: string, params: Record<string, unknown> = {})
    * Measured 16 Oct 2026: 192 native tests across 24 files pass with no timer
    * in scope, and nothing arms a long timer any more.
    */
+  // Craft236 supplies repeating timers on both hosts. Keep a deterministic
+  // interval scheduler without arming the bridge's unrelated request timeouts.
+  const intervals=new Map<number,()=>void>()
+  // Craft injects this synchronous snapshot cache before the STX bridge. Its
+  // default without a host is a no-op, which cannot test warm-account changes.
+  const snapshots=new Map<string,unknown>()
+  let nextInterval=0
   const scope: Record<string, any> = {
+    __snapshots:snapshots,
+    craft:{snapshots:{
+      get:(name:string)=>snapshots.get(name) ?? null,
+      set:async(name:string,value:unknown)=>{snapshots.set(name,value);callback(JSON.stringify({type:'SNAPSHOT_CHANGED',payload:{name}}));return true},
+    }},
+    setInterval:(callback:()=>void)=>{const id=++nextInterval;intervals.set(id,callback);return id},
+    clearInterval:(id:number)=>{intervals.delete(id)},
+    __tickIntervals:()=>{for(const tick of intervals.values())tick()},
     console,
     Promise,
     Date,
@@ -87,7 +102,7 @@ export async function start(route: string, params: Record<string, unknown> = {})
     __stxNativeBridge: {
       platform: 'ios',
       capabilityProtocolVersion: 1,
-      capabilities: ['fetch', 'secureStorage', 'haptics', 'lifecycle'],
+      capabilities,
       postMessage: (raw: string) => sent.push(JSON.parse(raw)),
       onMessage: (receiver: typeof callback) => { callback = receiver },
     },
@@ -111,7 +126,8 @@ export async function start(route: string, params: Record<string, unknown> = {})
       const created = operations
         .filter(operation => operation.op === 'createNode' && operation.node?.props?.testID === testID)
         .map(operation => String(operation.id))
-      const candidates = [nodes.get(testID), ...created].filter(Boolean) as string[]
+      const bound = operations.filter(operation=>operation.op==='updateNode' && operation.patch?.props?.testID===testID).map(operation=>String(operation.id))
+      const candidates = [nodes.get(testID), ...created, ...bound].filter(Boolean) as string[]
       // The most recently created node wins, so a list test taps the last row
       // it was given rather than whichever one the protocol numbered first.
       const handlerId = operations
@@ -135,6 +151,25 @@ export function answer(session: NativeSession, request: any, data: unknown): voi
 
 export function requests(session: NativeSession): any[] {
   return session.sent.filter(message => message.type === 'API_REQUEST')
+}
+
+/** Apply the host's prop patches before asserting the current visible state. */
+export function nativeNodeProps(session: NativeSession, testID: string): Record<string, any> {
+  let id = ''
+  let props: Record<string, any> = {}
+  function find(node: any) {
+    if (node?.props?.testID === testID) { id = String(node.props.__stxId); props = { ...node.props } }
+    for (const child of node?.children ?? []) if (child && typeof child === 'object') find(child)
+  }
+  for (const message of session.sent) {
+    if (message.type === 'RENDER') find(message.payload.document)
+    if (message.type !== 'MUTATE') continue
+    for (const operation of message.payload.operations) {
+      if (operation.op === 'createNode') find(operation.node)
+      if (operation.op === 'updateNode' && String(operation.id) === id) Object.assign(props, operation.patch?.props ?? {})
+    }
+  }
+  return props
 }
 
 export async function waitForRequest(

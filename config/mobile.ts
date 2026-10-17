@@ -1,18 +1,40 @@
 import type { MobileConfig } from '@stacksjs/types/mobile'
+import { APP_SHORTCUTS, appShortcutDeepLink } from '../resources/functions/app-shortcuts'
+import spotlight from './spotlight'
 
 const envVars = typeof Bun !== 'undefined' ? Bun.env : process.env
 // A free (personal) Apple team cannot sign Associated Domains or Push
 // Notifications; Xcode refuses the whole profile. A sideload with one
 // (`preview:iphone --personal-team`) leaves both out.
 const personalTeam = envVars.IOS_PERSONAL_TEAM === '1'
-const mobileContent = envVars.MOBILE_E2E === '1'
-  ? { webAssets: 'dist' }
-  : {
-      url: envVars.MOBILE_URL ?? 'https://wildloop.org',
-      fallbackWebAssets: 'dist',
-    }
+const mobileContent = {
+  renderer: 'native' as const,
+  nativeApp: 'resources/mobile-app.ts',
+  url: envVars.MOBILE_URL ?? 'https://wildloop.org/feed',
+  appearance: 'system' as const,
+  backgroundColor: '#f2f4ef',
+  backgroundColorDark: '#101c16',
+  tabs: [
+    { id: '/feed', title: 'Feed', symbol: 'house' },
+    { id: '/record', title: 'Record', symbol: 'record.circle' },
+    { id: '/menu', title: 'Menu', symbol: 'square.grid.2x2' },
+  ],
+}
+const nativeScreens = {
+  '/': 'Feed', '/feed': 'Feed', '/menu': 'Menu', '/profile': 'Profile',
+  '/settings': 'Settings', '/login': 'Login', '/register': 'Register', '/forgot-password': 'ForgotPassword', '/reset-password': 'ResetPassword', '/password/reset/:token': 'ResetPassword',
+  '/activity/:id': 'ActivityDetail', '/record': 'Record', '/plans': 'Plans', '/routes': 'Routes',
+  '/achievements': 'Achievements', '/athlete/:id': 'AthleteDetail', '/athletes': 'Athletes',
+  '/battles': 'Battles', '/challenges': 'Challenges', '/club/:id': 'ClubDetail', '/clubs': 'Clubs',
+  '/conquests': 'Conquests', '/effort/:id': 'EffortDetail', '/event/:id': 'EventDetail', '/events': 'Events',
+  '/records': 'Records', '/search': 'Search', '/stats': 'Stats', '/territories': 'Territories',
+  '/territory/:id': 'TerritoryDetail', '/trails': 'Trails', '/trail/:id': 'TrailDetail', '/trail/:id/map': 'TrailMap',
+  '/notifications': 'Notifications', '/leaderboard': 'Leaderboard',
+  '/activity/new': 'ManualActivity', '/activity/saved': 'ActivitySaved',
+}
 
 export default {
+  spotlight,
   ios: {
     appName: 'Wildloop',
     bundleId: envVars.IOS_BUNDLE_ID ?? 'org.wildloop.app',
@@ -25,53 +47,12 @@ export default {
     trustedOrigins: ['https://wildloop.org'],
     associatedDomains: personalTeam ? [] : ['applinks:wildloop.org'],
     appIcon: 'public/images/app/wildloop-app-icon.png',
-    backgroundColor: '#003c2f',
-    darkMode: true,
     urlSchemes: ['wildloop'],
+    appShortcuts: APP_SHORTCUTS.map(shortcut => ({ id:shortcut.id,title:shortcut.title,subtitle:shortcut.subtitle,symbol:shortcut.symbol,url:appShortcutDeepLink(shortcut),phrases:[shortcut.phrase.replace('Wildloop','{app}')] })),
 
-    /**
-     * The paths the app renders as native views instead of loading in the web
-     * view, one screen per entry (stacksjs/stx#1992).
-     *
-     * This is the promotion mechanism: a path listed here is drawn from
-     * `resources/native/<name>.stx` as real UIViews, and everything not listed
-     * stays the website in one warm web view, sharing the same navigation
-     * stack. A half-migrated app is the end state rather than a transition, and
-     * any line here is reversible by deleting it.
-     *
-     * The three promoted paths are the ones whose screens need nothing that is
-     * missing: no map (craft-native/craft#340), no route thumbnail
-     * (craft-native/craft#338), no upload (craft-native/craft#341).
-     *
-     * `/activity/new` and `/activity/saved` have no web page behind them — the
-     * web app logs a manual activity in a modal on the feed. They are listed
-     * because the native manual-entry flow pushes `ActivitySaved` by name, and
-     * only screens named here are compiled into the bundle. Nothing links to
-     * those paths on the web.
-     */
-    nativeScreens: {
-      '/achievements': 'Achievements',
-      '/athlete/:id': 'AthleteDetail',
-      '/athletes': 'Athletes',
-      '/battles': 'Battles',
-      '/challenges': 'Challenges',
-      '/club/:id': 'ClubDetail',
-      '/clubs': 'Clubs',
-      '/conquests': 'Conquests',
-      '/effort/:id': 'EffortDetail',
-      '/event/:id': 'EventDetail',
-      '/events': 'Events',
-      '/records': 'Records',
-      '/search': 'Search',
-      '/stats': 'Stats',
-      '/territories': 'Territories',
-      '/territory/:id': 'TerritoryDetail',
-      '/trails': 'Trails',
-      '/notifications': 'Notifications',
-      '/leaderboard': 'Leaderboard',
-      '/activity/new': 'ManualActivity',
-      '/activity/saved': 'ActivitySaved',
-    },
+    // Every app destination uses the same Craft screen registry on both platforms.
+    // Legal pages and external services open in the platform browser.
+    nativeScreens,
     orientations: ['portrait'],
     deviceFamilies: ['iphone'],
     privacy: {
@@ -178,14 +159,15 @@ export default {
     urlSchemes: ['wildloop'],
     appIcon: 'public/images/app/wildloop-app-icon.png',
     googleServicesFile: envVars.ANDROID_GOOGLE_SERVICES_FILE,
-    backgroundColor: '#003c2f',
-    darkMode: true,
+    mapsApiKey: envVars.ANDROID_MAPS_API_KEY,
+    nativeScreens,
     capabilities: {
       backgroundLocation: true,
       deepLinks: true,
       geolocation: true,
       haptics: true,
       healthConnect: true,
+      localDatabase: true,
       keepAwake: true,
       localNotifications: true,
       // Craft hard-fails Android generation when push is enabled without a

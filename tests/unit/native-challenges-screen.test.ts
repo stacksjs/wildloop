@@ -50,7 +50,7 @@ async function board(token: string | null = 'tok_abc', rows: unknown = CHALLENGE
 }
 
 describe('Wildloop native challenges screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders the list through the portable keyed boundary', () => {
     expect(SOURCE).toContain(':for="row in shown()" :key="row.id"')

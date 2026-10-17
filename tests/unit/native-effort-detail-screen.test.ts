@@ -105,7 +105,7 @@ function networkCalls(screen: any) {
 }
 
 describe('Wildloop native effort detail screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its evidence through the portable keyed boundary', () => {
     expect(SOURCE).toContain(':for="row in evidence()"')

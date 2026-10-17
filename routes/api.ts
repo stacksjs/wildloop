@@ -115,6 +115,7 @@ route.group({ prefix: '/garmin' }, () => {
   route.get('/connect', 'Actions/Garmin/GarminConnectAction').middleware('auth')
   route.get('/callback', 'Actions/Garmin/GarminCallbackAction')
   route.post('/disconnect', 'Actions/Garmin/GarminDisconnectAction').middleware('auth')
+  route.post('/native-session', 'Actions/Garmin/GarminNativeSessionAction').middleware('auth')
   route.post('/webhook', 'Actions/Garmin/GarminWebhookAction')
 })
 route.get('/integrations/status', 'Actions/Integration/IntegrationStatusAction')
@@ -532,6 +533,7 @@ route.get('/events/{id}', 'Actions/Event/EventShowAction')
 //   - social writes (activities, kudos, comments, reviews, follows,
 //     notifications)  60/min - normal interactive ceiling
 route.group({ middleware: 'auth' }, () => {
+  route.get('/trails/{id}/viewer', 'Actions/Trail/TrailViewerStateAction')
   // Territory game - claim land by running closed loops, conquer others' turf
   route.group({ middleware: 'throttle:30,1' }, () => {
     route.post('/territories/claim', 'Actions/Territory/ClaimTerritoryAction')

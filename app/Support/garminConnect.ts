@@ -287,7 +287,7 @@ export interface OAuthState {
   userId: number
   /** Echoed by Garmin, compared on return: the CSRF guard. */
   state: string
-  /** Redeems the authorization code. Never leaves our side. */
+  /** Redeems the authorization code. Kept in a signed cookie or native handoff. */
   verifier: string
   /** Unix ms. A stale attempt is refused rather than resumed. */
   issuedAt: number
@@ -326,7 +326,7 @@ export function openOAuthState(token: string | undefined, secret: string, now = 
     const parsed = JSON.parse(verified) as OAuthState
     if (typeof parsed?.userId !== 'number' || typeof parsed?.verifier !== 'string' || typeof parsed?.state !== 'string')
       return null
-    if (!parsed.issuedAt || now - parsed.issuedAt > OAUTH_STATE_TTL_MS)
+    if (!Number.isSafeInteger(parsed.userId) || parsed.userId < 1 || !Number.isFinite(parsed.issuedAt) || parsed.issuedAt > now || now - parsed.issuedAt > OAUTH_STATE_TTL_MS)
       return null
     return parsed
   }

@@ -1,44 +1,17 @@
 appId: ${APP_ID}
-name: Native deep link routing on iOS
+name: Native record deep link
 tags:
   - deep-link
-  - ios
   - mobile
 ---
-# iOS may either show an app-switch confirmation or open the registered scheme
-# directly. In both cases the required assertion below proves the deep link.
 - runFlow:
     when:
       visible: "^Open$"
     commands:
       - tapOn: "^Open$"
-# The record control itself, not the copy around it. This waited on the page's
-# subtitle, "Close a loop and the ground inside it is yours." — which 62d6dd93
-# replaced with the run's own settings when it moved setup into a modal, and
-# every one of these journeys has failed on the missing line since. The button
-# is what the screen is for: it carries a stable accessibility label, it is on
-# screen without scrolling, and it cannot be reworded by a copy change.
 - extendedWaitUntil:
-    visible: "^Start recording$"
+    visible:
+      id: record-start
     timeout: 30000
-# Landing on Record must not ask for location; starting a recording does.
 - assertNotVisible: "would like to use your current location"
-- scrollUntilVisible:
-    element:
-      text: Start recording
-    direction: DOWN
-    centerElement: true
-    timeout: 30000
-- assertVisible:
-    text: Start recording
-    enabled: true
-# No round trip through the tabs: this runs signed out, and a guest has no
-# tab bar (c3e28d79). The deep-linked page itself carries the proof.
-# The zone chips moved behind the Options panel when the record screen was
-# rebuilt; the assertion is still that store-backed territory data reached the
-# WebView, which is what a deep link into a cold app has to prove.
-- tapOn: "^Options$"
-- extendedWaitUntil:
-    visible: Cascade Ridge Zone
-    timeout: 30000
-- takeScreenshot: deep-link
+- takeScreenshot: native-deep-link

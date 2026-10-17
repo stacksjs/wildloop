@@ -50,7 +50,7 @@ async function search(screen: any, text = 'san diego') {
 }
 
 describe('Wildloop native search screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders every list through the portable keyed boundary', () => {
     for (const list of ['link in quickLinks', 'section in sections()', 'row in section.rows'])

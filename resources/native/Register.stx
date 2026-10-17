@@ -1,0 +1,46 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi } from '../functions/native-api'
+import { storeNativeSession } from '../functions/native-session'
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from '../functions/password-change'
+import { nativeUi as ui } from '../functions/native-ui'
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const name = state('')
+const email = state('')
+const password = state('')
+const confirmation = state('')
+const terms = state(false)
+const busy = state(false)
+const error = state('')
+async function register() {
+  if (busy()) return
+  if (name().trim().length < 2 || !email().trim() || password().length < PASSWORD_MIN_LENGTH || password().length > PASSWORD_MAX_LENGTH) { error.set('Enter your name, email, and a password of 8–255 characters.'); return }
+  if (password() !== confirmation()) { error.set('Those passwords do not match.'); return }
+  if (!terms()) { error.set('Accept the terms to create your account.'); return }
+  busy.set(true); error.set('')
+  try {
+    const response = await createNativeApi(craft).send('/api/register','POST',{name:name().trim(),email:email().trim(),password:password()})
+    if (!response.ok || !response.body?.token) throw new Error(Object.values(response.body?.fields ?? {}).flat().join(' ') || response.body?.error || 'Your account could not be created.')
+    await storeNativeSession(craft, response.body.token, response.body.user)
+    password.set('');confirmation.set('')
+    craft.navigation.open('/feed')
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your account could not be created.') }
+  finally { busy.set(false) }
+}
+onMount(() => { craft.navigation.setOptions({title:'Create an account',largeTitle:false}) })
+</script>
+<KeyboardAvoidingView :class="ui.screen">
+  <ScrollView class="flex-1 p-6" keyboardDismissMode="on-drag">
+    <Text :class="ui.title">Find your next wild loop</Text>
+    <Text :class="ui.caption" class="mt-5">Name</Text><TextInput testID="register-name" :class="ui.input" accessibilityLabel="Name" textContentType="name" :value="name" @input="name.set($event.text || '')" />
+    <Text :class="ui.caption" class="mt-4">Email</Text><TextInput testID="register-email" :class="ui.input" accessibilityLabel="Email" keyboardType="email-address" autoCapitalize="none" textContentType="emailAddress" :value="email" @input="email.set($event.text || '')" />
+    <Text :class="ui.caption" class="mt-4">Password</Text><TextInput testID="register-password" :class="ui.input" accessibilityLabel="Password" :secureTextEntry="true" textContentType="newPassword" :value="password" @input="password.set($event.text || '')" />
+    <Text :class="ui.caption" class="mt-4">Confirm password</Text><TextInput testID="register-confirmation" :class="ui.input" accessibilityLabel="Confirm password" :secureTextEntry="true" textContentType="newPassword" :value="confirmation" @input="confirmation.set($event.text || '')" />
+    <View :class="ui.row" class="mt-4"><Text :class="ui.body" class="flex-1">I agree to the terms of use</Text><Switch testID="register-terms" accessibilityLabel="Accept terms of use" :value="terms" @change="terms.set($event.value)" /></View>
+    <View class="flex-row gap-4"><Button @click="craft.navigation.open('/terms')">Read terms</Button><Button @click="craft.navigation.open('/privacy')">Privacy policy</Button></View>
+    <Text :show="error" :text="error" :class="ui.danger" class="my-4" testID="register-error" />
+    <Button testID="register-submit" :disabled="busy" :class="ui.action" @click="register()"><Text :class="ui.actionText" :text="busy() ? 'Creating account…' : 'Create account'" /></Button>
+    <Button class="mt-4" @click="craft.navigation.open('/login')">Already have an account? Log in</Button>
+  </ScrollView>
+</KeyboardAvoidingView>

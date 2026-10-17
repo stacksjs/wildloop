@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import { formatTerritoryArea, territoryColor } from '../functions/territory-style'
 import {
   filterTerritories,
@@ -124,28 +124,30 @@ function openTerritory(row: any): void {
   craft.navigation.open(`/territory/${row.id}`)
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     const token = await api.readToken()
     if (!token) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         signedOut.set(true)
       return
     }
 
     const me = await api.send('/api/me')
     if (!me.ok || !me.body?.user?.id) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         signedOut.set(true)
       return
     }
-    if (active)
+    if (active && currentLoad === loadVersion)
       viewerId.set(Number(me.body.user.id))
 
     const result = await api.send(territoriesMapPath())
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!result.ok)
       throw new Error('Could not load the territory map')
@@ -153,11 +155,11 @@ async function load(): Promise<void> {
     rows.set(territoryRowsFrom(result.body))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load the territory map')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -170,45 +172,46 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="territories-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Green is yours. Run a closed loop to claim new ground.</Text>
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Green is yours. Run a closed loop to claim new ground.</Text>
 
     <ActivityIndicator :show="loading" testID="territories-loading" class="mt-6" />
-    <Text :show="error" testID="territories-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="territories-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
     <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your territory.</Text>
 
     <View :show="rows().length > 0" testID="territories-body" class="mt-5 gap-4">
       {{-- The map. `fitToBounds` frames whatever is drawn, so the screen opens
            on the athlete's own ground rather than the middle of the ocean. --}}
-      <View :show="shapes().length > 0" testID="territory-map-frame" class="h-64 overflow-hidden rounded-2xl bg-slate-900">
+      <View :show="shapes().length > 0" testID="territory-map-frame" class="h-64 overflow-hidden rounded-2xl bg-white dark:bg-[#1b2c22]">
         <Map testID="territory-map" class="flex-1" :fitToBounds="true" :showsUserLocation="true" mapType="standard">
           <MapPolyline :for="shape in shapes()" :key="shape.id" :geometry="shape.geometry" :strokeColor="shape.color" :strokeWidth="3" />
         </Map>
       </View>
 
       <View class="gap-2">
-        <Text testID="territories-filter" class="text-xs font-semibold uppercase text-slate-500" :text="filterName()" />
+        <Text testID="territories-filter" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="filterName()" />
         <Button testID="cycle-filter" @click="cycleFilter()">Change the filter</Button>
       </View>
 
-      <Text :show="shown().length === 0" testID="territories-empty-title" class="mt-2 text-base font-semibold text-white" :text="emptyTitle()" />
-      <Text :show="shown().length === 0" testID="territories-empty-body" class="text-sm text-slate-400" :text="emptyBody()" />
+      <Text :show="shown().length === 0" testID="territories-empty-title" class="mt-2 text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="emptyTitle()" />
+      <Text :show="shown().length === 0" testID="territories-empty-body" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyBody()" />
 
       <View :show="shown().length > 0" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Nearby territories</Text>
-        <Pressable :for="row in shown()" :key="row.id" testID="territory-row" @click="openTerritory(row)" class="gap-2 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Nearby territories</Text>
+        <Pressable :for="row in shown()" :key="row.id" testID="territory-row" @click="openTerritory(row)" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm font-semibold text-white" :text="row.name" />
-            <Text testID="territory-badge" class="text-xs text-slate-400" :text="badgeText(row)" />
+            <Text class="flex-1 text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
+            <Text testID="territory-badge" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="badgeText(row)" />
           </View>
-          <Text class="text-xs text-slate-500" :text="ownerText(row)" />
+          <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="ownerText(row)" />
           <View class="flex-row gap-4">
-            <Text testID="territory-area" class="text-xs text-slate-400" :text="areaText(row)" />
-            <Text class="text-xs text-slate-500" :text="row.conquestCount" />
-            <Text class="text-xs text-slate-500" :text="row.defendCount" />
+            <Text testID="territory-area" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="areaText(row)" />
+            <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="row.conquestCount" />
+            <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="row.defendCount" />
           </View>
         </Pressable>
       </View>
@@ -216,12 +219,12 @@ onDestroy(() => {
       {{-- Who holds the land in view, built from the zones themselves rather
            than a roster — a roster lists strangers holding nothing. --}}
       <View :show="holders().length > 0" testID="territory-leaders" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Territory leaders</Text>
-        <View :for="holder in holders()" :key="holder.userId" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Territory leaders</Text>
+        <View :for="holder in holders()" :key="holder.userId" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <Text testID="holder-rank" class="text-xs font-bold text-amber-400" :text="rankText(holder)" />
           <View class="flex-1">
-            <Text class="text-sm font-semibold text-white" :text="holderName(holder)" />
-            <Text testID="holder-zones" class="text-xs text-slate-500" :text="holderZones(holder)" />
+            <Text class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="holderName(holder)" />
+            <Text testID="holder-zones" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="holderZones(holder)" />
           </View>
           <Text testID="holder-area" class="text-sm font-semibold text-slate-200" :text="holderArea(holder)" />
         </View>

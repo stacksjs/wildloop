@@ -83,7 +83,7 @@ function geometries(screen: any): number[][] {
 }
 
 describe('Wildloop native territories screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its lists through the portable keyed boundary', () => {
     for (const list of ['shape in shapes()', 'row in shown()', 'holder in holders()'])

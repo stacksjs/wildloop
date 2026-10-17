@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroEnvironment, maestroReportSummary, parseAdbDevices, requestedPlatform, resolveJavaHome, selectAndroidDeepLinkActivity, selectAndroidHomePackage, selectIosSimulator, signedInTargetURL, validateAnalyticsScriptCount, validateBundledFrontend, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
+import { deepLinkFlow, maestroEnvironment, maestroReportSummary, parseAdbDevices, requestedPlatform, resolveJavaHome, selectAndroidDeepLinkActivity, selectAndroidHomePackage, selectIosSimulator, signedInTargetURL, validateAnalyticsScriptCount, validateBundledFrontend, validateGeneratedNativeApp, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, requiredIosAppPaths, requiresDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
@@ -160,9 +160,9 @@ describe('mobile E2E runner', () => {
     expect(flow).toContain('- pressKey: Home')
     expect(flow).toContain('stopApp: false')
     expect(flow).toContain('- stopApp')
-    expect(flow).toContain('Recovered your in-progress activity')
-    expect(flow).toContain('Resume recording')
-    expect(flow).toContain('Finish recording')
+    expect(flow).toContain('Your recording has been recovered from this device.')
+    expect(flow).toContain('^Resume$')
+    expect(flow).toContain('id: record-finish')
   })
 
   it('reads failures from Maestro JUnit even when its process exits successfully', () => {
@@ -265,19 +265,30 @@ describe('mobile E2E runner', () => {
     expect(() => validateAnalyticsScriptCount(output)).toThrow('Built index.html loads analytics 2 times')
   })
 
+
+  it('rejects a web-only product or a local SDK override before native QA', () => {
+    const output = mkdtempSync(join(tmpdir(), 'wildloop-native-product-'))
+    writeFileSync(join(output, 'stacks-mobile.json'), JSON.stringify({builder:{source:'path'},source:{kind:'native'}}))
+    writeFileSync(join(output, 'craft.config.json'), JSON.stringify({renderer:'native'}))
+    expect(()=>validateGeneratedNativeApp(output)).toThrow('installed published Craft package')
+    writeFileSync(join(output, 'stacks-mobile.json'), JSON.stringify({builder:{source:'package'},source:{kind:'bundled'}}))
+    expect(()=>validateGeneratedNativeApp(output)).toThrow('native renderer')
+  })
+
   it('locates the bundled iOS entry point before simulator installation', () => {
     const root = mkdtempSync(join(tmpdir(), 'wildloop-ios-app-'))
     const resources = join(root, 'Wildloop.app', 'dist')
     mkdirSync(resources, { recursive: true })
-    writeFileSync(join(resources, 'index.html'), '<main>Wildloop</main>')
+    writeFileSync(join(resources, 'native-screen.js'), 'native bundle')
+    writeFileSync(join(root, 'Wildloop.app', 'craft.config.json'), JSON.stringify({renderer:'native'}))
 
-    expect(validateIosAppBundle(join(root, 'Wildloop.app'))).toBe(join(resources, 'index.html'))
+    expect(validateIosAppBundle(join(root, 'Wildloop.app'))).toBe(join(resources, 'native-screen.js'))
   })
 
   it('rejects an iOS app product with no bundled entry point', () => {
     const root = mkdtempSync(join(tmpdir(), 'wildloop-empty-app-'))
     mkdirSync(join(root, 'Wildloop.app'), { recursive: true })
 
-    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('missing its bundled index.html')
+    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('missing its native-screen.js')
   })
 })

@@ -1,0 +1,201 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import type { RoutePair } from '../functions/trail-geometry'
+import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
+import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { nativeUi as ui } from '../functions/native-ui'
+import { decodeRouteParts } from '../functions/trail-geometry'
+import { toPlaceResult } from '../composables/usePlaceSearch'
+import { trailSegmentMiles } from '../functions/trail-map'
+import { exportNativeGpx } from '../functions/native-export'
+import { encodePolyline } from '../functions/polyline'
+
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const rows = state<any[]>([])
+const name = state('')
+const savedId = state(0)
+const legs = state<RoutePair[][]>([])
+const first = state<RoutePair | null>(null)
+const followPaths = state(true)
+const busy = state(false)
+const error = state('')
+const notice = state('')
+const query = state('')
+const places = state<any[]>([])
+const seedParts = state<RoutePair[][]>([])
+const selectedPart = state(0)
+const region = state<any>(null)
+const mapType = state('outdoors')
+const basemap = derived(() => nativeBasemap(mapType()))
+const pitch = state(0)
+const elevation = state<number | null>(null)
+const points = derived<RoutePair[]>(() => legs().length ? [legs()[0][0], ...legs().flatMap(leg => leg.slice(1))] : first() ? [first()!] : [])
+const distance = derived(() => points().slice(1).reduce((sum, point, index) => sum + trailSegmentMiles(points()[index], point), 0))
+let alive = true
+let accountGeneration = 0
+let editGeneration = 0
+
+function reset() {
+  editGeneration++
+  savedId.set(0); name.set(''); first.set(null); legs.set([]); elevation.set(null); seedParts.set([])
+}
+async function load() {
+  const generation = accountGeneration
+  try {
+    const api = createNativeApi(craft)
+    if (!await api.readToken()) { if (alive && generation === accountGeneration) rows.set([]); return }
+    const response = await api.send('/api/custom-routes')
+    if (!response.ok) throw new Error('Saved routes could not be loaded. Pull down to retry.')
+    if (alive && generation === accountGeneration) rows.set(response.body.routes ?? [])
+  }
+  catch (cause) { if (alive && generation === accountGeneration) error.set(cause instanceof Error ? cause.message : 'Saved routes could not be loaded.') }
+}
+async function search() {
+  if (query().trim().length < 2) { places.set([]); return }
+  try {
+    const response = await createNativeApi(craft).send(`/api/geo/search?q=${encodeURIComponent(query().trim())}&limit=6`)
+    if (!response.ok) throw new Error('Place search is unavailable. You can still pan the map.')
+    if (alive) places.set((response.body.results ?? []).map(toPlaceResult).filter(Boolean))
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'Place search failed.') }
+}
+function choosePlace(place: any) {
+  region.set({center:{latitude:place.lat,longitude:place.lng},span:{latitudeDelta:0.025,longitudeDelta:0.025}})
+  places.set([])
+}
+async function locate() {
+  try {
+    if (!craft.location) throw new Error('Location is unavailable in this app build.')
+    const point = await craft.location.getCurrentPosition({enableHighAccuracy:true,timeout:15000})
+    region.set({center:{latitude:point.latitude,longitude:point.longitude},span:{latitudeDelta:0.025,longitudeDelta:0.025}})
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your position could not be found.') }
+}
+async function add(event: any) {
+  const point: RoutePair = [Number(event?.latitude), Number(event?.longitude)]
+  if (busy() || !Number.isFinite(point[0]) || !Number.isFinite(point[1]) || Math.abs(point[0]) > 90 || Math.abs(point[1]) > 180) return
+  if (!first()) { first.set(point); notice.set('Start placed. Tap the map to add the next waypoint.'); return }
+  const from = points().at(-1)!
+  if (trailSegmentMiles(from, point) < 0.003) return
+  const generation = ++editGeneration
+  busy.set(true); error.set('')
+  try {
+    let line: RoutePair[] = [from, point]
+    if (followPaths()) {
+      const response = await createNativeApi(craft).send(`/api/geo/path?from=${from.join(',')}&to=${point.join(',')}`)
+      if (!response.ok || !response.body.routed || !Array.isArray(response.body.points))
+        throw new Error(`${response.body?.reason || 'No walking path could be found'}. Choose closer points, or explicitly turn off Follow paths to draw a straight segment.`)
+      line = response.body.points
+    }
+    if (!alive || generation !== editGeneration) return
+    legs.set([...legs(),line]); elevation.set(null)
+    notice.set(followPaths() ? 'Waypoint added along walking paths.' : 'Straight segment added. Check access and terrain before you go.')
+  }
+  catch (cause) { if (alive && generation === editGeneration) error.set(cause instanceof Error ? cause.message : 'The waypoint could not be added.') }
+  finally { if (alive) busy.set(false) }
+}
+function undo() {
+  if (busy()) return
+  editGeneration++; elevation.set(null)
+  if (legs().length) legs.set(legs().slice(0,-1))
+  else first.set(null)
+}
+async function clear() {
+  if (busy()) return
+  if (points().length && !await craft.dialog?.confirm({title:'Clear this route?',message:'Unsaved changes will be lost.',confirmLabel:'Clear route',destructive:true})) return
+  reset()
+}
+function openRoute(row: any) {
+  if (busy()) return
+  reset(); savedId.set(row.id); name.set(row.name); first.set(row.route[0]); legs.set([row.route]); elevation.set(row.elevation ?? null); region.set(null)
+}
+function selectSeed(index: number) {
+  const line = seedParts()[index]
+  if (!line) return
+  selectedPart.set(index); first.set(line[0]); legs.set([line]); elevation.set(null); region.set(null)
+}
+async function seed() {
+  const id = Number(craft.route.params.trail)
+  if (!id) return
+  try {
+    const response = await createNativeApi(craft).send(`/api/trails/${id}`)
+    if (!response.ok) throw new Error('The trail could not be loaded for customization.')
+    const row = response.body.trail
+    const parts = [...decodeRouteParts(row.geometry), ...(Array.isArray(row.pieceRoutes) ? row.pieceRoutes : [])].filter(part=>part.length>1)
+    if (!parts.length) throw new Error('This trail has no recorded route to customize. Tap the map to draw your own.')
+    seedParts.set(parts); name.set(row.name); selectSeed(0)
+    notice.set(parts.length > 1 ? 'This trail has separate sections. Choose the section to customize; gaps are never joined.' : 'Trail loaded. Tap to extend it, or save your own copy.')
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The trail could not be loaded.') }
+}
+async function save() {
+  if (busy()) return
+  const api = createNativeApi(craft)
+  if (!await api.readToken()) { craft.navigation.open('/login?next=/routes'); return }
+  if (!name().trim() || points().length < 2) { error.set('Give your route a name and add at least two points.'); return }
+  busy.set(true); error.set('')
+  try {
+    // Sample at most 200 recorded points for a bounded elevation request.
+    const line = points().filter((_,index)=>index===0 || index===points().length-1 || index % Math.max(1,Math.ceil(points().length/198))===0)
+    const climb = await api.send(`/api/geo/climb?path=${encodeURIComponent(encodePolyline(line))}`).catch(()=>null)
+    elevation.set(typeof climb?.body?.gainFt === 'number' ? climb.body.gainFt : null)
+    const response = await api.send(savedId() ? `/api/custom-routes/${savedId()}` : '/api/custom-routes', savedId() ? 'PATCH' : 'POST', {name:name().trim(),route:points(),elevation:elevation()})
+    if (!response.ok) throw new Error(response.body?.error || 'The route could not be saved.')
+    savedId.set(response.body.route.id); notice.set(elevation() === null ? 'Route saved. Elevation is unavailable right now.' : 'Route saved.'); await load()
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The route could not be saved.') }
+  finally { busy.set(false) }
+}
+async function remove(row: any) {
+  if (busy() || !await craft.dialog?.confirm({title:'Delete saved route?',message:row.name,confirmLabel:'Delete route',destructive:true})) return
+  busy.set(true)
+  try {
+    const response = await createNativeApi(craft).send(`/api/custom-routes/${row.id}`,'DELETE')
+    if (!response.ok) throw new Error('The saved route could not be deleted.')
+    if (savedId() === row.id) reset()
+    await load(); notice.set('Route deleted.')
+  }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The route could not be deleted.') }
+  finally { busy.set(false) }
+}
+async function exportRoute() {
+  try { await exportNativeGpx(craft,name().trim() || 'Wildloop route',[points()]) }
+  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The GPX could not be exported.') }
+}
+onMount(()=>{craft.navigation.setOptions({title:'Route planner',largeTitle:true});void load();void seed();const appear=craft.navigation.onAppear(()=>{void load()});return()=>{alive=false;editGeneration++;appear()}})
+onMount(()=>onNativeAccountChange(craft,()=>{accountGeneration++;editGeneration++;rows.set([]);reset();void load()}))
+</script>
+<View :class="ui.screen">
+  <ScrollView class="flex-1" @refresh="load()" keyboardDismissMode="on-drag" testID="native-routes">
+    <View :class="ui.card" class="mt-4 gap-2">
+      <Text :class="ui.title">Make your own route</Text>
+      <Text :class="ui.caption">Find a place, then tap the map to add waypoints.</Text>
+      <View class="flex-row gap-2"><TextInput testID="route-search" :class="ui.input" class="flex-1" placeholder="Search a town or park" :value="query" @input="query.set($event.text)" /><Button testID="route-find" @click="search()">Find</Button></View>
+      <Button :for="(place,index) in places()" :key="index" :text="place.name + (place.country ? ', ' + place.country : '')" @click="choosePlace(place)" />
+      <View class="flex-row justify-between items-center"><Text :class="ui.body">Follow paths</Text><Switch testID="route-follow-paths" :value="followPaths" @change="followPaths.set($event.value)" /></View>
+      <Text :show="!followPaths()" :class="ui.caption">Straight segments do not establish a walkable or accessible route.</Text>
+    </View>
+    <Map testID="route-builder-map" class="h-[420px] mx-4 mt-3 rounded-[12px]" :region="region()" :fitToBounds="region() === null && points().length > 1" :initialRegion="points().length < 2 ? {center:{latitude:39.5,longitude:-98.35},span:{latitudeDelta:30,longitudeDelta:60}} : null" :showsCompass="true" :showsScale="true" :cameraPitch="pitch" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" @click="add($event)" @region-change-complete="region.set({center:$event.center,span:$event.span})">
+      <MapPolyline testID="route-builder-line" :show="points().length > 1" id="custom-route" :geometry="points().flat()" strokeColor="#24724b" :strokeWidth="5" />
+      <MapMarker :show="first()" id="route-start" :geometry="first()" title="Route start" />
+      <MapMarker :for="(leg,index) in legs()" :key="index" :id="'waypoint-' + index" :geometry="leg.at(-1)" :title="'Waypoint ' + (index + 2)" />
+    </Map>
+    <View :class="ui.card" class="mt-3 gap-3">
+      <Text :text="distance().toFixed(2) + ' mi' + (elevation() === null ? '' : ' · ' + Math.round(elevation()) + ' ft gain')" :class="ui.title" />
+      <Picker :show="seedParts().length > 1" accessibilityLabel="Trail section" :value="selectedPart" :options="seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index}))" @change="selectSeed(Number($event.value))" />
+      <View class="flex-row flex-wrap gap-2"><Button testID="route-undo" :disabled="busy" @click="undo()">Undo</Button><Button testID="route-loop" :disabled="busy || points().length < 2" @click="add({latitude:first()?.[0],longitude:first()?.[1]})">Close loop</Button><Button testID="route-clear" :disabled="busy" @click="clear()">Clear</Button><Button @click="region.set(null)">Fit route</Button><Button @click="locate()">My location</Button><Button :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" /></View>
+      <Picker accessibilityLabel="Map layer" :value="mapType" :options="nativeBasemapOptions" @change="mapType.set($event.value)" />
+      <TextInput testID="route-name" :class="ui.input" placeholder="Route name" :value="name" :maxLength="200" @input="name.set($event.text)" />
+      <Text :show="error" :text="error" :class="ui.danger" testID="route-error" /><Text :show="notice" :text="notice" :class="ui.caption" testID="route-notice" />
+      <ActivityIndicator :show="busy" />
+      <Button testID="route-save" :disabled="busy" :class="ui.action" @click="save()"><Text :class="ui.actionText" :text="savedId() ? 'Update saved route' : 'Save route'" /></Button>
+      <Button testID="route-export" :disabled="busy || points().length < 2" @click="exportRoute()">Export GPX</Button>
+      <Button :show="savedId()" @click="craft.navigation.open('/plans?route=' + savedId())">Plan a visit</Button>
+    </View>
+    <Text :class="ui.header">Saved routes</Text>
+    <View :class="ui.card" class="mb-6 gap-3">
+      <Text :show="!rows().length" :class="ui.caption">Your saved routes will appear here when you are signed in.</Text>
+      <View :for="row in rows()" :key="row.id" class="gap-2 py-2"><Text :text="row.name" :class="ui.title" /><Text :text="Number(row.distance).toFixed(1) + ' mi'" :class="ui.caption" /><View class="flex-row gap-4"><Button @click="openRoute(row)">Edit</Button><Button @click="craft.navigation.open('/plans?route=' + row.id)">Plan a visit</Button><Button :class="ui.danger" :disabled="busy" @click="remove(row)">Delete</Button></View></View>
+    </View>
+  </ScrollView>
+</View>

@@ -1,0 +1,138 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
+import { readNativeAccount } from '../functions/native-session'
+import { nativeUi as ui } from '../functions/native-ui'
+import { addDays, localDate, planDirections, PLAN_ACTIVITIES, planReminderBody, validateTripPlan, type TripPlan } from '../functions/trip-plans'
+const craft=(globalThis as typeof globalThis & {craft:NativeCraft}).craft
+const rows=state<TripPlan[]>([])
+const loading=state(true)
+const busy=state(false)
+const error=state('')
+const notice=state('')
+const editing=state(false)
+const id=state(0)
+const title=state('')
+const date=state('')
+const time=state('')
+const notes=state('')
+const activity=state('Hike')
+const latitude=state('')
+const longitude=state('')
+const trailId=state<number|null>(null)
+const customRouteId=state<number|null>(null)
+let alive=true
+let owner=0
+function zone(): string {try{return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}catch{return 'UTC'}}
+function today():string{return localDate(zone())}
+async function remind(plan:TripPlan) {
+  const when=new Date(`${addDays(plan.planned_for,-1)}T18:00:00`).getTime()
+  await craft.notifications?.cancel(`wildloop-plan-${plan.id}`)
+  if (when <= Date.now() || !craft.notifications) return
+  // Request permission only when the person chooses a reminder.
+  await craft.notifications.schedule({id:`wildloop-plan-${plan.id}`,title:'Your Wildloop plan',body:planReminderBody(plan),delay:when-Date.now()})
+  notice.set('Reminder scheduled for 6 pm on the evening before your plan.')
+}
+let loadVersion = 0
+async function load() {
+  const currentLoad = ++loadVersion
+  loading.set(true);error.set('')
+  const api=createNativeApi(craft)
+  try{
+    const account=await readNativeAccount(craft)
+    owner=account?.id ?? 0
+    const cached=await craft.storage.get<{userId:number,plans:TripPlan[]}>('wildloop-native-plans')
+    if(owner && cached?.userId===owner && alive)rows.set(cached.plans)
+    const me=await api.send('/api/me')
+    if(!me.ok){rows.set([]);owner=0;return}
+    owner=Number(me.body.user.id)
+    const response=await api.send('/api/plans')
+    if(!response.ok)throw new Error('Plans could not be refreshed. Your saved device copy is shown.')
+    if (!alive || currentLoad !== loadVersion)return
+    rows.set((response.body.plans ?? []).slice().sort((a:TripPlan,b:TripPlan)=>a.planned_for.localeCompare(b.planned_for)))
+    await craft.storage.set('wildloop-native-plans',{userId:owner,plans:rows()})
+  }
+  catch(cause){if (alive && currentLoad === loadVersion)error.set(cause instanceof Error?cause.message:'Plans could not be loaded.')}
+  finally{if (alive && currentLoad === loadVersion)loading.set(false)}
+}
+async function edit(plan?:TripPlan){
+  try {
+  id.set(plan?.id ?? 0);title.set(plan?.title ?? '');date.set(plan?.planned_for ?? today());time.set(plan?.start_time ?? '')
+  notes.set(plan?.notes ?? '');activity.set(plan?.activity_type ?? 'Hike');latitude.set(plan ? String(plan.latitude):'');longitude.set(plan ? String(plan.longitude):'');trailId.set(plan?.trail_id ?? null);customRouteId.set(plan?.custom_route_id ?? null)
+  const wanted=Number(craft.route.params.trail)
+  if(!plan && wanted){
+    const response=await createNativeApi(craft).send(`/api/trails/${wanted}`)
+    if(response.ok){const row=response.body.trail;title.set(row.name);latitude.set(String(row.lat ?? row.latitude));longitude.set(String(row.lng ?? row.longitude));trailId.set(wanted)}
+  }
+  const route=Number(craft.route.params.route)
+  if(!plan && route){
+    const response=await createNativeApi(craft).send('/api/custom-routes')
+    const row=response.body?.routes?.find((item:any)=>item.id===route)
+    if(row?.route?.length){title.set(row.name);latitude.set(String(row.route[0][0]));longitude.set(String(row.route[0][1]));customRouteId.set(route);trailId.set(null)}
+    else {error.set('This saved route could not be loaded.');return}
+  }
+  error.set('');editing.set(true)
+  } catch(cause) { error.set(cause instanceof Error ? cause.message : 'The plan could not be opened.') }
+}
+async function save(){
+  if(busy())return
+  const api=createNativeApi(craft)
+  if(!await api.readToken()){craft.navigation.open('/login?next=/plans');return}
+  const input={title:title(),planned_for:date(),start_time:time()||null,timezone:zone(),activity_type:activity(),notes:notes(),latitude:latitude().trim() ? Number(latitude()) : NaN,longitude:longitude().trim() ? Number(longitude()) : NaN,trail_id:trailId(),custom_route_id:customRouteId()}
+  const checked=validateTripPlan(input,{today:today()})
+  if(Object.keys(checked.fields).length){error.set(Object.values(checked.fields).join('. '));return}
+  busy.set(true);error.set('')
+  try{
+    const response=await api.send(id()?`/api/plans/${id()}`:'/api/plans',id()?'PATCH':'POST',input)
+    if(!response.ok)throw new Error(Object.values(response.body?.fields??{}).flat().join('. ')||response.body?.error||'The plan could not be saved.')
+    editing.set(false);notice.set('Plan saved.');await load()
+  }catch(cause){error.set(cause instanceof Error?cause.message:'The plan could not be saved.')}
+  finally{busy.set(false)}
+}
+async function remove(plan:TripPlan){
+  if(busy() || !await craft.dialog?.confirm({title:'Cancel this plan?',message:plan.title,confirmLabel:'Cancel plan',destructive:true}))return
+  busy.set(true)
+  try{
+    const response=await createNativeApi(craft).send(`/api/plans/${plan.id}`,'DELETE')
+    if(!response.ok)throw new Error('The plan could not be cancelled.')
+    await craft.notifications?.cancel(`wildloop-plan-${plan.id}`);await load();notice.set('Plan cancelled.')
+  }catch(cause){error.set(cause instanceof Error?cause.message:'The plan could not be cancelled.')}
+  finally{busy.set(false)}
+}
+async function directions(plan:TripPlan){const links=planDirections(plan);if(links)await craft.linking?.openURL(craft.platform==='ios'?links.apple:links.google)}
+async function reminder(plan:TripPlan){try{await remind(plan)}catch(cause){error.set(cause instanceof Error?cause.message:'The reminder could not be scheduled.')}}
+onMount(()=>{craft.navigation.setOptions({title:'Plans',largeTitle:true});void load();if(Number(craft.route.params.trail) || Number(craft.route.params.route))void edit();const appear=craft.navigation.onAppear(()=>{void load()});return()=>{alive=false;appear()}})
+onMount(()=>craft.route.onParams(()=>{if(Number(craft.route.params.trail) || Number(craft.route.params.route))void edit()}))
+onMount(()=>onNativeAccountChange(craft,()=>{rows.set([]);editing.set(false);owner=0;void load()}))
+</script>
+<View :class="ui.screen">
+  <ScrollView class="flex-1 pb-6" :refreshing="loading" @refresh="load()" testID="native-plans">
+    <Button :class="ui.action" class="m-4" testID="plan-new" @click="edit()"><Text :class="ui.actionText">Plan a visit</Text></Button>
+    <Text :show="error" :text="error" :class="ui.danger" class="m-4" testID="plan-error" />
+    <Text :show="notice" :text="notice" :class="ui.body" class="m-4" />
+    <Text :show="!loading() && !rows().length" :class="ui.caption" class="m-4">Your upcoming trail days will appear here.</Text>
+    <View :for="plan in rows()" :key="plan.id" :class="ui.card" class="mt-4 gap-3">
+      <Text :text="plan.title" :class="ui.title" /><Text :text="plan.planned_for + (plan.start_time ? ' at ' + plan.start_time : '')" :class="ui.body" />
+      <Text :show="plan.notes" :text="plan.notes" :class="ui.caption" />
+      <Button :show="plan.trail_id" @click="craft.navigation.open('/trail/' + plan.trail_id)">View trail</Button>
+      <Button :testID="'plan-directions-' + plan.id" @click="directions(plan)">Get directions</Button><Button :testID="'plan-reminder-' + plan.id" @click="reminder(plan)">Remind me the evening before</Button>
+      <View class="flex-row gap-4"><Button :testID="'plan-edit-' + plan.id" @click="edit(plan)">Edit plan</Button><Button :testID="'plan-delete-' + plan.id" :disabled="busy" :class="ui.danger" @click="remove(plan)">Cancel plan</Button></View>
+    </View>
+  </ScrollView>
+  <Modal :visible="editing" presentationStyle="pageSheet" @requestClose="editing.set(false)">
+    <KeyboardAvoidingView :class="ui.screen"><ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
+      <Text :class="ui.title" :text="id() ? 'Edit your plan' : 'Plan a visit'" />
+      <Text :class="ui.caption" class="mt-4">Name</Text><TextInput testID="plan-title" :class="ui.input" :value="title" @input="title.set($event.text||'')" />
+      <Text :class="ui.caption" class="mt-4">Date</Text><DatePicker testID="plan-date" mode="date" display="compact" :value="date" :minimumDate="today()" @change="date.set(String($event.value).slice(0,10))" />
+      <Text :class="ui.caption" class="mt-4">Start time (optional, HH:MM)</Text><TextInput testID="plan-time" :class="ui.input" :value="time" @input="time.set($event.text||'')" />
+      <Text :class="ui.caption" class="mt-4">Activity</Text><Picker :value="activity" :options="PLAN_ACTIVITIES.map(value=>({value,label:value}))" @change="activity.set($event.value)" />
+      <Text :class="ui.caption" class="mt-4">Trailhead latitude and longitude</Text>
+      <TextInput testID="plan-latitude" accessibilityLabel="Latitude" :class="ui.input" :value="latitude" keyboardType="numbers-and-punctuation" @input="latitude.set($event.text||'')" />
+      <TextInput testID="plan-longitude" accessibilityLabel="Longitude" :class="ui.input" :value="longitude" keyboardType="numbers-and-punctuation" @input="longitude.set($event.text||'')" />
+      <Button @click="craft.navigation.open('/trails')">Choose a trail</Button>
+      <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="plan-notes" :class="ui.input" :multiline="true" :value="notes" @input="notes.set($event.text||'')" />
+      <Text :show="error" :text="error" :class="ui.danger" class="my-4" />
+      <Button testID="plan-save" :disabled="busy" :class="ui.action" @click="save()"><Text :class="ui.actionText">Save plan</Text></Button><Button class="mt-3" @click="editing.set(false)">Close</Button>
+    </ScrollView></KeyboardAvoidingView>
+  </Modal>
+</View>

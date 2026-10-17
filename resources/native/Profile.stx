@@ -1,0 +1,82 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { nativeUi as ui } from '../functions/native-ui'
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const user = state<any>(null)
+const profile = state<any>(null)
+const saved = state<any[]>([])
+const activities = state<any[]>([])
+const tab = state(craft.route.params.tab==='saved'?'saved':'activities')
+const loading = state(true)
+const error = state('')
+let alive = true
+let loadVersion = 0
+async function load() {
+  const currentLoad = ++loadVersion
+  loading.set(true)
+  error.set('')
+  try {
+    const api = createNativeApi(craft)
+    if (!await api.readToken()) { user.set(null); return }
+    const me = await api.send('/api/me')
+    if (!me.ok) throw new Error('Your session has expired. Log in again.')
+    if (!alive || currentLoad !== loadVersion) return
+    user.set(me.body.user)
+    const id = Number(me.body.user.id)
+    const results = await Promise.all([api.send(`/api/users/${id}`), api.send(`/api/users/${id}/saved-trails?limit=200`), api.send(`/api/activities?user_id=${id}&limit=100`)])
+    if (!alive || currentLoad !== loadVersion) return
+    if (results.some(response => !response.ok)) throw new Error('Some profile details could not be loaded. Pull down to retry.')
+    profile.set(results[0].body)
+    saved.set(results[1].body.savedTrails ?? [])
+    activities.set(results[2].body.activities ?? [])
+  }
+  catch (cause) { if (alive && currentLoad === loadVersion) error.set(cause instanceof Error ? cause.message : 'Your profile could not be loaded.') }
+  finally { if (alive && currentLoad === loadVersion) loading.set(false) }
+}
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Your profile', largeTitle: true, rightButtons: [{id:'settings',symbol:'gearshape',accessibilityLabel:'Settings'}] })
+  const params=craft.route.onParams(next=>{tab.set(next.tab==='saved'?'saved':'activities');void load()})
+  const stop = craft.navigation.onButton(() => craft.navigation.open('/settings'))
+  const appear = craft.navigation.onAppear(() => { void load() })
+  void load()
+  return () => { alive = false; params(); stop(); appear() }
+})
+onMount(() => onNativeAccountChange(craft, () => { user.set(null); profile.set(null); saved.set([]); activities.set([]); void load() }))
+</script>
+<View :class="ui.screen">
+  <ScrollView class="flex-1 pb-6" :refreshing="loading" @refresh="load()" testID="native-profile">
+    <ActivityIndicator :show="loading" />
+    <Text :show="error" :text="error" :class="ui.danger" class="m-4" />
+    <View :show="!user() && !loading()" :class="ui.card" class="mt-4">
+      <Text :class="ui.title">Your miles, trails, and territory</Text>
+      <Button :class="ui.action" @click="craft.navigation.open('/login?next=/profile')"><Text :class="ui.actionText">Log in</Text></Button>
+    </View>
+    <View :show="user()">
+      <View :class="ui.card" class="mt-4 gap-3">
+        <Image :show="user()?.avatar" :source="{uri:String(user()?.avatar ?? '').startsWith('/') ? nativeApiOrigin(craft)+user()?.avatar : user()?.avatar}" class="h-20 w-20 rounded-full" />
+        <Text :text="user()?.name || ''" :class="ui.title" />
+        <Text :show="user()?.bio" :text="user()?.bio || ''" :class="ui.body" />
+        <Text :show="user()?.location" :text="user()?.location || ''" :class="ui.caption" />
+        <Text :show="profile()" :text="(profile()?.stats?.activityCount || 0) + ' activities · ' + (profile()?.stats?.totalDistance || 0) + ' mi · ' + (profile()?.stats?.territoriesOwned || 0) + ' territories'" :class="ui.body" />
+        <Button :class="ui.secondary" @click="craft.navigation.open('/settings')">Edit profile</Button>
+        <Button :class="ui.secondary" @click="craft.navigation.open('/athlete/' + user().id)">View public profile</Button>
+      </View>
+      <Picker class="mx-4 mt-4" accessibilityLabel="Profile section" :value="tab" :options="[{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}]" @change="tab.set($event.value)" />
+      <View :show="tab() === 'activities'">
+        <Text :show="!activities().length" :class="ui.caption" class="m-4">No activities yet. Record one or log a past activity.</Text>
+        <Pressable :for="activity in activities()" :key="activity.id" :class="ui.card" class="mt-3 gap-2" @click="craft.navigation.open('/activity/' + activity.id)">
+          <Text :text="activity.title || activity.activityType" :class="ui.title" />
+          <Text :text="activity.distance + ' mi · ' + activity.duration" :class="ui.body" />
+        </Pressable>
+      </View>
+      <View :show="tab() === 'saved'">
+        <Text :show="!saved().length" :class="ui.caption" class="m-4">Save a trail to find it here before your next visit.</Text>
+        <Pressable :for="entry in saved()" :key="entry.trailId" :class="ui.card" class="mt-3 gap-2" @click="craft.navigation.open('/trail/' + entry.trailId)">
+          <Text :text="entry.trail.name" :class="ui.title" />
+          <Text :text="entry.trail.location + ' · ' + entry.trail.distance + ' mi'" :class="ui.caption" />
+        </Pressable>
+      </View>
+    </View>
+  </ScrollView>
+</View>

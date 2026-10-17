@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import { formatTerritoryArea } from '../functions/territory-style'
 import {
   BATTLE_PERIOD_LABELS,
@@ -90,12 +90,14 @@ function openTerritory(battle: any): void {
   craft.navigation.open(`/territory/${battle.territory_id}`)
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     const result = await api.send(battlesPath())
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     if (!result.ok)
       throw new Error('Could not load the battle feed')
@@ -103,11 +105,11 @@ async function load(): Promise<void> {
     rows.set(battleRowsFrom(result.body))
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load the battle feed')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -120,46 +122,47 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="battles-scroll">
-    <Text class="mt-1 text-sm text-slate-400">Ground changing hands across the game.</Text>
+    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Ground changing hands across the game.</Text>
 
     <ActivityIndicator :show="loading" testID="battles-loading" class="mt-6" />
-    <Text :show="error" testID="battles-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="battles-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
 
     <View :show="!loading() && !error()" testID="battles-body" class="mt-5 gap-4">
       <View class="gap-2">
-        <Text testID="battles-period" class="text-xs font-semibold uppercase text-slate-500" :text="periodName()" />
+        <Text testID="battles-period" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="periodName()" />
         <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Live</Text>
-          <Text testID="battles-live" class="text-base font-semibold text-white" :text="liveText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Live</Text>
+          <Text testID="battles-live" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="liveText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Taken</Text>
-          <Text testID="battles-conquered" class="text-2xl font-bold text-white" :text="conqueredText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Taken</Text>
+          <Text testID="battles-conquered" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="conqueredText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Held</Text>
-          <Text testID="battles-defended" class="text-2xl font-bold text-white" :text="defendedText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Held</Text>
+          <Text testID="battles-defended" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="defendedText()" />
         </View>
       </View>
 
-      <Text :show="shown().length === 0" testID="battles-empty" class="mt-2 text-sm text-slate-400" :text="emptyText()" />
+      <Text :show="shown().length === 0" testID="battles-empty" class="mt-2 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyText()" />
 
       <View :show="shown().length > 0" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">What is happening</Text>
-        <Pressable :for="battle in shown()" :key="battle.id" testID="battle-row" @click="openTerritory(battle)" class="gap-1 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">What is happening</Text>
+        <Pressable :for="battle in shown()" :key="battle.id" testID="battle-row" @click="openTerritory(battle)" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm text-white" :text="lineText(battle)" />
-            <Text testID="battle-badge" class="text-xs text-slate-400" :text="badgeText(battle)" />
+            <Text class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="lineText(battle)" />
+            <Text testID="battle-badge" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="badgeText(battle)" />
           </View>
-          <Text testID="battle-ground" class="text-xs text-slate-500" :text="groundText(battle)" />
+          <Text testID="battle-ground" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="groundText(battle)" />
         </Pressable>
       </View>
     </View>

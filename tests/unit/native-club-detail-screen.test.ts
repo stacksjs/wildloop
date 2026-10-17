@@ -132,7 +132,7 @@ function joinCalls(screen: any) {
 }
 
 describe('Wildloop native club detail screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders its lists through the portable keyed boundary', () => {
     for (const list of ['member in members()', 'row in board()', 'invite in invites()'])

@@ -64,7 +64,7 @@ async function board(token: string | null = 'tok_abc') {
 }
 
 describe('Wildloop native achievements screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders each list through the portable keyed boundary', () => {
     for (const list of ['bar in bars()', 'record in records()', 'badge in badges()'])

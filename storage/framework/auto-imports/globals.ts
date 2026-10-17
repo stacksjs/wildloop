@@ -280,7 +280,24 @@ declare global {
   const loadOutcome: typeof autoImports.loadOutcome
   const nativeApiOrigin: typeof autoImports.nativeApiOrigin
   const createNativeApi: typeof autoImports.createNativeApi
+  const onNativeAccountChange: typeof autoImports.onNativeAccountChange
   const WILDLOOP_ORIGIN: typeof autoImports.WILDLOOP_ORIGIN
+  const startNativeApp: typeof autoImports.startNativeApp
+  const nativeBasemap: typeof autoImports.nativeBasemap
+  const nativeOutdoorTiles: typeof autoImports.nativeOutdoorTiles
+  const nativeBasemapOptions: typeof autoImports.nativeBasemapOptions
+  const nativeDestination: typeof autoImports.nativeDestination
+  const nativeShortcutDestination: typeof autoImports.nativeShortcutDestination
+  const exportNativeGpx: typeof autoImports.exportNativeGpx
+  const nativeMapParts: typeof autoImports.nativeMapParts
+  const nativeRouteRegion: typeof autoImports.nativeRouteRegion
+  const nativeZoomRegion: typeof autoImports.nativeZoomRegion
+  const nativeOAuthCallback: typeof autoImports.nativeOAuthCallback
+  const nativeRecordingDuration: typeof autoImports.nativeRecordingDuration
+  const movingSeconds: typeof autoImports.movingSeconds
+  const recordingSamples: typeof autoImports.recordingSamples
+  const recordingFigures: typeof autoImports.recordingFigures
+  const recordingPayload: typeof autoImports.recordingPayload
   const returnToServerFromBundledCopy: typeof autoImports.returnToServerFromBundledCopy
   const serverPath: typeof autoImports.serverPath
   const serverURLFor: typeof autoImports.serverURLFor
@@ -288,6 +305,9 @@ declare global {
   const NATIVE_REMOTE_FILE: typeof autoImports.NATIVE_REMOTE_FILE
   const NATIVE_REMOTE_RETRY_MS: typeof autoImports.NATIVE_REMOTE_RETRY_MS
   const NATIVE_REMOTE_PROBE_TIMEOUT_MS: typeof autoImports.NATIVE_REMOTE_PROBE_TIMEOUT_MS
+  const readNativeAccount: typeof autoImports.readNativeAccount
+  const storeNativeSession: typeof autoImports.storeNativeSession
+  const clearNativeSession: typeof autoImports.clearNativeSession
   const nativeShellReady: typeof autoImports.nativeShellReady
   const whenNativeShell: typeof autoImports.whenNativeShell
   const activeTabFor: typeof autoImports.activeTabFor
@@ -329,6 +349,7 @@ declare global {
   const totalGainFt: typeof autoImports.totalGainFt
   const ALTITUDE_SMOOTHING: typeof autoImports.ALTITUDE_SMOOTHING
   const ALTITUDE_FLOOR_FT: typeof autoImports.ALTITUDE_FLOOR_FT
+  const mergeNativeLocationSamples: typeof autoImports.mergeNativeLocationSamples
   const orderRegions: typeof autoImports.orderRegions
   const regionDistanceLabel: typeof autoImports.regionDistanceLabel
   const reviewFormError: typeof autoImports.reviewFormError
@@ -429,6 +450,7 @@ declare global {
   const formatTerritoryArea: typeof autoImports.formatTerritoryArea
   const diffTerritories: typeof autoImports.diffTerritories
   const OWN_TERRITORY_COLOR: typeof autoImports.OWN_TERRITORY_COLOR
+  const routeToGeoJson: typeof autoImports.routeToGeoJson
   const conditionOption: typeof autoImports.conditionOption
   const conditionReports: typeof autoImports.conditionReports
   const activeDanger: typeof autoImports.activeDanger

@@ -168,20 +168,12 @@ describe('a bound geometry on MapPolyline', () => {
  * Separate from the conditional timing above, and here because this file is
  * the one about *when* things happen in a native screen.
  */
-describe('what the native scope does not offer', () => {
-  /*
-   * A timer is not promised by the runtime, so the fixture does not hand the
-   * bundle one. Putting it back re-arms a 30-second bridge timeout per request
-   * and brings back the intermittent `Request js_… timed out after 30000ms`
-   * that used to land on whichever file was running at the time — see the
-   * comment on `scope` in tests/fixtures/nativeScreen.ts.
-   */
-  it('gives the bundle no timer, as a host without one would not', async () => {
+describe('native timer fidelity', () => {
+  it('offers a deterministic repeating clock without arming unrelated request deadlines', async () => {
     const { compileNativeBundle: compile, start } = await import('../fixtures/nativeScreen')
     await compile()
     const session = await start('Stats')
-
     expect(session.scope.setTimeout).toBeUndefined()
-    expect(session.scope.setInterval).toBeUndefined()
+    expect(typeof session.scope.setInterval).toBe('function')
   })
 })

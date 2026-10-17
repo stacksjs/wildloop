@@ -10,12 +10,14 @@
     "@bughq/stacks": "^0.2.2",
     "@iconify-json/lucide": "^1.2.137",
     "@loghq/stacks": "^0.2.6",
-    "@stacksjs/composables": "^0.75.214",
-    "@stacksjs/mobile": "^0.75.177",
+    "@stacksjs/composables": "^0.75.219",
+    "@stacksjs/mobile": "^0.75.219",
+    "@stacksjs/stx": "^0.2.559",
     "@ts-analytics/tracking": "^0.1.17",
-    "stacks": "^0.75.177",
+    "craft-native": "^0.0.237",
+    "stacks": "^0.75.219",
     "ts-health": "^0.1.0",
-    "ts-maps": "^0.3.22",
+    "ts-maps": "^0.5.5",
     "ts-qr-codes": "^0.1.8",
     "ts-web-scraper": "^0.1.10"
   },
@@ -56,8 +58,8 @@
     "build": "bun build.ts",
     "build:frontend": "bun build.ts",
     "build:stacks": "./buddy build",
-    "build:android": "bun build.ts && ./buddy build:android",
-    "build:ios": "bun build.ts && ./buddy build:ios && bun scripts/write-native-remote.ts && bun scripts/generate-ios-shortcuts.ts",
+    "build:android": "bun scripts/build-mobile.ts android",
+    "build:ios": "bun scripts/build-mobile.ts ios",
     "preview": "./buddy preview",
     "start": "./buddy serve",
     "prod": "./buddy build",
@@ -117,8 +119,5 @@
   "type": "module",
   "devDependencies": {
     "@types/bun": "^1.4.2"
-  },
-  "overrides": {
-    "craft-native": "0.0.173"
   }
 }

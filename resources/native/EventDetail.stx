@@ -24,7 +24,7 @@ import {
   standingsFrom,
   stillInText,
 } from '../functions/events'
-import { createNativeApi, loadOutcome } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, loadOutcome } from '../functions/native-api'
 import { courseGeometry } from '../functions/route-records'
 import { pathIdFrom } from '../functions/route-id'
 
@@ -237,18 +237,20 @@ async function refresh(): Promise<void> {
   }
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     if (wanted === null) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         missing.set(true)
       return
     }
 
     const result = await api.send(eventPath(wanted))
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     // A record that does not exist is an answer, not a failure to load.
     const outcome = loadOutcome(result)
@@ -270,11 +272,11 @@ async function load(): Promise<void> {
     readAt.set(stamp())
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load this event')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -287,15 +289,16 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(null); mine.set({entered:false}); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="event-detail-scroll">
     <ActivityIndicator :show="loading" testID="event-loading" class="mt-6" />
-    <Text :show="error" testID="event-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="event-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
 
     <View :show="missing" testID="event-missing" class="mt-6 gap-3">
-      <Text class="text-lg font-semibold text-white">No such event</Text>
+      <Text class="text-lg font-semibold text-[#192414] dark:text-[#f0f5ec]">No such event</Text>
       <Button testID="back-to-events" @click="backToEvents()">See what is on</Button>
     </View>
 
@@ -303,31 +306,31 @@ onDestroy(() => {
 
     <View :show="event()" testID="event-body" class="gap-4">
       <View class="gap-1">
-        <Text testID="event-name" class="text-2xl font-bold text-white" :text="nameText()" />
-        <Text testID="event-when" class="text-sm text-slate-400" :text="whenText()" />
+        <Text testID="event-name" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="nameText()" />
+        <Text testID="event-when" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="whenText()" />
         <View class="mt-1 flex-row gap-2">
-          <Text testID="event-type" class="text-xs uppercase text-slate-500" :text="typeText()" />
-          <Text :show="placeText()" testID="event-place" class="text-xs text-slate-500" :text="placeText()" />
+          <Text testID="event-type" class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]" :text="typeText()" />
+          <Text :show="placeText()" testID="event-place" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="placeText()" />
         </View>
       </View>
 
-      <Text :show="aboutText()" testID="event-about" class="text-sm text-slate-300" :text="aboutText()" />
+      <Text :show="aboutText()" testID="event-about" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="aboutText()" />
 
       {{-- The corral clock. A still number, dated — the runtime promises no
            timer, and a frozen clock pretending to run is worse than this. --}}
-      <View :show="countdownText()" testID="event-corral" class="gap-1 rounded-xl bg-slate-900 p-3">
+      <View :show="countdownText()" testID="event-corral" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
         <Text testID="corral-clock" class="text-3xl font-bold text-emerald-400" :text="countdownText()" />
-        <Text testID="corral-note" class="text-xs text-slate-500" :text="countdownNote()" />
+        <Text testID="corral-note" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="countdownNote()" />
       </View>
 
       <View :show="isLive()" class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Yard</Text>
-          <Text testID="event-yard" class="text-lg font-bold text-white" :text="yardText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Yard</Text>
+          <Text testID="event-yard" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="yardText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Still in</Text>
-          <Text testID="event-still-in" class="text-lg font-bold text-white" :text="stillText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Still in</Text>
+          <Text testID="event-still-in" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="stillText()" />
         </View>
       </View>
 
@@ -337,28 +340,28 @@ onDestroy(() => {
 
       {{-- The loop, drawn open: it is a lap, and closing it would draw a leg
            nobody ran. --}}
-      <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-slate-900">
+      <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-white dark:bg-[#1b2c22]">
         <Map testID="event-map" class="flex-1" :fitToBounds="true" mapType="standard">
           <MapPolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>
 
       <View :show="standings().length > 0" testID="event-standings" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">The board</Text>
-        <Pressable :for="standing in standings()" :key="standing.userId" testID="event-standing" @click="openStanding(standing)" class="gap-1 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">The board</Text>
+        <Pressable :for="standing in standings()" :key="standing.userId" testID="event-standing" @click="openStanding(standing)" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm font-semibold text-white" :text="standingText(standing)" />
-            <Text testID="standing-status" class="text-xs text-slate-400" :text="standingStatus(standing)" />
+            <Text class="flex-1 text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="standingText(standing)" />
+            <Text testID="standing-status" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="standingStatus(standing)" />
           </View>
-          <Text testID="standing-yards" class="text-xs text-slate-500" :text="standingYards(standing)" />
+          <Text testID="standing-yards" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="standingYards(standing)" />
         </Pressable>
       </View>
 
       <View :show="laps().length > 0" testID="event-laps" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Last laps in</Text>
-        <View :for="lap in laps()" :key="lap.finishedAt" class="flex-row justify-between rounded-xl bg-slate-900 p-3">
-          <Text testID="lap-line" class="flex-1 text-sm text-white" :text="lapText(lap)" />
-          <Text testID="lap-clock" class="text-xs text-slate-400" :text="lapClock(lap)" />
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Last laps in</Text>
+        <View :for="lap in laps()" :key="lap.finishedAt" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text testID="lap-line" class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="lapText(lap)" />
+          <Text testID="lap-clock" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="lapClock(lap)" />
         </View>
       </View>
     </View>

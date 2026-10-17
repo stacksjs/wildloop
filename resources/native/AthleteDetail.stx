@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { createNativeApi, loadOutcome } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, loadOutcome } from '../functions/native-api'
 import {
   activityRoutePoints,
   athleteDistanceText,
@@ -268,12 +268,14 @@ function backToAthletes(): void {
   craft.navigation.push('Athletes', {})
 }
 
+let loadVersion = 0
 async function load(): Promise<void> {
+  const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
   try {
     if (wanted === null) {
-      if (active)
+      if (active && currentLoad === loadVersion)
         missing.set(true)
       return
     }
@@ -283,7 +285,7 @@ async function load(): Promise<void> {
       viewerId.set(Number(me.body.user.id))
 
     const result = await api.send(athletePath(wanted))
-    if (!active)
+    if (!active || currentLoad !== loadVersion)
       return
     // A record that does not exist is an answer, not a failure to load.
     const outcome = loadOutcome(result)
@@ -310,11 +312,11 @@ async function load(): Promise<void> {
       records.set(board.body.efforts)
   }
   catch (cause) {
-    if (active)
+    if (active && currentLoad === loadVersion)
       error.set(cause instanceof Error ? cause.message : 'Could not load this athlete')
   }
   finally {
-    if (active)
+    if (active && currentLoad === loadVersion)
       loading.set(false)
   }
 }
@@ -327,15 +329,16 @@ onMount(() => {
 onDestroy(() => {
   active = false
 })
+onMount(() => onNativeAccountChange(craft, () => { profile.set(null); records.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-slate-950">
+<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
   <ScrollView class="p-4" testID="athlete-detail-scroll">
     <ActivityIndicator :show="loading" testID="athlete-loading" class="mt-6" />
-    <Text :show="error" testID="athlete-error" class="mt-4 text-rose-300" :text="error" />
+    <Text :show="error" testID="athlete-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
 
     <View :show="missing" testID="athlete-missing" class="mt-6 gap-3">
-      <Text class="text-lg font-semibold text-white">No such athlete</Text>
+      <Text class="text-lg font-semibold text-[#192414] dark:text-[#f0f5ec]">No such athlete</Text>
       <Button testID="back-to-athletes" @click="backToAthletes()">See the directory</Button>
     </View>
 
@@ -343,80 +346,80 @@ onDestroy(() => {
 
     <View :show="profile()" testID="athlete-body" class="gap-4">
       <View class="gap-1">
-        <Text testID="athlete-name" class="text-2xl font-bold text-white" :text="nameText()" />
-        <Text :show="locationText()" testID="athlete-location" class="text-sm text-slate-400" :text="locationText()" />
-        <Text :show="bioText()" testID="athlete-bio" class="text-sm text-slate-300" :text="bioText()" />
+        <Text testID="athlete-name" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="nameText()" />
+        <Text :show="locationText()" testID="athlete-location" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="locationText()" />
+        <Text :show="bioText()" testID="athlete-bio" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="bioText()" />
       </View>
 
       <Button :show="!isSelf()" testID="athlete-follow" @click="toggleFollow()" :text="followText()" />
-      <Text :show="isSelf()" testID="athlete-self" class="text-xs uppercase text-slate-500">This is you</Text>
+      <Text :show="isSelf()" testID="athlete-self" class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">This is you</Text>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Miles</Text>
-          <Text testID="athlete-distance" class="text-lg font-bold text-white" :text="distanceText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Miles</Text>
+          <Text testID="athlete-distance" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="distanceText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Climbing</Text>
-          <Text testID="athlete-elevation" class="text-lg font-bold text-white" :text="elevationText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Climbing</Text>
+          <Text testID="athlete-elevation" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="elevationText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Activities</Text>
-          <Text testID="athlete-activities" class="text-lg font-bold text-white" :text="activityCountText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Activities</Text>
+          <Text testID="athlete-activities" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="activityCountText()" />
         </View>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Zones</Text>
-          <Text testID="athlete-zones" class="text-lg font-bold text-white" :text="territoryCountText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Zones</Text>
+          <Text testID="athlete-zones" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="territoryCountText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Followers</Text>
-          <Text testID="athlete-followers" class="text-lg font-bold text-white" :text="followersText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Followers</Text>
+          <Text testID="athlete-followers" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="followersText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-slate-900 p-3">
-          <Text class="text-xs uppercase text-slate-500">Following</Text>
-          <Text testID="athlete-following" class="text-lg font-bold text-white" :text="followingCountText()" />
+        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Following</Text>
+          <Text testID="athlete-following" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="followingCountText()" />
         </View>
       </View>
 
       {{-- Verified only: a profile is where a record is read as a credential,
            so a claim nobody has checked lives on the route's board instead. --}}
       <View :show="records().length > 0" testID="athlete-records" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Verified records</Text>
-        <Pressable :for="record in records()" :key="record.id" testID="athlete-record" @click="openRecord(record)" class="gap-1 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Verified records</Text>
+        <Pressable :for="record in records()" :key="record.id" testID="athlete-record" @click="openRecord(record)" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm font-semibold text-white" :text="record.trailName" />
+            <Text class="flex-1 text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="record.trailName" />
             <Text testID="record-time" class="text-sm text-emerald-400" :text="record.elapsedLabel" />
           </View>
-          <Text testID="record-line" class="text-xs text-slate-500" :text="recordLine(record)" />
+          <Text testID="record-line" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="recordLine(record)" />
         </Pressable>
       </View>
 
       <View :show="recent().length > 0" testID="athlete-recent" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Recently</Text>
-        <Pressable :for="activity in recent()" :key="activity.id" testID="athlete-activity" @click="openActivity(activity)" class="flex-row items-center gap-3 rounded-xl bg-slate-900 p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Recently</Text>
+        <Pressable :for="activity in recent()" :key="activity.id" testID="athlete-activity" @click="openActivity(activity)" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           {{-- The route, projected into a 96x64 box by the same `routeShapeFor`
                the website uses. The View carries the size: the native renderer
                does not read an `<svg>`'s own width and height. --}}
-          <View :show="activityRoute(activity) !== ''" class="h-16 w-24 rounded-lg bg-slate-950 p-1">
+          <View :show="activityRoute(activity) !== ''" class="h-16 w-24 rounded-lg bg-[#f2f4ef] dark:bg-[#101c16] p-1">
             <svg viewBox="0 0 96 64" class="h-full w-full">
               <polyline testID="activity-route" :points="activityRoute(activity)" stroke="#34d399" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </View>
           <View class="flex-1">
-            <Text testID="activity-line" class="text-sm text-white" :text="activityLine(activity)" />
-            <Text testID="activity-stats" class="text-xs text-slate-500" :text="activityStats(activity)" />
+            <Text testID="activity-line" class="text-sm text-[#192414] dark:text-[#f0f5ec]" :text="activityLine(activity)" />
+            <Text testID="activity-stats" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="activityStats(activity)" />
           </View>
         </Pressable>
       </View>
 
       {{-- Safety. Blocking arms a confirm rather than acting on one tap: there
            is no system dialog here, and a block cuts both follows. --}}
-      <View :show="!isSelf()" testID="athlete-safety" class="gap-2 rounded-xl bg-slate-900 p-3">
-        <Text class="text-xs font-semibold uppercase text-slate-500">Safety</Text>
-        <Text testID="report-reason" class="text-sm text-slate-300" :text="reasonText()" />
+      <View :show="!isSelf()" testID="athlete-safety" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Safety</Text>
+        <Text testID="report-reason" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="reasonText()" />
         <Button testID="cycle-reason" @click="cycleReason()">Change the reason</Button>
         <Button testID="athlete-report" @click="report()">Report this athlete</Button>
         <Button testID="athlete-block" @click="armBlock()" :text="blockText()" />

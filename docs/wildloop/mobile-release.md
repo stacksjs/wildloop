@@ -8,8 +8,9 @@ background-location behaviour.
 
 - Set `IOS_BUNDLE_ID`, `IOS_APP_VERSION`, `IOS_BUILD_NUMBER`, and
   `APPLE_TEAM_ID` for the release lane.
-- Set the Android package name, version, version code, and production Firebase
-  configuration for the Android release lane.
+- Set the Android package name, version, version code, `ANDROID_MAPS_API_KEY`,
+  and production Firebase configuration for the Android release lane. Restrict
+  the Maps SDK key to the package and signing certificate used by that lane.
 - Confirm `https://wildloop.org` is the intended mobile origin and that its
   associated-domain and app-link files cover `org.wildloop.app`.
 - Create the matching identifiers and capabilities in the Apple Developer
@@ -38,8 +39,8 @@ background-location behaviour.
 bunx --bun pickier .
 bun run typecheck:app
 buddy test
-buddy build:ios
-buddy build:android
+bun run build:ios
+bun run build:android
 ```
 
 For iOS, produce a signed archive with a distribution provisioning profile and
@@ -48,12 +49,16 @@ entitlement. A development entitlement is valid for local testing only.
 
 ## Spotlight and Siri entries
 
-The app's shortcuts and its own content — trails, clubs, events — are donated
-as `NSUserActivity` objects through Craft's `siri` bridge, and `buddy
-build:ios` declares their activity types in the generated `Info.plist`
-(`scripts/generate-ios-shortcuts.ts`). What gets indexed, how many of each, and
-where a tapped entry opens is `config/spotlight.ts`; adding a kind is an entry
-there and nothing else.
+`ios.appShortcuts` in `config/mobile.ts` declares the app's Siri/App Intents
+and home-screen actions. Craft generates their Swift and restores it from the
+published package during Xcode Cloud builds. Stacks declares their activity
+types and the content slots from `config/spotlight.ts` in `Info.plist`.
+Applications contain no Swift generator or source override.
+
+The content-slot registry also describes device-search donations for trails,
+clubs and events. Dynamic record donation still needs a native Siri capability
+and its own device verification before that part of a native candidate is
+considered complete.
 
 Neither the donations nor the declarations are observable from a simulator
 build's project files, so both need a device run:
@@ -76,19 +81,19 @@ build's project files, so both need a device run:
 
 ## Current external gates
 
-- Craft v0.0.91 selects the APNs entitlement from the build configuration:
-  Debug uses development and Release uses production. A signed Release archive
-  is still required to verify the entitlement with the Apple provisioning
-  profile before submission.
-- Android runtime permission parity remains gated on the open Craft location
-  permission issue. Static project generation is not substitute evidence for a
-  device run.
-- A current iPhone 17 Pro Simulator build has passed navigation, offline
-  fallback, and custom deep-link journeys. This is useful device evidence, but
-  it is not a substitute for a signed physical-device archive.
-- Craft exposes no CoreSpotlight API at the pinned revision, so a record is
-  indexed as a donated activity under one of its kind's fixed slots rather
-  than as a searchable item of its own. iOS hands a tapped activity back only
-  for a type the `Info.plist` declares, and a type per record id cannot be
-  declared, so raising a kind's `slots` in `config/spotlight.ts` is the only
-  way to widen its index.
+- This migration uses Craft's native renderer for every app destination. Prior
+  WebView journey results do not verify this native candidate; repeat the
+  navigation, recording, offline, map and review journeys against its installed
+  native bundle on both platforms.
+- The published SDK map sources compile on iOS and Android. On 2026-10-17,
+  Wildloop's all-native iOS app also compiled, passed code-signature
+  verification, installed and launched in a fresh simulator. The local
+  renderer test stalled before XCTest started, and this Mac's command-line
+  Xcode installation has no Simulator desktop application available to CUA.
+  Actual native visual and interaction acceptance remains pending; neither
+  compilation nor compiled-screen bridge tests establish that acceptance.
+- Android trail maps require the configured Maps SDK key. A missing key stops
+  the Wildloop Android build rather than producing a candidate with blank maps.
+- A signed physical-device archive is required to verify provisioning, APNs,
+  Health, background location and real Spotlight/Siri behavior. Simulator
+  compilation and bridge tests are separate evidence.

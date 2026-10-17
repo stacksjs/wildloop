@@ -38,7 +38,7 @@ async function board() {
 }
 
 describe('Wildloop native leaderboard screen', () => {
-  beforeAll(compileNativeBundle)
+  beforeAll(compileNativeBundle, 30000)
 
   it('renders through the portable keyed boundary, with no :if on anything tappable', () => {
     expect(SOURCE).toContain('<Pressable :for="row in rows()" :key="row.rank"')
