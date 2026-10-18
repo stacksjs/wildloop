@@ -255,20 +255,11 @@ jobs:
       # `"private": true` because it is an application rather than a library,
       # so it answered `400 {"message":"No packages"}` on every run.
       #
-      # The installer action lives inside the pantry monorepo (packages/action)
-      # and is not published as `pantry-pm/pantry-installer` yet, so the
-      # release binary is fetched directly. Swap this step for the action once
-      # that repo exists.
       - name: Install Pantry
-        run: |
-          tmp=$(mktemp -d)
-          curl -fsSL -o "$tmp/pantry.zip" \
-            https://github.com/pantry-pm/pantry/releases/latest/download/pantry-linux-x64.zip
-          # The archive holds a bare `pantry` binary, no wrapping directory.
-          unzip -oq "$tmp/pantry.zip" -d "$tmp"
-          sudo install -m 755 "$tmp/pantry" /usr/local/bin/pantry
-          rm -rf "$tmp"
-          pantry --version
+        uses: pantry-pm/pantry/packages/action@da17bb9317e8f8c247618fb176fe97269f15bfe4 # v0.11.94
+        with:
+          version: '0.11.94'
+          install: 'false'
 
       # `publish:commit` derives the version from the commit SHA itself, so
       # each build is separately installable without anyone stamping
