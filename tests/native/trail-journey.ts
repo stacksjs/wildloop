@@ -79,27 +79,32 @@ const reviews:SimulatorStep[] = [
  {command:'scrollto',text:'Edit your review'},
  {command:'shot',name:'native-review-created'},
  {command:'tree',name:'native-review-created'},
+ {command:'exec',name:'verify-review-created'},
  {command:'tapid',text:'trail-write-review'},
  {command:'expectid',text:'trail-review-composer',seconds:10},
+ {command:'tapid',text:'trail-review-star-4'},
  {command:'typeid',id:'trail-review-content',text:input.edit},
  {command:'scrollto',text:'Save review'},
  {command:'tapid',text:'trail-review-submit'},
  {command:'expect',text:input.edit.trim(),seconds:15},
  {command:'shot',name:'native-review-edited'},
+ {command:'exec',name:'verify-review-edited'},
 ]
 // Keep deletion observable even when editing fails earlier in its own phase.
 // This removes the real review created above; the aggregate still fails if
 // any part of the lifecycle fails.
 const reviewDelete:SimulatorStep[] = [
  ...arrival,
- {command:'expect',text:input.review,seconds:15},
+ {command:'expect',text:'Edit your review',seconds:15},
  {command:'scrollto',text:'Delete your review'},
  {command:'tapid',text:'trail-delete-review'},
  {command:'tapexact',text:'Delete review'},
  {command:'expect',text:'Leave a review',seconds:15},
  {command:'absent',text:input.review},
+ {command:'absent',text:input.edit.trim()},
  {command:'shot',name:'native-review-deleted'},
  {command:'tree',name:'native-review-deleted'},
+ {command:'exec',name:'verify-review-deleted'},
 ]
 const fullMap:SimulatorStep[] = [
  ...arrival,
@@ -146,8 +151,8 @@ const location:SimulatorStep[] = [
 ]
 return [
  {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
- {name:'reviews',steps:reviews,completion:`PASS expect ${input.edit.trim()}`},
- {name:'review-delete',steps:reviewDelete,completion:`PASS absent ${input.review}`},
+ {name:'reviews',steps:reviews,completion:'exec verify-review-edited: PASS edited review retained its identity and persisted'},
+ {name:'review-delete',steps:reviewDelete,completion:'exec verify-review-deleted: PASS deleted review is absent from persistence'},
  {name:'sharing',steps:sharing,completion:'exec verify-share: PASS native share copied the trail link'},
  {name:'gpx',steps:gpx,completion:'exec verify-gpx: PASS exported GPX contains the recorded route'},
  {name:'planner',steps:planner,completion:'PASS expectid trail-full-map'},

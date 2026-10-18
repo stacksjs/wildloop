@@ -51,7 +51,15 @@ export async function runNativeTrailE2e(): Promise<void> {
     }
     if(!trail)throw new Error('Native trail QA requires its seeded recorded route.')
     const review=`Native QA ${crypto.randomUUID().slice(0,8)}: clear signposts and a beautiful ridge.`
-    const journeys=nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit:' Updated after a return visit.'})
+    const edit=' Updated after a return visit.'
+    const readReviews=async()=>{
+      const response=await fetch(`${origin}/api/trails/${trail.id}/reviews`,{cache:'no-store'})
+      if(!response.ok)throw new Error(`Reading persisted reviews failed: ${response.status}`)
+      return ((await response.json()) as any).reviews as Array<{id:number,content:string,rating:number}>
+    }
+    if((await readReviews()).length)throw new Error('The isolated native trail must start without reviews.')
+    let createdReviewId:number|undefined
+    const journeys=nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit})
     const controlPort=QA_PORTS.app+15
     const driver=prepareIosSimulatorDriver({...mobile.ios,simulator:{output:join(root,'driver'),projectName:'WildloopTrailDriver',bundleIdPrefix:'org.wildloop.trailqa',controlUrl:`http://127.0.0.1:${controlPort}`}})
     control=Bun.serve({hostname:'127.0.0.1',port:controlPort,idleTimeout:120,async fetch(request){
@@ -60,6 +68,23 @@ export async function runNativeTrailE2e(): Promise<void> {
       if(url.pathname==='/exec') {
         try {
           const hook=url.searchParams.get('name')
+          if(hook==='verify-review-created' || hook==='verify-review-edited' || hook==='verify-review-deleted') {
+            const rows=await readReviews()
+            await writeFile(join(root,`${hook}-persistence.json`),JSON.stringify(rows,null,2))
+            if(hook==='verify-review-deleted') {
+              if(rows.length)throw new Error('The native deletion did not remove the persisted review.')
+              return new Response('PASS deleted review is absent from persistence')
+            }
+            if(rows.length!==1)throw new Error('The native review action must persist exactly one review.')
+            if(hook==='verify-review-created') {
+              if(rows[0].content!==review || rows[0].rating!==5)throw new Error('The created review text and rating did not persist.')
+              createdReviewId=rows[0].id
+              return new Response('PASS created review text and rating persisted')
+            }
+            if(rows[0].id!==createdReviewId || rows[0].rating!==4 || !rows[0].content.includes(edit.trim()))
+              throw new Error('The native edit did not retain the review identity and persist its new text and rating.')
+            return new Response('PASS edited review retained its identity and persisted')
+          }
           if(hook==='seed-location') {
             const first=primaryRoutePart([...decodeRouteParts(trail.geometry),...(Array.isArray(trail.pieceRoutes)?trail.pieceRoutes:[])])[0]
             if(!first)throw new Error('The seeded trail has no recorded route start.')
