@@ -295,6 +295,7 @@ declare global {
   const nativeRouteRegion: typeof autoImports.nativeRouteRegion
   const nativeZoomRegion: typeof autoImports.nativeZoomRegion
   const nativeOAuthCallback: typeof autoImports.nativeOAuthCallback
+  const createNativeRecordingCheckpoint: typeof autoImports.createNativeRecordingCheckpoint
   const nativeRecordingDuration: typeof autoImports.nativeRecordingDuration
   const movingSeconds: typeof autoImports.movingSeconds
   const recordingSamples: typeof autoImports.recordingSamples
@@ -475,10 +476,12 @@ declare global {
   const decodeRouteParts: typeof autoImports.decodeRouteParts
   const primaryRoutePart: typeof autoImports.primaryRoutePart
   const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
+  const trailheadPosition: typeof autoImports.trailheadPosition
   const trailSegmentMiles: typeof autoImports.trailSegmentMiles
   const trailDirectionSigns: typeof autoImports.trailDirectionSigns
   const trailSurfaceTypes: typeof autoImports.trailSurfaceTypes
   const trailGpx: typeof autoImports.trailGpx
+  const trailRouteStyle: typeof autoImports.trailRouteStyle
   const placeOfLocation: typeof autoImports.placeOfLocation
   const whereLocation: typeof autoImports.whereLocation
   const wholeTrailFigures: typeof autoImports.wholeTrailFigures
