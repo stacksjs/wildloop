@@ -71,6 +71,10 @@ name: Native Android trail maps and sticky save
 - takeScreenshot: android-native-inline-map-tilted
 - tapOn: '^North$'
 - takeScreenshot: android-native-inline-map-north
+- tapOn:
+    id: trail-map-3d
+- assertVisible: '^3D$'
+- takeScreenshot: android-native-inline-map-flat
 - scrollUntilVisible:
     element:
       id: trail-map-layer
@@ -82,8 +86,19 @@ name: Native Android trail maps and sticky save
 - takeScreenshot: android-native-inline-map-satellite
 - tapOn:
     id: trail-map-layer
+- tapOn: '^Hybrid$'
+- assertVisible: 'Map layer, Hybrid'
+- takeScreenshot: android-native-inline-map-hybrid
+- tapOn:
+    id: trail-map-layer
+- tapOn: '^Street$'
+- assertVisible: 'Map layer, Street'
+- takeScreenshot: android-native-inline-map-street
+- tapOn:
+    id: trail-map-layer
 - tapOn: '^Outdoors$'
 - assertVisible: 'Map layer, Outdoors'
+- takeScreenshot: android-native-inline-map-outdoors
 - scrollUntilVisible:
     element:
       id: trail-map-fullscreen
@@ -113,6 +128,10 @@ name: Native Android trail maps and sticky save
 - tapOn:
     id: map-north
 - takeScreenshot: android-native-fullscreen-map-north
+- tapOn:
+    id: map-3d
+- assertVisible: '^3D$'
+- takeScreenshot: android-native-fullscreen-map-flat
 - tapOn:
     id: map-profile-toggle
 - assertVisible: 'Toggle elevation profile, Elevation profile collapsed'
