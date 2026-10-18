@@ -52,6 +52,7 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   }
 
   async function fullscreenMap() {
+    mapMessage.set('')
     if (!fullscreenSupported.value) {
       mapMessage.set('Full screen is unavailable in this browser.')
       return
