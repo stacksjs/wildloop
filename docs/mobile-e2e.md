@@ -109,6 +109,10 @@ passed using actual native tab controls. The native direction-marker rendering,
 hidden-modal keyboard focus and absolute-view minimum-size fixes are in Craft's
 QA branch; they must pass their genuine host gates and reach a normal published
 SDK before Wildloop adopts them. No application source override is permitted.
+The [Craft UIKit run at 434f1c7a](https://github.com/craft-native/craft/actions/runs/39082217873)
+passed all 140 tests, including those three regressions. Its overall source CI
+still stops at Pantry 0.11.91's Linux Git catalog validation before the Android
+emulator starts; this is not a green SDK release candidate.
 Native offline and full review-lifecycle acceptance remain open. Android
 currently cannot build without its Maps SDK key.
 The airplane-mode flow is intended to enforce Android network isolation;
