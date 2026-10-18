@@ -3,9 +3,8 @@ import { answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, requests
 
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
-async function recover(userId=7) {
-  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'])
-  for(const request of requests(screen).filter(r=>r.payload.module==='SecureStorage')) answer(screen,request,request.payload.args[0]==='auth_token' ? 'record-token' : JSON.stringify({token:'record-token',user:{id:userId}}))
+async function recover(userId=7, keychain=new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:userId}})]])) {
+  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],keychain)
   const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
   answer(screen,stored,checkpoint)
   const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
@@ -34,7 +33,6 @@ describe('native Record checkpoint recovery',()=>{
     const screen=await recover()
     await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')
     await screen.event('record-retry','onPress')
-    answer(screen,await waitForRequest(screen,2,r=>r.payload.module==='SecureStorage' && r.payload.args[0]==='auth_token'),'record-token')
     const me=await waitForRequest(screen,0,r=>r.payload.module==='Network')
     answer(screen,me,ok({user:{id:7}}))
     const post=await waitForRequest(screen,requests(screen).indexOf(me)+1,r=>r.payload.module==='Network')
@@ -46,10 +44,23 @@ describe('native Record checkpoint recovery',()=>{
     expect(nativeNodeProps(screen,'record-retry').disabled).toBe(false)
     const before=requests(screen).length
     await screen.event('record-retry','onPress')
-    answer(screen,await waitForRequest(screen,before,r=>r.payload.module==='SecureStorage' && r.payload.args[0]==='auth_token'),'record-token')
     const againMe=await waitForRequest(screen,before,r=>r.payload.module==='Network')
     answer(screen,againMe,ok({user:{id:7}}))
     const again=await waitForRequest(screen,requests(screen).indexOf(againMe)+1,r=>r.payload.module==='Network')
     expect(again.payload.args[0].body).toBe(post.payload.args[0].body)
+  })
+  it('retains the pending track when the bearer changes while its owner is checked',async()=>{
+    const keychain=new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]])
+    const screen=await recover(7,keychain)
+    await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')
+    const before=requests(screen).length
+    await screen.event('record-retry','onPress')
+    const me=await waitForRequest(screen,before,r=>r.payload.module==='Network')
+    keychain.set('auth_token','replacement-token')
+    answer(screen,me,ok({user:{id:7}}))
+    await Bun.sleep(0)
+    expect(requests(screen).slice(before).filter(r=>r.payload.module==='Network' && r.payload.args[0].method==='POST')).toHaveLength(0)
+    expect(requests(screen).some(r=>r.payload.module==='Storage' && r.payload.method==='remove')).toBe(false)
+    await waitForText(screen,'Your account changed. Please try again.')
   })
 })

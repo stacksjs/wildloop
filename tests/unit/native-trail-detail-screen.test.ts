@@ -5,9 +5,8 @@ const LINE = [[37.7, -119.5], [37.71, -119.51], [37.72, -119.5]]
 const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.75, longitude: -119.55, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
 const OWN = { id: 5, userId: 12, userName: 'Tester', rating: 4, content: 'A quiet loop with great views.', visitDate: '2026-10-15', conditions: 'dry', photos: '["https://wildloop.org/photo.jpg"]' }
 function ok(body: unknown) { return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } }
-async function open(signedIn = true, geometry: string | null = TRAIL.geometry, reviewRows: any[] = signedIn ? [OWN] : [], personalReview: any = reviewRows.find(row=>row.userId===12) ?? null, personalStatus = 200) {
-  const screen = await start('TrailDetail', { id: '7' }, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog', 'share', 'linking', 'files'])
-  answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage'), signedIn ? 'test_token' : null)
+async function open(signedIn = true, geometry: string | null = TRAIL.geometry, reviewRows: any[] = signedIn ? [OWN] : [], personalReview: any = reviewRows.find(row=>row.userId===12) ?? null, personalStatus = 200, keychain = new Map(signedIn ? [['auth_token', 'test_token']] : [])) {
+  const screen = await start('TrailDetail', { id: '7' }, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog', 'share', 'linking', 'files'], keychain)
   answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'Network'), ok({ success: true, trail: { ...TRAIL, geometry } }))
   const review = await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/reviews'))
   answer(screen, review, ok({ reviews: reviewRows }))
@@ -182,6 +181,38 @@ describe('native trail details', () => {
     answer(screen, reload, ok({ reviews: [] }))
     answer(screen,await waitForRequest(screen,before,r=>r.payload?.args?.[0]?.url?.endsWith('/viewer')),ok({userId:12,saved:false,review:null}))
     await waitForText(screen, 'Your review has been deleted.')
+  })
+  it('does not delete another account’s review after an old confirmation is accepted', async () => {
+    const keychain = new Map([['auth_token', 'test_token']])
+    const screen = await open(true, TRAIL.geometry, [OWN], OWN, 200, keychain)
+    const before = requests(screen).length
+    await screen.event('trail-delete-review', 'onPress')
+    const confirm = await waitForRequest(screen, before, r => r.payload.module === 'Dialog')
+    keychain.set('auth_token', 'replacement-token')
+    await screen.scope.craft.snapshots.set('wildloop-session', {user:{id:13},version:2})
+    answer(screen, confirm, true)
+    await Bun.sleep(0)
+    expect(requests(screen).slice(before).filter(r => r.payload.module === 'Network' && r.payload.args[0].method === 'DELETE')).toHaveLength(0)
+  })
+  it('rejects a stale review draft before a changed bearer’s snapshot arrives', async () => {
+    const keychain = new Map([['auth_token', 'test_token']])
+    const screen = await open(true, TRAIL.geometry, [OWN], OWN, 200, keychain)
+    await screen.event('trail-write-review', 'onPress')
+    await screen.event('trail-review-content', 'onChangeText', {text:'This draft belongs to the original account.'})
+    keychain.set('auth_token', 'replacement-token')
+    const before = requests(screen).length
+    await screen.event('trail-review-submit', 'onPress')
+    expect(requests(screen).slice(before).filter(r => r.payload.module === 'Network' && r.payload.args[0].method === 'POST')).toHaveLength(0)
+    await waitForText(screen, 'Your account changed. Please try again.')
+  })
+  it('clears a private composer draft when the native account changes', async () => {
+    const screen = await open()
+    await screen.event('trail-write-review', 'onPress')
+    await screen.event('trail-review-content', 'onChangeText', {text:'A private draft for the original account.'})
+    await screen.scope.craft.snapshots.set('wildloop-session', {user:{id:13},version:2})
+    await Bun.sleep(0)
+    expect(nativeNodeProps(screen, 'trail-review-composer').visible).toBe(false)
+    expect(nativeNodeProps(screen, 'trail-review-content').value).toBe('')
   })
   it('shows the trailhead for trails without recorded geometry', async () => {
     const screen = await open(false, null)
