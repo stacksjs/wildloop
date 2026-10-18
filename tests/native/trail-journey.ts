@@ -86,6 +86,13 @@ const reviews:SimulatorStep[] = [
  {command:'tapid',text:'trail-review-submit'},
  {command:'expect',text:input.edit.trim(),seconds:15},
  {command:'shot',name:'native-review-edited'},
+]
+// Keep deletion observable even when editing fails earlier in its own phase.
+// This removes the real review created above; the aggregate still fails if
+// any part of the lifecycle fails.
+const reviewDelete:SimulatorStep[] = [
+ ...arrival,
+ {command:'expect',text:input.review,seconds:15},
  {command:'scrollto',text:'Delete your review'},
  {command:'tapid',text:'trail-delete-review'},
  {command:'tapexact',text:'Delete review'},
@@ -139,7 +146,8 @@ const location:SimulatorStep[] = [
 ]
 return [
  {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
- {name:'reviews',steps:reviews,completion:`PASS absent ${input.review}`},
+ {name:'reviews',steps:reviews,completion:`PASS expect ${input.edit.trim()}`},
+ {name:'review-delete',steps:reviewDelete,completion:`PASS absent ${input.review}`},
  {name:'sharing',steps:sharing,completion:'exec verify-share: PASS native share copied the trail link'},
  {name:'gpx',steps:gpx,completion:'exec verify-gpx: PASS exported GPX contains the recorded route'},
  {name:'planner',steps:planner,completion:'PASS expectid trail-full-map'},
