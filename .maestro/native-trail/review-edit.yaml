@@ -16,9 +16,10 @@ name: Reopen and edit the persisted native review
     visible:
       id: trail-review-content
     timeout: 15000
-- tapOn:
+- longPressOn:
     id: trail-review-content
-- eraseText: 2000
+- tapOn: '(?i)^Select all$'
+- eraseText: 1
 - inputText: ${EDITED_REVIEW_TEXT}
 - hideKeyboard
 - tapOn:
