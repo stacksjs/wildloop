@@ -290,9 +290,9 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
         <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
-        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full" preserveAspectRatio="none">
-          <path d="M8,54 L992,54 M8,104 L992,104" fill="none" stroke="#dce3d7" stroke-width="1" vector-effect="non-scaling-stroke" />
-          <path :d="profilePath()" fill="none" stroke="#24724b" stroke-width="3" />
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full text-[#253321] dark:text-[#e3ecdf]" preserveAspectRatio="none">
+          <path d="M8,54 L992,54 M8,104 L992,104" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="4 4" stroke-width="1" vector-effect="non-scaling-stroke" />
+          <path :d="profilePath()" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
         </svg>
         <View :show="profile().some(point => point.ft !== null)" class="flex-row justify-between">
           <Text :class="ui.caption">0.0 mi</Text><Text :class="ui.caption" :text="(profileFigures().miles / 2).toFixed(1) + ' mi'" /><Text :class="ui.caption" :text="profileFigures().miles.toFixed(1) + ' mi'" />
