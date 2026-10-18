@@ -1,4 +1,4 @@
-import { useFullscreen } from '@stacksjs/composables'
+import { useEventListener, useFullscreen } from '@stacksjs/composables'
 import { onUnmounted, state } from 'stx'
 import { apiFetch } from '../assets/scripts/auth'
 import { qrSvgMarkup } from '../functions/qr'
@@ -20,6 +20,29 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   const activePoint = state<ProfilePoint | null>(null)
   let controller: AbortController | null = null
   let profileTrail = 0
+  let printCamera: { lat: number, lng: number, zoom: number } | null = null
+
+  const printTarget = typeof window === 'undefined' ? null : window
+  useEventListener(printTarget, 'beforeprint', () => {
+    const map = handle()?.map
+    if (!map) return
+    const center = map.getCenter()
+    printCamera ??= { lat: center.lat, lng: center.lng, zoom: map.getZoom() }
+    // Print media changes the container synchronously. ResizeObserver runs
+    // later, after the browser has already captured the printed map.
+    map.invalidateSize({ animate: false })
+    const points = route().flat()
+    const height = document.getElementById('trail-elevation-card')?.getBoundingClientRect().height ?? 180
+    if (points.length > 1) map.fitBounds(points, { paddingTopLeft: [36, 36], paddingBottomRight: [36, height + 36], animate: false })
+  })
+  useEventListener(printTarget, 'afterprint', () => {
+    const camera = printCamera
+    printCamera = null
+    const map = handle()?.map
+    if (!map || !camera) return
+    map.invalidateSize({ animate: false })
+    map.setView([camera.lat, camera.lng], camera.zoom, { animate: false })
+  })
 
   function chooseMapMode(mode: 'outdoors' | 'topographic' | 'satellite' | 'street') {
     mapMode.set(mode)
