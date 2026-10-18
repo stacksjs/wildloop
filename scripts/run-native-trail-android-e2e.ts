@@ -85,6 +85,13 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       if (detail.trail?.hasGeometry) { trail = detail.trail; break }
     }
     if (!trail) throw new Error('Native Android QA requires its seeded recorded route.')
+    const profileResponse = await fetch(`${origin}/api/trails/${trail.id}/profile`)
+    if (!profileResponse.ok) throw new Error('Native Android QA requires the trail profile endpoint to be available.')
+    const profile = (await profileResponse.json()) as { points: Array<{ mi: number, ft: number | null }> }
+    const endpoint = profile.points?.at(-1)
+    if (!endpoint || profile.points.length < 2 || !Number.isFinite(endpoint.mi) || (endpoint.ft !== null && !Number.isFinite(endpoint.ft)))
+      throw new Error('Native Android QA requires a selectable recorded route profile.')
+    const endElevation = endpoint.ft === null ? 'elevation unavailable' : `${endpoint.ft} ft`
     const first = primaryRoutePart([...decodeRouteParts(trail.geometry), ...(Array.isArray(trail.pieceRoutes) ? trail.pieceRoutes : [])])[0]
     if (!first) throw new Error('The seeded trail has no recorded route start.')
     await adb(['emu', 'geo', 'fix', String(first[1]), String(first[0])], 'seed-location')
@@ -102,6 +109,8 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       APP_ID: mobile.android.packageName, TRAIL_ID: String(trail.id), TRAIL_NAME: trail.name,
       E2E_EMAIL: QA_SOCIAL_ACCOUNT.email, E2E_PASSWORD: QA_SOCIAL_ACCOUNT.sessionSecret,
       REVIEW_TEXT: review, EDITED_REVIEW_TEXT: edit,
+      PROFILE_END_TEXT: `${endpoint.mi.toFixed(2)} mi · ${endElevation}`,
+      INLINE_PROFILE_END_TEXT: `${endpoint.mi.toFixed(2)} mi, ${endElevation}`,
       GPX_NAME: `${trail.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80)}.gpx`,
     }
     let reviewId: number | undefined

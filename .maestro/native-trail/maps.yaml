@@ -32,6 +32,17 @@ name: Native Android trail maps and sticky save
     timeout: 30000
 - scrollUntilVisible:
     element:
+      id: trail-elevation-slider
+    direction: DOWN
+- tapOn:
+    id: trail-elevation-slider
+    point: '99.9%,50%'
+- extendedWaitUntil:
+    visible: ${INLINE_PROFILE_END_TEXT}
+    timeout: 15000
+- takeScreenshot: android-native-inline-elevation-selection
+- scrollUntilVisible:
+    element:
       id: trail-map-fullscreen
     direction: DOWN
 - assertVisible:
@@ -61,6 +72,15 @@ name: Native Android trail maps and sticky save
 - tapOn:
     id: map-profile-toggle
 - assertVisible: 'Toggle elevation profile, Elevation profile expanded'
+- tapOn:
+    id: map-elevation-slider
+    point: '99.9%,50%'
+- extendedWaitUntil:
+    visible: ${PROFILE_END_TEXT}
+    timeout: 15000
+- takeScreenshot: android-native-fullscreen-elevation-selection
+- tapOn:
+    id: map-fit
 - tapOn:
     id: map-layer
 - tapOn: '^Satellite$'
