@@ -100,6 +100,21 @@ describe('native Record checkpoint recovery',()=>{
     const read=await waitForRequest(screen,requests(screen).indexOf(host)+1,r=>r.payload.method==='readRecording')
     expect(read.payload.args[0]).toMatchObject({expectedId:'run-7'})
   })
+  it('recovers a registered start whose native acknowledgement was interrupted',async()=>{
+    const screen=await start('Record',{},['fetch','secureStorage','storage','storageCompareAndSet','geolocation','locationRecordingOwnership','lifecycle'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
+    const intent={...checkpoint,phase:'starting',pending:undefined}
+    const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
+    answer(screen,stored,intent)
+    const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
+    expect(host.payload.args[0]).toEqual({expectedId:'run-7'})
+    answer(screen,host,{active:true,paused:false,id:'run-7',startedAt:100000})
+    const read=await waitForRequest(screen,0,r=>r.payload.method==='readRecording')
+    answer(screen,read,[])
+    const durable=await waitForRequest(screen,0,r=>r.payload.method==='compareAndSet')
+    expect(durable.payload.args[1]).toMatchObject({id:'run-7',phase:'starting'})
+    expect(durable.payload.args[2]).toMatchObject({id:'run-7',phase:'recording'})
+    expect(requests(screen).some(r=>r.payload.method==='startRecording')).toBe(false)
+  })
   it('does not read GPS when a legacy checkpoint has no verifiable host identity',async()=>{
     const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','locationRecordingOwnership','lifecycle','liveActivity'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
     const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
