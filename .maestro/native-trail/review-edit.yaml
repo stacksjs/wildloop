@@ -1,0 +1,41 @@
+appId: ${APP_ID}
+name: Reopen and edit the persisted native review
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible: ${TRAIL_NAME}
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: trail-write-review
+    direction: DOWN
+- tapOn:
+    id: trail-write-review
+- extendedWaitUntil:
+    visible:
+      id: trail-review-content
+    timeout: 15000
+- tapOn:
+    id: trail-review-content
+- eraseText: 2000
+- inputText: ${EDITED_REVIEW_TEXT}
+- hideKeyboard
+- tapOn:
+    id: trail-review-star-4
+- scrollUntilVisible:
+    element:
+      id: trail-review-submit
+    direction: DOWN
+- tapOn:
+    id: trail-review-submit
+- extendedWaitUntil:
+    visible: 'Edit your review'
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      text: ${EDITED_REVIEW_TEXT}
+    direction: DOWN
+- assertVisible: ${EDITED_REVIEW_TEXT}
+- assertNotVisible: ${REVIEW_TEXT}
+- takeScreenshot: android-native-review-edited

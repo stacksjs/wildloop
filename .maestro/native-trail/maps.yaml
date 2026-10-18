@@ -1,0 +1,71 @@
+appId: ${APP_ID}
+name: Native Android trail maps and sticky save
+---
+- runFlow: sign-in.yaml
+- tapOn:
+    id: trail-save
+- extendedWaitUntil:
+    visible: '^Saved$'
+    timeout: 15000
+- tapOn:
+    id: trail-save
+- extendedWaitUntil:
+    visible: '^Save$'
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: trail-map-fullscreen
+    direction: DOWN
+- assertVisible:
+    id: trail-sticky-actions
+- tapOn:
+    id: trail-map-fullscreen
+- extendedWaitUntil:
+    visible:
+      id: trail-full-map
+    timeout: 30000
+- takeScreenshot: android-native-map-outdoors
+- tapOn:
+    id: map-zoom-in
+- tapOn:
+    id: map-zoom-out
+- tapOn:
+    id: map-fit
+- tapOn:
+    id: map-3d
+- assertVisible: '^2D$'
+- tapOn:
+    id: map-north
+- tapOn:
+    id: map-profile-toggle
+- assertVisible: 'Toggle elevation profile, Elevation profile collapsed'
+- takeScreenshot: android-native-map-profile-collapsed
+- tapOn:
+    id: map-profile-toggle
+- assertVisible: 'Toggle elevation profile, Elevation profile expanded'
+- tapOn:
+    id: map-layer
+- tapOn: '^Satellite$'
+- assertVisible: 'Map layer, Satellite'
+- takeScreenshot: android-native-map-satellite
+- tapOn:
+    id: map-layer
+- tapOn: '^Hybrid$'
+- assertVisible: 'Map layer, Hybrid'
+- takeScreenshot: android-native-map-hybrid
+- tapOn:
+    id: map-layer
+- tapOn: '^Street$'
+- assertVisible: 'Map layer, Street'
+- takeScreenshot: android-native-map-street
+- tapOn:
+    id: map-layer
+- tapOn: '^Outdoors$'
+- assertVisible: 'Map layer, Outdoors'
+- tapOn:
+    id: map-fit
+- takeScreenshot: android-native-map-outdoors-restored
+- back
+- assertVisible:
+    id: trail-sticky-actions
+- takeScreenshot: android-native-sticky-actions

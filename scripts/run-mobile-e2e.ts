@@ -98,10 +98,9 @@ export function selectAndroidDeepLinkActivity(output: string, packageName: strin
   return null
 }
 
-export function selectAndroidHomePackage(output: string): string | null {
-  const component = output.split(/\s+/).find(value => value.includes('/'))
-  const packageName = component?.split('/')[0]
-  return packageName || null
+export function assertAndroidPlatformHealthy(events: string): void {
+  if (/am_(anr|crash)/.test(events))
+    throw new Error('Android platform crash/ANR invalidates native acceptance. Inspect the emulator diagnostics.')
 }
 
 export function selectIosSimulator(payload: SimctlDevices): IosDevice | null {
@@ -348,19 +347,10 @@ function seedTestLocation(platform: MobilePlatform, deviceId: string): void {
   ])
 }
 
-/**
- * Google APIs images occasionally leave Pixel Launcher in an ANR state while
- * Wildloop is foregrounded. The launcher is not part of this journey, so stop
- * that background process before Maestro launches the app under test.
- */
-function stopAndroidHomeLauncher(deviceId: string): void {
-  const home = execute([
-    'adb', '-s', deviceId, 'shell', 'cmd', 'package', 'resolve-activity', '--brief',
-    '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME',
-  ], { capture: true })
-  const packageName = selectAndroidHomePackage(home)
-  if (packageName)
-    execute(['adb', '-s', deviceId, 'shell', 'am', 'force-stop', packageName])
+function checkAndroidPlatform(deviceId: string): void {
+  assertAndroidPlatformHealthy(execute([
+    'adb', '-s', deviceId, 'logcat', '-b', 'events', '-d', '-v', 'threadtime',
+  ], { capture: true }))
 }
 
 function appId(platform: MobilePlatform): string {
@@ -384,9 +374,10 @@ function runAndroid(preview: boolean): void {
     console.log(`Wildloop is open on Android device ${devices[0]}.`)
   }
   else {
-    stopAndroidHomeLauncher(devices[0])
+    checkAndroidPlatform(devices[0])
     seedTestLocation('android', devices[0])
     runMaestroJourneys('android', devices[0], null)
+    checkAndroidPlatform(devices[0])
   }
 }
 

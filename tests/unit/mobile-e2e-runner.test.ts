@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
-import { deepLinkFlow, maestroEnvironment, maestroReportSummary, parseAdbDevices, requestedPlatform, resolveJavaHome, selectAndroidDeepLinkActivity, selectAndroidHomePackage, selectIosSimulator, signedInTargetURL, validateAnalyticsScriptCount, validateBundledFrontend, validateGeneratedNativeApp, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
+import { assertAndroidPlatformHealthy, deepLinkFlow, maestroEnvironment, maestroReportSummary, parseAdbDevices, requestedPlatform, resolveJavaHome, selectAndroidDeepLinkActivity, selectIosSimulator, signedInTargetURL, validateAnalyticsScriptCount, validateBundledFrontend, validateGeneratedNativeApp, validateIosAppBundle, validateNativeShellStyles, validateNativeTabLinks } from '../../scripts/run-mobile-e2e'
 import { inferDevelopmentTeam, requiredIosAppPaths, requiresDevelopmentTeam, selectAvailableIphone } from '../../scripts/run-ios-device'
 
 function writeNativeNavigationFixtures(output: string, intercepted = ''): void {
@@ -118,9 +118,10 @@ describe('mobile E2E runner', () => {
     expect(selectAndroidDeepLinkActivity(output, 'org.missing.app')).toBeNull()
   })
 
-  it('selects the Android home package without assuming a launcher vendor', () => {
-    expect(selectAndroidHomePackage('com.google.android.apps.nexuslauncher/.NexusLauncherActivity\n')).toBe('com.google.android.apps.nexuslauncher')
-    expect(selectAndroidHomePackage('')).toBeNull()
+  it('rejects emulator crashes and ANRs rather than hiding the system launcher', () => {
+    expect(() => assertAndroidPlatformHealthy('am_resume_activity: org.wildloop.app')).not.toThrow()
+    expect(() => assertAndroidPlatformHealthy('am_anr: com.android.launcher3')).toThrow('invalidates native acceptance')
+    expect(() => assertAndroidPlatformHealthy('am_crash: org.wildloop.app')).toThrow('invalidates native acceptance')
   })
 
   it('accepts only supported platform arguments', () => {

@@ -1,0 +1,37 @@
+appId: ${APP_ID}
+name: Create a review with native controls
+---
+- runFlow: sign-in.yaml
+- scrollUntilVisible:
+    element:
+      id: trail-write-review
+    direction: DOWN
+- assertVisible:
+    id: trail-sticky-actions
+- tapOn:
+    id: trail-write-review
+- extendedWaitUntil:
+    visible:
+      id: trail-review-content
+    timeout: 15000
+- tapOn:
+    id: trail-review-star-5
+- tapOn:
+    id: trail-review-content
+- inputText: ${REVIEW_TEXT}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: trail-review-submit
+    direction: DOWN
+- tapOn:
+    id: trail-review-submit
+- extendedWaitUntil:
+    visible: 'Edit your review'
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      text: ${REVIEW_TEXT}
+    direction: DOWN
+- assertVisible: ${REVIEW_TEXT}
+- takeScreenshot: android-native-review-created
