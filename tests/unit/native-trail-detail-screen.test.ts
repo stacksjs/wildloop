@@ -214,6 +214,27 @@ describe('native trail details', () => {
     expect(nativeNodeProps(screen, 'trail-review-composer').visible).toBe(false)
     expect(nativeNodeProps(screen, 'trail-review-content').value).toBe('')
   })
+  it('does not save a trail using stale account credentials', async () => {
+    const keychain = new Map([['auth_token', 'test_token']])
+    const screen = await open(true, TRAIL.geometry, [OWN], OWN, 200, keychain)
+    keychain.set('auth_token', 'replacement-token')
+    const before = requests(screen).length
+    await screen.event('trail-save', 'onPress')
+    expect(requests(screen).slice(before).filter(r => r.payload.module === 'Network' && ['PUT','DELETE'].includes(r.payload.args[0].method))).toHaveLength(0)
+    await waitForText(screen, 'Your account changed. Please try again.')
+  })
+  it('ignores a photo-picker result from the previous account', async () => {
+    const screen = await open()
+    await screen.event('trail-write-review', 'onPress')
+    const before = requests(screen).length
+    await screen.event('trail-review-add-photo', 'onPress')
+    const picker = await waitForRequest(screen, before, r => r.payload.module === 'Files')
+    await screen.scope.craft.snapshots.set('wildloop-session', {user:{id:13},version:2})
+    const beforeResponse = screen.sent.length
+    answer(screen, picker, {path:'/tmp/original-account-photo.jpg',name:'original-account-photo.jpg',type:'image/jpeg',size:20000})
+    await Bun.sleep(0)
+    expect(JSON.stringify(screen.sent.slice(beforeResponse))).not.toContain('original-account-photo.jpg')
+  })
   it('shows the trailhead for trails without recorded geometry', async () => {
     const screen = await open(false, null)
     expect(shownText(screen)).toContain('No recorded route line. The map shows the trailhead.')
