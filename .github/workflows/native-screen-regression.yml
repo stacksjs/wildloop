@@ -44,3 +44,69 @@ jobs:
         env:
           AWS_DYNAMODB_ENDPOINT: http://localhost:8000
         run: ./buddy test
+
+  recording-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Production's Bun, as in the jobs above.
+          bun-version: '1.4.2'
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+      # Isolated test dependencies: no changes to the app's hoisted ORM tree.
+      # Server-side regressions that need the QA app but no browser.
+      #
+      # The QA servers are started here, not by the tests. Left to the test
+      # file, the canary bun test killed them as a dangling process after the
+      # first describe block ("killed 1 dangling process"), and every dashboard
+      # case then met a dead server: a 5 s timeout, ECONNRESET, ECONNREFUSED.
+      # tests/browser/qa-servers.ts uses servers that already answer. They run
+      # in their own process group, stopped whole afterwards, so the ports are
+      # free again when the job moves on.
+      - name: API and catalog regressions
+        env:
+          RECORDING_QA: '1'
+        run: |
+          setsid bun scripts/start-recording-qa.ts > "$RUNNER_TEMP/qa-servers.log" 2>&1 &
+          qa=$!
+          for _ in $(seq 1 180); do
+            if curl -sf http://127.0.0.1:4321/api/health > /dev/null && curl -sf http://127.0.0.1:4332/api/json > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          # Ready means answering an app action promptly, not just /json. The
+          # first one loads the whole app runtime, and the dashboard prewarms
+          # its page render cache in the background, which on a two-core
+          # runner kept its event loop busy for longer than a test's 5 s.
+          start=$SECONDS
+          for _ in $(seq 1 120); do
+            if curl -sf -o /dev/null -m 1 http://127.0.0.1:4321/api/trails && curl -sf -o /dev/null -m 1 http://127.0.0.1:4332/api/trails; then
+              break
+            fi
+            sleep 1
+          done
+          echo "QA servers answering app actions within 1 s after $((SECONDS - start)) s"
+          status=0
+          # --timeout: these suites share one rate-limit budget, and the
+          # harness waits out a 429 once (tests/browser/qa-servers.ts). Only the
+          # flag sets a timeout for every file; setDefaultTimeout from a shared
+          # module reaches only the first file that imports it.
+          bun test --timeout 75000 tests/browser || status=$?
+          kill -- -"$qa" 2> /dev/null || true
+          if [ "$status" -ne 0 ]; then
+            echo "::group::QA server output"
+            tail -n 200 "$RUNNER_TEMP/qa-servers.log"
+            echo "::endgroup::"
+          fi
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4321/api/health > /dev/null || break
+            sleep 1
+          done
+          exit "$status"
+
