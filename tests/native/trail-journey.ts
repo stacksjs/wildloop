@@ -206,7 +206,6 @@ const sharing:SimulatorStep[] = [
  {command:'tapexact',text:'Copy'},
  {command:'openurl',url:'wildloop://search'},
  {command:'expectid',text:'search-input',seconds:10},
- {command:'valueid',id:'search-input',text:''},
  {command:'tapid',text:'search-input'},
  {command:'longpressid',text:'search-input'},
  {command:'tap',text:'Paste'},
