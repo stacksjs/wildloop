@@ -102,7 +102,7 @@ onMount(() => { void load(); return () => { alive = false } })
       @region-change-complete="camera($event)">
       <MapPolyline :for="(part,index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
       <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
-      <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
+      <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" :pinColor="trailRouteStyle.casing" title="Recorded route direction" />
       <MapMarker id="trailhead" title="Trailhead" pinColor="#24724b" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
       <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" pinColor="#176bad" :geometry="[inspected()?.lat, inspected()?.lng]" />
     </Map>

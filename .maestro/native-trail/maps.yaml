@@ -102,7 +102,7 @@ name: Native Android trail maps and sticky save
 - scrollUntilVisible:
     element:
       id: trail-map-fullscreen
-    direction: DOWN
+    direction: UP
 - assertVisible:
     id: trail-sticky-actions
 - tapOn:

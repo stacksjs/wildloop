@@ -17,7 +17,7 @@ name: Native trail maps and sticky controls in system dark appearance
 - scrollUntilVisible:
     element:
       id: trail-map-fullscreen
-    direction: DOWN
+    direction: UP
 - tapOn:
     id: trail-map-fullscreen
 - extendedWaitUntil:

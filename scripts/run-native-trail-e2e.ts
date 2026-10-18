@@ -4,7 +4,7 @@ import process from 'node:process'
 import { generateXcodeProject, resolveXcodegen } from '@stacksjs/actions/build/ios-toolchain'
 import { prepareIosSimulatorDriver, serializeSimulatorSteps } from '@stacksjs/mobile/testing'
 import mobile from '../config/mobile'
-import { nativeTrailJourneys } from '../tests/native/trail-journey'
+import { nativeTrailJourneys, selectNativeTrailJourneys } from '../tests/native/trail-journey'
 import { QA_PORTS } from '../tests/browser/qa-ports'
 import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
 import { decodeRouteParts, primaryRoutePart } from '../resources/functions/trail-geometry'
@@ -66,7 +66,7 @@ export async function runNativeTrailE2e(): Promise<void> {
     }
     if((await readReviews()).length)throw new Error('The isolated native trail must start without reviews.')
     let createdReviewId:number|undefined
-    const journeys=nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit,profileEndText:`${endpoint.mi.toFixed(2)} mi · ${endElevation}`,inlineProfileEndText:`${endpoint.mi.toFixed(2)} mi, ${endElevation}`})
+    const journeys=selectNativeTrailJourneys(nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit,profileEndText:`${endpoint.mi.toFixed(2)} mi · ${endElevation}`,inlineProfileEndText:`${endpoint.mi.toFixed(2)} mi, ${endElevation}`}),process.env.NATIVE_TRAIL_GROUP)
     const controlPort=QA_PORTS.app+15
     const driver=prepareIosSimulatorDriver({...mobile.ios,simulator:{output:join(root,'driver'),projectName:'WildloopTrailDriver',bundleIdPrefix:'org.wildloop.trailqa',controlUrl:`http://127.0.0.1:${controlPort}`}})
     control=Bun.serve({hostname:'127.0.0.1',port:controlPort,idleTimeout:120,async fetch(request){
@@ -180,7 +180,7 @@ export async function runNativeTrailE2e(): Promise<void> {
       }
     }
     if(failures.length)throw new Error(`Native trail QA failed: ${failures.join(', ')}. Inspect the separate XCTest results, driver logs and screenshots.`)
-    console.log('Native trail maps, sticky save, review lifecycle, sharing, GPX export, route planner and location journeys passed.')
+    console.log(`Native trail journeys passed: ${journeys.map(journey=>journey.name).join(', ')}.`)
   }
   finally {
     if(nativeRun && nativeRun.exitCode===null)nativeRun.kill()

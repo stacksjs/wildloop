@@ -1,5 +1,23 @@
 import type { SimulatorStep } from '@stacksjs/mobile/testing'
 
+export const nativeTrailJourneyGroups = {
+ maps: ['maps'],
+ reviews: ['reviews', 'review-delete'],
+ utilities: ['sharing', 'gpx', 'planner', 'location'],
+ navigation: ['directions', 'map-directions', 'appearance'],
+} as const
+
+/** Partition all required journeys while retaining review lifecycle state. */
+export function selectNativeTrailJourneys<T extends {name:string}>(journeys:T[],group?:string):T[] {
+ const grouped=Object.values(nativeTrailJourneyGroups).flat()
+ if(grouped.length!==journeys.length || new Set(grouped).size!==journeys.length || journeys.some(journey=>!grouped.includes(journey.name as typeof grouped[number])))
+  throw new Error('Every native trail journey must belong to exactly one CI group.')
+ if(!group)return journeys
+ if(!Object.hasOwn(nativeTrailJourneyGroups,group))throw new Error(`Unknown native trail journey group: ${group}`)
+ const names=nativeTrailJourneyGroups[group as keyof typeof nativeTrailJourneyGroups]
+ return journeys.filter(journey=>(names as readonly string[]).includes(journey.name))
+}
+
 /** Real native UI interactions against the isolated QA database. */
 export function nativeTrailJourneys(input:{trailId:number,trailName:string,email:string,password:string,review:string,edit:string,profileEndText:string,inlineProfileEndText:string}):{name:string,steps:SimulatorStep[],completion:string}[] {
 const arrival:SimulatorStep[] = [
@@ -38,6 +56,7 @@ const maps:SimulatorStep[] = [
  {command:'expectexact',text:'Save',seconds:30},
  {command:'scrollto',text:'Toggle elevation profile'},
  {command:'shot',name:'native-floating-profile-inline'},
+ {command:'scrollto',text:'Explore elevation and position along the route'},
  {command:'sliderid',id:'trail-elevation-slider',position:1},
  {command:'expectexact',text:input.inlineProfileEndText,seconds:10},
  {command:'shot',name:'native-inline-elevation-endpoint'},
@@ -144,7 +163,10 @@ const reviews:SimulatorStep[] = [
  {command:'tapid',text:'trail-write-review'},
  {command:'expectid',text:'trail-review-composer',seconds:10},
  {command:'tapid',text:'trail-review-star-4'},
+ {command:'tapid',text:'trail-review-content'},
  {command:'longpressid',text:'trail-review-content'},
+ {command:'shot',name:'native-review-edit-menu'},
+ {command:'tree',name:'native-review-edit-menu'},
  {command:'tap',text:'Select All'},
  {command:'type',text:input.edit},
  {command:'valueid',id:'trail-review-content',text:input.edit},
@@ -182,12 +204,13 @@ const sharing:SimulatorStep[] = [
  {command:'shot',name:'native-share-sheet'},
  {command:'tree',name:'native-share-sheet'},
  {command:'tapexact',text:'Copy'},
- {command:'openurl',url:'wildloop://login'},
- {command:'expectid',text:'login-email',seconds:10},
- {command:'valueid',id:'login-email',text:''},
- {command:'longpressid',text:'login-email'},
+ {command:'openurl',url:'wildloop://search'},
+ {command:'expectid',text:'search-input',seconds:10},
+ {command:'valueid',id:'search-input',text:''},
+ {command:'tapid',text:'search-input'},
+ {command:'longpressid',text:'search-input'},
  {command:'tap',text:'Paste'},
- {command:'valueid',id:'login-email',text:`https://wildloop.org/trail/${input.trailId}`},
+ {command:'valueid',id:'search-input',text:`https://wildloop.org/trail/${input.trailId}`},
  {command:'shot',name:'native-shared-link-pasted'},
  {command:'tree',name:'native-shared-link-pasted'},
  {command:'openurl',url:`wildloop://trail/${input.trailId}`},

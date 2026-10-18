@@ -44,7 +44,7 @@ describe('native trail details', () => {
     await screen.event('trail-profile-toggle','onPress')
     expect(nativeNodeProps(screen,'trail-profile-toggle').accessibilityValue).toBe('Elevation profile collapsed')
     expect(nativeNodeProps(screen,'trail-native-map').edgePadding.bottom).toBe(88)
-    await screen.event('trail-map-preview-expand','onPress')
+    await screen.event('trail-map-fullscreen','onPress')
     expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/trail/7/map')).toBe(true)
   })
   it('changes map layer and camera through native bindings', async () => {

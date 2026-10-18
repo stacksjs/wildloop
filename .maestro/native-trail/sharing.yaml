@@ -14,15 +14,17 @@ name: Copy the trail link and paste it into a real native field
     timeout: 15000
 - takeScreenshot: android-native-share-sheet
 - tapOn: '^Copy$'
-- openLink: wildloop://login
+- openLink: wildloop://search
 - extendedWaitUntil:
     visible:
-      id: login-email
+      id: search-input
     timeout: 15000
+- tapOn:
+    id: search-input
 - longPressOn:
-    id: login-email
+    id: search-input
 - tapOn: '^Paste$'
 - assertVisible:
-    id: login-email
+    id: search-input
     text: 'https://wildloop.org/trail/${TRAIL_ID}'
 - takeScreenshot: android-native-share-link-pasted

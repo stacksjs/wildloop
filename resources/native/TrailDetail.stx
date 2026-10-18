@@ -314,11 +314,11 @@ onMount(() => onNativeAccountChange(craft, () => {
         <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
           <MapPolyline :for="(part, index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
           <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
-          <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
+          <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" :pinColor="trailRouteStyle.casing" title="Recorded route direction" />
           <MapMarker id="trailhead" title="Trailhead" pinColor="#24724b" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
           <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" pinColor="#176bad" :geometry="[inspected()?.lat, inspected()?.lng]" />
         </Map>
-        <Button testID="trail-map-preview-expand" accessibilityLabel="Open interactive map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
+        <Button testID="trail-map-fullscreen" accessibilityLabel="Expand map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
           <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
         <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
@@ -346,7 +346,6 @@ onMount(() => onNativeAccountChange(craft, () => {
           <Button testID="trail-map-3d" :class="ui.secondary" @click="pitch.set(pitch() > 0 ? 0 : 45)" :text="pitch() > 0 ? '2D' : '3D'" />
           <Button :class="ui.secondary" @click="heading.set(0)">North</Button>
           <Button testID="trail-map-locate" :class="ui.secondary" accessibilityLabel="My location" :accessibilityValue="showLocation() ? 'Your location is shown' : ''" @click="locate()">My location</Button>
-          <Button testID="trail-map-fullscreen" :class="ui.secondary" @click="craft.navigation.open('/trail/' + wanted + '/map')">Expand map</Button>
         </View>
         <Button testID="trail-map-export" :disabled="!routeAvailable()" :class="ui.secondary" class="mt-2" @click="exportRoute()">Export GPX</Button>
         <Button testID="trail-map-layer" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />

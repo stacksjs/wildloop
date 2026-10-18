@@ -124,10 +124,15 @@ jobs:
           if-no-files-found: warn
 
   native-trail-ios:
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [maps, reviews, utilities, navigation]
     runs-on: macos-latest
     timeout-minutes: 35
     env:
       QA_PORT_BASE: '6320'
+      NATIVE_TRAIL_GROUP: ${{ matrix.group }}
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -167,7 +172,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: native-trail-ios
+          name: native-trail-ios-${{ matrix.group }}
           path: |
             storage/framework/runtime/e2e/native-trail/*.log
             storage/framework/runtime/e2e/native-trail/*.txt
