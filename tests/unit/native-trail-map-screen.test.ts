@@ -64,6 +64,14 @@ describe('native full trail map',()=>{
     await screen.event('map-customize','onPress')
     expect(screen.sent.some(m=>m.type==='NAVIGATE_OPEN' && JSON.stringify(m.payload).includes('/routes?trail=7'))).toBe(true)
   })
+  it('explains when the system cannot accept directions without losing the map',async()=>{
+    const screen=await open(),before=requests(screen).length
+    await screen.event('map-directions','onPress')
+    const link=await waitForRequest(screen,before,r=>r.payload?.module==='Linking')
+    answer(screen,link,false)
+    await waitForText(screen,'Directions could not be opened.')
+    expect(nativeNodeProps(screen,'trail-full-map').fitToBounds).toBe(true)
+  })
   it('requests location only when chosen, then centers on the returned native fix',async()=>{
     const screen=await open(),before=requests(screen).length
     expect(requests(screen).some(request=>request.payload.module==='Location')).toBe(false)
