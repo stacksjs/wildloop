@@ -364,22 +364,23 @@ function appId(platform: MobilePlatform): string {
 function runAndroid(preview: boolean): void {
   requireCommand('adb')
   const devices = parseAdbDevices(execute(['adb', 'devices'], { capture: true }))
-  if (devices.length !== 1) throw new Error(`Expected exactly one ready Android device, found ${devices.length}`)
+  const device = process.env.ANDROID_SERIAL ?? (devices.length === 1 ? devices[0] : undefined)
+  if (!device || !devices.includes(device)) throw new Error('Select a ready Android device with ANDROID_SERIAL, or connect exactly one device.')
 
   const apk = process.env.MOBILE_E2E_APP
     ?? join(generatedRoot, 'android/app/build/outputs/apk/debug/app-debug.apk')
   requirePath(apk, 'Android E2E APK')
-  execute(['adb', '-s', devices[0], 'install', '-r', apk])
+  execute(['adb', '-s', device, 'install', '-r', apk])
   if (preview) {
-    execute(['adb', '-s', devices[0], 'shell', 'am', 'force-stop', appId('android')])
-    execute(['adb', '-s', devices[0], 'shell', 'monkey', '-p', appId('android'), '-c', 'android.intent.category.LAUNCHER', '1'])
-    console.log(`Wildloop is open on Android device ${devices[0]}.`)
+    execute(['adb', '-s', device, 'shell', 'am', 'force-stop', appId('android')])
+    execute(['adb', '-s', device, 'shell', 'monkey', '-p', appId('android'), '-c', 'android.intent.category.LAUNCHER', '1'])
+    console.log(`Wildloop is open on Android device ${device}.`)
   }
   else {
-    checkAndroidPlatform(devices[0])
-    seedTestLocation('android', devices[0])
-    runMaestroJourneys('android', devices[0], null)
-    checkAndroidPlatform(devices[0])
+    checkAndroidPlatform(device)
+    seedTestLocation('android', device)
+    runMaestroJourneys('android', device, null)
+    checkAndroidPlatform(device)
   }
 }
 
