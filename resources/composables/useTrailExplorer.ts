@@ -14,34 +14,49 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   const mapMessage = state('')
   const phoneOpen = state(false)
   const profileOpen = state(true)
+  const printPreparing = state(false)
   const { isFullscreen, isSupported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen(() => document.getElementById('trail-map-explorer'))
   const profileStatus = state<'loading' | 'ready' | 'unavailable'>('loading')
   const profile = state<ProfilePoint[]>([])
   const activePoint = state<ProfilePoint | null>(null)
   let controller: AbortController | null = null
   let profileTrail = 0
-  let printCamera: { lat: number, lng: number, zoom: number } | null = null
+  let printCamera: { lat: number, lng: number, zoom: number, pitch: number, bearing: number } | null = null
+  let disposed = false
 
   const printTarget = typeof window === 'undefined' ? null : window
-  useEventListener(printTarget, 'beforeprint', () => {
+  function preparePrintCamera() {
     const map = handle()?.map
     if (!map) return
     const center = map.getCenter()
-    printCamera ??= { lat: center.lat, lng: center.lng, zoom: map.getZoom() }
-    // Print media changes the container synchronously. ResizeObserver runs
-    // later, after the browser has already captured the printed map.
+    printCamera ??= { lat: center.lat, lng: center.lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() }
+    map.setPitch(0)
+    map.setBearing(0)
     map.invalidateSize({ animate: false })
     const points = route().flat()
     const height = document.getElementById('trail-elevation-card')?.getBoundingClientRect().height ?? 180
     if (points.length > 1) map.fitBounds(points, { paddingTopLeft: [36, 36], paddingBottomRight: [36, height + 36], animate: false })
-  })
-  useEventListener(printTarget, 'afterprint', () => {
+  }
+  function restorePrintCamera() {
     const camera = printCamera
     printCamera = null
-    const map = handle()?.map
-    if (!map || !camera) return
-    map.invalidateSize({ animate: false })
-    map.setView([camera.lat, camera.lng], camera.zoom, { animate: false })
+    printPreparing.set(false)
+    requestAnimationFrame(() => {
+      const map = handle()?.map
+      if (disposed || !map || !camera) return
+      map.invalidateSize({ animate: false })
+      map.setView([camera.lat, camera.lng], camera.zoom, { animate: false })
+      map.setPitch(camera.pitch)
+      map.setBearing(camera.bearing)
+    })
+  }
+  useEventListener(printTarget, 'beforeprint', preparePrintCamera)
+  useEventListener(printTarget, 'afterprint', restorePrintCamera)
+  useEventListener(printTarget, 'keydown', (event: KeyboardEvent) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'p') {
+      event.preventDefault()
+      void printMap()
+    }
   })
 
   function chooseMapMode(mode: 'outdoors' | 'topographic' | 'satellite' | 'street') {
@@ -100,8 +115,35 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  function printMap() {
-    window.print()
+  async function printMap() {
+    if (printPreparing()) return
+    mapMessage.set('')
+    printPreparing.set(true)
+    try {
+      // Lay out the actual print viewport before opening the blocking browser
+      // dialog. beforeprint cannot await newly requested map tiles.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+      if (disposed || !handle()) return
+      preparePrintCamera()
+      const deadline = Date.now() + 15000
+      let ready = false
+      while (!disposed && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        const map = handle()?.map
+        if (!map) break
+        let loading = !map.isStyleLoaded()
+        map.eachLayer(layer => {
+          if ('isLoading' in layer && typeof layer.isLoading === 'function' && layer.isLoading()) loading = true
+        })
+        if (!loading) { ready = true; break }
+      }
+      if (disposed) return
+      if (!ready) throw new Error('The map is still loading. Please try printing again.')
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+      window.print()
+    }
+    catch (cause) { mapMessage.set(cause instanceof Error ? cause.message : 'The map could not be prepared for printing.') }
+    finally { restorePrintCamera() }
   }
 
   function phoneCode(): string {
@@ -181,6 +223,6 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
     showProfilePoint(index)
   }
 
-  onUnmounted(() => controller?.abort())
-  return { profileOpen, toggleProfile, hoverProfile, profileCursor, isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
+  onUnmounted(() => { disposed = true; controller?.abort() })
+  return { profileOpen, printPreparing, toggleProfile, hoverProfile, profileCursor, isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen, profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief, fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile, profileRange, profilePath, inspectProfile }
 }

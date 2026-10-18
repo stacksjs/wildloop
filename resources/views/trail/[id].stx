@@ -361,7 +361,7 @@
   const {
     profileOpen, toggleProfile, hoverProfile, profileCursor, isFullscreen, mapMode, layersOpen, map3D, reliefVisible, mapMessage, phoneOpen,
     profileStatus, profile, activePoint, chooseMapMode, toggle3D, toggleRelief,
-    fitRoute, fullscreenMap, downloadGpx, printMap, phoneCode, loadProfile,
+    fitRoute, fullscreenMap, downloadGpx, printMap, printPreparing, phoneCode, loadProfile,
     profileRange, profilePath, inspectProfile,
   } = useTrailExplorer(() => detailMap, () => mapRouteParts(), trail)
   const reviewToday = derived(() => deviceToday())
@@ -1417,7 +1417,7 @@
       <div class="mt-12 grid gap-6 md:grid-cols-2">
           {{-- Map --}}
           {{-- Not `card`: its padding framed the map in a white border. --}}
-          <section id="trail-map-explorer" class="relative isolate scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white md:col-span-2 dark:border-slate-700 dark:bg-slate-900" aria-label="Interactive trail map">
+          <section id="trail-map-explorer" :class="{'trail-print-preparing':printPreparing()}" :aria-busy="printPreparing()" class="relative isolate scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white md:col-span-2 dark:border-slate-700 dark:bg-slate-900" aria-label="Interactive trail map">
             <p class="trail-print-title" :text="trail().name"></p>
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
               <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">Explore the route</h2>
@@ -1471,6 +1471,7 @@
                 </div>
               </section>
             </div>
+            <p :if="printPreparing()" role="status" class="trail-print-status px-5 py-3 text-sm text-slate-600 dark:text-slate-300">Preparing map for printing…</p>
             <p :if="mapMessage()" role="status" class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">{{ mapMessage() }}</p>
           </section>
 
