@@ -1,0 +1,26 @@
+name: Native screen regression
+
+# Development evidence only; final normal CI and installed-device gates remain required.
+on:
+  push:
+    branches: [codex/wildloop-native-screen-regression]
+
+permissions:
+  contents: read
+
+jobs:
+  native-screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: Install frozen public dependencies
+        run: bun install --frozen-lockfile
+      - name: Lint
+        run: bunx --bun pickier .
+      - name: Run native screen and mobile journey regressions
+        if: success() || failure()
+        run: bun test tests/unit/native-*.test.ts tests/unit/mobile-e2e-runner.test.ts
