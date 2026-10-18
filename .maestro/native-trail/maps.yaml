@@ -41,20 +41,36 @@ name: Native Android trail maps and sticky save
     visible: ${INLINE_PROFILE_END_TEXT}
     timeout: 15000
 - takeScreenshot: android-native-inline-elevation-selection
+- tapOn:
+    id: trail-profile-toggle
+- assertVisible: 'Toggle elevation profile, Elevation profile collapsed'
+- takeScreenshot: android-native-inline-profile-collapsed
+- tapOn:
+    id: trail-profile-toggle
+- assertVisible: 'Toggle elevation profile, Elevation profile expanded'
+- extendedWaitUntil:
+    visible: ${INLINE_PROFILE_END_TEXT}
+    timeout: 15000
+- takeScreenshot: android-native-inline-profile-restored
 - scrollUntilVisible:
     element:
       id: trail-zoom-in
     direction: DOWN
 - tapOn:
     id: trail-zoom-in
+- takeScreenshot: android-native-inline-zoom-in
 - tapOn:
     id: trail-zoom-out
+- takeScreenshot: android-native-inline-zoom-out
 - tapOn:
     id: trail-fit-route
+- takeScreenshot: android-native-inline-fit-route
 - tapOn:
     id: trail-map-3d
 - assertVisible: '^2D$'
+- takeScreenshot: android-native-inline-map-tilted
 - tapOn: '^North$'
+- takeScreenshot: android-native-inline-map-north
 - scrollUntilVisible:
     element:
       id: trail-map-layer
@@ -83,15 +99,20 @@ name: Native Android trail maps and sticky save
 - takeScreenshot: android-native-map-outdoors
 - tapOn:
     id: map-zoom-in
+- takeScreenshot: android-native-fullscreen-zoom-in
 - tapOn:
     id: map-zoom-out
+- takeScreenshot: android-native-fullscreen-zoom-out
 - tapOn:
     id: map-fit
+- takeScreenshot: android-native-fullscreen-fit-route
 - tapOn:
     id: map-3d
 - assertVisible: '^2D$'
+- takeScreenshot: android-native-fullscreen-map-tilted
 - tapOn:
     id: map-north
+- takeScreenshot: android-native-fullscreen-map-north
 - tapOn:
     id: map-profile-toggle
 - assertVisible: 'Toggle elevation profile, Elevation profile collapsed'
