@@ -288,3 +288,95 @@ describe('signed-out native mutation security', () => {
     } finally {globalThis.fetch=previous}
   })
 })
+
+describe('native account-bound operations', () => {
+  it('requires a warm screen to reload after its account changes before an operation begins', async () => {
+    let account: unknown = {user:{id:7},version:1}
+    let token = 'account-seven'
+    const fetched = recorder()
+    try {
+      const api = createNativeApi({snapshots:{get:()=>account},secureStorage:{get:()=>token}})
+      await api.send('/api/me')
+      account = {user:{id:8},version:2}
+      token = 'account-eight'
+      await expect(api.bindSession()).rejects.toThrow('Your account changed')
+      expect(fetched.calls).toHaveLength(1)
+    }
+    finally { fetched.restore() }
+  })
+
+  it('refuses a warm screen after the bearer changes before the account snapshot arrives', async () => {
+    let token = 'account-seven'
+    const fetched = recorder()
+    try {
+      const api = createNativeApi({snapshots:{get:()=>({user:{id:7},version:1})},secureStorage:{get:()=>token}})
+      await api.send('/api/me')
+      token = 'account-eight'
+      await expect(api.bindSession()).rejects.toThrow('Your account changed')
+      expect(fetched.calls).toHaveLength(1)
+    }
+    finally { fetched.restore() }
+  })
+
+  it('keeps an identity check and its upload in the same account session', async () => {
+    let account: unknown = {user:{id:7},version:1}
+    let token = 'account-seven'
+    const fetched = recorder({body:'{"user":{"id":7}}'})
+    try {
+      const api = await createNativeApi({snapshots:{get:()=>account},secureStorage:{get:()=>token}}).bindSession()
+      await api.send('/api/me')
+      account = {user:{id:8},version:2}
+      token = 'account-eight'
+      await expect(api.send('/api/activities','POST',{upload_id:'run:owned'})).rejects.toThrow('Your account changed')
+      expect(fetched.calls).toHaveLength(1)
+      expect(fetched.calls[0].headers.Authorization).toBe('Bearer account-seven')
+    }
+    finally { fetched.restore() }
+  })
+
+  it('works on a cold start without an account snapshot and detects a changed keychain', async () => {
+    let token = 'cold-start-token'
+    const fetched = recorder()
+    try {
+      const api = await createNativeApi({secureStorage:{get:()=>token}}).bindSession()
+      await api.send('/api/me')
+      token = 'replacement-token'
+      await expect(api.send('/api/activities','POST',{})).rejects.toThrow('Your account changed')
+      expect(fetched.calls).toHaveLength(1)
+    }
+    finally { fetched.restore() }
+  })
+
+  it('does not bind a signed-out session or silently retarget after a keychain read', async () => {
+    let account: unknown = {user:{id:7},version:1}
+    const fetched = recorder()
+    try {
+      await expect(createNativeApi({secureStorage:{get:()=>null}}).bindSession()).rejects.toThrow('Sign in')
+      const api = createNativeApi({snapshots:{get:()=>account},secureStorage:{get:async()=>{
+        account={user:{id:8},version:2}
+        return 'previous-token'
+      }}})
+      await expect(api.bindSession()).rejects.toThrow('Your account changed')
+      expect(fetched.calls).toHaveLength(0)
+    }
+    finally { fetched.restore() }
+  })
+
+  it('does not expose an old response after a cold-start bearer changes in flight', async () => {
+    let token = 'account-seven'
+    const previous = globalThis.fetch
+    const bearers: string[] = []
+    globalThis.fetch = (async (url: any, init: any) => {
+      expect(String(url)).toBe(`${WILDLOOP_ORIGIN}/api/me`)
+      bearers.push(init.headers.Authorization)
+      token = 'account-eight'
+      return new Response('{"user":{"id":7}}')
+    }) as typeof fetch
+    try {
+      const api = await createNativeApi({secureStorage:{get:()=>token}}).bindSession()
+      await expect(api.send('/api/me')).rejects.toThrow('Your account changed')
+      expect(bearers).toEqual(['Bearer account-seven'])
+    }
+    finally { globalThis.fetch = previous }
+  })
+})
