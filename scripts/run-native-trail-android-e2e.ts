@@ -4,6 +4,7 @@ import process from 'node:process'
 import mobile from '../config/mobile'
 import { QA_PORTS } from '../tests/browser/qa-ports'
 import { QA_SOCIAL_ACCOUNT } from '../tests/browser/qa-social-account'
+import { decodeRouteParts, primaryRoutePart } from '../resources/functions/trail-geometry'
 import { assertAndroidPlatformHealthy, maestroEnvironment, maestroReportSummary, parseAdbDevices, validateGeneratedNativeApp } from './run-mobile-e2e'
 
 interface PersistedReview { id: number, rating: number, content: string }
@@ -54,7 +55,7 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
 
   const devices = parseAdbDevices(await command(['adb', 'devices'], 'devices'))
   const device = process.env.NATIVE_QA_ANDROID_DEVICE
-  if (!device || !devices.includes(device)) throw new Error('NATIVE_QA_ANDROID_DEVICE must name an owned, ready emulator.')
+  if (!device || !/^emulator-\d+$/.test(device) || !devices.includes(device)) throw new Error('NATIVE_QA_ANDROID_DEVICE must name an owned, ready emulator.')
   const adb = (args: string[], name: string) => command(['adb', '-s', device, ...args], name)
   const platformEvents = async (phase: string) => {
     const events = await adb(['logcat', '-b', 'events', '-d', '-v', 'threadtime'], `platform-${phase}`)
@@ -84,6 +85,9 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       if (detail.trail?.hasGeometry) { trail = detail.trail; break }
     }
     if (!trail) throw new Error('Native Android QA requires its seeded recorded route.')
+    const first = primaryRoutePart([...decodeRouteParts(trail.geometry), ...(Array.isArray(trail.pieceRoutes) ? trail.pieceRoutes : [])])[0]
+    if (!first) throw new Error('The seeded trail has no recorded route start.')
+    await adb(['emu', 'geo', 'fix', String(first[1]), String(first[0])], 'seed-location')
     const reviews = async (): Promise<PersistedReview[]> => {
       const response = await fetch(`${origin}/api/trails/${trail.id}/reviews`, { cache: 'no-store' })
       if (!response.ok) throw new Error(`Reading persisted reviews failed: ${response.status}`)
@@ -98,9 +102,10 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       APP_ID: mobile.android.packageName, TRAIL_ID: String(trail.id), TRAIL_NAME: trail.name,
       E2E_EMAIL: QA_SOCIAL_ACCOUNT.email, E2E_PASSWORD: QA_SOCIAL_ACCOUNT.sessionSecret,
       REVIEW_TEXT: review, EDITED_REVIEW_TEXT: edit,
+      GPX_NAME: `${trail.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80)}.gpx`,
     }
     let reviewId: number | undefined
-    for (const phase of ['maps', 'review-create', 'review-edit', 'review-delete'] as const) {
+    for (const phase of ['maps', 'utilities', 'sharing', 'directions', 'review-create', 'review-edit', 'review-delete'] as const) {
       const report = join(root, `${phase}.xml`)
       await command([
         'maestro', `--device=${device}`, '--no-ansi', 'test',
@@ -110,15 +115,31 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       ], phase, maestroEnvironment())
       const summary = maestroReportSummary(await readFile(report, 'utf8'))
       if (!summary.tests || summary.failures) throw new Error(`Native Android ${phase} did not pass.`)
-      if (phase !== 'maps') {
+      if (phase.startsWith('review-')) {
         const saved = await reviews()
         await writeFile(join(root, `${phase}-persistence.json`), JSON.stringify(saved, null, 2))
         const action = phase === 'review-create' ? 'create' : phase === 'review-edit' ? 'edit' : 'delete'
         reviewId = assertNativeReviewPersistence(saved, action, action === 'create' ? review : edit, reviewId)
       }
+      if (phase === 'utilities') {
+        const files = await adb(['shell', 'run-as', mobile.android.packageName, 'find', '.', '-type', 'f'], 'export-files')
+        const paths = files.split(/\r?\n/).filter(path => /^[a-zA-Z0-9_./-]+\.gpx$/.test(path))
+        let exported = false
+        for (const path of paths) {
+          const xml = await adb(['exec-out', 'run-as', mobile.android.packageName, 'cat', path], 'exported-gpx')
+          if (xml.includes('<gpx ') && xml.includes('<trkseg>') && xml.includes(`<trkpt lat="${first[0]}" lon="${first[1]}"`)) exported = true
+        }
+        if (!exported) throw new Error('The native GPX export did not contain the recorded route coordinates.')
+      }
+      if (phase === 'directions') {
+        const activities = await adb(['shell', 'dumpsys', 'activity', 'activities'], 'directions-activities')
+        const resumed = activities.split('\n').filter(line => /(?:mResumedActivity|topResumedActivity):/.test(line))
+        if (!resumed.length || resumed.some(line => line.includes(`${mobile.android.packageName}/`)))
+          throw new Error('Directions did not hand off to an external Android activity.')
+      }
       await platformEvents(phase)
     }
-    console.log('Native Android maps, sticky save and persisted review create/edit/delete passed.')
+    console.log('Native Android maps, sticky actions, location, GPX, route customization, actual share-link paste and persisted review create/edit/delete passed.')
   }
   finally {
     await adb(['logcat', '-d', '-s', 'CraftNativeAndroid:V', 'AndroidRuntime:E'], 'app-runtime').catch(() => {})

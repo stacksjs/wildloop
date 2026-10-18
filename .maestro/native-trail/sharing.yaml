@@ -1,0 +1,28 @@
+appId: ${APP_ID}
+name: Copy the trail link and paste it into a real native field
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible:
+      id: trail-share
+    timeout: 30000
+- tapOn:
+    id: trail-share
+- extendedWaitUntil:
+    visible: '^Copy$'
+    timeout: 15000
+- takeScreenshot: android-native-share-sheet
+- tapOn: '^Copy$'
+- openLink: wildloop://login
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 15000
+- longPressOn:
+    id: login-email
+- tapOn: '^Paste$'
+- assertVisible:
+    id: login-email
+    text: 'https://wildloop.org/trail/${TRAIL_ID}'
+- takeScreenshot: android-native-share-link-pasted

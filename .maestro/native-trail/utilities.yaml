@@ -1,0 +1,43 @@
+appId: ${APP_ID}
+name: Native location, route customization and GPX sharing
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}/map
+- extendedWaitUntil:
+    visible:
+      id: trail-full-map
+    timeout: 30000
+- assertNotVisible:
+    id: '.*permission_allow_foreground_only_button'
+- tapOn:
+    id: map-locate
+- extendedWaitUntil:
+    visible:
+      id: '.*permission_allow_foreground_only_button'
+    timeout: 15000
+- tapOn:
+    id: '.*permission_allow_foreground_only_button'
+- extendedWaitUntil:
+    visible: 'Your location is shown'
+    timeout: 30000
+- takeScreenshot: android-native-map-location
+- tapOn:
+    id: map-customize
+- extendedWaitUntil:
+    visible:
+      id: route-builder-map
+    timeout: 30000
+- assertVisible: ${TRAIL_NAME}
+- takeScreenshot: android-native-customize-route
+- back
+- assertVisible:
+    id: trail-full-map
+- tapOn:
+    id: map-export
+- extendedWaitUntil:
+    visible: ${GPX_NAME}
+    timeout: 15000
+- takeScreenshot: android-native-gpx-share-sheet
+- back
+- assertVisible:
+    id: trail-full-map
