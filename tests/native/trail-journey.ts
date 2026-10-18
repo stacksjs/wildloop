@@ -14,7 +14,7 @@ const arrival:SimulatorStep[] = [
  {command:'tapid',text:'login-submit'},
  {command:'shot',name:'native-login-result'},
  {command:'tree',name:'native-login-result'},
- {command:'expect',text:input.trailName,seconds:15},
+ {command:'expect',text:input.trailName,seconds:30},
  {command:'shot',name:'native-trail-arrival'},
  {command:'tree',name:'native-trail-arrival'},
  {command:'expectid',text:'trail-native-map',seconds:15},

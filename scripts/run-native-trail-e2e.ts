@@ -101,7 +101,6 @@ export async function runNativeTrailE2e(): Promise<void> {
         const line=await request.text()
         if(line.startsWith('FAIL ')) {
           if(!failures.includes(activeJourney))failures.push(activeJourney)
-          await command(['xcrun','simctl','io',device,'screenshot',join(root,`${activeJourney}-native-failure.png`)],`${activeJourney}-failure-screenshot.log`).catch(cause=>console.warn(String(cause)))
         }
         await appendFile(join(root,`driver-${activeJourney}.log`),`${line}\n`)
         return new Response('ok')
