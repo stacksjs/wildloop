@@ -356,8 +356,8 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         </View>
       </View>
     </View>
-    <Text :show="notice" :text="notice" :class="ui.caption" class="m-4" testID="trail-notice" />
   </ScrollView>
+  <Text :show="notice" :text="notice" :class="ui.caption" class="mx-4 my-2" testID="trail-notice" />
   <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-white dark:bg-[#1b2c22]" testID="trail-sticky-actions">
     <Button testID="trail-save" class="flex-1" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()" :title="saved() ? 'Saved' : 'Save'" :accessibilityHint="!loading() && !viewerReady() ? 'Your saved trail status is unavailable. Pull down to retry.' : ''" />
     <Button testID="trail-directions" class="flex-1" :class="ui.secondary" @click="directions()">Directions</Button>
