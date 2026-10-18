@@ -50,6 +50,13 @@ export async function runNativeTrailE2e(): Promise<void> {
       if(detail.trail?.hasGeometry){trail=detail.trail;break}
     }
     if(!trail)throw new Error('Native trail QA requires its seeded recorded route.')
+    const profileResponse=await fetch(`${origin}/api/trails/${trail.id}/profile`)
+    if(!profileResponse.ok)throw new Error('Native iOS QA requires the trail profile endpoint to be available.')
+    const profile=await profileResponse.json() as {points:Array<{mi:number,ft:number|null}>}
+    const endpoint=profile.points?.at(-1)
+    if(!endpoint || profile.points.length<2 || !Number.isFinite(endpoint.mi) || (endpoint.ft!==null && !Number.isFinite(endpoint.ft)))
+      throw new Error('Native iOS QA requires a selectable recorded route profile.')
+    const endElevation=endpoint.ft===null ? 'elevation unavailable' : `${endpoint.ft} ft`
     const review=`Native QA ${crypto.randomUUID().slice(0,8)}: clear signposts and a beautiful ridge.`
     const edit=' Updated after a return visit.'
     const readReviews=async()=>{
@@ -59,7 +66,7 @@ export async function runNativeTrailE2e(): Promise<void> {
     }
     if((await readReviews()).length)throw new Error('The isolated native trail must start without reviews.')
     let createdReviewId:number|undefined
-    const journeys=nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit})
+    const journeys=nativeTrailJourneys({trailId:trail.id,trailName:trail.name,email:QA_SOCIAL_ACCOUNT.email,password:QA_SOCIAL_ACCOUNT.sessionSecret,review,edit,profileEndText:`${endpoint.mi.toFixed(2)} mi · ${endElevation}`,inlineProfileEndText:`${endpoint.mi.toFixed(2)} mi, ${endElevation}`})
     const controlPort=QA_PORTS.app+15
     const driver=prepareIosSimulatorDriver({...mobile.ios,simulator:{output:join(root,'driver'),projectName:'WildloopTrailDriver',bundleIdPrefix:'org.wildloop.trailqa',controlUrl:`http://127.0.0.1:${controlPort}`}})
     control=Bun.serve({hostname:'127.0.0.1',port:controlPort,idleTimeout:120,async fetch(request){
@@ -90,17 +97,6 @@ export async function runNativeTrailE2e(): Promise<void> {
             if(!first)throw new Error('The seeded trail has no recorded route start.')
             await command(['xcrun','simctl','location',device,'set',`${first[0]},${first[1]}`],'location-seed.log')
             return new Response('PASS owned simulator location set to the seeded public trailhead')
-          }
-          if(hook==='verify-share') {
-            console.log('Native trail QA: inspect the owned simulator share clipboard')
-            const pasted=Bun.spawnSync(['xcrun','simctl','pbpaste',device],{timeout:15000,killSignal:'SIGKILL',maxBuffer:1048576})
-            await writeFile(join(root,'sharing-clipboard.log'),JSON.stringify({exitCode:pasted.exitCode,signalCode:pasted.signalCode,stdout:pasted.stdout.toString(),stderr:pasted.stderr.toString()},null,2))
-            if(pasted.exitCode!==0 || !pasted.stdout.toString().includes(`https://wildloop.org/trail/${trail.id}`)) {
-              const verbose=Bun.spawnSync(['xcrun','simctl','pbpaste','-v',device],{timeout:15000,killSignal:'SIGKILL',maxBuffer:1048576})
-              await writeFile(join(root,'sharing-clipboard-types.log'),JSON.stringify({exitCode:verbose.exitCode,signalCode:verbose.signalCode,stdout:verbose.stdout.toString(),stderr:verbose.stderr.toString()},null,2))
-              throw new Error('The native share action did not copy this trail link. Inspect sharing-clipboard.log and sharing-clipboard-types.log.')
-            }
-            return new Response('PASS native share copied the trail link')
           }
           if(hook==='verify-gpx') {
             const located=Bun.spawnSync(['xcrun','simctl','get_app_container',device,mobile.ios.bundleId,'data'])

@@ -1,7 +1,7 @@
 import type { SimulatorStep } from '@stacksjs/mobile/testing'
 
 /** Real native UI interactions against the isolated QA database. */
-export function nativeTrailJourneys(input:{trailId:number,trailName:string,email:string,password:string,review:string,edit:string}):{name:string,steps:SimulatorStep[],completion:string}[] {
+export function nativeTrailJourneys(input:{trailId:number,trailName:string,email:string,password:string,review:string,edit:string,profileEndText:string,inlineProfileEndText:string}):{name:string,steps:SimulatorStep[],completion:string}[] {
 const arrival:SimulatorStep[] = [
  {command:'launch'},
  {command:'expectid',text:'native-feed-scroll',seconds:15},
@@ -38,6 +38,10 @@ const maps:SimulatorStep[] = [
  {command:'expectexact',text:'Save',seconds:30},
  {command:'scrollto',text:'Toggle elevation profile'},
  {command:'shot',name:'native-floating-profile-inline'},
+ {command:'sliderid',id:'trail-elevation-slider',position:1},
+ {command:'expectexact',text:input.inlineProfileEndText,seconds:10},
+ {command:'shot',name:'native-inline-elevation-endpoint'},
+ {command:'tree',name:'native-inline-elevation-endpoint'},
  {command:'tapid',text:'trail-profile-toggle'},
  {command:'expect',text:'Elevation profile collapsed',seconds:10},
  {command:'scrollto',text:'Toggle elevation profile'},
@@ -64,6 +68,10 @@ const maps:SimulatorStep[] = [
  {command:'expectid',text:'trail-full-map',seconds:10},
  {command:'shot',name:'native-floating-profile-fullscreen'},
  {command:'tree',name:'native-floating-profile-fullscreen'},
+ {command:'sliderid',id:'map-elevation-slider',position:1},
+ {command:'expectexact',text:input.profileEndText,seconds:10},
+ {command:'shot',name:'native-elevation-endpoint'},
+ {command:'tree',name:'native-elevation-endpoint'},
  {command:'tapid',text:'map-zoom-in'},
  {command:'tapid',text:'map-zoom-out'},
  {command:'tapid',text:'map-fit'},
@@ -149,7 +157,28 @@ const sharing:SimulatorStep[] = [
  {command:'shot',name:'native-share-sheet'},
  {command:'tree',name:'native-share-sheet'},
  {command:'tapexact',text:'Copy'},
- {command:'exec',name:'verify-share'},
+ {command:'openurl',url:'wildloop://login'},
+ {command:'expectid',text:'login-email',seconds:10},
+ {command:'valueid',id:'login-email',text:''},
+ {command:'longpressid',text:'login-email'},
+ {command:'tapexact',text:'Paste'},
+ {command:'valueid',id:'login-email',text:`https://wildloop.org/trail/${input.trailId}`},
+ {command:'shot',name:'native-shared-link-pasted'},
+ {command:'tree',name:'native-shared-link-pasted'},
+ {command:'openurl',url:`wildloop://trail/${input.trailId}`},
+ {command:'expectid',text:'trail-sticky-actions',seconds:15},
+]
+const directions:SimulatorStep[] = [
+ ...arrival,
+ {command:'tapid',text:'trail-directions'},
+ {command:'expectapp',text:'com.apple.Maps',seconds:30},
+ {command:'systemtree',name:'native-sticky-directions-handoff'},
+]
+const mapDirections:SimulatorStep[] = [
+ ...fullMap,
+ {command:'tapid',text:'map-directions'},
+ {command:'expectapp',text:'com.apple.Maps',seconds:30},
+ {command:'systemtree',name:'native-map-directions-handoff'},
 ]
 const gpx:SimulatorStep[] = [
  ...fullMap,
@@ -210,7 +239,9 @@ return [
  {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
  {name:'reviews',steps:reviews,completion:'exec verify-review-edited: PASS edited review retained its identity and persisted'},
  {name:'review-delete',steps:reviewDelete,completion:'exec verify-review-deleted: PASS deleted review is absent from persistence'},
- {name:'sharing',steps:sharing,completion:'exec verify-share: PASS native share copied the trail link'},
+ {name:'sharing',steps:sharing,completion:'PASS expectid trail-sticky-actions'},
+ {name:'directions',steps:directions,completion:'PASS expectapp com.apple.Maps'},
+ {name:'map-directions',steps:mapDirections,completion:'PASS expectapp com.apple.Maps'},
  {name:'gpx',steps:gpx,completion:'exec verify-gpx: PASS exported GPX contains the recorded route'},
  {name:'planner',steps:planner,completion:'PASS expectid trail-full-map'},
  {name:'location',steps:location,completion:'PASS expect Your location is shown'},
