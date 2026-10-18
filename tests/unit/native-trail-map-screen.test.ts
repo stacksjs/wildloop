@@ -42,6 +42,10 @@ describe('native full trail map',()=>{
     expect(nativeNodeProps(screen,'trail-full-map').cameraHeading).toBe(0)
     await screen.event('map-elevation-slider','onValueChange',{value:1})
     expect(nativeNodeProps(screen,'trail-full-map').region.center).toEqual({latitude:37.71,longitude:-119.51})
+    expect(nativeNodeProps(screen,'map-elevation-slider').value).toBe(1)
+    await screen.event('map-fit','onPress')
+    expect(nativeNodeProps(screen,'map-elevation-slider').value).toBe(0)
+    expect(nativeNodeProps(screen,'trail-full-map').fitToBounds).toBe(true)
   })
   it('exports a GPX file through native files and the system share sheet',async()=>{
     const screen=await open(),before=requests(screen).length

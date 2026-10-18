@@ -42,6 +42,7 @@ const basemap = derived(() => nativeBasemap(mapType()))
 const region = state<any>(null)
 const inspected = state<TrailProfilePoint | null>(null)
 const profileOpen = state(true)
+const profilePosition = state(0)
 const profileFigures = derived(() => trailProfileRange(profile()))
 const pitch = state(0)
 const heading = state(0)
@@ -74,6 +75,7 @@ function weatherLine(day: any, index: number): string {
 function fitRoute() {
   region.set(null)
   inspected.set(null)
+  profilePosition.set(0)
 }
 function zoom(factor:number) {region.set(nativeZoomRegion(mapRegion(),factor))}
 function camera(event:any) {
@@ -89,8 +91,10 @@ async function locate() {
   }catch(cause){notice.set(cause instanceof Error?cause.message:'Your position could not be found. Check location permission.')}
 }
 function inspect(event: any) {
-  const point = profile()[Math.round(Number(event?.value) || 0)]
+  const position = Math.round(Number(event?.value) || 0)
+  const point = profile()[position]
   if (!point) return
+  profilePosition.set(position)
   inspected.set(point)
   region.set({ ...mapRegion(), center: { latitude: point.lat, longitude: point.lng } })
 }
@@ -303,7 +307,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         </View>
         <Text :show="!profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
         <Text :show="profile().some(point => point.ft !== null)" :text="profileFigures().miles.toFixed(1) + ' mi · ' + Math.round(profileFigures().low) + '–' + Math.round(profileFigures().high) + ' ft'" :class="ui.caption" />
-        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
+        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :value="profilePosition" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
         <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi, ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
           </View>
           </View>

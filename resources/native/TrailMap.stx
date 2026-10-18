@@ -26,13 +26,14 @@ const pitch = state(0)
 const heading = state(0)
 const showLocation = state(false)
 const profileOpen = state(true)
+const profilePosition = state(0)
 const inspected = state<TrailProfilePoint | null>(null)
 const trailhead = derived(() => trailheadPosition(nativeMapParts(parts()), trail()))
 const signs = derived(() => trailDirectionSigns(nativeMapParts(parts()), 12))
 const figures = derived(() => trailProfileRange(profile()))
 const currentRegion = derived(() => region() ?? nativeRouteRegion(parts(), { lat: trail()?.lat ?? 0, lng: trail()?.lng ?? 0 }))
 let alive = true
-function fit() { region.set(null); inspected.set(null) }
+function fit() { region.set(null); inspected.set(null); profilePosition.set(0) }
 function camera(event: any) {
   if (!event?.center || !event?.span) return
   region.set({ center: event.center, span: event.span })
@@ -40,8 +41,10 @@ function camera(event: any) {
   pitch.set(Number(event.pitch) || 0)
 }
 function inspect(event: any) {
-  const point = profile()[Math.round(Number(event?.value) || 0)]
+  const position = Math.round(Number(event?.value) || 0)
+  const point = profile()[position]
   if (!point) return
+  profilePosition.set(position)
   inspected.set(point)
   region.set({ ...currentRegion(), center: { latitude: point.lat, longitude: point.lng } })
 }
@@ -123,7 +126,7 @@ onMount(() => { void load(); return () => { alive = false } })
         </View>
         <Text testID="map-profile-unavailable" :show="!loading() && !profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
         <Text testID="map-profile-range" :show="profile().some(point => point.ft !== null)" :text="figures().miles.toFixed(1) + ' mi · ' + Math.round(figures().low) + '–' + Math.round(figures().high) + ' ft'" :class="ui.caption" />
-        <Slider testID="map-elevation-slider" :show="profile().length > 1" :minimumValue="0" :maximumValue="Math.max(0,profile().length - 1)" :step="1" @change="inspect($event)" accessibilityLabel="Explore elevation and position along the route" />
+        <Slider testID="map-elevation-slider" :show="profile().length > 1" :value="profilePosition" :minimumValue="0" :maximumValue="Math.max(0,profile().length - 1)" :step="1" @change="inspect($event)" accessibilityLabel="Explore elevation and position along the route" />
         <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi · ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
       </View>
     </View>
