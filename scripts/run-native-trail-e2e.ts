@@ -62,7 +62,12 @@ export async function runNativeTrailE2e(): Promise<void> {
           const hook=url.searchParams.get('name')
           if(hook==='verify-share') {
             const pasted=Bun.spawnSync(['xcrun','simctl','pbpaste',device])
-            if(pasted.exitCode || !pasted.stdout.toString().includes(`https://wildloop.org/trail/${trail.id}`))throw new Error('The native share action did not copy this trail link.')
+            await writeFile(join(root,'sharing-clipboard.log'),JSON.stringify({exitCode:pasted.exitCode,stdout:pasted.stdout.toString(),stderr:pasted.stderr.toString()},null,2))
+            if(pasted.exitCode || !pasted.stdout.toString().includes(`https://wildloop.org/trail/${trail.id}`)) {
+              const verbose=Bun.spawnSync(['xcrun','simctl','pbpaste','-v',device])
+              await writeFile(join(root,'sharing-clipboard-types.log'),JSON.stringify({exitCode:verbose.exitCode,stdout:verbose.stdout.toString(),stderr:verbose.stderr.toString()},null,2))
+              throw new Error('The native share action did not copy this trail link. Inspect sharing-clipboard.log and sharing-clipboard-types.log.')
+            }
             return new Response('PASS native share copied the trail link')
           }
           if(hook==='verify-gpx') {
