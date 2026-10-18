@@ -13,7 +13,17 @@ onFlowComplete:
     visible:
       id: native-feed-scroll
     timeout: 30000
-- tapOn: "^Menu$"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: craft-tab-/menu
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: "^Menu$"
 - extendedWaitUntil:
     visible:
       id: native-menu
