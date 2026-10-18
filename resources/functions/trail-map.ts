@@ -3,6 +3,9 @@ import { primaryRoutePart } from './trail-geometry'
 
 const RADIANS = Math.PI / 180
 
+/** The selected trail stays legible on terrain, street and satellite maps. */
+export const trailRouteStyle = { line: '#91e86b', casing: '#365b2d' } as const
+
 /** Catalog coordinates can be a trail's center; navigation uses its recorded start. */
 export function trailheadPosition(geometry: unknown, fallback?: { lat: number, lng: number } | null): { lat: number, lng: number } | null {
   const first = primaryRoutePart(geometry)[0]

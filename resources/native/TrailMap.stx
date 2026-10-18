@@ -7,7 +7,7 @@ import { nativeUi as ui } from '../functions/native-ui'
 import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { decodeRouteParts } from '../functions/trail-geometry'
 import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
-import { trailheadPosition, trailDirectionSigns } from '../functions/trail-map'
+import { trailheadPosition, trailDirectionSigns, trailRouteStyle } from '../functions/trail-map'
 import { trailProfilePath, trailProfileRange, type TrailProfilePoint } from '../functions/trail-profile'
 import { exportNativeGpx } from '../functions/native-export'
 import { planDirections } from '../functions/trip-plans'
@@ -97,7 +97,8 @@ onMount(() => { void load(); return () => { alive = false } })
       :region="parts().some(part=>part.length>2) ? region() : currentRegion()" :fitToBounds="region() === null && parts().some(part=>part.length>2)" :edgePadding="{top:88,left:40,right:40,bottom:profileOpen() ? 240 : 100}"
       :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :cameraPitch="pitch" :cameraHeading="heading" :showsCompass="true" :showsScale="true" :scrollEnabled="true" :zoomEnabled="true" :rotateEnabled="true" :showsUserLocation="showLocation"
       @region-change-complete="camera($event)">
-      <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
+      <MapPolyline :for="(part,index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
+      <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
       <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
       <MapMarker id="trailhead" title="Trailhead" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
       <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />

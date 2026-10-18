@@ -8,7 +8,7 @@ import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
 import { decodeRouteParts } from '../functions/trail-geometry'
 import { nativeMapParts, nativeRouteRegion, nativeZoomRegion } from '../functions/native-map'
 import { exportNativeGpx } from '../functions/native-export'
-import { trailheadPosition, trailDirectionSigns, trailSurfaceTypes } from '../functions/trail-map'
+import { trailheadPosition, trailDirectionSigns, trailSurfaceTypes, trailRouteStyle } from '../functions/trail-map'
 import { trailProfilePath, trailProfileRange, type TrailProfilePoint } from '../functions/trail-profile'
 import { trailStatsLine } from '../functions/trails'
 import { forecastDayLabel } from '../functions/trail-page'
@@ -284,7 +284,8 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       <View :class="ui.card">
         <View class="relative h-[480px] -mx-4 -mt-4 overflow-hidden rounded-[12px]">
         <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
-          <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" strokeColor="#24724b" :strokeWidth="5" />
+          <MapPolyline :for="(part, index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
+          <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
           <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
           <MapMarker id="trailhead" title="Trailhead" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
           <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />

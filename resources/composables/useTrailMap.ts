@@ -1,4 +1,4 @@
-import { trailDirectionSigns } from '../functions/trail-map'
+import { trailDirectionSigns, trailRouteStyle } from '../functions/trail-map'
 import type { CircleMarker as CircleMarkerType, Marker as MarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { Polyline as PolylineType } from 'ts-maps'
@@ -108,7 +108,7 @@ function reliefOpacity(theme: BasemapTheme): number {
 }
 
 /** The green a route is drawn in, and the green a mapped trail is drawn in. */
-const ROUTE_GREEN = '#91e86b'
+const ROUTE_GREEN = trailRouteStyle.line
 
 export type BasemapTheme = 'light' | 'dark'
 
@@ -776,7 +776,7 @@ export async function drawTrailRoute(
   if (options?.casing !== false) {
     for (const part of parts) {
       target.addLayer(new Polyline(part, {
-        color: '#365b2d',
+        color: trailRouteStyle.casing,
         weight: weight + 4,
         opacity: 0.9,
         lineCap: 'round',
