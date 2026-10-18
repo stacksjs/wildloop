@@ -143,8 +143,10 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       if (phase === 'directions' || phase === 'directions-map') {
         const activities = await adb(['shell', 'dumpsys', 'activity', 'activities'], `${phase}-activities`)
         const resumed = activities.split('\n').filter(line => /(?:mResumedActivity|topResumedActivity):/.test(line))
-        if (!resumed.length || resumed.some(line => line.includes(`${mobile.android.packageName}/`)))
-          throw new Error('Directions did not hand off to an external Android activity.')
+        const systemActivity = /\b(?:android|com\.android\.(?:intentresolver|launcher3|permissioncontroller)|com\.google\.android\.apps\.nexuslauncher)\//
+        const unfinishedActivity = /(?:ResolverActivity|ChooserActivity|FirstRunActivity)\b/
+        if (!resumed.length || resumed.some(line => line.includes(`${mobile.android.packageName}/`) || systemActivity.test(line) || unfinishedActivity.test(line)))
+          throw new Error('Directions did not reach a ready external Android application.')
       }
       await platformEvents(phase)
     }
