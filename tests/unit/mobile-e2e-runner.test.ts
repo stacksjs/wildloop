@@ -172,7 +172,17 @@ describe('mobile E2E runner', () => {
         <testcase name="pass" />
         <testcase name="fail"><failure>not visible</failure></testcase>
       </testsuite>
-    `)).toEqual({ failures: 1, tests: 2 })
+    `)).toEqual({ failures: 1, tests: 2, skipped: 0 })
+  })
+
+  it('distinguishes skipped device journeys from executed passes', () => {
+    expect(maestroReportSummary(`
+      <testsuite tests="3" errors="1" skipped="1">
+        <testcase name="pass" />
+        <testcase name="not executed"><skipped /></testcase>
+        <testcase name="device disconnected"><error>offline</error></testcase>
+      </testsuite>
+    `)).toEqual({ failures: 1, tests: 3, skipped: 1 })
   })
 
   it('rejects a mobile bundle that lost reactive page setup', () => {

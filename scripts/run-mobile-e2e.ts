@@ -113,10 +113,11 @@ export function selectIosSimulator(payload: SimctlDevices): IosDevice | null {
   return candidates.find(device => device.state === 'Booted') ?? candidates[0] ?? null
 }
 
-export function maestroReportSummary(xml: string): { failures: number, tests: number } {
+export function maestroReportSummary(xml: string): { failures: number, tests: number, skipped: number } {
   return {
     failures: xml.match(/<(?:failure|error)\b/g)?.length ?? 0,
     tests: xml.match(/<testcase\b/g)?.length ?? 0,
+    skipped: xml.match(/<skipped\b/g)?.length ?? 0,
   }
 }
 
@@ -287,6 +288,7 @@ function runMaestroFlow(
   const summary = maestroReportSummary(readFileSync(report, 'utf8'))
   if (summary.tests === 0) throw new Error(`Maestro ran no ${platform} tests`)
   if (summary.failures > 0) throw new Error(`Maestro reported ${summary.failures} failed ${platform} test(s)`)
+  if (summary.skipped > 0) throw new Error(`Maestro skipped ${summary.skipped} required ${platform} test(s)`)
 }
 
 function runMaestroJourneys(platform: MobilePlatform, deviceId: string, signedInURL: string | null): void {

@@ -114,7 +114,7 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
         '--test-output-dir', join(root, 'tests', phase), `.maestro/native-trail/${phase}.yaml`,
       ], phase, maestroEnvironment())
       const summary = maestroReportSummary(await readFile(report, 'utf8'))
-      if (!summary.tests || summary.failures) throw new Error(`Native Android ${phase} did not pass.`)
+      if (!summary.tests || summary.failures || summary.skipped) throw new Error(`Native Android ${phase} did not execute and pass every required test.`)
       if (phase.startsWith('review-')) {
         const saved = await reviews()
         await writeFile(join(root, `${phase}-persistence.json`), JSON.stringify(saved, null, 2))
