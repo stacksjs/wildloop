@@ -1,13 +1,50 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, start, waitForRequest } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeBundle, nativeNodeProps, nodesByTestId, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const ROOT = join(import.meta.dir, '../..')
 
 beforeAll(compileNativeBundle, 30000)
 
 describe('Wildloop native manual activity flow', () => {
+  it('keeps a system UUID and the exact manual payload when retrying a failed save',async()=>{
+    const manual=await start('ManualActivity',{},['fetch','secureStorage','crypto','haptics','lifecycle','dialog'],new Map([['auth_token','native-token']]))
+    await manual.event('distance-input','onChangeText',{text:'3.1'})
+    await manual.event('duration-input','onChangeText',{text:'28:00'})
+    await manual.event('save-activity','onPress')
+    const uuid=await waitForRequest(manual,0,r=>r.payload.module==='Crypto' && r.payload.method==='randomUUID')
+    answer(manual,uuid,'2b53ece4-8df1-49fa-9e70-752ddc901cf7')
+    const post=await waitForRequest(manual,0,r=>r.payload.module==='Network')
+    expect(JSON.parse(post.payload.args[0].body).upload_id).toBe('manual:2b53ece4-8df1-49fa-9e70-752ddc901cf7')
+    answer(manual,post,{status:503,body:JSON.stringify({message:'Try again later'})})
+    await waitForText(manual,'Try again later')
+    const before=requests(manual).length
+    await manual.event('save-activity','onPress')
+    const again=await waitForRequest(manual,before,r=>r.payload.module==='Network')
+    expect(again.payload.args[0].body).toBe(post.payload.args[0].body)
+    expect(requests(manual).filter(r=>r.payload.module==='Crypto')).toHaveLength(1)
+  })
+  it('clears private manual notes and ignores a save response after an account change',async()=>{
+    const keychain=new Map([['auth_token','native-token']])
+    const manual=await start('ManualActivity',{},['fetch','secureStorage','crypto','haptics','lifecycle','dialog'],keychain)
+    await manual.event('distance-input','onChangeText',{text:'3'})
+    await manual.event('duration-input','onChangeText',{text:'30:00'})
+    await manual.event('notes-input','onChangeText',{text:'private route notes'})
+    await manual.event('save-activity','onPress')
+    // The original screen has no UUID request. Answer one only when the real
+    // host protocol asks for it, so both versions reach the held HTTP response.
+    const uuid=requests(manual).find(r=>r.payload.module==='Crypto')
+    if(uuid) answer(manual,uuid,'b6506ad4-d9d2-40df-8a32-bf4194adce26')
+    const post=await waitForRequest(manual,0,r=>r.payload.module==='Network')
+    keychain.set('auth_token','other-token')
+    await manual.scope.craft.snapshots.set('wildloop-session',{user:{id:13},version:1})
+    answer(manual,post,{status:201,body:JSON.stringify({activity:{id:42,userId:12}})})
+    await Bun.sleep(0)
+    expect(nativeNodeProps(manual,'notes-input').value).toBe('')
+    expect(requests(manual).some(r=>r.payload.module==='Haptics')).toBe(false)
+    expect(manual.sent.some(r=>r.type==='NAVIGATE')).toBe(false)
+  })
   it('uses app components and sends the real activity payload through the Craft protocol', async () => {
     expect(nativeBundle()).not.toContain('WebView')
     expect(readFileSync(join(ROOT, 'resources/native/ManualActivity.stx'), 'utf8')).toContain('<NativeRunMetric')
