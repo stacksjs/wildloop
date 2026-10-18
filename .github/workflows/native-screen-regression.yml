@@ -120,10 +120,13 @@ jobs:
           bun-version: '1.4.2'
       - name: Install frozen public dependencies
         run: bun install --frozen-lockfile
-      # Sync the normal published framework code. Database migrations run with
-      # --no-generate in the existing isolated QA and deployment stages.
       - name: Synchronize the published framework
-        run: ./buddy upgrade --version 0.75.221 --no-postinstall
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE_PATH: ${{ runner.temp }}/framework-upgrade.sqlite
+          BUGHQ_ENABLED: 'false'
+        run: ./buddy upgrade --version 0.75.221
       - name: Retain generated framework changes for review
         run: |
           git add -N -- storage/framework/defaults
