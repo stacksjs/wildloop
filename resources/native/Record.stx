@@ -77,13 +77,25 @@ async function recover() {
     if (!alive) return
     owner=cached?.id ?? (Number(me?.body?.user?.id)||0)
     const saved=await craft.storage.get<NativeRecording>(KEY)
-    const host=await craft.location?.getRecordingState()
-    if (!alive) return
     if (saved && saved.userId !== owner) {
       recording.set(null);running.set(false)
       error.set('Log in as the account that started the saved recording before resuming or uploading it.')
       return
     }
+    if (saved && !saved.id) {
+      recording.set(saved);running.set(false);paused.set(false)
+      error.set('This saved track has no verifiable native recording identity. Its checkpoint has been retained; it cannot be attached to another recording.')
+      return
+    }
+    // A finished checkpoint is sufficient for an offline retry. Do not read
+    // the shared GPS slot, which may now belong to another recording.
+    if (saved?.pending) {
+      recording.set(saved);running.set(false);paused.set(false)
+      notice.set('Your finished recording is saved on this device. Retry the upload when connected.')
+      return
+    }
+    const host=await craft.location?.getRecordingState(saved?.id ? {expectedId:saved.id} : undefined)
+    if (!alive) return
     if (host?.active && (!saved || (saved.id && saved.id !== host.id))) {
       error.set('A device recording is already active. Its account checkpoint could not be verified, so it has been retained without starting another recording.')
       return
@@ -92,7 +104,7 @@ async function recover() {
     running.set(Boolean(host?.active))
     paused.set(Boolean(host?.paused))
     if (saved && host?.active && !saved.pending) {
-      append(await craft.location!.readRecording())
+      append(await craft.location!.readRecording({expectedId:saved.id!}))
       await persist(recording()!)
       attachWatch()
       notice.set('Your recording has been recovered from this device.');updateLive(true)

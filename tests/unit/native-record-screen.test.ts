@@ -7,8 +7,6 @@ async function recover(userId=7, keychain=new Map([['auth_token','record-token']
   const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],keychain)
   const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
   answer(screen,stored,checkpoint)
-  const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
-  answer(screen,host,{active:false,paused:false,locations:[]})
   return screen
 }
 describe('native Record checkpoint recovery',()=>{
