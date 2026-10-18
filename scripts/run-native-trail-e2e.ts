@@ -58,7 +58,7 @@ export async function runNativeTrailE2e(): Promise<void> {
       throw new Error('Native iOS QA requires a selectable recorded route profile.')
     const endElevation=endpoint.ft===null ? 'elevation unavailable' : `${endpoint.ft} ft`
     const review=`Native QA ${crypto.randomUUID().slice(0,8)}: clear signposts and a beautiful ridge.`
-    const edit=' Updated after a return visit.'
+    const edit='Updated after a return visit.'
     const readReviews=async()=>{
       const response=await fetch(`${origin}/api/trails/${trail.id}/reviews`,{cache:'no-store'})
       if(!response.ok)throw new Error(`Reading persisted reviews failed: ${response.status}`)
@@ -88,7 +88,7 @@ export async function runNativeTrailE2e(): Promise<void> {
               createdReviewId=rows[0].id
               return new Response('PASS created review text and rating persisted')
             }
-            if(rows[0].id!==createdReviewId || rows[0].rating!==4 || !rows[0].content.includes(edit.trim()))
+            if(rows[0].id!==createdReviewId || rows[0].rating!==4 || rows[0].content!==edit)
               throw new Error('The native edit did not retain the review identity and persist its new text and rating.')
             return new Response('PASS edited review retained its identity and persisted')
           }
