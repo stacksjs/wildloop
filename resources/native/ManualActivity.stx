@@ -2,6 +2,7 @@
 import { nativeApiOrigin } from '../functions/native-api'
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { ACTIVITY_VISIBILITIES, buildManualActivity, MANUAL_ACTIVITY_TYPES, todayLocal } from '../functions/manual-activity'
+import { nativeUi as ui } from '../functions/native-ui'
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const types = [...MANUAL_ACTIVITY_TYPES]
@@ -114,34 +115,34 @@ onDestroy(() => {
 })
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
-  <ScrollView class="p-4" testID="manual-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">The same manual entry saved by the Wildloop web feed.</Text>
+<SafeAreaView :class="ui.screen">
+  <ScrollView class="flex-1 p-4" testID="manual-scroll">
+    <Text class="mt-1" :class="ui.caption">Add a run, hike, walk, or ride to your log.</Text>
 
     <View class="mt-5 gap-2">
-      <Text class="text-sm font-semibold text-slate-200">Activity</Text>
+      <Text :class="ui.title">Activity</Text>
       <Text testID="activity-type" class="text-lg text-[#24724b] dark:text-[#9be579]" :text="types[typeIndex()]" />
-      <Button testID="cycle-type" @click="cycleType()">Change activity type</Button>
+      <Button testID="cycle-type" :class="ui.secondary" @click="cycleType()">Change activity type</Button>
     </View>
 
     <View class="mt-4 gap-2">
-      <Text class="text-sm text-slate-200">Distance (miles)</Text>
-      <TextInput testID="distance-input" placeholder="5.0" :value="distance" @input="distance.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Duration (MM:SS or H:MM:SS)</Text>
-      <TextInput testID="duration-input" placeholder="45:30" :value="duration" @input="duration.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Elevation gain (feet)</Text>
-      <TextInput testID="elevation-input" placeholder="800" :value="elevation" @input="elevation.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Trail id (optional)</Text>
-      <TextInput testID="trail-input" placeholder="42" :value="trailId" @input="trailId.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Date</Text>
-      <TextInput testID="date-input" placeholder="YYYY-MM-DD" :value="date" @input="date.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Notes</Text>
-      <TextInput testID="notes-input" placeholder="How did it go?" :value="notes" @input="notes.set(eventText($event))" />
+      <Text :class="ui.caption">Distance (miles)</Text>
+      <TextInput testID="distance-input" :class="ui.input" placeholder="5.0" :value="distance" @input="distance.set(eventText($event))" />
+      <Text :class="ui.caption">Duration (MM:SS or H:MM:SS)</Text>
+      <TextInput testID="duration-input" :class="ui.input" placeholder="45:30" :value="duration" @input="duration.set(eventText($event))" />
+      <Text :class="ui.caption">Elevation gain (feet)</Text>
+      <TextInput testID="elevation-input" :class="ui.input" placeholder="800" :value="elevation" @input="elevation.set(eventText($event))" />
+      <Text :class="ui.caption">Trail id (optional)</Text>
+      <TextInput testID="trail-input" :class="ui.input" placeholder="42" :value="trailId" @input="trailId.set(eventText($event))" />
+      <Text :class="ui.caption">Date</Text>
+      <TextInput testID="date-input" :class="ui.input" placeholder="YYYY-MM-DD" :value="date" @input="date.set(eventText($event))" />
+      <Text :class="ui.caption">Notes</Text>
+      <TextInput testID="notes-input" :class="ui.input" placeholder="How did it go?" :value="notes" @input="notes.set(eventText($event))" />
     </View>
 
     <View class="mt-4 gap-2">
       <Text testID="visibility" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="'Visible to ' + visibilities[visibilityIndex()]" />
-      <Button testID="cycle-visibility" @click="cycleVisibility()">Change visibility</Button>
+      <Button testID="cycle-visibility" :class="ui.secondary" @click="cycleVisibility()">Change visibility</Button>
     </View>
 
     <View class="mt-5 gap-2">
@@ -154,7 +155,7 @@ onDestroy(() => {
     </View>
 
     <Text :show="error" testID="manual-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Button testID="save-activity" class="mt-5" @click="submit()">Save activity</Button>
-    <Button testID="manual-back" class="mt-2" @click="goBack()">Back</Button>
+    <Button testID="save-activity" class="mt-5" :class="ui.action" :disabled="saving" :title="saving() ? 'Saving…' : 'Save activity'" @click="submit()" />
+    <Button testID="manual-back" class="mt-2" :class="ui.secondary" @click="goBack()">Back</Button>
   </ScrollView>
 </SafeAreaView>

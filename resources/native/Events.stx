@@ -161,7 +161,7 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
     </View>
 
     <View :show="past().length > 0" class="mt-5 gap-2">
-      <Text testID="past-heading" class="text-xs font-semibold uppercase text-slate-600">Finished</Text>
+      <Text testID="past-heading" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Finished</Text>
       <Pressable :for="row in past()" :key="row.id" testID="past-row" class="rounded-xl bg-white dark:bg-[#1b2c22]/60 p-3" @click="openEvent(row)">
         <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]" :text="row.name" />
         <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="kind(row) + ' · ' + when(row)" />
