@@ -10,6 +10,14 @@ name: Native location, route customization and GPX sharing
 - assertNotVisible:
     id: '.*permission_allow_foreground_only_button'
 - tapOn:
+    id: map-zoom-in
+- tapOn:
+    id: map-3d
+- assertVisible:
+    id: map-3d
+    text: '^2D$'
+- takeScreenshot: android-native-camera-before-location
+- tapOn:
     id: map-locate
 - extendedWaitUntil:
     visible:
@@ -20,6 +28,9 @@ name: Native location, route customization and GPX sharing
 - extendedWaitUntil:
     visible: 'My location, Your location is shown'
     timeout: 30000
+- assertVisible:
+    id: map-3d
+    text: '^2D$'
 - takeScreenshot: android-native-map-location
 - tapOn:
     id: map-customize
@@ -48,8 +59,20 @@ name: Native location, route customization and GPX sharing
     timeout: 30000
 - scrollUntilVisible:
     element:
-      id: trail-map-locate
+      id: trail-zoom-in
     direction: DOWN
+- tapOn:
+    id: trail-zoom-in
+- scrollUntilVisible:
+    element:
+      id: trail-map-3d
+    direction: DOWN
+- tapOn:
+    id: trail-map-3d
+- assertVisible:
+    id: trail-map-3d
+    text: '^2D$'
+- takeScreenshot: android-native-inline-camera-before-location
 - tapOn:
     id: trail-map-locate
 - extendedWaitUntil:
@@ -57,6 +80,9 @@ name: Native location, route customization and GPX sharing
     timeout: 30000
 - assertNotVisible:
     id: '.*permission_allow_foreground_only_button'
+- assertVisible:
+    id: trail-map-3d
+    text: '^2D$'
 - takeScreenshot: android-native-inline-map-location
 - scrollUntilVisible:
     element:
