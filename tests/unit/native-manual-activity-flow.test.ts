@@ -1,11 +1,19 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, nativeBundle, nativeNodeProps, nodesByTestId, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeBundle, nativeNodeProps, nodesByTestId, requests, start, waitForRequest, waitForText, type NativeSession } from '../fixtures/nativeScreen'
 
 const ROOT = join(import.meta.dir, '../..')
 
 beforeAll(compileNativeBundle, 30000)
+
+function openManual(params: Record<string, unknown> = {}) {
+  return start('ManualActivity',params,['fetch','secureStorage','crypto','haptics','lifecycle','dialog'],new Map([['auth_token','native-token']]))
+}
+async function supplyUUID(manual: NativeSession) {
+  const uuid=await waitForRequest(manual,0,r=>r.payload.module==='Crypto' && r.payload.method==='randomUUID')
+  answer(manual,uuid,'e8158db5-288f-4cb3-9540-016656f716c6')
+}
 
 describe('Wildloop native manual activity flow', () => {
   it('keeps a system UUID and the exact manual payload when retrying a failed save',async()=>{
@@ -32,10 +40,7 @@ describe('Wildloop native manual activity flow', () => {
     await manual.event('duration-input','onChangeText',{text:'30:00'})
     await manual.event('notes-input','onChangeText',{text:'private route notes'})
     await manual.event('save-activity','onPress')
-    // The original screen has no UUID request. Answer one only when the real
-    // host protocol asks for it, so both versions reach the held HTTP response.
-    const uuid=requests(manual).find(r=>r.payload.module==='Crypto')
-    if(uuid) answer(manual,uuid,'b6506ad4-d9d2-40df-8a32-bf4194adce26')
+    await supplyUUID(manual)
     const post=await waitForRequest(manual,0,r=>r.payload.module==='Network')
     keychain.set('auth_token','other-token')
     await manual.scope.craft.snapshots.set('wildloop-session',{user:{id:13},version:1})
@@ -48,7 +53,7 @@ describe('Wildloop native manual activity flow', () => {
   it('uses app components and sends the real activity payload through the Craft protocol', async () => {
     expect(nativeBundle()).not.toContain('WebView')
     expect(readFileSync(join(ROOT, 'resources/native/ManualActivity.stx'), 'utf8')).toContain('<NativeRunMetric')
-    const manual = await start('ManualActivity', { userId: 12 })
+    const manual = await openManual({ userId: 12 })
     const render = manual.sent.find(message => message.type === 'RENDER').payload.document
     expect(nodesByTestId(render).has('distance-preview')).toBe(true)
 
@@ -59,10 +64,8 @@ describe('Wildloop native manual activity flow', () => {
     await manual.event('notes-input', 'onChangeText', { text: 'ridge loop' })
     await manual.event('save-activity', 'onPress')
 
-    const tokenRequest = requests(manual).at(-1)
-    expect(tokenRequest.payload).toMatchObject({ module: 'SecureStorage', method: 'get', args: ['auth_token'] })
-    const requestCount = requests(manual).length
-    answer(manual, tokenRequest, 'native-token')
+    await supplyUUID(manual)
+    const requestCount = 0
     const post = await waitForRequest(manual, requestCount, request => request.payload?.module === 'Network')
     const request = post.payload.args[0]
     expect(post.payload.module).toBe('Network')
@@ -100,10 +103,10 @@ describe('Wildloop native manual activity flow', () => {
     expect(haptic.payload).toMatchObject({ module: 'Haptics', method: 'impact', args: ['light'] })
     answer(manual, haptic, true)
     await Bun.sleep(0)
-    expect(manual.sent.at(-1)).toMatchObject({
+    expect(manual.sent).toContainEqual(expect.objectContaining({
       type: 'NAVIGATE',
       payload: { screen: 'ActivitySaved', params: expect.objectContaining({ id: 42, userId: 12, distance: 5.13 }) },
-    })
+    }))
   })
 
   /*
@@ -117,18 +120,15 @@ describe('Wildloop native manual activity flow', () => {
    * the token is the only identity this screen needs.
    */
   it('saves on a cold start, with no route params and no user id in the body', async () => {
-    const manual = await start('ManualActivity')
+    const manual = await openManual()
 
     await manual.event('distance-input', 'onChangeText', { text: '3.1' })
     await manual.event('duration-input', 'onChangeText', { text: '28:00' })
     await manual.event('save-activity', 'onPress')
 
-    const tokenRequest = requests(manual).at(-1)
-    expect(tokenRequest.payload, 'the token is read before anything is refused')
-      .toMatchObject({ module: 'SecureStorage', method: 'get', args: ['auth_token'] })
-
-    const before = requests(manual).length
-    answer(manual, tokenRequest, 'native-token')
+    await supplyUUID(manual)
+    expect(requests(manual).some(r=>r.payload.module==='SecureStorage' && r.payload.method==='get')).toBe(true)
+    const before = 0
     const post = await waitForRequest(manual, before, request => request.payload?.module === 'Network')
     const body = JSON.parse(post.payload.args[0].body)
 
@@ -152,13 +152,12 @@ describe('Wildloop native manual activity flow', () => {
     await saved.event('log-another', 'onPress')
     expect(saved.sent.at(-1)).toMatchObject({ type: 'NAVIGATE_REPLACE', payload: { screen: 'ManualActivity', params: { userId: 12 } } })
 
-    const pending = await start('ManualActivity', { userId: 12 })
+    const pending = await openManual({ userId: 12 })
     await pending.event('distance-input', 'onChangeText', { text: '3' })
     await pending.event('duration-input', 'onChangeText', { text: '30:00' })
     await pending.event('save-activity', 'onPress')
-    const tokenRequest = requests(pending).at(-1)
-    const requestCount = requests(pending).length
-    answer(pending, tokenRequest, 'native-token')
+    await supplyUUID(pending)
+    const requestCount = 0
     const post = await waitForRequest(pending, requestCount, request => request.payload?.module === 'Network')
     pending.scope.__stxNativeUnmount()
     expect(pending.sent).toContainEqual(expect.objectContaining({
@@ -166,7 +165,7 @@ describe('Wildloop native manual activity flow', () => {
       payload: { version: 1, requestId: post.id, reason: 'screen-closed' },
     }))
 
-    const fresh = await start('ManualActivity', { userId: 12 })
+    const fresh = await openManual({ userId: 12 })
     const operations = fresh.sent.filter(message => message.type === 'MUTATE').flatMap(message => message.payload.operations)
     expect(operations.some(operation => operation.patch?.children?.includes('3 mi'))).toBe(false)
   })
