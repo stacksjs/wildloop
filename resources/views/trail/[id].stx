@@ -1418,13 +1418,14 @@
           {{-- Map --}}
           {{-- Not `card`: its padding framed the map in a white border. --}}
           <section id="trail-map-explorer" class="relative isolate scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white md:col-span-2 dark:border-slate-700 dark:bg-slate-900" aria-label="Interactive trail map">
+            <p class="trail-print-title" :text="trail().name"></p>
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
               <h2 class="font-display text-xl font-semibold text-slate-900 dark:text-white">Explore the route</h2>
               <p :if="hasRoute()" class="hidden text-xs text-slate-500 sm:block dark:text-slate-400">Arrows follow the recorded route direction</p>
             </div>
             <div class="relative trail-map-stage">
               <div id="trail-map" data-stx-ignore class="scroll-mt-24 trail-map-panel ts-map-container h-[32rem] lg:h-[38rem]"></div>
-              <div class="absolute left-4 top-4 z-[600] max-w-[15rem]">
+              <div class="trail-map-tools absolute left-4 top-4 z-[600] max-w-[15rem]">
                 <button type="button" @click="layersOpen.set(!layersOpen())" :aria-expanded="layersOpen() ? 'true' : 'false'" aria-controls="trail-map-layers" class="flex min-h-12 items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">
                   <i class="i-lucide-layers h-5 w-5 text-emerald-700" aria-hidden="true"></i>Map layers<i class="i-lucide-chevron-down h-4 w-4" aria-hidden="true"></i>
                 </button>
@@ -1438,12 +1439,12 @@
                   <button type="button" @click="toggleRelief()" :aria-pressed="reliefVisible() ? 'true' : 'false'" class="flex min-h-11 w-full items-center gap-3 border-t border-slate-100 px-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"><i class="i-lucide-mountain-snow h-5 w-5" aria-hidden="true"></i>Shaded terrain<i :if="reliefVisible()" class="i-lucide-check ml-auto h-4 w-4" aria-hidden="true"></i></button>
                 </div>
               </div>
-              <div x-class="profileOpen() ? 'bottom-60 sm:bottom-64' : 'bottom-24'" class="absolute right-3 sm:right-4 lg:!bottom-8 z-[500] flex flex-row lg:flex-col gap-2">
+              <div x-class="profileOpen() ? 'bottom-60 sm:bottom-64' : 'bottom-24'" class="trail-map-tools absolute right-3 sm:right-4 lg:!bottom-8 z-[500] flex flex-row lg:flex-col gap-2">
                 <button type="button" @click="toggle3D()" :aria-pressed="map3D() ? 'true' : 'false'" aria-label="Toggle 3D terrain" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-lg font-semibold text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white">{{ map3D() ? '2D' : '3D' }}</button>
                 <button type="button" @click="fitRoute()" aria-label="Fit route to map" title="Fit route" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-focus h-5 w-5" aria-hidden="true"></i></button>
                 <button type="button" @click="fullscreenMap()" :aria-label="isFullscreen.value ? 'Exit full screen' : 'Expand map'" :title="isFullscreen.value ? 'Exit full screen' : 'Expand map'" :aria-pressed="isFullscreen.value ? 'true' : 'false'" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i x-class="(isFullscreen.value ? 'i-lucide-minimize' : 'i-lucide-maximize') + ' h-5 w-5'" aria-hidden="true"></i></button>
               </div>
-              <div x-class="profileOpen() ? 'bottom-74 sm:bottom-80' : 'bottom-38'" class="absolute left-3 sm:left-4 lg:!bottom-8 z-[500] flex gap-2">
+              <div x-class="profileOpen() ? 'bottom-74 sm:bottom-80' : 'bottom-38'" class="trail-map-tools absolute left-3 sm:left-4 lg:!bottom-8 z-[500] flex gap-2">
                 <button type="button" @click="downloadGpx()" aria-label="Download route GPX" title="Download GPX" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-download h-5 w-5" aria-hidden="true"></i></button>
                 <a x-href="googleDirectionsUrl()" target="_blank" rel="noopener noreferrer" aria-label="Driving directions to trailhead" title="Get directions" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-car-front h-5 w-5" aria-hidden="true"></i></a>
                 <button type="button" @click="printMap()" aria-label="Print trail map" title="Print map" class="grid h-11 w-11 sm:h-12 sm:w-12 place-items-center rounded-full bg-white text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white"><i class="i-lucide-printer h-5 w-5" aria-hidden="true"></i></button>

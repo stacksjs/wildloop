@@ -3,6 +3,7 @@
 .wildloop-route-direction { border: 0; background: transparent; }
 .wildloop-route-direction > span { display: grid; width: 22px; height: 22px; place-items: center; border: 2px solid #46663c; border-radius: 999px; background: #fff; color: #365b2d; box-shadow: 0 1px 3px #17231238; }
 .wildloop-route-direction i { display: block; width: 14px; height: 14px; }
+.trail-print-title { display: none; }
 #trail-map-explorer .trail-map-panel { height: 40rem; }
 #trail-map-explorer:fullscreen { display: flex; flex-direction: column; width: 100%; height: 100%; border: 0; border-radius: 0; }
 #trail-map-explorer:fullscreen > .trail-map-stage { flex: 1; min-height: 0; }
@@ -18,8 +19,14 @@
   .trail-action-bar.trail-floating-actions { bottom: 24px; }
 }
 @media print {
-  body { visibility: hidden; }
-  #trail-map-explorer, #trail-map-explorer * { visibility: visible; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  #trail-map-explorer { position: absolute; inset: 0; overflow: visible; width: 100%; border: 0; }
-  #trail-map-explorer button, #trail-map-explorer a, #trail-map-explorer input, #trail-map-explorer .tsmap-control:not(.tsmap-control-attribution) { visibility: hidden; }
+  html:has(#trail-map-explorer), body:has(#trail-map-explorer) { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+  /* Remove the rest of the page from print flow, including its ancestor
+     boxes. Hidden visibility alone retains their height as blank sheets. */
+  body:has(#trail-map-explorer) *:not(:has(#trail-map-explorer)):not(#trail-map-explorer):not(#trail-map-explorer *) { display: none !important; }
+  body *:has(#trail-map-explorer) { display: contents !important; }
+  #trail-map-explorer, #trail-map-explorer * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #trail-map-explorer { display: block !important; position: static !important; inset: auto !important; height: auto !important; overflow: visible !important; width: 100% !important; border: 0; break-inside: avoid; }
+  #trail-map-explorer .trail-print-title { display: block; margin: 0 0 6mm; font-size: 20pt; font-weight: 700; }
+  #trail-map-explorer .trail-map-panel { height: 170mm !important; }
+  #trail-map-explorer .trail-map-tools, #trail-map-explorer button, #trail-map-explorer a[aria-label], #trail-map-explorer input, #trail-map-explorer .tsmap-control:not(.tsmap-control-attribution):not(.tsmap-control-scale) { display: none !important; }
 }
