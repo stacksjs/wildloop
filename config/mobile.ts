@@ -159,7 +159,7 @@ export default {
     urlSchemes: ['wildloop'],
     appIcon: 'public/images/app/wildloop-app-icon.png',
     googleServicesFile: envVars.ANDROID_GOOGLE_SERVICES_FILE,
-    mapsApiKey: envVars.ANDROID_MAPS_API_KEY,
+    mapProvider: 'maplibre',
     nativeScreens,
     capabilities: {
       backgroundLocation: true,
