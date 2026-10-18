@@ -96,21 +96,33 @@ hardware and provisioning behaviors.
 ## Acceptance status
 
 The native source, compiled-screen bridge tests and iOS app compilation pass.
-The [hosted ec81 acceptance run](https://github.com/stacksjs/wildloop/actions/runs/39079831688)
-passed actual installed-app map layers/camera/profile controls, sticky save and
-unsave, GPX export with recorded coordinates, and native route customization.
-It created a review successfully, then failed to focus the reopened editor.
-Share-sheet presentation passed, but clipboard content verification failed and
-requires its diagnostic follow-up. Neither edit/delete acceptance nor sharing
-completion may be inferred from those partial results.
+The [hosted fabb76b8 acceptance run](https://github.com/stacksjs/wildloop/actions/runs/39083417146)
+passed all four installed-app map layers, camera/profile controls, sticky save
+and unsave, GPX export with recorded coordinates, native route customization,
+and review creation and deletion. Reopening the review editor still failed to
+focus its input. Share-sheet presentation and Copy passed, but `simctl pbpaste`
+could not read the URL representation; share completion remains unverified.
+Location screenshots exposed a genuine Craft permission race: the map already
+showed a denied-location error while the system permission sheet was still open.
+The journey now targets that system sheet through the published driver's
+`systemexpect` and `systemtap` commands. The framework fix waits for foreground
+authorization before starting its fix and timeout; it remains on Craft's QA
+branch pending genuine host tests and normal publication.
+
+The [8ba14c0d run](https://github.com/stacksjs/wildloop/actions/runs/39084133424)
+failed before app compilation because Xcode could not recognize its owned
+simulator destination. It supplies no newer interaction evidence. The runner
+now retains Xcode, SDK, runtime, device and scheme-destination diagnostics to
+identify that hosted environment failure without substituting a device.
 
 The [03b2074e iOS navigation smoke](https://github.com/stacksjs/wildloop/actions/runs/39081855451)
 passed using actual native tab controls. The native direction-marker rendering,
 hidden-modal keyboard focus and absolute-view minimum-size fixes are in Craft's
 QA branch; they must pass their genuine host gates and reach a normal published
 SDK before Wildloop adopts them. No application source override is permitted.
-The [Craft UIKit run at 434f1c7a](https://github.com/craft-native/craft/actions/runs/39082217873)
-passed all 140 tests, including those three regressions. Its overall source CI
+The [Craft UIKit run at f27808db](https://github.com/craft-native/craft/actions/runs/39084883478)
+passed all 140 tests, including those three regressions and automatic aspect
+preservation for constrained overlays. Its overall source CI
 still stops at Pantry 0.11.91's Linux Git catalog validation before the Android
 emulator starts; this is not a green SDK release candidate.
 Native offline and full review-lifecycle acceptance remain open. Android
