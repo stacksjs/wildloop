@@ -52,13 +52,16 @@ XCTest driver for native accessibility trees, screenshots, interaction scripts
 and physical-device attachments; applications contain no Swift test generator.
 
 `native-trail-ios` in the hosted workflow creates its own simulator and runs
-`scripts/run-native-trail-e2e.ts`. Its independent map, review, sharing, export and planner journeys use a fresh
-QA database to
+`scripts/run-native-trail-e2e.ts`. Its map, review editing, review deletion,
+sharing, export, planner and location phases use a fresh QA database to
 exercise map cameras and layers, floating elevation controls, sticky saves,
 and review creation, editing and deletion. Sharing checks the owned simulator
 clipboard after the real share-sheet Copy action. Export checks the GPX written
 inside the actual app container against the seeded route coordinates.
-A map failure does not skip review testing; either journey failing keeps the job red. Screenshots, driver logs
+Location uses a public seeded trailhead on the owned simulator and accepts the
+real system permission prompt; it does not grant permission through `simctl`.
+Review deletion remains observable if editing fails, and any failed phase keeps
+the aggregate red. Screenshots, driver logs
 and XCTest results are retained separately for each journey. To run it locally, explicitly supply an owned, booted simulator:
 
 ```bash
@@ -93,8 +96,21 @@ hardware and provisioning behaviors.
 ## Acceptance status
 
 The native source, compiled-screen bridge tests and iOS app compilation pass.
-Actual installed native map, review, sticky-action and offline journeys still
-need acceptance. Android currently cannot build without its Maps SDK key.
+The [hosted ec81 acceptance run](https://github.com/stacksjs/wildloop/actions/runs/39079831688)
+passed actual installed-app map layers/camera/profile controls, sticky save and
+unsave, GPX export with recorded coordinates, and native route customization.
+It created a review successfully, then failed to focus the reopened editor.
+Share-sheet presentation passed, but clipboard content verification failed and
+requires its diagnostic follow-up. Neither edit/delete acceptance nor sharing
+completion may be inferred from those partial results.
+
+The [03b2074e iOS navigation smoke](https://github.com/stacksjs/wildloop/actions/runs/39081855451)
+passed using actual native tab controls. The native direction-marker rendering,
+hidden-modal keyboard focus and absolute-view minimum-size fixes are in Craft's
+QA branch; they must pass their genuine host gates and reach a normal published
+SDK before Wildloop adopts them. No application source override is permitted.
+Native offline and full review-lifecycle acceptance remain open. Android
+currently cannot build without its Maps SDK key.
 The airplane-mode flow is intended to enforce Android network isolation;
 iOS offline behavior also needs explicit network-isolation evidence before it
 can be considered verified. See `docs/wildloop/mobile-release.md` for the

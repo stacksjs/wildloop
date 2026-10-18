@@ -85,13 +85,13 @@ build's project files, so both need a device run:
   WebView journey results do not verify this native candidate; repeat the
   navigation, recording, offline, map and review journeys against its installed
   native bundle on both platforms.
-- The published SDK map sources compile on iOS and Android. On 2026-10-17,
-  Wildloop's all-native iOS app also compiled, passed code-signature
-  verification, installed and launched in a fresh simulator. The local
-  renderer test stalled before XCTest started, and this Mac's command-line
-  Xcode installation has no Simulator desktop application available to CUA.
-  Actual native visual and interaction acceptance remains pending; neither
-  compilation nor compiled-screen bridge tests establish that acceptance.
+- The all-native iOS app compiled, passed code-signature verification and ran
+  in hosted simulators. Actual map/profile controls, sticky saves, GPX export,
+  route customization and native tab navigation passed. Review creation passed;
+  reopening its editor exposed a native keyboard-focus defect. Full review
+  lifecycle, share completion and the remaining device behaviors are still
+  release gates. Craft fixes must reach a normally published SDK before
+  Wildloop consumes them. See [the acceptance evidence](../mobile-e2e.md).
 - Android trail maps require the configured Maps SDK key. A missing key stops
   the Wildloop Android build rather than producing a candidate with blank maps.
 - A signed physical-device archive is required to verify provisioning, APNs,
