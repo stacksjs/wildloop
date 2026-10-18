@@ -146,7 +146,7 @@ function togglePause() { void perform(async () => {
 async function upload() {
   const value=recording()
   if (!value?.pending) return
-  const api=createNativeApi(craft)
+  const api=await createNativeApi(craft).bindSession()
   const me=await api.send('/api/me')
   if (!me.ok || Number(me.body?.user?.id) !== value.userId) throw new Error('Log in as the account that started this recording before uploading it.')
   const response=await api.send('/api/activities','POST',value.pending)

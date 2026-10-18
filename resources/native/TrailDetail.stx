@@ -1,5 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
+import type { NativeApi } from '../functions/native-api'
 import { onNativeAccountChange, createNativeApi, loadOutcome, nativeApiOrigin } from '../functions/native-api'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
@@ -58,6 +59,7 @@ const formError = state('')
 const photoDrafts = state<Array<{file:any,id?:string}>>([])
 let alive = true
 let generation = 0
+let accountGeneration = 0
 
 const surfaces = derived(() => trailSurfaceTypes(rawTrail()?.surface))
 const routeAvailable = derived(() => parts().some(part => part.length >= 4))
@@ -66,6 +68,7 @@ const mapRegion = derived(() => region() ?? nativeRouteRegion(parts(), {lat:trai
 const photos = derived(() => trailGallery(trail(),reviews()))
 
 function textOf(event: any): string { return String(event?.text ?? '') }
+function accountIsCurrent(version:number): boolean { return alive && version === accountGeneration }
 function profilePath(): string { return trailProfilePath(profile()) }
 function photoUrls(row: any): string[] { return parsePhotoList(row.photos).map(url=>url.startsWith('/') ? nativeApiOrigin(craft)+url : url) }
 function photoUrl(url:string):string {return url.startsWith('/') ? nativeApiOrigin(craft)+url : url}
@@ -119,15 +122,20 @@ function signedIn(): boolean {
 }
 async function toggleSaved() {
   if (loading() || !viewerReady() || busy() || !signedIn()) return
+  const current = accountGeneration
+  const method = saved() ? 'DELETE' : 'PUT'
   busy.set(true)
   try {
-    const response = await api.send(`/api/trails/${wanted}/save`, saved() ? 'DELETE' : 'PUT')
+    const operation = await api.bindSession()
+    if (!accountIsCurrent(current)) return
+    const response = await operation.send(`/api/trails/${wanted}/save`, method)
+    if (!accountIsCurrent(current)) return
     if (!response.ok) throw new Error(response.body?.error || 'The trail could not be saved.')
     saved.set(Boolean(response.body.saved))
     notice.set(saved() ? 'Trail saved.' : 'Trail removed from saved trails.')
   }
-  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The trail could not be saved.') }
-  finally { busy.set(false) }
+  catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'The trail could not be saved.') }
+  finally { if (accountIsCurrent(current)) busy.set(false) }
 }
 function editReview() {
   if (loading() || !viewerReady() || busy() || !signedIn()) return
@@ -141,73 +149,85 @@ function editReview() {
   photoDrafts.set([])
   composer.set(true)
 }
-async function reloadReviews() {
+async function reloadReviews(operation: NativeApi) {
   const current = generation
   viewerReady.set(false)
-  const [response, personal] = await Promise.all([api.send(`/api/trails/${wanted}/reviews`), api.send(`/api/trails/${wanted}/viewer`)])
+  const [response, personal] = await Promise.all([operation.send(`/api/trails/${wanted}/reviews`), operation.send(`/api/trails/${wanted}/viewer`)])
   if (!alive || current !== generation) return
   if (personal.ok) { ownReview.set(personal.body.review ?? null); viewerReady.set(true) }
   if (response.ok) reviews.set(response.body.reviews ?? [])
   if (!response.ok || !personal.ok) throw new Error('Your change was saved, but reviews could not refresh. Pull down to retry.')
 }
 async function pickReviewPhoto() {
-  if (busy()) return
+  if (loading() || !viewerReady() || busy() || !signedIn()) return
+  const current = accountGeneration
   if (photoDrafts().length + photoUrls(ownReview() ?? {}).length >= 10) { formError.set('A review can have up to 10 photos.'); return }
   try {
     if (!craft.files) throw new Error('Photo picking is unavailable in this app build.')
     const file = await craft.files.pickImage({source:'library',maxPixels:2400,quality:0.88})
+    if (!accountIsCurrent(current)) return
     if (file) photoDrafts.set([...photoDrafts(),{file}])
   }
-  catch (cause) { formError.set(cause instanceof Error ? cause.message : 'A photo could not be selected.') }
+  catch (cause) { if (accountIsCurrent(current)) formError.set(cause instanceof Error ? cause.message : 'A photo could not be selected.') }
 }
 async function submitReview() {
-  if (busy()) return
+  if (loading() || !viewerReady() || busy() || !signedIn()) return
   const problem = reviewFormError(rating(), content())
   if (problem) { formError.set(problem); return }
+  const current = accountGeneration
   busy.set(true)
   formError.set('')
   try {
+    const operation = await api.bindSession()
+    if (!accountIsCurrent(current)) return
     for (let index=0;index<photoDrafts().length;index++) {
       const draft=photoDrafts()[index]
       if (draft.id) continue
       const form=new FormData()
       form.append('photo',draft.file)
-      const response=await api.upload(`/api/trails/${wanted}/photos`,form)
+      const response=await operation.upload(`/api/trails/${wanted}/photos`,form)
+      if (!accountIsCurrent(current)) return
       const body=response.body
       if (!response.ok || !body.photo?.id) throw new Error(body.error || 'A photo could not be uploaded. Try saving again.')
       photoDrafts.set(photoDrafts().map((entry,at)=>at===index ? {...entry,id:body.photo.id}:entry))
     }
-    const response = await api.send(`/api/trails/${wanted}/reviews`, 'POST', {
+    const response = await operation.send(`/api/trails/${wanted}/reviews`, 'POST', {
       rating: rating(), content: content().trim(), conditions: conditions() || null,
       difficulty: difficulty() || null, visit_date: visitDate() || null,
       ...(photoDrafts().length ? {photo_ids:photoDrafts().map(draft=>draft.id),retain_photos:true}:{}),
     })
+    if (!accountIsCurrent(current)) return
     if (!response.ok) throw new Error(Object.values(response.body?.fields ?? {}).join('. ') || response.body?.error || 'The review could not be saved.')
     if (response.body.trail) trail.set({...trail(),...response.body.trail})
     composer.set(false)
     notice.set('Your review has been saved.')
-    try { await reloadReviews() } catch (cause) { notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
+    try { await reloadReviews(operation) } catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
   }
-  catch (cause) { formError.set(cause instanceof Error ? cause.message : 'The review could not be saved.') }
-  finally { busy.set(false) }
+  catch (cause) { if (accountIsCurrent(current)) formError.set(cause instanceof Error ? cause.message : 'The review could not be saved.') }
+  finally { if (accountIsCurrent(current)) busy.set(false) }
 }
 async function deleteReview() {
   if (loading() || !viewerReady() || !ownReview() || busy()) return
-  const confirmed = await craft.dialog?.confirm({ title: 'Delete your review?', message: 'Your rating, review, and condition report will be removed from this trail.', confirmLabel: 'Delete review', destructive: true })
-  if (!confirmed) return
+  const current = accountGeneration
   busy.set(true)
   try {
-    const response = await api.send(`/api/trails/${wanted}/reviews`, 'DELETE')
+    const operation = await api.bindSession()
+    if (!accountIsCurrent(current)) return
+    const confirmed = await craft.dialog?.confirm({ title: 'Delete your review?', message: 'Your rating, review, and condition report will be removed from this trail.', confirmLabel: 'Delete review', destructive: true })
+    if (!confirmed || !accountIsCurrent(current)) return
+    const response = await operation.send(`/api/trails/${wanted}/reviews`, 'DELETE')
+    if (!accountIsCurrent(current)) return
     if (!response.ok) throw new Error(response.body?.error || 'The review could not be deleted.')
     if (response.body.trail) trail.set({...trail(),...response.body.trail})
     ownReview.set(null)
     notice.set('Your review has been deleted.')
-    try { await reloadReviews() } catch (cause) { notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
+    try { await reloadReviews(operation) } catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
   }
-  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The review could not be deleted.') }
-  finally { busy.set(false) }
+  catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'The review could not be deleted.') }
+  finally { if (accountIsCurrent(current)) busy.set(false) }
 }
 async function load() {
+  if (busy()) return
   const current = ++generation
   loading.set(true)
   viewerReady.set(false)
@@ -256,7 +276,14 @@ onMount(() => {
   const stop = craft.navigation.onAppear(() => { void load() })
   return () => { alive = false; generation++; stop() }
 })
-onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(false); reviews.set([]); composer.set(false); void load() }))
+onMount(() => onNativeAccountChange(craft, () => {
+  accountGeneration++
+  busy.set(false)
+  viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(false); reviews.set([])
+  composer.set(false); rating.set(0); content.set(''); conditions.set(''); difficulty.set(''); visitDate.set('')
+  photoDrafts.set([]); formError.set(''); notice.set('')
+  void load()
+}))
 </script>
 
 <View :class="ui.screen">
