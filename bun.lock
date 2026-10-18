@@ -12,7 +12,7 @@
         "@stacksjs/mobile": "^0.75.221",
         "@stacksjs/stx": "^0.2.567",
         "@ts-analytics/tracking": "^0.1.17",
-        "craft-native": "^0.0.238",
+        "craft-native": "^0.0.241",
         "stacks": "^0.75.221",
         "ts-health": "^0.1.0",
         "ts-maps": "^0.5.5",
@@ -347,7 +347,7 @@
 
     "clone": ["clone@2.1.2", "", {}, "sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w=="],
 
-    "craft-native": ["craft-native@0.0.238", "", { "bin": { "craft-sdk": "dist/cli.js" } }, "sha512-jjqN0fkZRlponAHQMQ0VDrvMaZDqTv3d39ks6CPEhjaq+ss4BLIObinNcLwkGDBVP/2+cn3oFp2k9rxvISKkQA=="],
+    "craft-native": ["craft-native@0.0.241", "", { "bin": { "craft-sdk": "dist/cli.js" } }, "sha512-tPZxQgzhkuelHYOMA/Gls8VoxCbXoVxPBdWcUXRnYp1hbkDfNov1RmTqA3yTjDq8w0eGEGAdsvxzovAgLNvujA=="],
 
     "cz-git": ["cz-git@1.14.0", "", {}, "sha512-QjwlXZrGWsXQkyregBHhA2qNNGB2TCuf0ovkW1Q5OLgdJDs9Tq1yahfKpSMLyqOBjVRuv1iHBTDP83zJDBlJdg=="],
 
