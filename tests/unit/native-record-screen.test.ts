@@ -4,7 +4,7 @@ import { answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, requests
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
 async function recover(userId=7, keychain=new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:userId}})]])) {
-  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],keychain)
+  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','locationRecordingOwnership','lifecycle','liveActivity'],keychain)
   const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
   answer(screen,stored,checkpoint)
   return screen
@@ -29,7 +29,7 @@ describe('native Record checkpoint recovery',()=>{
     expect(requests(screen).some(r=>r.payload.method==='getRecordingState' || r.payload.method==='readRecording')).toBe(false)
   })
   it('checks the saved identity atomically before recovering the host recording',async()=>{
-    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
+    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','locationRecordingOwnership','lifecycle','liveActivity'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
     const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
     answer(screen,stored,{...checkpoint,pending:undefined})
     const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
@@ -39,7 +39,7 @@ describe('native Record checkpoint recovery',()=>{
     expect(read.payload.args[0]).toMatchObject({expectedId:'run-7'})
   })
   it('does not read GPS when a legacy checkpoint has no verifiable host identity',async()=>{
-    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
+    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','locationRecordingOwnership','lifecycle','liveActivity'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
     const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
     answer(screen,stored,{...checkpoint,id:null,pending:undefined})
     await Bun.sleep(0)
