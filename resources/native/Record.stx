@@ -135,8 +135,8 @@ async function recover() {
     if (saved && host?.id===saved.id && !saved.pending) {
       const fixes=await craft.location!.readRecording({expectedId:saved.id!})
       if (!current()) return
+      recording.set({...saved,phase:host.active ? 'recording' : 'stopped',startedAt:host.startedAt ?? saved.startedAt,...host.active ? {} : {endedAt:saved.endedAt ?? Date.now()}})
       append(fixes)
-      recording.set({...recording()!,phase:host.active ? 'recording' : 'stopped',startedAt:host.startedAt ?? saved.startedAt,...host.active ? {} : {endedAt:saved.endedAt ?? Date.now()}})
       await persist(recording()!)
       if (!current()) return
       if(host.active) attachWatch()
