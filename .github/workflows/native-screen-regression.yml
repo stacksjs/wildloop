@@ -12,6 +12,21 @@ jobs:
   native-screens:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      redis:
+        image: redis:latest
+        ports: ['6379:6379']
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: user
+          MYSQL_PASSWORD: password
+        ports: ['3306:3306']
+      dynamodb:
+        image: amazon/dynamodb-local
+        ports: ['8000:8000']
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -21,6 +36,11 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Lint
         run: bunx --bun pickier .
-      - name: Run native screen and mobile journey regressions
+      - name: Typecheck application
         if: success() || failure()
-        run: bun test tests/unit/native-*.test.ts tests/unit/mobile-e2e-runner.test.ts
+        run: bun run typecheck:app
+      - name: Run full buddy test suite
+        if: success() || failure()
+        env:
+          AWS_DYNAMODB_ENDPOINT: http://localhost:8000
+        run: ./buddy test
