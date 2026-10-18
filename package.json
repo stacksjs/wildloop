@@ -12,7 +12,7 @@
     "@loghq/stacks": "^0.2.6",
     "@stacksjs/composables": "^0.75.219",
     "@stacksjs/mobile": "^0.75.219",
-    "@stacksjs/stx": "^0.2.566",
+    "@stacksjs/stx": "^0.2.567",
     "@ts-analytics/tracking": "^0.1.17",
     "craft-native": "^0.0.237",
     "stacks": "^0.75.219",
