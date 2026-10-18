@@ -31,5 +31,7 @@
   #trail-map-explorer { display: block !important; position: static !important; inset: auto !important; height: auto !important; overflow: visible !important; width: 180mm !important; max-width: 100%; border: 0; break-inside: avoid; }
   #trail-map-explorer .trail-print-title { display: block; margin: 0 0 6mm; font-size: 20pt; font-weight: 700; }
   #trail-map-explorer .trail-map-panel { height: 170mm !important; }
+  /* A printed page has no later animation frame to finish a tile's fade. */
+  #trail-map-explorer .tsmap-tile-loaded { opacity: 1 !important; }
   #trail-map-explorer .trail-map-tools, #trail-map-explorer .trail-print-status, #trail-map-explorer button, #trail-map-explorer a[aria-label], #trail-map-explorer input, #trail-map-explorer .tsmap-control:not(.tsmap-control-attribution):not(.tsmap-control-scale) { display: none !important; }
 }

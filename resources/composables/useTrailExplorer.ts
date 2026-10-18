@@ -50,7 +50,11 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
       map.setBearing(camera.bearing)
     })
   }
-  useEventListener(printTarget, 'beforeprint', preparePrintCamera)
+  useEventListener(printTarget, 'beforeprint', () => {
+    // The toolbar/keyboard flow already fitted and loaded this viewport.
+    // Resetting it inside beforeprint restarts tile loading during capture.
+    if (!printPreparing()) preparePrintCamera()
+  })
   useEventListener(printTarget, 'afterprint', restorePrintCamera)
   useEventListener(printTarget, 'keydown', (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'p') {
