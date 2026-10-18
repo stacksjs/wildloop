@@ -11,6 +11,25 @@ async function recover(userId=7, keychain=new Map([['auth_token','record-token']
 }
 describe('native Record checkpoint recovery',()=>{
   beforeAll(compileNativeBundle,30000)
+  it('durably registers a system recording ID before starting native GPS',async()=>{
+    const screen=await start('Record',{},['fetch','secureStorage','storage','storageCompareAndSet','storageSetIfAbsent','crypto','geolocation','locationRecordingOwnership','locationRecordingIntentIdentity','lifecycle','liveActivity'],new Map([['auth_token','record-token'],['wildloop-account',JSON.stringify({token:'record-token',user:{id:7}})]]))
+    const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
+    answer(screen,stored,null)
+    const initialHost=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
+    answer(screen,initialHost,{active:false,paused:false})
+    await Bun.sleep(0)
+    await screen.event('record-start','onPress')
+    const host=await waitForRequest(screen,requests(screen).indexOf(initialHost)+1,r=>r.payload.method==='getRecordingState')
+    answer(screen,host,{active:false,paused:false})
+    const uuid=await waitForRequest(screen,0,r=>r.payload.module==='Crypto' && r.payload.method==='randomUUID')
+    answer(screen,uuid,'782f0d4a-f626-41bc-8f17-2f67e9a099bf')
+    const registration=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='setIfAbsent')
+    expect(registration.payload.args).toMatchObject(['wildloop-native-recording-v1',{userId:7,id:'782f0d4a-f626-41bc-8f17-2f67e9a099bf',phase:'starting'}])
+    expect(requests(screen).some(r=>r.payload.method==='startRecording')).toBe(false)
+    answer(screen,registration,true)
+    const start=await waitForRequest(screen,0,r=>r.payload.method==='startRecording')
+    expect(start.payload.args[0]).toMatchObject({recordingId:'782f0d4a-f626-41bc-8f17-2f67e9a099bf'})
+  })
   it('recovers a finished upload offline without starting another GPS recording',async()=>{
     const screen=await recover()
     await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')
