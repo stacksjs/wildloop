@@ -110,3 +110,30 @@ jobs:
           done
           exit "$status"
 
+  framework-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: Install frozen public dependencies
+        run: bun install --frozen-lockfile
+      # Sync the normal published framework code. Database migrations run with
+      # --no-generate in the existing isolated QA and deployment stages.
+      - name: Synchronize the published framework
+        run: ./buddy upgrade --version 0.75.221 --no-postinstall
+      - name: Retain generated framework changes for review
+        run: |
+          git add -N -- storage/framework/defaults
+          for file in .stacks-version .stacks-channel; do
+            if [ -f "$file" ]; then git add -N -- "$file"; fi
+          done
+          git diff --binary > "$RUNNER_TEMP/framework-upgrade.patch"
+          git diff --stat
+      - uses: actions/upload-artifact@v5
+        with:
+          name: published-framework-upgrade
+          path: ${{ runner.temp }}/framework-upgrade.patch
+          if-no-files-found: error
