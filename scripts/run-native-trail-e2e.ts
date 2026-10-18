@@ -67,11 +67,12 @@ export async function runNativeTrailE2e(): Promise<void> {
             return new Response('PASS owned simulator location set to the seeded public trailhead')
           }
           if(hook==='verify-share') {
-            const pasted=Bun.spawnSync(['xcrun','simctl','pbpaste',device])
-            await writeFile(join(root,'sharing-clipboard.log'),JSON.stringify({exitCode:pasted.exitCode,stdout:pasted.stdout.toString(),stderr:pasted.stderr.toString()},null,2))
-            if(pasted.exitCode || !pasted.stdout.toString().includes(`https://wildloop.org/trail/${trail.id}`)) {
-              const verbose=Bun.spawnSync(['xcrun','simctl','pbpaste','-v',device])
-              await writeFile(join(root,'sharing-clipboard-types.log'),JSON.stringify({exitCode:verbose.exitCode,stdout:verbose.stdout.toString(),stderr:verbose.stderr.toString()},null,2))
+            console.log('Native trail QA: inspect the owned simulator share clipboard')
+            const pasted=Bun.spawnSync(['xcrun','simctl','pbpaste',device],{timeout:15000,killSignal:'SIGKILL',maxBuffer:1048576})
+            await writeFile(join(root,'sharing-clipboard.log'),JSON.stringify({exitCode:pasted.exitCode,signalCode:pasted.signalCode,stdout:pasted.stdout.toString(),stderr:pasted.stderr.toString()},null,2))
+            if(pasted.exitCode!==0 || !pasted.stdout.toString().includes(`https://wildloop.org/trail/${trail.id}`)) {
+              const verbose=Bun.spawnSync(['xcrun','simctl','pbpaste','-v',device],{timeout:15000,killSignal:'SIGKILL',maxBuffer:1048576})
+              await writeFile(join(root,'sharing-clipboard-types.log'),JSON.stringify({exitCode:verbose.exitCode,signalCode:verbose.signalCode,stdout:verbose.stdout.toString(),stderr:verbose.stderr.toString()},null,2))
               throw new Error('The native share action did not copy this trail link. Inspect sharing-clipboard.log and sharing-clipboard-types.log.')
             }
             return new Response('PASS native share copied the trail link')
