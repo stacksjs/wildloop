@@ -21,4 +21,4 @@ jobs:
       - name: Install frozen public dependencies
         run: bun install --frozen-lockfile
       - name: Run native account regressions
-        run: bun test tests/unit/native-api.test.ts
+        run: bun test tests/unit/native-api.test.ts tests/unit/native-trail-detail-screen.test.ts tests/unit/native-record-screen.test.ts
