@@ -321,7 +321,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         <View class="mt-2 flex-row flex-wrap gap-2">
           <Button testID="trail-map-3d" :class="ui.secondary" @click="pitch.set(pitch() > 0 ? 0 : 45)" :text="pitch() > 0 ? '2D' : '3D'" />
           <Button :class="ui.secondary" @click="heading.set(0)">North</Button>
-          <Button testID="trail-map-locate" :class="ui.secondary" @click="locate()">My location</Button>
+          <Button testID="trail-map-locate" :class="ui.secondary" accessibilityLabel="My location" :accessibilityValue="showLocation() ? 'Your location is shown' : ''" @click="locate()">My location</Button>
           <Button testID="trail-map-fullscreen" :class="ui.secondary" @click="craft.navigation.open('/trail/' + wanted + '/map')">Expand map</Button>
         </View>
         <Button testID="trail-map-export" :disabled="!routeAvailable()" :class="ui.secondary" class="mt-2" @click="exportRoute()">Export GPX</Button>

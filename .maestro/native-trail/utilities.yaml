@@ -18,7 +18,7 @@ name: Native location, route customization and GPX sharing
 - tapOn:
     id: '.*permission_allow_foreground_only_button'
 - extendedWaitUntil:
-    visible: 'Your location is shown'
+    visible: 'My location, Your location is shown'
     timeout: 30000
 - takeScreenshot: android-native-map-location
 - tapOn:
@@ -41,3 +41,33 @@ name: Native location, route customization and GPX sharing
 - back
 - assertVisible:
     id: trail-full-map
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible:
+      id: trail-sticky-actions
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: trail-map-locate
+    direction: DOWN
+- tapOn:
+    id: trail-map-locate
+- extendedWaitUntil:
+    visible: 'My location, Your location is shown'
+    timeout: 30000
+- assertNotVisible:
+    id: '.*permission_allow_foreground_only_button'
+- takeScreenshot: android-native-inline-map-location
+- scrollUntilVisible:
+    element:
+      id: trail-map-export
+    direction: DOWN
+- tapOn:
+    id: trail-map-export
+- extendedWaitUntil:
+    visible: ${GPX_NAME}
+    timeout: 15000
+- takeScreenshot: android-native-inline-gpx-share-sheet
+- back
+- assertVisible:
+    id: trail-sticky-actions

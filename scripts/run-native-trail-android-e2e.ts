@@ -114,7 +114,7 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       GPX_NAME: `${trail.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80)}.gpx`,
     }
     let reviewId: number | undefined
-    for (const phase of ['maps', 'utilities', 'sharing', 'directions', 'review-create', 'review-edit', 'review-delete'] as const) {
+    for (const phase of ['maps', 'utilities', 'sharing', 'directions', 'directions-map', 'review-create', 'review-edit', 'review-delete'] as const) {
       const report = join(root, `${phase}.xml`)
       await command([
         'maestro', `--device=${device}`, '--no-ansi', 'test',
@@ -140,8 +140,8 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
         }
         if (!exported) throw new Error('The native GPX export did not contain the recorded route coordinates.')
       }
-      if (phase === 'directions') {
-        const activities = await adb(['shell', 'dumpsys', 'activity', 'activities'], 'directions-activities')
+      if (phase === 'directions' || phase === 'directions-map') {
+        const activities = await adb(['shell', 'dumpsys', 'activity', 'activities'], `${phase}-activities`)
         const resumed = activities.split('\n').filter(line => /(?:mResumedActivity|topResumedActivity):/.test(line))
         if (!resumed.length || resumed.some(line => line.includes(`${mobile.android.packageName}/`)))
           throw new Error('Directions did not hand off to an external Android activity.')

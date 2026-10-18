@@ -43,6 +43,33 @@ name: Native Android trail maps and sticky save
 - takeScreenshot: android-native-inline-elevation-selection
 - scrollUntilVisible:
     element:
+      id: trail-zoom-in
+    direction: DOWN
+- tapOn:
+    id: trail-zoom-in
+- tapOn:
+    id: trail-zoom-out
+- tapOn:
+    id: trail-fit-route
+- tapOn:
+    id: trail-map-3d
+- assertVisible: '^2D$'
+- tapOn: '^North$'
+- scrollUntilVisible:
+    element:
+      id: trail-map-layer
+    direction: DOWN
+- tapOn:
+    id: trail-map-layer
+- tapOn: '^Satellite$'
+- assertVisible: 'Map layer, Satellite'
+- takeScreenshot: android-native-inline-map-satellite
+- tapOn:
+    id: trail-map-layer
+- tapOn: '^Outdoors$'
+- assertVisible: 'Map layer, Outdoors'
+- scrollUntilVisible:
+    element:
       id: trail-map-fullscreen
     direction: DOWN
 - assertVisible:
