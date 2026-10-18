@@ -114,8 +114,9 @@ export async function runNativeTrailAndroidE2e(): Promise<void> {
       GPX_NAME: `${trail.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80)}.gpx`,
     }
     let reviewId: number | undefined
-    for (const phase of ['maps', 'utilities', 'sharing', 'directions', 'directions-map', 'review-create', 'review-edit', 'review-delete'] as const) {
+    for (const phase of ['maps', 'utilities', 'sharing', 'directions', 'directions-map', 'review-create', 'review-edit', 'review-delete', 'appearance'] as const) {
       const report = join(root, `${phase}.xml`)
+      if (phase === 'appearance') await adb(['shell', 'cmd', 'uimode', 'night', 'yes'], 'system-dark-appearance')
       await command([
         'maestro', `--device=${device}`, '--no-ansi', 'test',
         ...Object.entries(variables).flatMap(([key, value]) => ['--env', `${key}=${value}`]),

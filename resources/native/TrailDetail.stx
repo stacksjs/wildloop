@@ -331,7 +331,7 @@ onMount(() => onNativeAccountChange(craft, () => {
         </View>
         <Text :show="!profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
         <Text :show="profile().some(point => point.ft !== null)" :text="profileFigures().miles.toFixed(1) + ' mi · ' + Math.round(profileFigures().low) + '–' + Math.round(profileFigures().high) + ' ft'" :class="ui.caption" />
-        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :value="profilePosition" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
+        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :value="profilePosition" :minimumValue="0" :maximumValue="Math.max(0,profile().length - 1)" :step="1" @change="inspect($event)" />
         <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi, ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
           </View>
           </View>

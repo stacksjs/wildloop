@@ -92,6 +92,11 @@ export async function runNativeTrailE2e(): Promise<void> {
               throw new Error('The native edit did not retain the review identity and persist its new text and rating.')
             return new Response('PASS edited review retained its identity and persisted')
           }
+          if(hook==='appearance-dark' || hook==='appearance-light') {
+            const appearance=hook==='appearance-dark' ? 'dark' : 'light'
+            await command(['xcrun','simctl','ui',device,'appearance',appearance],`${hook}.log`)
+            return new Response(`PASS platform appearance ${appearance}`)
+          }
           if(hook==='seed-location') {
             const first=primaryRoutePart([...decodeRouteParts(trail.geometry),...(Array.isArray(trail.pieceRoutes)?trail.pieceRoutes:[])])[0]
             if(!first)throw new Error('The seeded trail has no recorded route start.')
