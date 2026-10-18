@@ -172,13 +172,13 @@ const directions:SimulatorStep[] = [
  ...arrival,
  {command:'tapid',text:'trail-directions'},
  {command:'expectapp',text:'com.apple.Maps',seconds:30},
- {command:'systemtree',name:'native-sticky-directions-handoff'},
+ {command:'shot',name:'native-sticky-directions-handoff'},
 ]
 const mapDirections:SimulatorStep[] = [
  ...fullMap,
  {command:'tapid',text:'map-directions'},
  {command:'expectapp',text:'com.apple.Maps',seconds:30},
- {command:'systemtree',name:'native-map-directions-handoff'},
+ {command:'shot',name:'native-map-directions-handoff'},
 ]
 const gpx:SimulatorStep[] = [
  ...fullMap,
