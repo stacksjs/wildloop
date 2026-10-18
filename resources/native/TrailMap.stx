@@ -46,6 +46,7 @@ function inspect(event: any) {
   region.set({ ...currentRegion(), center: { latitude: point.lat, longitude: point.lng } })
 }
 async function locate() {
+  error.set('')
   try {
     if (!craft.location) throw new Error('Location is unavailable in this app build.')
     const point = await craft.location.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 })
@@ -130,7 +131,7 @@ onMount(() => { void load(); return () => { alive = false } })
       <Button testID="map-fit" class="flex-1" :class="ui.secondary" @click="fit()">Fit route</Button>
       <Button testID="map-zoom-in" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),0.5))" accessibilityLabel="Zoom in">+</Button>
       <Button testID="map-zoom-out" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),2))" accessibilityLabel="Zoom out">−</Button>
-      <Button testID="map-locate" class="flex-1" :class="ui.secondary" @click="locate()">My location</Button>
+      <Button testID="map-locate" class="flex-1" :class="ui.secondary" :accessibilityValue="showLocation() ? 'Your location is shown' : ''" @click="locate()">My location</Button>
     </View>
     <View class="flex-row gap-2">
       <Button testID="map-export" class="flex-1" :class="ui.secondary" @click="exportRoute()">Export GPX</Button>

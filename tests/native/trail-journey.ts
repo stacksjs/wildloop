@@ -57,6 +57,11 @@ const maps:SimulatorStep[] = [
  {command:'expect',text:'Map layer: Satellite',seconds:10},
  {command:'tree',name:'native-satellite'},
  {command:'shot',name:'native-satellite'},
+ ...['Hybrid','Street','Outdoors'].flatMap((layer):SimulatorStep[]=>[
+  {command:'tapid',text:'map-layer'},
+  {command:'tapexact',text:layer},
+  {command:'expect',text:`Map layer: ${layer}`,seconds:10},
+ ]),
  {command:'back'},
  {command:'expectid',text:'trail-sticky-actions',seconds:10},
 ]
@@ -122,11 +127,22 @@ const planner:SimulatorStep[] = [
  {command:'back'},
  {command:'expectid',text:'trail-full-map',seconds:10},
 ]
+const location:SimulatorStep[] = [
+ ...fullMap,
+ {command:'exec',name:'seed-location'},
+ {command:'tapid',text:'map-locate'},
+ {command:'expectexact',text:'Allow Once',seconds:10},
+ {command:'tapexact',text:'Allow Once'},
+ {command:'expect',text:'Your location is shown',seconds:20},
+ {command:'tree',name:'native-location'},
+ {command:'shot',name:'native-location'},
+]
 return [
  {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
  {name:'reviews',steps:reviews,completion:`PASS absent ${input.review}`},
  {name:'sharing',steps:sharing,completion:'exec verify-share: PASS native share copied the trail link'},
  {name:'gpx',steps:gpx,completion:'exec verify-gpx: PASS exported GPX contains the recorded route'},
  {name:'planner',steps:planner,completion:'PASS expectid trail-full-map'},
+ {name:'location',steps:location,completion:'PASS expect Your location is shown'},
 ]
 }

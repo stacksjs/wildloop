@@ -60,6 +60,12 @@ export async function runNativeTrailE2e(): Promise<void> {
       if(url.pathname==='/exec') {
         try {
           const hook=url.searchParams.get('name')
+          if(hook==='seed-location') {
+            const first=primaryRoutePart([...decodeRouteParts(trail.geometry),...(Array.isArray(trail.pieceRoutes)?trail.pieceRoutes:[])])[0]
+            if(!first)throw new Error('The seeded trail has no recorded route start.')
+            await command(['xcrun','simctl','location',device,'set',`${first[0]},${first[1]}`],'location-seed.log')
+            return new Response('PASS owned simulator location set to the seeded public trailhead')
+          }
           if(hook==='verify-share') {
             const pasted=Bun.spawnSync(['xcrun','simctl','pbpaste',device])
             await writeFile(join(root,'sharing-clipboard.log'),JSON.stringify({exitCode:pasted.exitCode,stdout:pasted.stdout.toString(),stderr:pasted.stderr.toString()},null,2))
@@ -143,7 +149,7 @@ export async function runNativeTrailE2e(): Promise<void> {
       }
     }
     if(failures.length)throw new Error(`Native trail QA failed: ${failures.join(', ')}. Inspect the separate XCTest results, driver logs and screenshots.`)
-    console.log('Native trail maps, sticky save, review lifecycle, sharing, GPX export and route planner journeys passed.')
+    console.log('Native trail maps, sticky save, review lifecycle, sharing, GPX export, route planner and location journeys passed.')
   }
   finally {
     if(nativeRun && nativeRun.exitCode===null)nativeRun.kill()
