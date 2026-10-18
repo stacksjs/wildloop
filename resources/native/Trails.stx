@@ -175,13 +175,13 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); mine.set([]); v
         @input="query.set(eventText($event))"
       />
       <View class="flex-row gap-2">
-        <Button testID="trails-submit" @click="search()">Search</Button>
-        <Button :show="query() !== ''" testID="trails-clear" @click="clear()">Clear</Button>
+        <Button testID="trails-submit" :class="ui.action + ' flex-1'" @click="search()">Search</Button>
+        <Button :show="query() !== ''" testID="trails-clear" :class="ui.secondary" @click="clear()">Clear</Button>
       </View>
     </View>
 
     <View :show="listMode() === 'all'" class="mt-3 gap-3">
-      <View class="flex-row gap-3"><Button testID="trails-near-me" @click="locate()">Near me</Button><Button @click="showFilters.set(!showFilters())">Filters</Button><Button :show="nearby()" @click="nearby.set(null);load()">Anywhere</Button></View>
+      <View class="flex-row gap-3"><Button testID="trails-near-me" :class="ui.secondary" @click="locate()">Near me</Button><Button :class="ui.secondary" @click="showFilters.set(!showFilters())">Filters</Button><Button :show="nearby()" :class="ui.secondary" @click="nearby.set(null);load()">Anywhere</Button></View>
       <View :show="showFilters" class="gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-4">
         <Text class="text-[#51604e] dark:text-[#b0bfac]">Difficulty</Text><Button testID="trails-difficulty" :class="ui.secondary" :title="'Difficulty' + ': ' + nativeChoiceLabel([{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}],difficulty())" accessibilityLabel="Difficulty" :accessibilityValue="nativeChoiceLabel([{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}],difficulty())" @click="chooseNativeChoice(craft,'Difficulty',[{label:'Any difficulty',value:'all'},{label:'Easy',value:'easy'},{label:'Moderate',value:'moderate'},{label:'Hard',value:'hard'}],choice=>{difficulty.set(choice);load()},message=>error.set(message))" />
         <Text class="text-[#51604e] dark:text-[#b0bfac]">Route type</Text><Button :class="ui.secondary" :title="'Route type' + ': ' + nativeChoiceLabel([{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}],routeType())" accessibilityLabel="Route type" :accessibilityValue="nativeChoiceLabel([{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}],routeType())" @click="chooseNativeChoice(craft,'Route type',[{label:'Any route',value:'all'},{label:'Loop',value:'loop'},{label:'Out and back',value:'out-and-back'},{label:'Point to point',value:'point-to-point'}],choice=>{routeType.set(choice);load()},message=>error.set(message))" />
