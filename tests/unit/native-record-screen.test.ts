@@ -27,8 +27,8 @@ describe('native Record checkpoint recovery',()=>{
     expect(registration.payload.args).toMatchObject(['wildloop-native-recording-v1',{userId:7,id:'782f0d4a-f626-41bc-8f17-2f67e9a099bf',phase:'starting'}])
     expect(requests(screen).some(r=>r.payload.method==='startRecording')).toBe(false)
     answer(screen,registration,true)
-    const start=await waitForRequest(screen,0,r=>r.payload.method==='startRecording')
-    expect(start.payload.args[0]).toMatchObject({recordingId:'782f0d4a-f626-41bc-8f17-2f67e9a099bf'})
+    const nativeStart=await waitForRequest(screen,0,r=>r.payload.method==='startRecording')
+    expect(nativeStart.payload.args[0]).toMatchObject({recordingId:'782f0d4a-f626-41bc-8f17-2f67e9a099bf'})
   })
   it('recovers a finished upload offline without starting another GPS recording',async()=>{
     const screen=await recover()
