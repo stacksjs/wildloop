@@ -290,9 +290,13 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
         <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
-        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full">
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full" preserveAspectRatio="none">
+          <path d="M8,54 L992,54 M8,104 L992,104" fill="none" stroke="#dce3d7" stroke-width="1" vector-effect="non-scaling-stroke" />
           <path :d="profilePath()" fill="none" stroke="#24724b" stroke-width="3" />
         </svg>
+        <View :show="profile().some(point => point.ft !== null)" class="flex-row justify-between">
+          <Text :class="ui.caption">0.0 mi</Text><Text :class="ui.caption" :text="(profileFigures().miles / 2).toFixed(1) + ' mi'" /><Text :class="ui.caption" :text="profileFigures().miles.toFixed(1) + ' mi'" />
+        </View>
         <Text :show="!profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
         <Text :show="profile().some(point => point.ft !== null)" :text="profileFigures().miles.toFixed(1) + ' mi · ' + Math.round(profileFigures().low) + '–' + Math.round(profileFigures().high) + ' ft'" :class="ui.caption" />
         <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
@@ -353,13 +357,13 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
   </View>
   <Modal :visible="composer" presentationStyle="pageSheet" @requestClose="composer.set(false)" testID="trail-review-composer">
     <KeyboardAvoidingView :class="ui.screen">
-      <ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
+      <ScrollView class="flex-1 p-4 gap-2" keyboardDismissMode="on-drag">
         <Text :class="ui.title">Your trail review</Text>
         <Text :class="ui.caption">Rating</Text>
         <View class="flex-row gap-2" testID="trail-review-rating"><Pressable :for="stars in [1,2,3,4,5]" :key="stars" :testID="'trail-review-star-' + stars" :accessibilityLabel="'Rate ' + stars + ' out of 5 stars'" :accessibilityState="{selected:rating()===stars}" class="h-11 w-11 items-center justify-center" @click="rating.set(stars)"><Icon :name="rating() >= stars ? 'star.fill' : 'star'" class="h-8 w-8 text-[#24724b] dark:text-[#9be579]" /></Pressable></View>
         <Text :class="ui.caption" :text="rating() ? rating() + ' out of 5 stars' : 'Choose a rating'" />
         <Text :class="ui.caption">What should others know?</Text>
-        <TextInput testID="trail-review-content" :class="ui.input" class="min-h-[120px]" :value="content" :multiline="true" :maxLength="2000" @input="content.set(textOf($event))" />
+        <TextInput testID="trail-review-content" :class="ui.input + ' min-h-[120px]'" :value="content" :multiline="true" :maxLength="2000" @input="content.set(textOf($event))" accessibilityLabel="What should others know?" />
         <Text :class="ui.caption">Visit date (optional)</Text>
         <Button :show="!visitDate()" testID="trail-review-add-date" @click="visitDate.set(todayLocal())">Add visit date</Button>
         <View :show="visitDate()" class="flex-row items-center gap-3">

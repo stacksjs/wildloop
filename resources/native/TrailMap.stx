@@ -109,7 +109,13 @@ onMount(() => { void load(); return () => { alive = false } })
         <Button testID="map-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
       </View>
       <View :show="profileOpen">
-        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-20 w-full"><path :d="trailProfilePath(profile())" fill="none" stroke="#24724b" stroke-width="3" /></svg>
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full" preserveAspectRatio="none">
+          <path d="M8,54 L992,54 M8,104 L992,104" fill="none" stroke="#dce3d7" stroke-width="1" vector-effect="non-scaling-stroke" />
+          <path :d="trailProfilePath(profile())" fill="none" stroke="#24724b" stroke-width="3" />
+        </svg>
+        <View :show="profile().some(point => point.ft !== null)" class="flex-row justify-between">
+          <Text :class="ui.caption">0.0 mi</Text><Text :class="ui.caption" :text="(figures().miles / 2).toFixed(1) + ' mi'" /><Text :class="ui.caption" :text="figures().miles.toFixed(1) + ' mi'" />
+        </View>
         <Text testID="map-profile-unavailable" :show="!loading() && !profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
         <Text testID="map-profile-range" :show="profile().some(point => point.ft !== null)" :text="figures().miles.toFixed(1) + ' mi · ' + Math.round(figures().low) + '–' + Math.round(figures().high) + ' ft'" :class="ui.caption" />
         <Slider testID="map-elevation-slider" :show="profile().length > 1" :minimumValue="0" :maximumValue="Math.max(0,profile().length - 1)" :step="1" @change="inspect($event)" accessibilityLabel="Explore elevation and position along the route" />
