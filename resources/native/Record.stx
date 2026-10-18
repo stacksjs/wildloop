@@ -109,14 +109,21 @@ async function recover() {
       notice.set('Your finished recording is saved on this device. Retry the upload when connected.')
       return
     }
-    if (saved?.phase==='starting') {
-      recording.set(saved);running.set(false);paused.set(false)
-      notice.set('The recording start was interrupted. Retry starting with its saved identity, or discard the intent.')
-      return
-    }
     if (!owner) {recording.set(null);running.set(false);paused.set(false);return}
     await session!.api.readToken()
-    const host=await craft.location?.getRecordingState(saved?.id ? {expectedId:saved.id} : undefined)
+    let host
+    try { host=await craft.location?.getRecordingState(saved?.id ? {expectedId:saved.id} : undefined) }
+    catch (cause) {
+      // A registered intent may not have reached the host. An explicit native
+      // ownership conflict permits retrying that same ID, never a replacement.
+      if (saved?.phase==='starting' && cause instanceof Error && 'code' in cause && cause.code==='RECORDING_CONFLICT') {
+        if (!current()) return
+        recording.set(saved);running.set(false);paused.set(false)
+        notice.set('The recording start was interrupted. Retry starting with its saved identity, or discard the intent.')
+        return
+      }
+      throw cause
+    }
     if (!current()) return
     if (host?.active && (!saved || (saved.id && saved.id !== host.id))) {
       error.set('A device recording is already active. Its account checkpoint could not be verified, so it has been retained without starting another recording.')
@@ -129,7 +136,7 @@ async function recover() {
       const fixes=await craft.location!.readRecording({expectedId:saved.id!})
       if (!current()) return
       append(fixes)
-      if (!host.active) recording.set({...recording()!,phase:'stopped',endedAt:saved.endedAt ?? Date.now()})
+      recording.set({...recording()!,phase:host.active ? 'recording' : 'stopped',startedAt:host.startedAt ?? saved.startedAt,...host.active ? {} : {endedAt:saved.endedAt ?? Date.now()}})
       await persist(recording()!)
       if (!current()) return
       if(host.active) attachWatch()
