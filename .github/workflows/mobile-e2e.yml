@@ -32,7 +32,8 @@ on:
 
 concurrency:
   group: mobile-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # Retain main's installed-app evidence while independent fixes are verified.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   MAESTRO_SHA256: b3e561161904fb391875ca5834d5b22cf0b01c052dd1b408ad83e30d8f8951b3
