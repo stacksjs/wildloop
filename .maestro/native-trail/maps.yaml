@@ -7,11 +7,29 @@ name: Native Android trail maps and sticky save
 - extendedWaitUntil:
     visible: '^Saved$'
     timeout: 15000
+- openLink: wildloop://feed
+- extendedWaitUntil:
+    visible:
+      id: native-feed-scroll
+    timeout: 30000
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible: '^Saved$'
+    timeout: 30000
 - tapOn:
     id: trail-save
 - extendedWaitUntil:
     visible: '^Save$'
     timeout: 15000
+- openLink: wildloop://feed
+- extendedWaitUntil:
+    visible:
+      id: native-feed-scroll
+    timeout: 30000
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible: '^Save$'
+    timeout: 30000
 - scrollUntilVisible:
     element:
       id: trail-map-fullscreen
