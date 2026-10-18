@@ -49,7 +49,7 @@ export function nodesByTestId(node: any, found = new Map<string, string>()): Map
   return found
 }
 
-export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog']): Promise<NativeSession> {
+export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog'], keychain?: Map<string, string>): Promise<NativeSession> {
   const sent: any[] = []
   let callback: (raw: string) => void = () => {}
   /*
@@ -103,7 +103,18 @@ export async function start(route: string, params: Record<string, unknown> = {},
       platform: 'ios',
       capabilityProtocolVersion: 1,
       capabilities,
-      postMessage: (raw: string) => sent.push(JSON.parse(raw)),
+      postMessage: (raw: string) => {
+        const message = JSON.parse(raw)
+        sent.push(message)
+        // Keep real bridge requests observable while modelling repeated native
+        // keychain reads and credential changes between async UI steps.
+        if (keychain && message.type === 'API_REQUEST' && message.payload?.module === 'SecureStorage' && message.payload.method === 'get') {
+          void Promise.resolve().then(() => callback(JSON.stringify({
+            type: 'API_RESPONSE', correlationId: message.id,
+            payload: { version: 1, requestId: message.id, data: keychain.get(message.payload.args[0]) ?? null },
+          })))
+        }
+      },
       onMessage: (receiver: typeof callback) => { callback = receiver },
     },
   }
