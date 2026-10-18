@@ -62,7 +62,10 @@ async function exportRoute() {
 async function directions() {
   const links = planDirections({ latitude: trailhead()?.lat, longitude: trailhead()?.lng, activity_type: null })
   if (links) {
-    try { await craft.linking?.openURL(craft.platform === 'ios' ? links.apple : links.google) }
+    try {
+      if (!await craft.linking?.openURL(craft.platform === 'ios' ? links.apple : links.google))
+        throw new Error('Directions could not be opened.')
+    }
     catch { error.set('Directions could not be opened.') }
   }
 }

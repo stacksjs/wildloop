@@ -97,7 +97,10 @@ function inspect(event: any) {
 async function directions() {
   const url = planDirections({ latitude: trailhead()?.lat, longitude: trailhead()?.lng, activity_type: null })
   if (!url) return
-  try { await craft.linking?.openURL(craft.platform === 'ios' ? url.apple : url.google) }
+  try {
+    if (!await craft.linking?.openURL(craft.platform === 'ios' ? url.apple : url.google))
+      throw new Error('Directions could not be opened.')
+  }
   catch { notice.set('Directions could not be opened.') }
 }
 async function exportRoute() {
