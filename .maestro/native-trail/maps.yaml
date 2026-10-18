@@ -134,3 +134,19 @@ name: Native Android trail maps and sticky save
 - assertVisible:
     id: trail-sticky-actions
 - takeScreenshot: android-native-sticky-actions
+- scrollUntilVisible:
+    element:
+      id: trail-weather-heading
+    direction: DOWN
+- assertVisible:
+    id: trail-weather-heading
+- takeScreenshot: android-native-trail-weather
+- scrollUntilVisible:
+    element:
+      id: trail-surfaces-heading
+    direction: DOWN
+- assertVisible:
+    id: trail-surfaces-heading
+- takeScreenshot: android-native-trail-surfaces
+- assertVisible:
+    id: trail-sticky-actions

@@ -86,6 +86,14 @@ const maps:SimulatorStep[] = [
   {command:'expect',text:`Map layer: ${layer}`,seconds:10},
  ]),
  {command:'back'},
+ {command:'scrollto',text:'Weather'},
+ {command:'expectid',text:'trail-weather-heading',seconds:10},
+ {command:'shot',name:'native-trail-weather'},
+ {command:'tree',name:'native-trail-weather'},
+ {command:'scrollto',text:'Surface types'},
+ {command:'expectid',text:'trail-surfaces-heading',seconds:10},
+ {command:'shot',name:'native-trail-surfaces'},
+ {command:'tree',name:'native-trail-surfaces'},
  {command:'expectid',text:'trail-sticky-actions',seconds:10},
 ]
 const reviews:SimulatorStep[] = [
