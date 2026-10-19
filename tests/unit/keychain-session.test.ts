@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { isolateBrowserGlobals } from '../fixtures/browserGlobals'
 
 const local = new Map<string, string>()
 const tab = new Map<string, string>()
@@ -24,7 +25,10 @@ async function relaunch() {
   return await import(`../../resources/assets/scripts/auth.ts?page=${Math.random()}`)
 }
 
+let restoreGlobals: () => void
+
 beforeEach(() => {
+  restoreGlobals = isolateBrowserGlobals()
   local.clear()
   tab.clear()
   keychain.clear()
@@ -54,9 +58,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  const host = globalThis as any
-  for (const key of ['localStorage', 'sessionStorage', 'window', 'craft', '__wildloopSession'])
-    delete host[key]
+  restoreGlobals()
 })
 
 describe('the app session on iOS', () => {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { isolateBrowserGlobals } from '../fixtures/browserGlobals'
 import { readFileSync } from 'node:fs'
 import { clubSuccessor } from '../../app/Support/accountDeletion'
 import { deleteAccount } from '../../resources/assets/scripts/auth'
@@ -14,7 +15,10 @@ function respondWith(status: number, body?: unknown): void {
   }) as any
 }
 
+let restoreGlobals: () => void
+
 beforeEach(() => {
+  restoreGlobals = isolateBrowserGlobals()
   store.clear()
   ;(globalThis as any).localStorage = {
     getItem: (k: string) => store.get(k) ?? null,
@@ -24,7 +28,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  delete (globalThis as any).localStorage
+  restoreGlobals()
 })
 
 describe('deleting an account', () => {

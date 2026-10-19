@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { isolateBrowserGlobals } from '../fixtures/browserGlobals'
 import { readyToken, refreshCurrentUser, requestPasswordReset, signIn, signOut, signUp, token } from '../../resources/assets/scripts/auth'
 
 /**
@@ -35,7 +36,10 @@ function reopenPage(): void {
   page.inflight.clear()
 }
 
+let restoreGlobals: () => void
+
 beforeEach(() => {
+  restoreGlobals = isolateBrowserGlobals()
   store.clear()
   perSession.clear()
   reopenPage()
@@ -49,10 +53,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  reopenPage()
-  delete (globalThis as any).document
-  delete (globalThis as any).localStorage
-  delete (globalThis as any).sessionStorage
+  restoreGlobals()
 })
 
 /** Stub `fetch` with a fixed outcome and capture what was sent. */

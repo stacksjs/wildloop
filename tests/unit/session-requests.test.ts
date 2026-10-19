@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { isolateBrowserGlobals } from '../fixtures/browserGlobals'
 import { apiFetch, changePassword } from '../../resources/assets/scripts/auth'
 import { createActivity, fetchAchievements, fetchFollows, persistRunAndProcess, queuedRunMessage } from '../../resources/assets/scripts/game-api'
 import { nextAttemptCount, uploadNeedsAttention } from '../../resources/assets/scripts/run-upload-queue'
@@ -15,7 +16,10 @@ function respondWith(status: number, body: unknown = {}): void {
   }) as any
 }
 
+let restoreGlobals: () => void
+
 beforeEach(() => {
+  restoreGlobals = isolateBrowserGlobals()
   store.clear()
   ;(globalThis as any).localStorage = {
     getItem: (k: string) => store.get(k) ?? null,
@@ -25,7 +29,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  delete (globalThis as any).localStorage
+  restoreGlobals()
 })
 
 describe('API requests', () => {
