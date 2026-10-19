@@ -43,6 +43,45 @@ function updateLive(force=false) {
   const moving=movingSeconds(value,at)
   void live.update({activityId:'wildloop:'+value.id,title:value.type,symbol:'figure.run',deepLink:'wildloop://record',tint:'#24724b',status:paused()?'Paused':'Recording',paused:paused(),distanceMeters:recordingFigures(value).distance*1609.344,durationSeconds:moving,timerStartedAt:paused()?null:at-moving*1000}).catch(()=>{})
 }
+/** How long a recording may go without a single fix before the screen says so. */
+const GPS_SILENCE_SECONDS = 30
+
+/*
+ * What the line under the clock is allowed to claim.
+ *
+ * iOS does not refuse `startUpdatingLocation` when location is denied — it
+ * accepts it and then delivers nothing — so `startRecording` answers
+ * `active: true` and the screen used to settle on "Recording GPS" over a clock
+ * counting up and a distance that never moved. Measured on a device with
+ * location denied: forty-three seconds of "moving", not one sample, and
+ * nothing anywhere on the screen suggesting the run was not being recorded.
+ * Granting the permission mid-recording fixed it on the spot, which is what
+ * pinned the cause.
+ *
+ * The screen cannot ask whether permission was granted — the host keeps
+ * `locationPermissionGranted` to itself (`CraftNativeScreen.swift`) — and it
+ * does not need to. A recording holding no samples at all is either waiting
+ * for a fix or never going to get one, and both of those are worth saying
+ * instead of dressing up as recording. Once half a minute has passed with
+ * nothing, the likely cause gets named, because by then it is no longer a
+ * cold start.
+ *
+ * It never stops the recording. A fix can arrive late from a pocket or a
+ * valley, and throwing away a run that was about to start working is worse
+ * than a pessimistic caption.
+ */
+function recordingState(): string {
+  if (!running())
+    return recording() ? 'Recording retained on device' : 'Ready to explore'
+  if (paused())
+    return 'Paused'
+  if ((recording()?.samples.length ?? 0) > 0)
+    return 'Recording GPS'
+  return movingTime() >= GPS_SILENCE_SECONDS
+    ? 'Still no GPS. Check location permission in Settings.'
+    : 'Waiting for GPS…'
+}
+
 function persist(value: NativeRecording): Promise<void> {
   const snapshot = JSON.parse(JSON.stringify(value))
   writes = writes.catch(() => {}).then(async () => {await craft.storage.set(KEY,snapshot)})
@@ -240,7 +279,7 @@ onMount(()=>{
     <View :class="ui.card" class="mt-4 gap-3">
       <Text :text="figures().distance.toFixed(2) + ' mi'" class="text-[42px] font-bold text-[#192414] dark:text-white" testID="record-distance" />
       <Text :text="nativeRecordingDuration(movingTime()) + ' moving · ' + Math.round(figures().elevation) + ' ft gain'" :class="ui.body" testID="record-time" />
-      <Text :text="running() ? (paused() ? 'Paused' : 'Recording GPS') : recording() ? 'Recording retained on device' : 'Ready to explore'" :class="ui.caption" testID="record-state" />
+      <Text :text="recordingState()" :class="ui.caption" testID="record-state" />
       <Map testID="record-native-map" :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
         <MapPolyline :geometry="coordinates()" strokeColor="#24724b" :strokeWidth="5" />
       </Map>

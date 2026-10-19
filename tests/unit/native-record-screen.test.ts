@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
@@ -21,6 +21,29 @@ async function recover(userId=7) {
   answer(screen,host,{active:false,paused:false,locations:[]})
   return screen
 }
+/**
+ * A live recording on the device, recovered, holding whatever samples are
+ * given. `startedAt` decides how long it has been going without a fix.
+ */
+async function live(samples:unknown[],startedAt:number) {
+  const track={...checkpoint,startedAt,samples,pending:undefined}
+  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'])
+  const keychain=setInterval(()=>{
+    for(const request of requests(screen).filter(r=>r.payload.module==='SecureStorage' && !r.answered)) {
+      request.answered=true
+      answer(screen,request,request.payload.args[0]==='auth_token' ? 'record-token' : JSON.stringify({token:'record-token',user:{id:7}}))
+    }
+  },1)
+  const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
+  clearInterval(keychain)
+  answer(screen,stored,track)
+  const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
+  answer(screen,host,{active:true,paused:false,id:'run-7',locations:[]})
+  const read=await waitForRequest(screen,0,r=>r.payload.method==='readRecording')
+  answer(screen,read,[])
+  return screen
+}
+
 describe('native Record checkpoint recovery',()=>{
   beforeAll(compileNativeBundle,30000)
 
@@ -51,6 +74,32 @@ describe('native Record checkpoint recovery',()=>{
    * them to a login screen is how a run gets lost, so the guard stands aside
    * while one is held.
    */
+  /*
+   * iOS does not refuse `startUpdatingLocation` when location is denied. It
+   * accepts it and then delivers nothing, so the host answers `active: true`
+   * and the screen used to settle on "Recording GPS" over a clock counting up
+   * and a distance stuck on zero. Measured on a device with location denied:
+   * forty-three seconds of "moving", not one sample, and nothing on the screen
+   * suggesting the run was not being recorded. Granting the permission
+   * mid-recording started the distance climbing immediately, which is what
+   * pinned the cause.
+   *
+   * The screen cannot ask whether permission was granted, so it reports what
+   * it can see: no samples at all means it is not recording GPS, whatever the
+   * host claims, and after half a minute of that the likely reason is named.
+   */
+  it('does not claim to be recording GPS before a single fix arrives',async()=>{
+    const fresh=await live([],Date.now()-2000)
+    await waitForText(fresh,'Waiting for GPS…')
+    expect(nativeNodeText(fresh,'record-state')).toBe('Waiting for GPS…')
+
+    const silent=await live([],Date.now()-120000)
+    await waitForText(silent,'Still no GPS. Check location permission in Settings.')
+
+    const fixed=await live([{lat:45.5152,lng:-122.6784,at:Date.now()-1000,elevation:0,accuracy:5}],Date.now()-2000)
+    await waitForText(fixed,'Recording GPS')
+  })
+
   it('does not bounce a viewer who is holding a recording',async()=>{
     const screen=await recover()
     await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')
