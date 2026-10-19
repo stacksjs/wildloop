@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
+import { nativeUi } from '../../resources/functions/native-ui'
 import { nativeNodeProps, answer, answerNativeCsrf, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 describe('native account forms',()=>{
@@ -29,6 +30,23 @@ describe('native account forms',()=>{
     expect(options.some((option: any) => option?.tabBarHidden === true)).toBe(true)
     expect(options.some((option: any) => option?.hidden === true)).toBe(true)
     expect(options.some((option: any) => option?.swipeBack === false)).toBe(true)
+  })
+  /*
+   * The four auth screens are walked one after another — Login offers
+   * Register, Register offers Login, both offer ForgotPassword — with none of
+   * the app's chrome around them to hold the eye. A heading that changed size
+   * or alignment between them read as a different app each tap, which is why
+   * they share `authTitle` rather than each setting their own. `ui.title`
+   * stays 17px left for the eleven screens that sit inside the app's chrome.
+   */
+  it('gives every auth screen the same centred heading', async () => {
+    expect(nativeUi.authTitle).toContain('text-center')
+    expect(nativeUi.authTitle).not.toBe(nativeUi.title)
+    for (const name of ['Login', 'Register', 'ForgotPassword', 'ResetPassword']) {
+      const source = await Bun.file(`${import.meta.dir}/../../resources/native/${name}.stx`).text()
+      expect(source).toContain('ui.authTitle')
+      expect(source).not.toContain(':class="ui.title"')
+    }
   })
   it('stores a successful login in keychain and returns to the native trail',async()=>{
     const screen=await start('Login',{next:'/trail/7'})

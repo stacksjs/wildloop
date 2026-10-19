@@ -5,6 +5,14 @@ export const nativeUi = {
   card: 'mx-4 p-4 rounded-[12px] bg-white dark:bg-[#1b2c22]',
   row: 'flex-row items-center gap-3 py-3 min-h-[44px]',
   title: 'text-[17px] font-semibold text-[#192414] dark:text-[#f0f5ec]',
+  /**
+   * A sign-in screen's heading. The four auth screens are one flow — a
+   * viewer walks Login -> Register -> ForgotPassword without the app around
+   * them, since those screens carry no tab bar, no back chevron and no edge
+   * swipe — so they share one size and one alignment. `title` stays as it is
+   * for the eleven screens that use it inside the app's own chrome.
+   */
+  authTitle: 'text-center text-[30px] font-bold text-[#192414] dark:text-[#f0f5ec]',
   body: 'text-[17px] text-[#253321] dark:text-[#e3ecdf]',
   caption: 'text-[13px] text-[#51604e] dark:text-[#b0bfac]',
   input: 'min-h-[44px] rounded-[8px] px-3 py-2 text-[17px] text-[#192414] bg-[#eef2e9] dark:text-white dark:bg-[#314536]',

@@ -29,8 +29,8 @@ onMount(() => { craft.navigation.setOptions({ title: 'Log in', largeTitle: false
 </script>
 <KeyboardAvoidingView :class="ui.screen">
   <ScrollView class="flex-1 p-6" keyboardDismissMode="on-drag">
-    <Text class="text-[30px] font-bold text-[#192414] dark:text-white">Welcome back</Text>
-    <Text :class="ui.body" class="mt-3 mb-6">Keep your trails, activities, and territory together.</Text>
+    <Text :class="ui.authTitle">Welcome back</Text>
+    <Text :class="ui.body" class="mt-3 mb-6 text-center">Keep your trails, activities, and territory together.</Text>
     <Text :class="ui.caption">Email</Text>
     <TextInput testID="login-email" accessibilityLabel="Email" :class="ui.input" :value="email" keyboardType="email-address" autoCapitalize="none" textContentType="username" @input="email.set($event.text || '')" />
     <Text :class="ui.caption" class="mt-4">Password</Text>

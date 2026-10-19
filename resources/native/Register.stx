@@ -32,7 +32,7 @@ onMount(() => { craft.navigation.setOptions({title:'Create an account',largeTitl
 </script>
 <KeyboardAvoidingView :class="ui.screen">
   <ScrollView class="flex-1 p-6" keyboardDismissMode="on-drag">
-    <Text :class="ui.title">Find your next wild loop</Text>
+    <Text :class="ui.authTitle">Find your next wild loop</Text>
     <Text :class="ui.caption" class="mt-5">Name</Text><TextInput testID="register-name" :class="ui.input" accessibilityLabel="Name" textContentType="name" :value="name" @input="name.set($event.text || '')" />
     <Text :class="ui.caption" class="mt-4">Email</Text><TextInput testID="register-email" :class="ui.input" accessibilityLabel="Email" keyboardType="email-address" autoCapitalize="none" textContentType="emailAddress" :value="email" @input="email.set($event.text || '')" />
     <Text :class="ui.caption" class="mt-4">Password</Text><TextInput testID="register-password" :class="ui.input" accessibilityLabel="Password" :secureTextEntry="true" textContentType="newPassword" :value="password" @input="password.set($event.text || '')" />
