@@ -24,6 +24,15 @@ import { pathIdFrom } from './route-id'
 /** How many zones to ask for. The map holds the land around one viewport. */
 export const TERRITORY_LIMIT = 500
 
+/**
+ * How far around the viewer the territory map asks for.
+ *
+ * Territory is claimed by running a closed loop, so the ground that matters is
+ * the ground somebody runs on. 50km is a generous day out in any direction and
+ * keeps the map at a scale where a zone is a shape rather than a dot.
+ */
+export const TERRITORY_RADIUS_KM = 50
+
 export const TERRITORY_FILTERS = ['all', 'mine', 'contested'] as const
 export type TerritoryFilter = typeof TERRITORY_FILTERS[number]
 
@@ -61,7 +70,11 @@ export interface TerritoryRow {
  */
 export function territoriesMapPath(viewport?: MapBounds | null): string {
   let path = `/api/territories/map?limit=${TERRITORY_LIMIT}`
-  if (viewport) {
+  // A box is only a box if every corner is a number. A caller that passed one
+  // corner as undefined used to send `min_lat=NaN`, which the server reads as
+  // no viewport at all — so the request quietly went worldwide while the
+  // screen believed it had asked for the ground around somebody.
+  if (viewport && [viewport.minLat, viewport.minLng, viewport.maxLat, viewport.maxLng].every(Number.isFinite)) {
     path += `&min_lat=${encodeURIComponent(String(viewport.minLat))}`
     path += `&min_lng=${encodeURIComponent(String(viewport.minLng))}`
     path += `&max_lat=${encodeURIComponent(String(viewport.maxLat))}`

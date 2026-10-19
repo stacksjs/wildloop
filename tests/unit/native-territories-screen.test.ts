@@ -128,6 +128,79 @@ describe('Wildloop native territories screen', () => {
   })
 
   /*
+   * The map is headed "Nearby territories" and asked for every zone on earth:
+   * `territoriesMapPath` has taken a viewport since the server learned to read
+   * one, and this screen passed none. With the seeded data that means a
+   * bounding box from California to Austria, which is why the map opened on
+   * the North Atlantic — correctly framing zones 8,000km apart.
+   */
+  it('asks only for the ground around the viewer', async () => {
+    const screen = await start('Territories', {}, ['fetch', 'secureStorage', 'geolocation', 'dialog'])
+    const position = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Location')
+    answer(screen, position, { latitude: 37.74, longitude: -119.6 })
+
+    const keychain = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'SecureStorage')
+    answer(screen, keychain, 'tok_abc')
+    const me = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network')
+    answer(screen, me, ok({ success: true, user: { id: ME } }))
+
+    const map = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network' && String(r.payload.args[0].url).includes('/api/territories/map'))
+    const url = String(map.payload.args[0].url)
+    expect(url).toContain('min_lat=')
+    expect(url).toContain('max_lng=')
+    // 50km around Yosemite Valley, not the planet.
+    const minLat = Number(new RegExp('min_lat=([^&]+)').exec(url)![1])
+    const maxLat = Number(new RegExp('max_lat=([^&]+)').exec(url)![1])
+    expect(maxLat - minLat).toBeLessThan(1.5)
+    expect(minLat).toBeLessThan(37.74)
+    expect(maxLat).toBeGreaterThan(37.74)
+  })
+
+  /*
+   * Nobody has claimed ground within reach yet, which is the normal state of a
+   * new map. Scoping the request would turn that into a blank screen, so an
+   * empty answer asks again without the box.
+   */
+  it('shows the wider map when nothing has been claimed nearby', async () => {
+    const screen = await start('Territories', {}, ['fetch', 'secureStorage', 'geolocation', 'dialog'])
+    const position = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Location')
+    answer(screen, position, { latitude: 37.74, longitude: -119.6 })
+
+    const keychain = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'SecureStorage')
+    answer(screen, keychain, 'tok_abc')
+    const me = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network')
+    answer(screen, me, ok({ success: true, user: { id: ME } }))
+
+    const scoped = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network' && String(r.payload.args[0].url).includes('min_lat='))
+    answer(screen, scoped, ok({ features: [] }))
+
+    const wider = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network' && String(r.payload.args[0].url).includes('/api/territories/map') && !String(r.payload.args[0].url).includes('min_lat='))
+    answer(screen, wider, ok(MAP))
+    await waitForText(screen, 'Balboa Loop')
+  })
+
+  /*
+   * A refusal, a build without the capability, or a position that never comes
+   * must still draw a map. The unscoped request is a poor map; an empty screen
+   * is no map at all.
+   */
+  it('still loads when the device will not say where it is', async () => {
+    const screen = await start('Territories', {}, ['fetch', 'secureStorage', 'geolocation', 'dialog'])
+    const position = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Location')
+    answer(screen, position, { __error: 'Location permission was refused.' })
+
+    const keychain = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'SecureStorage')
+    answer(screen, keychain, 'tok_abc')
+    const me = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network')
+    answer(screen, me, ok({ success: true, user: { id: ME } }))
+
+    const map = await waitForRequest(screen, 0, (r: any) => r.payload?.module === 'Network' && String(r.payload.args[0].url).includes('/api/territories/map'))
+    expect(String(map.payload.args[0].url)).not.toContain('min_lat=')
+    answer(screen, map, ok(MAP))
+    await waitForText(screen, 'Balboa Loop')
+  })
+
+  /*
    * A ring arrives as [lng, lat] and must reach the host as [lat, lng]. Read
    * backwards a San Diego zone sits at latitude -117, which is not a latitude,
    * and nothing in the stack complains.

@@ -67,6 +67,20 @@ describe('territoriesMapPath', () => {
     expect(territoriesMapPath()).toBe('/api/territories/map?limit=500')
   })
 
+  /*
+   * A box is only a box if every corner is a number. Caught by the screen
+   * test: a refused position answers with an object that has no coordinates,
+   * and the box built from it reached the API as `min_lat=NaN`. The server
+   * reads that as no viewport, so the request went worldwide while the screen
+   * believed it had asked for one place.
+   */
+  it('ignores a viewport with a corner that is not a number', () => {
+    const corner = { minLat: 37.3, minLng: -120.0, maxLat: 38.2, maxLng: -119.1 }
+    expect(territoriesMapPath({ ...corner, maxLng: Number.NaN })).toBe('/api/territories/map?limit=500')
+    expect(territoriesMapPath({ ...corner, minLat: undefined as any })).toBe('/api/territories/map?limit=500')
+    expect(territoriesMapPath(corner)).toContain('min_lat=37.3')
+  })
+
   it('carries a viewport as four bounds', () => {
     const path = territoriesMapPath({ minLat: 32.7, minLng: -117.2, maxLat: 32.8, maxLng: -117.1 })
 

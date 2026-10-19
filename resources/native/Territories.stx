@@ -6,6 +6,7 @@ import {
   filterTerritories,
   TERRITORY_FILTER_LABELS,
   TERRITORY_FILTERS,
+  TERRITORY_RADIUS_KM,
   territoriesMapPath,
   territoryBadge,
   territoryGeometry,
@@ -14,6 +15,7 @@ import {
   territoryRowsFrom,
   zonesHeldText,
 } from '../functions/territories'
+import { mapBoundsAround } from '../functions/map-area'
 
 /*
  * The territory map, natively. Twelfth screen, and the first to draw a real
@@ -42,6 +44,8 @@ const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const filterIndex = state(0)
 const rows = state<any[]>([])
 const viewerId = state(0)
+{{-- The box the map asked for, or null while the device has not said. --}}
+const viewport = state<any>(null)
 const loading = state(true)
 const error = state('')
 const signedOut = state(false)
@@ -146,13 +150,30 @@ async function load(): Promise<void> {
     if (active && currentLoad === loadVersion)
       viewerId.set(Number(me.body.user.id))
 
-    const result = await api.send(territoriesMapPath())
+    {{-- Scoped to the ground around the viewer when the device will say
+         where that is. Without it the screen asks for every zone on earth and
+         the heading above the list — 'Nearby territories' — is a fiction. --}}
+    const result = await api.send(territoriesMapPath(viewport()))
     if (!active || currentLoad !== loadVersion)
       return
     if (!result.ok)
       throw new Error('Could not load the territory map')
 
-    rows.set(territoryRowsFrom(result.body))
+    const nearby = territoryRowsFrom(result.body)
+    {{-- Nobody has claimed anything within reach yet — which is the normal
+         state of a new map, and an empty screen is a poor way to say it. Ask
+         again without the box so the viewer at least sees where the game is
+         being played. --}}
+    if (nearby.length === 0 && viewport()) {
+      const anywhere = await api.send(territoriesMapPath())
+      if (!active || currentLoad !== loadVersion)
+        return
+      if (anywhere.ok) {
+        rows.set(territoryRowsFrom(anywhere.body))
+        return
+      }
+    }
+    rows.set(nearby)
   }
   catch (cause) {
     if (active && currentLoad === loadVersion)
@@ -164,9 +185,33 @@ async function load(): Promise<void> {
   }
 }
 
+/**
+ * Ask the device where it is, then load. A refusal, a build without the
+ * capability, or a position that never arrives all fall through to the
+ * unscoped request this screen made before — a worldwide map is a poor map,
+ * but it beats an empty one.
+ */
+async function locateThenLoad(): Promise<void> {
+  try {
+    if (!craft.location)
+      throw new Error('no location in this build')
+    const point = await craft.location.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 })
+    {{-- A refused position comes back as an object without coordinates rather
+         than as a rejection, and an unchecked one reaches the API as
+         `min_lat=NaN`: a viewport the server cannot read, from a screen that
+         believes it asked for one. --}}
+    if (active && Number.isFinite(point?.latitude) && Number.isFinite(point?.longitude))
+      viewport.set(mapBoundsAround({ lat: point.latitude, lng: point.longitude }, TERRITORY_RADIUS_KM))
+  }
+  catch {
+    // Not an error the viewer needs to see: the map simply stays worldwide.
+  }
+  await load()
+}
+
 onMount(() => {
   craft.navigation.setOptions({ title: 'Territory', largeTitle: true })
-  void load()
+  void locateThenLoad()
 })
 
 onDestroy(() => {
