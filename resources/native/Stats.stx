@@ -82,6 +82,20 @@ function bars(): any[] {
   return weekBars(stats()?.weeklyHistory ?? [])
 }
 
+/*
+ * Six weeks of zeroes still produce six bars — the server sends a row per week
+ * whether it was run or not — each with a height of zero, so the chart drew
+ * nothing inside a white card under a heading. A new account saw an empty box
+ * and no way to read it as "you have not run yet".
+ *
+ * A week nobody ran still gets no bar, which is the honest shape of a quiet
+ * week beside a busy one. It is only every week being quiet that has nothing
+ * to draw, and then the card goes too.
+ */
+function hasWeekChart(): boolean {
+  return bars().some(bar => Number(bar.distance) > 0)
+}
+
 function breakdown(): any[] {
   return activityBreakdown(activities()).filter(row => row.count > 0)
 }
@@ -186,7 +200,7 @@ onMount(() => onNativeAccountChange(craft, () => { stats.set(null); activities.s
 
       {{-- Six weeks of history. A week that was run always gets a sliver; a
            week nobody ran gets no bar, which is the honest shape of it. --}}
-      <View :show="bars().length > 0" testID="week-chart" class="gap-2">
+      <View :show="hasWeekChart()" testID="week-chart" class="gap-2">
         <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Last six weeks</Text>
         <View class="h-20 w-full rounded-xl bg-white dark:bg-[#1b2c22] p-2">
           <svg :viewBox="chartBox()" class="h-full w-full">

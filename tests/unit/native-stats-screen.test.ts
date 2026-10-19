@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * Training stats, natively.
@@ -104,6 +104,38 @@ describe('Wildloop native stats screen', () => {
 
     expect(requests(screen).length).toBe(before)
     expect(shownText(screen)).toContain('This month')
+  })
+
+  /*
+   * The server sends a row for each of the last six weeks whether it was run
+   * or not, so a brand-new account still produced six bars — every one of them
+   * zero high. The card drew nothing and the heading sat over an empty white
+   * box, which reads as a chart that failed rather than as a history with
+   * nothing in it yet.
+   *
+   * A single quiet week among busy ones still gets no bar: that gap is the
+   * honest shape of the week. It is only every week being quiet that has
+   * nothing to say.
+   */
+  it('hides the six-week chart only when no week was run', async () => {
+    /*
+     * Both screens are driven to the same point before either is read. The
+     * busy one is waited on for a real transition — `week-chart` starts hidden
+     * in the first frame whatever the data turns out to be, so its flip to
+     * `flex` is proof that the batch resolving every `:show` on this screen has
+     * been processed. Only then is the empty screen's state meaningful.
+     *
+     * Reading the empty screen on its own passes against a chart that is about
+     * to appear, because the state being asserted is also the state of the
+     * first frame. That is the initial-RENDER-is-not-the-frame trap in
+     * test-writing form, and the first version of this test fell into it: it
+     * passed against the very bug it was written for.
+     */
+    const empty = await board('tok_abc', { activities: [] })
+    const busy = await board()
+    await waitForVisibility(busy.screen, 'week-chart', 'flex')
+    await waitForText(empty.screen, '0 activities')
+    expect(visibility(empty.screen, 'week-chart')).toBe('none')
   })
 
   it('splits what the athlete actually does', async () => {
