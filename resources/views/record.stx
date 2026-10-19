@@ -29,6 +29,7 @@
   useHead({ title: 'Record - Wildloop' })
 
   const wl = useStore('wl')
+  const RUN_MODES = [{ value: 'capture', label: 'Capture' }, { value: 'free', label: 'Free run' }]
   const { recordings, recoveryMessage, recoveringUpload, retryRecording, exportRecording, discardRecording } = useRecordingRecovery()
   const { importing, importMessage, importError, importFile } = useActivityImport(wl)
   const {
@@ -219,10 +220,7 @@
         </div>
         <div class="space-y-5 p-5">
           <p :if="recordingError" role="alert" :aria-label="recordingError" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ recordingError }}</p>
-          <div class="mode-switch" role="group" aria-label="Run mode">
-            <button @click="runMode.set('capture')" :aria-pressed="runMode === 'capture' ? 'true' : 'false'" x-class="runMode === 'capture' ? 'mode-on' : ''">Capture</button>
-            <button @click="runMode.set('free')" :aria-pressed="runMode === 'free' ? 'true' : 'false'" x-class="runMode === 'free' ? 'mode-on' : ''">Free run</button>
-          </div>
+          <SegmentedControl label="Run mode" stretch v-model:value="runMode" :options="RUN_MODES" />
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
               <label for="record-activity-type" class="field-label">Activity</label>
@@ -438,27 +436,6 @@
     background: color-mix(in srgb, #10b981 8%, transparent);
   }
 
-  .mode-switch {
-    display: flex;
-    gap: 0.25rem;
-    padding: 0.25rem;
-    background: color-mix(in srgb, currentColor 8%, transparent);
-    border-radius: 9999px;
-  }
-
-  .mode-switch button {
-    padding: 0.5rem 1.1rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: color-mix(in srgb, currentColor 65%, transparent);
-    border-radius: 9999px;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  .mode-on {
-    color: #fff !important;
-    background: #059669;
-  }
 
   .chip {
     padding: 0.4rem 0.8rem;

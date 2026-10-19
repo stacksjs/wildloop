@@ -27,7 +27,7 @@ const TRACKED = {
   // Counted over `resources/**`, which is wider than the `resources/views/**` a
   // first pass measured: components carry CSS and comments too, and the
   // narrower count under-reported both by a few hundred.
-  styleLines: { limit: 2090, what: 'lines of CSS inside <style> blocks' },
+  styleLines: { limit: 2069, what: 'lines of CSS inside <style> blocks' },
   // Paid down to zero on 15 Oct 2026: all 352 became `{{-- --}}`, which is
   // stripped at compile. The limit stays as a ratchet, so the next one fails.
   htmlComments: { limit: 0, what: '<!-- --> comments, which ship to the browser as content' },

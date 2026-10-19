@@ -89,6 +89,11 @@
   const savedTrails = derived(() => serverSaved()
     .map((row: any) => row.trail)
     .filter((t: any) => t && (!wl || wl.isTrailSaved(t.id))))
+  /* Each list's name with its size, once there is something in it. */
+  const tabChoices = derived(() => [
+    { value: 'activities', label: myActivities().length ? `Activities ${myActivities().length}` : 'Activities' },
+    { value: 'saved', label: savedTrails().length ? `Saved trails ${savedTrails().length}` : 'Saved trails' },
+  ])
 
   /*
    * The numbers under the name. Distance, climb and trails are what the
@@ -282,16 +287,7 @@
 
     {{-- Tabs --}}
     <div :if="currentUser" class="mb-4 mt-8 flex items-center justify-between gap-3">
-      <div class="inline-grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="tablist">
-        <button type="button" role="tab" x-aria-selected="activeTab === 'activities' ? 'true' : 'false'" @click="activeTab.set('activities')" x-class="activeTab === 'activities' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition">
-          Activities
-          <span :if="myActivities.length > 0" class="tabular-nums opacity-60">{{ myActivities.length }}</span>
-        </button>
-        <button type="button" role="tab" x-aria-selected="activeTab === 'saved' ? 'true' : 'false'" @click="activeTab.set('saved')" x-class="activeTab === 'saved' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition">
-          Saved trails
-          <span :if="savedTrails.length > 0" class="tabular-nums opacity-60">{{ savedTrails.length }}</span>
-        </button>
-      </div>
+      <SegmentedControl label="Show" v-model:value="activeTab" :options="tabChoices()" />
       <StxLink :if="activeTab === 'activities'" to="/record" class="hidden min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:inline-flex">
         <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>Record
       </StxLink>

@@ -108,6 +108,7 @@
   let climbToken = 0
 
   const followPaths = state(true)
+  const DRAWING_CHOICES = [{ value: 'paths', label: 'Follow paths' }, { value: 'straight', label: 'Straight' }]
   const pointCount = state(0)
   const distanceMi = state(0)
   const climbFt = state<number | null>(null)
@@ -494,16 +495,7 @@
 
   {{-- Tools, thumb-sized. --}}
   <div class="mt-3 flex flex-wrap items-center gap-2">
-    <div class="inline-flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="group" aria-label="How new legs are drawn">
-      <button type="button" @click="setFollowPaths(true)" :aria-pressed="followPaths() ? 'true' : 'false'" x-class="followPaths() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition">
-        <i class="i-lucide-footprints h-4 w-4" aria-hidden="true"></i>
-        Follow paths
-      </button>
-      <button type="button" @click="setFollowPaths(false)" :aria-pressed="followPaths() ? 'false' : 'true'" x-class="!followPaths() ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition">
-        <i class="i-lucide-pencil-line h-4 w-4" aria-hidden="true"></i>
-        Straight
-      </button>
-    </div>
+    <SegmentedControl label="How new legs are drawn" :value="followPaths() ? 'paths' : 'straight'" :options="DRAWING_CHOICES" @change="setFollowPaths($event === 'paths')" />
     <button type="button" @click="undo()" x-disabled="!canUndo()" class="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200">
       <i class="i-lucide-undo-2 h-4 w-4" aria-hidden="true"></i>
       Undo
