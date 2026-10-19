@@ -1,0 +1,99 @@
+appId: ${APP_ID}
+name: Native location, route customization and GPX sharing
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}/map
+- extendedWaitUntil:
+    visible:
+      id: trail-full-map
+    timeout: 30000
+- assertNotVisible:
+    id: '.*permission_allow_foreground_only_button'
+- tapOn:
+    id: map-zoom-in
+- tapOn:
+    id: map-3d
+- assertVisible:
+    id: map-3d
+    text: '^2D$'
+- takeScreenshot: android-native-camera-before-location
+- tapOn:
+    id: map-locate
+- extendedWaitUntil:
+    visible:
+      id: '.*permission_allow_foreground_only_button'
+    timeout: 15000
+- tapOn:
+    id: '.*permission_allow_foreground_only_button'
+- extendedWaitUntil:
+    visible: 'My location, Your location is shown'
+    timeout: 30000
+- assertVisible:
+    id: map-3d
+    text: '^2D$'
+- takeScreenshot: android-native-map-location
+- tapOn:
+    id: map-customize
+- extendedWaitUntil:
+    visible:
+      id: route-builder-map
+    timeout: 30000
+- assertVisible: ${TRAIL_NAME}
+- takeScreenshot: android-native-customize-route
+- back
+- assertVisible:
+    id: trail-full-map
+- tapOn:
+    id: map-export
+- extendedWaitUntil:
+    visible: ${GPX_NAME}
+    timeout: 15000
+- takeScreenshot: android-native-gpx-share-sheet
+- back
+- assertVisible:
+    id: trail-full-map
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible:
+      id: trail-sticky-actions
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: trail-zoom-in
+    direction: DOWN
+- tapOn:
+    id: trail-zoom-in
+- scrollUntilVisible:
+    element:
+      id: trail-map-3d
+    direction: DOWN
+- tapOn:
+    id: trail-map-3d
+- assertVisible:
+    id: trail-map-3d
+    text: '^2D$'
+- takeScreenshot: android-native-inline-camera-before-location
+- tapOn:
+    id: trail-map-locate
+- extendedWaitUntil:
+    visible: 'My location, Your location is shown'
+    timeout: 30000
+- assertNotVisible:
+    id: '.*permission_allow_foreground_only_button'
+- assertVisible:
+    id: trail-map-3d
+    text: '^2D$'
+- takeScreenshot: android-native-inline-map-location
+- scrollUntilVisible:
+    element:
+      id: trail-map-export
+    direction: DOWN
+- tapOn:
+    id: trail-map-export
+- extendedWaitUntil:
+    visible: ${GPX_NAME}
+    timeout: 15000
+- takeScreenshot: android-native-inline-gpx-share-sheet
+- back
+- assertVisible:
+    id: trail-sticky-actions

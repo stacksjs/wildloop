@@ -1,0 +1,16 @@
+appId: ${APP_ID}
+name: Open trailhead directions from the full native map
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}/map
+- extendedWaitUntil:
+    visible:
+      id: map-directions
+    timeout: 30000
+- tapOn:
+    id: map-directions
+- extendedWaitUntil:
+    notVisible:
+      id: trail-full-map
+    timeout: 15000
+- takeScreenshot: android-native-full-map-directions-handoff

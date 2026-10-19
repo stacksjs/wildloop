@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: native-feed-scroll
+    timeout: 30000
+- openLink: wildloop://login?next=/trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 30000
+- tapOn:
+    id: login-email
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: login-password
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: login-submit
+- extendedWaitUntil:
+    visible: ${TRAIL_NAME}
+    timeout: 30000
+- assertVisible:
+    id: trail-sticky-actions

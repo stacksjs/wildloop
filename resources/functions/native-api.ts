@@ -73,7 +73,11 @@ export interface NativeApi {
   send: (path: string, method?: string, body?: unknown) => Promise<NativeResponse>
   /** Native FormData carries on-device files through Craft's multipart transport. */
   upload: (path: string, form: FormData) => Promise<NativeResponse>
+  /** Keep a protected operation with the screen's loaded account; never retarget it. */
+  bindSession: () => Promise<NativeApi>
 }
+
+interface NativeSessionBinding { account: string, bearer: string }
 
 /**
  * A token reader and sender bound to one screen.
@@ -89,6 +93,15 @@ export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(ho
   let reading: Promise<string> | null = null
   let session = ''
   const sessionKey = (): string => host.snapshots ? JSON.stringify(host.snapshots.get('wildloop-session')) ?? 'null' : ''
+  const accountChanged = (): Error => new Error('Your account changed. Please try again.')
+  const assertSession = async (binding: NativeSessionBinding): Promise<string> => {
+    if (binding.account !== sessionKey()) throw accountChanged()
+    const current = await host.secureStorage.get('auth_token')
+    // The keychain can rotate before the shared account snapshot is published,
+    // and cold starts can have a bearer without any snapshot yet.
+    if (binding.account !== sessionKey() || current !== binding.bearer) throw accountChanged()
+    return binding.bearer
+  }
   const readToken = async (): Promise<string> => {
     const current = sessionKey()
     if (!host.snapshots || session !== current) {
@@ -120,11 +133,11 @@ export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(ho
     return { 'X-CSRF-Token': token, Cookie: `X-CSRF-Token=${token}` }
   }
 
-  const request = async (path: string, method: string, body: string | FormData | undefined, json: boolean): Promise<NativeResponse> => {
-    const account = sessionKey()
-    const bearer = await readToken()
+  const request = async (path: string, method: string, body: string | FormData | undefined, json: boolean, binding?: NativeSessionBinding): Promise<NativeResponse> => {
+    const account = binding?.account ?? sessionKey()
+    const bearer = binding ? await assertSession(binding) : await readToken()
     const csrf = !bearer && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase()) ? await guestMutationHeaders() : {}
-    if (account !== sessionKey()) throw new Error('Your account changed. Please try again.')
+    if (account !== sessionKey()) throw accountChanged()
     const response = await fetch(`${origin}${path}`, {
       method,
       headers: { ...nativeHeaders(bearer, json), ...csrf },
@@ -133,14 +146,35 @@ export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(ho
     // A body that is not JSON is not an exception — an error page is text, and
     // the status is what the screen reads anyway.
     const payload = await response.json().catch(() => null)
-    if (account !== sessionKey()) throw new Error('Your account changed. Please try again.')
+    if (binding) await assertSession(binding)
+    else if (account !== sessionKey()) throw accountChanged()
     return { ok: response.ok, status: response.status, body: payload }
+  }
+
+  const bindSession = async (): Promise<NativeApi> => {
+    const account = sessionKey()
+    if (reading && session !== account) throw accountChanged()
+    // Anchor an already-loaded screen to its last bearer, even on a host
+    // without snapshots. Reading a fresh bearer here would retarget its draft.
+    const bearer = await (reading ?? readToken())
+    if (account !== sessionKey()) throw accountChanged()
+    if (!bearer) throw new Error('Sign in before saving changes.')
+    const binding = { account, bearer }
+    await assertSession(binding)
+    const bound: NativeApi = {
+      readToken: () => assertSession(binding),
+      send: (path, method = 'GET', body) => request(path, method, body === undefined ? undefined : JSON.stringify(body), body !== undefined, binding),
+      upload: (path, form) => request(path, 'POST', form, false, binding),
+      bindSession: async () => { await assertSession(binding); return bound },
+    }
+    return bound
   }
 
   return {
     readToken,
     send: (path, method = 'GET', body) => request(path, method, body === undefined ? undefined : JSON.stringify(body), body !== undefined),
     upload: (path, form) => request(path, 'POST', form, false),
+    bindSession,
   }
 }
 

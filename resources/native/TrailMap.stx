@@ -102,9 +102,9 @@ onMount(() => { void load(); return () => { alive = false } })
       @region-change-complete="camera($event)">
       <MapPolyline :for="(part,index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
       <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
-      <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
-      <MapMarker id="trailhead" title="Trailhead" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
-      <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
+      <MapMarker :for="(sign,index) in signs()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" :pinColor="trailRouteStyle.casing" title="Recorded route direction" />
+      <MapMarker id="trailhead" title="Trailhead" pinColor="#24724b" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
+      <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" pinColor="#176bad" :geometry="[inspected()?.lat, inspected()?.lng]" />
     </Map>
     <View class="absolute top-3 left-3 right-3 flex-row flex-wrap gap-2">
       <Button testID="map-layer" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
@@ -138,7 +138,7 @@ onMount(() => { void load(); return () => { alive = false } })
       <Button testID="map-fit" class="flex-1" :class="ui.secondary" @click="fit()">Fit route</Button>
       <Button testID="map-zoom-in" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),0.5))" accessibilityLabel="Zoom in">+</Button>
       <Button testID="map-zoom-out" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),2))" accessibilityLabel="Zoom out">−</Button>
-      <Button testID="map-locate" class="flex-1" :class="ui.secondary" :accessibilityValue="showLocation() ? 'Your location is shown' : ''" @click="locate()">My location</Button>
+      <Button testID="map-locate" class="flex-1" :class="ui.secondary" accessibilityLabel="My location" :accessibilityValue="showLocation() ? 'Your location is shown' : ''" @click="locate()">My location</Button>
     </View>
     <View class="flex-row gap-2">
       <Button testID="map-export" class="flex-1" :class="ui.secondary" @click="exportRoute()">Export GPX</Button>

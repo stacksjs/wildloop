@@ -1,0 +1,25 @@
+appId: ${APP_ID}
+name: Delete the persisted review through native confirmation
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible: ${TRAIL_NAME}
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: trail-delete-review
+    direction: DOWN
+- tapOn:
+    id: trail-delete-review
+- tapOn: '^Delete review$'
+- extendedWaitUntil:
+    visible: 'Leave a review'
+    timeout: 15000
+- assertNotVisible: ${REVIEW_TEXT}
+- assertNotVisible: ${EDITED_REVIEW_TEXT}
+- assertNotVisible:
+    id: trail-delete-review
+- assertVisible:
+    id: trail-sticky-actions
+- takeScreenshot: android-native-review-deleted

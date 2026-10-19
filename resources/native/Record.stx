@@ -5,12 +5,14 @@ import { createHealthWorkout } from '../functions/health-workout'
 import { useIntervalFn } from '@stacksjs/composables'
 import { readNativeAccount } from '../functions/native-session'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
+import { createNativeRecordingCheckpoint } from '../functions/native-recording-checkpoint'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { nativeRecordingDuration, movingSeconds, recordingFigures, recordingPayload, recordingSamples, type NativeRecording } from '../functions/native-recording'
 const craft = (globalThis as typeof globalThis & {craft:NativeCraft}).craft
-const KEY = 'wildloop-native-recording-v1'
+const checkpoint = createNativeRecordingCheckpoint(craft.storage)
+let api = createNativeApi(craft)
 const recording = state<NativeRecording|null>(null)
 const running = state(false)
 const paused = state(false)
@@ -23,12 +25,13 @@ const visibility = state('followers')
 const gameMode = state('capture')
 const now = state(Date.now())
 const figures = derived(() => recording() ? recordingFigures(recording()!) : {distance:0,elevation:0})
-const movingTime = derived(() => { const value=recording(); return value ? movingSeconds(value,now()) : 0 })
+const movingTime = derived(() => { const value=recording(); return value ? movingSeconds(value,value.endedAt ?? (value.pending ? Date.parse(String(value.pending.completed_at)) : now())) : 0 })
 const coordinates = derived(() => recording()?.samples.flatMap(sample => [sample.lat,sample.lng]) ?? [])
 let alive = true
 let owner = 0
 let watch: number | null = null
-let writes = Promise.resolve()
+let accountGeneration = 0
+let recoverQueued = false
 let recovering = false
 const live=createLiveActivity(craft.liveActivity)
 let lastLiveUpdate=0
@@ -40,17 +43,24 @@ function updateLive(force=false) {
   const moving=movingSeconds(value,at)
   void live.update({activityId:'wildloop:'+value.id,title:value.type,symbol:'figure.run',deepLink:'wildloop://record',tint:'#24724b',status:paused()?'Paused':'Recording',paused:paused(),distanceMeters:recordingFigures(value).distance*1609.344,durationSeconds:moving,timerStartedAt:paused()?null:at-moving*1000}).catch(()=>{})
 }
-function persist(value: NativeRecording): Promise<void> {
-  const snapshot = JSON.parse(JSON.stringify(value))
-  writes = writes.catch(() => {}).then(async () => {await craft.storage.set(KEY,snapshot)})
-  return writes
+function persist(value: NativeRecording): Promise<void> { return checkpoint.save(value) }
+async function ownedSession(value?: NativeRecording) {
+  const bound = await api.bindSession()
+  const cached = await readNativeAccount(craft)
+  const me = cached ? null : await bound.send('/api/me')
+  await bound.readToken()
+  const userId = cached?.id ?? (Number(me?.body?.user?.id) || 0)
+  if (!userId || (value && value.userId !== userId)) throw new Error('Log in as the account that started this recording before changing or uploading it.')
+  return { api: bound, userId }
 }
-async function perform(work:()=>Promise<void>) {
+async function perform(work:(current:()=>boolean)=>Promise<void>) {
   if (busy()) return
+  const generation = accountGeneration
+  const current = () => alive && generation === accountGeneration
   busy.set(true);error.set('')
-  try { await work() }
-  catch (cause) { error.set(cause instanceof Error ? cause.message : 'The recording could not be updated. Your track remains on this device.') }
-  finally { busy.set(false) }
+  try { await work(current) }
+  catch (cause) { if (current()) error.set(cause instanceof Error ? cause.message : 'The recording could not be updated. Your track remains on this device.') }
+  finally { busy.set(false);if(recoverQueued && alive) void recover() }
 }
 function append(locations:any[]) {
   const value = recording()
@@ -61,29 +71,60 @@ function append(locations:any[]) {
 }
 function attachWatch() {
   if (watch !== null || !craft.location) return
+  const generation=accountGeneration
+  const id=recording()?.id
   watch = craft.location.watchPosition(location => {
-    if (!alive || busy() || paused() || !running()) return
+    if (!alive || generation!==accountGeneration || recording()?.id!==id || busy() || paused() || !running()) return
     append([location])
-    if (recording()) void persist(recording()!).catch(() => error.set('Device storage could not save a checkpoint. Keep the app open until your activity is saved.'))
+    if (recording()) void persist(recording()!).catch(() => {if(alive && generation===accountGeneration) error.set('Device storage could not save a checkpoint. Keep the app open until your activity is saved.')})
   },{enableHighAccuracy:true})
 }
 async function recover() {
-  if (recovering || busy()) return
+  if (recovering || busy()) {recoverQueued=true;return}
+  recoverQueued=false
+  const generation=accountGeneration
+  const current=()=>alive && generation===accountGeneration
   recovering=true;loading.set(true)
   try {
-    const api=createNativeApi(craft)
-    const cached=await readNativeAccount(craft)
-    const me=cached ? null : await api.send('/api/me')
-    if (!alive) return
-    owner=cached?.id ?? (Number(me?.body?.user?.id)||0)
-    const saved=await craft.storage.get<NativeRecording>(KEY)
-    const host=await craft.location?.getRecordingState()
-    if (!alive) return
+    const token=await api.readToken()
+    const session=token ? await ownedSession() : null
+    if (!current()) return
+    owner=session?.userId ?? 0
+    const saved=await checkpoint.read()
+    if (!current()) return
     if (saved && saved.userId !== owner) {
       recording.set(null);running.set(false)
       error.set('Log in as the account that started the saved recording before resuming or uploading it.')
       return
     }
+    if (saved && !saved.id) {
+      recording.set(saved);running.set(false);paused.set(false)
+      error.set('This saved track has no verifiable native recording identity. Its checkpoint has been retained; it cannot be attached to another recording.')
+      return
+    }
+    // A finished checkpoint is sufficient for an offline retry. Do not read
+    // the shared GPS slot, which may now belong to another recording.
+    if (saved?.pending) {
+      recording.set(saved);running.set(false);paused.set(false)
+      notice.set('Your finished recording is saved on this device. Retry the upload when connected.')
+      return
+    }
+    if (!owner) {recording.set(null);running.set(false);paused.set(false);return}
+    await session!.api.readToken()
+    let host
+    try { host=await craft.location?.getRecordingState(saved?.id ? {expectedId:saved.id} : undefined) }
+    catch (cause) {
+      // A registered intent may not have reached the host. An explicit native
+      // ownership conflict permits retrying that same ID, never a replacement.
+      if (saved?.phase==='starting' && cause instanceof Error && 'code' in cause && cause.code==='RECORDING_CONFLICT') {
+        if (!current()) return
+        recording.set(saved);running.set(false);paused.set(false)
+        notice.set('The recording start was interrupted. Retry starting with its saved identity, or discard the intent.')
+        return
+      }
+      throw cause
+    }
+    if (!current()) return
     if (host?.active && (!saved || (saved.id && saved.id !== host.id))) {
       error.set('A device recording is already active. Its account checkpoint could not be verified, so it has been retained without starting another recording.')
       return
@@ -91,66 +132,91 @@ async function recover() {
     recording.set(saved)
     running.set(Boolean(host?.active))
     paused.set(Boolean(host?.paused))
-    if (saved && host?.active && !saved.pending) {
-      append(await craft.location!.readRecording())
+    if (saved && host?.id===saved.id && !saved.pending) {
+      const fixes=await craft.location!.readRecording({expectedId:saved.id!})
+      if (!current()) return
+      recording.set({...saved,phase:host.active ? 'recording' : 'stopped',startedAt:host.startedAt ?? saved.startedAt,...host.active ? {} : {endedAt:saved.endedAt ?? Date.now()}})
+      append(fixes)
       await persist(recording()!)
-      attachWatch()
+      if (!current()) return
+      if(host.active) attachWatch()
       notice.set('Your recording has been recovered from this device.');updateLive(true)
     }
     if (saved?.pending) notice.set('Your finished recording is saved on this device. Retry the upload when connected.')
     now.set(Date.now())
   }
-  catch { if (alive) error.set('Could not check the device recording. Pull down to retry before starting another activity.') }
-  finally { recovering=false;if(alive) loading.set(false) }
+  catch (cause) { if (current()) error.set(cause instanceof Error ? cause.message : 'Could not check the device recording. Pull down to retry before starting another activity.') }
+  finally { recovering=false;if(current()) loading.set(false);if(recoverQueued && alive) void recover() }
 }
-function start() { void perform(async () => {
-  if (!craft.location) throw new Error('Location recording is unavailable in this app build.')
-  const api=createNativeApi(craft)
-  const cached=await readNativeAccount(craft)
-  const me=cached ? null : await api.send('/api/me')
-  const userId=cached?.id ?? (Number(me?.body?.user?.id)||0)
-  if (!userId) {craft.navigation.open('/login?next=/record');return}
-  if (recording()) throw new Error('Save your previous recording before starting another.')
-  if ((await craft.location.getRecordingState()).active) throw new Error('A recording is already active on this device. Pull down to recover it.')
-  const value:NativeRecording={userId,id:null,startedAt:Date.now(),type:activityType(),visibility:visibility(),gameMode:gameMode() === 'capture' ? 'capture':'free',targetTerritoryId:Number(craft.route.params.target)||null,pauses:[],samples:[]}
-  // Bind the account before location starts. The host owns background fixes;
-  // this checkpoint owns the account and upload identity across app restarts.
+function start() { void perform(async current => {
+  if (!craft.location || !craft.crypto) throw new Error('Secure location recording is unavailable in this app build.')
+  const previous=recording()
+  const session=await ownedSession(previous ?? undefined)
+  if (!current()) return
+  if (previous && previous.phase!=='starting') throw new Error('Save your previous recording before starting another.')
+  const host=await craft.location.getRecordingState()
+  if (!current()) return
+  let value=previous
+  if (!value) {
+    if (host.active) throw new Error('A recording is already active on this device. Pull down to recover it.')
+    const id=await craft.crypto.randomUUID()
+    if (!current()) return
+    await session.api.readToken()
+    value={userId:session.userId,id,phase:'starting',startedAt:Date.now(),type:activityType(),visibility:visibility(),gameMode:gameMode() === 'capture' ? 'capture':'free',targetTerritoryId:Number(craft.route.params.target)||null,pauses:[],samples:[]}
+    await checkpoint.register(value)
+    if (!current()) return
+    recording.set(value)
+  }
+  // A retry can attach only to the same registered start. A different active
+  // native recording is retained and never stopped or replaced here.
+  if (host.active && host.id!==value.id) throw new Error('Another recording is active on this device. Your saved intent has been retained.')
+  await session.api.readToken()
+  const started=host.active ? await craft.location.getRecordingState({expectedId:value.id!}) : await craft.location.startRecording({enableHighAccuracy:true,recordingId:value.id!})
+  if (!current()) return
+  if (!started.active || started.id!==value.id) throw new Error('Location recording did not start with its saved identity. Your checkpoint has been retained.')
+  value={...value,phase:'recording',startedAt:started.startedAt ?? value.startedAt}
   await persist(value)
-  recording.set(value)
-  const host=await craft.location.startRecording({enableHighAccuracy:true})
-  if (!host.active || !host.id) throw new Error('Location recording did not start. Check location permission and try again.')
-  recording.set({...value,id:host.id,startedAt:host.startedAt ?? value.startedAt})
-  owner=value.userId
-  await persist(recording()!)
-  running.set(true);paused.set(false);now.set(Date.now());notice.set('Recording continues with your phone locked.')
-  attachWatch()
-  updateLive(true)
+  if (!current()) return
+  recording.set(value);owner=value.userId
+  running.set(true);paused.set(Boolean(started.paused));now.set(Date.now());notice.set('Recording continues with your phone locked.')
+  attachWatch();updateLive(true)
   await craft.setKeepAwake?.(true)
 }) }
-function togglePause() { void perform(async () => {
+function togglePause() { void perform(async current => {
   const value=recording()
-  if (!value || !running() || !craft.location) return
+  if (!value?.id || !running() || !craft.location) return
+  const session=await ownedSession(value)
+  if (!current()) return
+  await session.api.readToken()
   const at=Date.now()
+  let next=value
   if (paused()) {
-    await craft.location.resumeRecording()
-    const pauses=value.pauses.map((pause,index) => index === value.pauses.length-1 && pause.end === null ? {...pause,end:at}:pause)
-    recording.set({...value,pauses});paused.set(false)
+    await craft.location.resumeRecording({expectedId:value.id})
+    if (!current()) return
+    next={...value,pauses:value.pauses.map((pause,index) => index===value.pauses.length-1 && pause.end===null ? {...pause,end:at}:pause)}
+    paused.set(false)
   }
   else {
-    await craft.location.pauseRecording()
-    append(await craft.location.readRecording())
-    recording.set({...recording()!,pauses:[...value.pauses,{start:at,end:null}]});paused.set(true)
+    await craft.location.pauseRecording({expectedId:value.id})
+    const fixes=await craft.location.readRecording({expectedId:value.id})
+    if (!current()) return
+    next={...value,samples:recordingSamples(value,fixes),pauses:[...value.pauses,{start:at,end:null}]}
+    paused.set(true)
   }
-  await persist(recording()!);now.set(at);updateLive(true)
+  await persist(next)
+  if (!current()) return
+  recording.set(next);now.set(at);updateLive(true)
 }) }
-async function upload() {
+async function upload(current:()=>boolean) {
   const value=recording()
   if (!value?.pending) return
-  const api=createNativeApi(craft)
+  const {api}=await ownedSession(value)
+  if (!current()) return
   const me=await api.send('/api/me')
   if (!me.ok || Number(me.body?.user?.id) !== value.userId) throw new Error('Log in as the account that started this recording before uploading it.')
   const response=await api.send('/api/activities','POST',value.pending)
   if (!response.ok || !response.body?.activity?.id) throw new Error(response.body?.error || 'Upload failed. Your finished track is saved on this device; retry when connected.')
+  if (!current()) return
   const activity=response.body.activity
   let result='Activity saved.'
   if (value.gameMode === 'capture' && activity.captureEligible) {
@@ -165,34 +231,68 @@ async function upload() {
     catch {result+=' Your workout could not be exported to Health; check its permission in Settings.'}
   }
   await craft.snapshots.set('wildloop-activity-notice',{activityId:activity.id,message:result})
-  await writes.catch(()=>{})
-  await craft.storage.remove(KEY)
+  if (!current()) return
+  if (value.id && value.phase==='stopped') await craft.location!.acknowledgeRecording({expectedId:value.id})
+  await checkpoint.clear(value)
+  if (!current()) return
   recording.set(null);notice.set(result)
   craft.navigation.open(`/activity/${activity.id}`)
 }
-function finish() { void perform(async () => {
-  if (!recording() || !craft.location) return
+function finish() { void perform(async current => {
+  let value=recording()
+  if (!value?.id || !craft.location) throw new Error('The native recording identity is unavailable. Your checkpoint has been retained.')
+  const session=await ownedSession(value)
+  if (!current()) return
+  await session.api.readToken()
   if (running()) {
-    const ended=await craft.location.stopRecording()
-    append(ended.locations)
-    running.set(false);paused.set(false)
+    const ended=await craft.location.stopRecording({expectedId:value.id})
+    if (!current()) return
+    const endedAt=Date.now()
+    value={...value,samples:recordingSamples(value,ended.locations),phase:'stopped',endedAt}
+    await persist(value)
+    if (!current()) return
+    recording.set(value);running.set(false);paused.set(false)
     await live.end().catch(()=>{})
     await craft.setKeepAwake?.(false)
+    if (!current()) return
   }
-  const value=recording()!
-  if (value.samples.length < 2) {await persist(value);throw new Error('Not enough GPS fixes to save an activity. Your available fixes remain on this device.')}
-  if (!value.id) throw new Error('The native recording identity is unavailable. Your fixes have been retained.')
-  if (!value.pending) recording.set({...value,pending:recordingPayload(value,Date.now())})
-  await persist(recording()!)
-  await upload()
+  if (value.phase==='starting') throw new Error('Retry starting this recording before finishing it.')
+  if (value.samples.length < 2) throw new Error('Not enough GPS fixes to save an activity. Your available fixes remain on this device.')
+  if (!value.pending) {
+    value={...value,pending:recordingPayload(value,value.endedAt ?? Date.now())}
+    await persist(value)
+    if (!current()) return
+    recording.set(value)
+  }
+  await upload(current)
 }) }
 function retry() {void perform(upload)}
-function discard() {void perform(async()=>{
+function discard() {void perform(async current=>{
+  const value=recording()
+  if (!value) return
   if (running()) throw new Error('Finish your recording before discarding it.')
+  const session=await ownedSession(value)
+  if (!current()) return
   if (!await craft.dialog?.confirm({title:'Discard this recording?',message:'This removes the unsaved track from this device.',confirmLabel:'Discard',destructive:true})) return
-  await writes.catch(()=>{});await craft.storage.remove(KEY);recording.set(null);notice.set('Recording discarded.')
+  if (!current()) return
+  await session.api.readToken()
+  // A saved start may have reached native GPS before its acknowledgement was
+  // delivered. Never clear its owner checkpoint while it could still be active.
+  if (value.id && !value.pending && value.phase!=='starting') {
+    const host=await craft.location!.getRecordingState({expectedId:value.id})
+    if (host.active) throw new Error('This recording is still active. Pull down to recover and finish it before discarding.')
+  }
+  if (value.phase==='starting') {
+    const host=await craft.location!.getRecordingState()
+    if (host.active && host.id===value.id) throw new Error('This recording started on the device. Retry starting to recover it before finishing.')
+  }
+  if (!current()) return
+  if (value.id && value.phase==='stopped') await craft.location!.acknowledgeRecording({expectedId:value.id})
+  await checkpoint.clear(value)
+  if (!current()) return
+  recording.set(null);notice.set('Recording discarded.')
 })}
-onMount(()=>onNativeAccountChange(craft,()=>{recording.set(null);running.set(false);paused.set(false);owner=0;if(watch!==null){craft.location?.clearWatch(watch);watch=null}void recover()}))
+onMount(()=>onNativeAccountChange(craft,()=>{accountGeneration++;api=createNativeApi(craft);recoverQueued=true;loading.set(true);recording.set(null);running.set(false);paused.set(false);notice.set('');error.set('');owner=0;if(watch!==null){craft.location?.clearWatch(watch);watch=null}void recover()}))
 onMount(()=>{
   craft.navigation.setOptions({title:'Record',largeTitle:false})
   void recover()
@@ -230,7 +330,8 @@ onMount(()=>{
       <Button testID="record-finish" :disabled="busy" :class="ui.action" class="flex-1" @click="finish()" title="Finish and save" />
     </View>
     <Button :show="recording()?.pending" testID="record-retry" :disabled="busy" :class="ui.action" @click="retry()" title="Retry upload" />
-    <Button :show="recording() && !running() && !recording()?.pending" :disabled="busy" @click="finish()">Save retained recording</Button>
+    <Button :show="recording()?.phase==='starting' && !running()" testID="record-retry-start" :disabled="busy || loading" :class="ui.action" @click="start()">Retry starting</Button>
+    <Button :show="recording() && !running() && !recording()?.pending && recording()?.phase!=='starting'" :disabled="busy" @click="finish()">Save retained recording</Button>
     <Button :show="recording() && !running()" :disabled="busy" :class="ui.danger" @click="discard()">Discard recording</Button>
   </View>
 </View>

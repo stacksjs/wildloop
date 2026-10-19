@@ -1,0 +1,16 @@
+appId: ${APP_ID}
+name: Open trailhead directions from the native sticky actions
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible:
+      id: trail-directions
+    timeout: 30000
+- tapOn:
+    id: trail-directions
+- extendedWaitUntil:
+    notVisible:
+      id: trail-sticky-actions
+    timeout: 15000
+- takeScreenshot: android-native-directions-handoff

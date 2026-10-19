@@ -1,0 +1,43 @@
+appId: ${APP_ID}
+name: Native trail maps and sticky controls in system dark appearance
+---
+- launchApp
+- openLink: wildloop://trail/${TRAIL_ID}
+- extendedWaitUntil:
+    visible: ${TRAIL_NAME}
+    timeout: 30000
+- assertVisible:
+    id: trail-sticky-actions
+- takeScreenshot: android-native-dark-trail-overview
+- scrollUntilVisible:
+    element:
+      id: trail-profile-toggle
+    direction: DOWN
+- takeScreenshot: android-native-dark-inline-profile
+- scrollUntilVisible:
+    element:
+      id: trail-map-fullscreen
+    direction: UP
+- tapOn:
+    id: trail-map-fullscreen
+- extendedWaitUntil:
+    visible:
+      id: trail-full-map
+    timeout: 15000
+- takeScreenshot: android-native-dark-full-map
+- tapOn:
+    id: map-profile-toggle
+- takeScreenshot: android-native-dark-collapsed-profile
+- back
+- scrollUntilVisible:
+    element:
+      id: trail-weather-heading
+    direction: DOWN
+- takeScreenshot: android-native-dark-weather
+- scrollUntilVisible:
+    element:
+      id: trail-surfaces-heading
+    direction: DOWN
+- takeScreenshot: android-native-dark-surfaces
+- assertVisible:
+    id: trail-sticky-actions

@@ -98,10 +98,9 @@ export function selectAndroidDeepLinkActivity(output: string, packageName: strin
   return null
 }
 
-export function selectAndroidHomePackage(output: string): string | null {
-  const component = output.split(/\s+/).find(value => value.includes('/'))
-  const packageName = component?.split('/')[0]
-  return packageName || null
+export function assertAndroidPlatformHealthy(events: string): void {
+  if (/am_(anr|crash)/.test(events))
+    throw new Error('Android platform crash/ANR invalidates native acceptance. Inspect the emulator diagnostics.')
 }
 
 export function selectIosSimulator(payload: SimctlDevices): IosDevice | null {
@@ -114,10 +113,11 @@ export function selectIosSimulator(payload: SimctlDevices): IosDevice | null {
   return candidates.find(device => device.state === 'Booted') ?? candidates[0] ?? null
 }
 
-export function maestroReportSummary(xml: string): { failures: number, tests: number } {
+export function maestroReportSummary(xml: string): { failures: number, tests: number, skipped: number } {
   return {
     failures: xml.match(/<(?:failure|error)\b/g)?.length ?? 0,
     tests: xml.match(/<testcase\b/g)?.length ?? 0,
+    skipped: xml.match(/<skipped\b/g)?.length ?? 0,
   }
 }
 
@@ -288,6 +288,7 @@ function runMaestroFlow(
   const summary = maestroReportSummary(readFileSync(report, 'utf8'))
   if (summary.tests === 0) throw new Error(`Maestro ran no ${platform} tests`)
   if (summary.failures > 0) throw new Error(`Maestro reported ${summary.failures} failed ${platform} test(s)`)
+  if (summary.skipped > 0) throw new Error(`Maestro skipped ${summary.skipped} required ${platform} test(s)`)
 }
 
 function runMaestroJourneys(platform: MobilePlatform, deviceId: string, signedInURL: string | null): void {
@@ -348,19 +349,10 @@ function seedTestLocation(platform: MobilePlatform, deviceId: string): void {
   ])
 }
 
-/**
- * Google APIs images occasionally leave Pixel Launcher in an ANR state while
- * Wildloop is foregrounded. The launcher is not part of this journey, so stop
- * that background process before Maestro launches the app under test.
- */
-function stopAndroidHomeLauncher(deviceId: string): void {
-  const home = execute([
-    'adb', '-s', deviceId, 'shell', 'cmd', 'package', 'resolve-activity', '--brief',
-    '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME',
-  ], { capture: true })
-  const packageName = selectAndroidHomePackage(home)
-  if (packageName)
-    execute(['adb', '-s', deviceId, 'shell', 'am', 'force-stop', packageName])
+function checkAndroidPlatform(deviceId: string): void {
+  assertAndroidPlatformHealthy(execute([
+    'adb', '-s', deviceId, 'logcat', '-b', 'events', '-d', '-v', 'threadtime',
+  ], { capture: true }))
 }
 
 function appId(platform: MobilePlatform): string {
@@ -372,21 +364,23 @@ function appId(platform: MobilePlatform): string {
 function runAndroid(preview: boolean): void {
   requireCommand('adb')
   const devices = parseAdbDevices(execute(['adb', 'devices'], { capture: true }))
-  if (devices.length !== 1) throw new Error(`Expected exactly one ready Android device, found ${devices.length}`)
+  const device = process.env.ANDROID_SERIAL ?? (devices.length === 1 ? devices[0] : undefined)
+  if (!device || !devices.includes(device)) throw new Error('Select a ready Android device with ANDROID_SERIAL, or connect exactly one device.')
 
   const apk = process.env.MOBILE_E2E_APP
     ?? join(generatedRoot, 'android/app/build/outputs/apk/debug/app-debug.apk')
   requirePath(apk, 'Android E2E APK')
-  execute(['adb', '-s', devices[0], 'install', '-r', apk])
+  execute(['adb', '-s', device, 'install', '-r', apk])
   if (preview) {
-    execute(['adb', '-s', devices[0], 'shell', 'am', 'force-stop', appId('android')])
-    execute(['adb', '-s', devices[0], 'shell', 'monkey', '-p', appId('android'), '-c', 'android.intent.category.LAUNCHER', '1'])
-    console.log(`Wildloop is open on Android device ${devices[0]}.`)
+    execute(['adb', '-s', device, 'shell', 'am', 'force-stop', appId('android')])
+    execute(['adb', '-s', device, 'shell', 'monkey', '-p', appId('android'), '-c', 'android.intent.category.LAUNCHER', '1'])
+    console.log(`Wildloop is open on Android device ${device}.`)
   }
   else {
-    stopAndroidHomeLauncher(devices[0])
-    seedTestLocation('android', devices[0])
-    runMaestroJourneys('android', devices[0], null)
+    checkAndroidPlatform(device)
+    seedTestLocation('android', device)
+    runMaestroJourneys('android', device, null)
+    checkAndroidPlatform(device)
   }
 }
 

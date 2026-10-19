@@ -88,8 +88,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); kudosed.set({})
       </Pressable>
       <Button :show="activity.trailId" :class="ui.secondary" @click="craft.navigation.open('/trail/' + activity.trailId)" :text="activity.trailName || 'View trail'" />
       <View class="mt-3 flex-row gap-3">
-        <Button testID="feed-kudos" :disabled="pending()[activity.id]" @click="kudos(activity)" :text="(kudosed()[activity.id] ? 'Kudos given' : 'Give kudos') + ' · ' + activity.kudosCount" />
-        <Button @click="craft.navigation.open('/activity/' + activity.id)">Comments</Button>
+        <Button testID="feed-kudos" :class="ui.secondary" :disabled="pending()[activity.id]" @click="kudos(activity)" :text="(kudosed()[activity.id] ? 'Kudos given' : 'Give kudos') + ' · ' + activity.kudosCount" />
+        <Button :class="ui.secondary" @click="craft.navigation.open('/activity/' + activity.id)">Comments</Button>
       </View>
     </View>
     <Button :show="hasMore" :disabled="loading" class="m-4" :class="ui.secondary" @click="load(true)" testID="feed-load-more">Load more</Button>

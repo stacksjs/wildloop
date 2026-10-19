@@ -32,7 +32,6 @@ jobs:
   source-projects:
     env:
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
-      ANDROID_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -56,9 +55,19 @@ jobs:
         if: matrix.platform == 'android'
         with:
           gradle-version: '8.11.1'
+      - uses: android-actions/setup-android@v4
+        if: matrix.platform == 'android'
+        with:
+          packages: platform-tools
+      - name: Install the published SDK compile platform
+        if: matrix.platform == 'android'
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Setup Pantry
         if: matrix.platform == 'ios'
-        uses: home-lang/pantry/packages/action@main
+        uses: pantry-pm/pantry/packages/action@da17bb9317e8f8c247618fb176fe97269f15bfe4 # v0.11.94
+        with:
+          version: '0.11.94'
+          install: 'false'
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Install iOS toolchain

@@ -16,6 +16,8 @@ export interface NativeRecording {
   targetTerritoryId: number | null
   pauses: Array<{ start: number, end: number | null }>
   samples: RecorderSample[]
+  phase?: 'starting' | 'recording' | 'stopped'
+  endedAt?: number
   pending?: Record<string, unknown>
 }
 

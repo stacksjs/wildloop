@@ -1,5 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
+import type { NativeApi } from '../functions/native-api'
 import { onNativeAccountChange, createNativeApi, loadOutcome, nativeApiOrigin } from '../functions/native-api'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
@@ -58,6 +59,7 @@ const formError = state('')
 const photoDrafts = state<Array<{file:any,id?:string}>>([])
 let alive = true
 let generation = 0
+let accountGeneration = 0
 
 const surfaces = derived(() => trailSurfaceTypes(rawTrail()?.surface))
 const routeAvailable = derived(() => parts().some(part => part.length >= 4))
@@ -66,12 +68,10 @@ const mapRegion = derived(() => region() ?? nativeRouteRegion(parts(), {lat:trai
 const photos = derived(() => trailGallery(trail(),reviews()))
 
 function textOf(event: any): string { return String(event?.text ?? '') }
+function accountIsCurrent(version:number): boolean { return alive && version === accountGeneration }
 function profilePath(): string { return trailProfilePath(profile()) }
 function photoUrls(row: any): string[] { return parsePhotoList(row.photos).map(url=>url.startsWith('/') ? nativeApiOrigin(craft)+url : url) }
 function photoUrl(url:string):string {return url.startsWith('/') ? nativeApiOrigin(craft)+url : url}
-function weatherLine(day: any, index: number): string {
-  return `${forecastDayLabel(day.date, index)}: ${day.label}, ${Math.round(day.low)} to ${Math.round(day.high)}°F`
-}
 function fitRoute() {
   region.set(null)
   inspected.set(null)
@@ -122,15 +122,20 @@ function signedIn(): boolean {
 }
 async function toggleSaved() {
   if (loading() || !viewerReady() || busy() || !signedIn()) return
+  const current = accountGeneration
+  const method = saved() ? 'DELETE' : 'PUT'
   busy.set(true)
   try {
-    const response = await api.send(`/api/trails/${wanted}/save`, saved() ? 'DELETE' : 'PUT')
+    const operation = await api.bindSession()
+    if (!accountIsCurrent(current)) return
+    const response = await operation.send(`/api/trails/${wanted}/save`, method)
+    if (!accountIsCurrent(current)) return
     if (!response.ok) throw new Error(response.body?.error || 'The trail could not be saved.')
     saved.set(Boolean(response.body.saved))
     notice.set(saved() ? 'Trail saved.' : 'Trail removed from saved trails.')
   }
-  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The trail could not be saved.') }
-  finally { busy.set(false) }
+  catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'The trail could not be saved.') }
+  finally { if (accountIsCurrent(current)) busy.set(false) }
 }
 function editReview() {
   if (loading() || !viewerReady() || busy() || !signedIn()) return
@@ -144,73 +149,85 @@ function editReview() {
   photoDrafts.set([])
   composer.set(true)
 }
-async function reloadReviews() {
+async function reloadReviews(operation: NativeApi) {
   const current = generation
   viewerReady.set(false)
-  const [response, personal] = await Promise.all([api.send(`/api/trails/${wanted}/reviews`), api.send(`/api/trails/${wanted}/viewer`)])
+  const [response, personal] = await Promise.all([operation.send(`/api/trails/${wanted}/reviews`), operation.send(`/api/trails/${wanted}/viewer`)])
   if (!alive || current !== generation) return
   if (personal.ok) { ownReview.set(personal.body.review ?? null); viewerReady.set(true) }
   if (response.ok) reviews.set(response.body.reviews ?? [])
   if (!response.ok || !personal.ok) throw new Error('Your change was saved, but reviews could not refresh. Pull down to retry.')
 }
 async function pickReviewPhoto() {
-  if (busy()) return
+  if (loading() || !viewerReady() || busy() || !signedIn()) return
+  const current = accountGeneration
   if (photoDrafts().length + photoUrls(ownReview() ?? {}).length >= 10) { formError.set('A review can have up to 10 photos.'); return }
   try {
     if (!craft.files) throw new Error('Photo picking is unavailable in this app build.')
     const file = await craft.files.pickImage({source:'library',maxPixels:2400,quality:0.88})
+    if (!accountIsCurrent(current)) return
     if (file) photoDrafts.set([...photoDrafts(),{file}])
   }
-  catch (cause) { formError.set(cause instanceof Error ? cause.message : 'A photo could not be selected.') }
+  catch (cause) { if (accountIsCurrent(current)) formError.set(cause instanceof Error ? cause.message : 'A photo could not be selected.') }
 }
 async function submitReview() {
-  if (busy()) return
+  if (loading() || !viewerReady() || busy() || !signedIn()) return
   const problem = reviewFormError(rating(), content())
   if (problem) { formError.set(problem); return }
+  const current = accountGeneration
   busy.set(true)
   formError.set('')
   try {
+    const operation = await api.bindSession()
+    if (!accountIsCurrent(current)) return
     for (let index=0;index<photoDrafts().length;index++) {
       const draft=photoDrafts()[index]
       if (draft.id) continue
       const form=new FormData()
       form.append('photo',draft.file)
-      const response=await api.upload(`/api/trails/${wanted}/photos`,form)
+      const response=await operation.upload(`/api/trails/${wanted}/photos`,form)
+      if (!accountIsCurrent(current)) return
       const body=response.body
       if (!response.ok || !body.photo?.id) throw new Error(body.error || 'A photo could not be uploaded. Try saving again.')
       photoDrafts.set(photoDrafts().map((entry,at)=>at===index ? {...entry,id:body.photo.id}:entry))
     }
-    const response = await api.send(`/api/trails/${wanted}/reviews`, 'POST', {
+    const response = await operation.send(`/api/trails/${wanted}/reviews`, 'POST', {
       rating: rating(), content: content().trim(), conditions: conditions() || null,
       difficulty: difficulty() || null, visit_date: visitDate() || null,
       ...(photoDrafts().length ? {photo_ids:photoDrafts().map(draft=>draft.id),retain_photos:true}:{}),
     })
+    if (!accountIsCurrent(current)) return
     if (!response.ok) throw new Error(Object.values(response.body?.fields ?? {}).join('. ') || response.body?.error || 'The review could not be saved.')
     if (response.body.trail) trail.set({...trail(),...response.body.trail})
     composer.set(false)
     notice.set('Your review has been saved.')
-    try { await reloadReviews() } catch (cause) { notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
+    try { await reloadReviews(operation) } catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
   }
-  catch (cause) { formError.set(cause instanceof Error ? cause.message : 'The review could not be saved.') }
-  finally { busy.set(false) }
+  catch (cause) { if (accountIsCurrent(current)) formError.set(cause instanceof Error ? cause.message : 'The review could not be saved.') }
+  finally { if (accountIsCurrent(current)) busy.set(false) }
 }
 async function deleteReview() {
   if (loading() || !viewerReady() || !ownReview() || busy()) return
-  const confirmed = await craft.dialog?.confirm({ title: 'Delete your review?', message: 'Your rating, review, and condition report will be removed from this trail.', confirmLabel: 'Delete review', destructive: true })
-  if (!confirmed) return
+  const current = accountGeneration
   busy.set(true)
   try {
-    const response = await api.send(`/api/trails/${wanted}/reviews`, 'DELETE')
+    const operation = await api.bindSession()
+    if (!accountIsCurrent(current)) return
+    const confirmed = await craft.dialog?.confirm({ title: 'Delete your review?', message: 'Your rating, review, and condition report will be removed from this trail.', confirmLabel: 'Delete review', destructive: true })
+    if (!confirmed || !accountIsCurrent(current)) return
+    const response = await operation.send(`/api/trails/${wanted}/reviews`, 'DELETE')
+    if (!accountIsCurrent(current)) return
     if (!response.ok) throw new Error(response.body?.error || 'The review could not be deleted.')
     if (response.body.trail) trail.set({...trail(),...response.body.trail})
     ownReview.set(null)
     notice.set('Your review has been deleted.')
-    try { await reloadReviews() } catch (cause) { notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
+    try { await reloadReviews(operation) } catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'Pull down to refresh reviews.') }
   }
-  catch (cause) { notice.set(cause instanceof Error ? cause.message : 'The review could not be deleted.') }
-  finally { busy.set(false) }
+  catch (cause) { if (accountIsCurrent(current)) notice.set(cause instanceof Error ? cause.message : 'The review could not be deleted.') }
+  finally { if (accountIsCurrent(current)) busy.set(false) }
 }
 async function load() {
+  if (busy()) return
   const current = ++generation
   loading.set(true)
   viewerReady.set(false)
@@ -259,7 +276,14 @@ onMount(() => {
   const stop = craft.navigation.onAppear(() => { void load() })
   return () => { alive = false; generation++; stop() }
 })
-onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(false); reviews.set([]); composer.set(false); void load() }))
+onMount(() => onNativeAccountChange(craft, () => {
+  accountGeneration++
+  busy.set(false)
+  viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(false); reviews.set([])
+  composer.set(false); rating.set(0); content.set(''); conditions.set(''); difficulty.set(''); visitDate.set('')
+  photoDrafts.set([]); formError.set(''); notice.set('')
+  void load()
+}))
 </script>
 
 <View :class="ui.screen">
@@ -290,11 +314,11 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
           <MapPolyline :for="(part, index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
           <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
-          <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />
-          <MapMarker id="trailhead" title="Trailhead" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
-          <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
+          <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" :pinColor="trailRouteStyle.casing" title="Recorded route direction" />
+          <MapMarker id="trailhead" title="Trailhead" pinColor="#24724b" :geometry="[trailhead()?.lat, trailhead()?.lng]" />
+          <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" pinColor="#176bad" :geometry="[inspected()?.lat, inspected()?.lng]" />
         </Map>
-        <Button testID="trail-map-preview-expand" accessibilityLabel="Open interactive map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
+        <Button testID="trail-map-fullscreen" accessibilityLabel="Expand map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
           <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
         <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
@@ -307,7 +331,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         </View>
         <Text :show="!profile().some(point => point.ft !== null)" :class="ui.caption">Elevation data is unavailable for this route.</Text>
         <Text :show="profile().some(point => point.ft !== null)" :text="profileFigures().miles.toFixed(1) + ' mi · ' + Math.round(profileFigures().low) + '–' + Math.round(profileFigures().high) + ' ft'" :class="ui.caption" />
-        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :value="profilePosition" :minimumValue="0" :maximumValue="profile().length - 1" :step="1" @change="inspect($event)" />
+        <Slider :show="profile().length > 1" testID="trail-elevation-slider" accessibilityLabel="Explore elevation and position along the route" :value="profilePosition" :minimumValue="0" :maximumValue="Math.max(0,profile().length - 1)" :step="1" @change="inspect($event)" />
         <Text :show="inspected()" :text="inspected()?.mi.toFixed(2) + ' mi, ' + (inspected()?.ft === null ? 'elevation unavailable' : inspected()?.ft + ' ft')" :class="ui.caption" />
           </View>
           </View>
@@ -321,8 +345,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
         <View class="mt-2 flex-row flex-wrap gap-2">
           <Button testID="trail-map-3d" :class="ui.secondary" @click="pitch.set(pitch() > 0 ? 0 : 45)" :text="pitch() > 0 ? '2D' : '3D'" />
           <Button :class="ui.secondary" @click="heading.set(0)">North</Button>
-          <Button testID="trail-map-locate" :class="ui.secondary" @click="locate()">My location</Button>
-          <Button testID="trail-map-fullscreen" :class="ui.secondary" @click="craft.navigation.open('/trail/' + wanted + '/map')">Expand map</Button>
+          <Button testID="trail-map-locate" :class="ui.secondary" accessibilityLabel="My location" :accessibilityValue="showLocation() ? 'Your location is shown' : ''" @click="locate()">My location</Button>
         </View>
         <Button testID="trail-map-export" :disabled="!routeAvailable()" :class="ui.secondary" class="mt-2" @click="exportRoute()">Export GPX</Button>
         <Button testID="trail-map-layer" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
@@ -330,15 +353,30 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       </View>
       <Text :class="ui.header">Conditions</Text>
       <View :class="ui.card">
-        <Text :class="ui.title">Weather</Text>
+        <Text testID="trail-weather-heading" :class="ui.title">Weather</Text>
         <Text :show="!forecast()" :class="ui.caption">No forecast is available right now. Pull down to retry.</Text>
         <View :show="forecast()" class="gap-3 mt-2">
-          <Text :show="forecast()?.current" :text="Math.round(forecast()?.current.temperature) + '°F, ' + forecast()?.current.label" :class="ui.body" />
-          <Text :for="(day, index) in forecast()?.days ?? []" :key="day.date" :text="weatherLine(day, index)" :class="ui.body" />
+          <View :show="forecast()?.current" class="gap-1 py-2">
+            <Text :text="Math.round(forecast()?.current.temperature) + '°F'" class="text-[42px] font-semibold text-[#192414] dark:text-[#f0f5ec]" />
+            <Text :text="forecast()?.current.label" :class="ui.body" />
+          </View>
+          <View :for="(day, index) in forecast()?.days ?? []" :key="day.date" class="gap-1 py-3 border-t border-[#e7edde] dark:border-[#314536]">
+            <View class="flex-row items-center justify-between gap-3">
+              <Text :text="forecastDayLabel(day.date, index)" :class="ui.title" />
+              <Text :text="Math.round(day.low) + '°–' + Math.round(day.high) + '°F'" :class="ui.body" />
+            </View>
+            <Text :text="day.label" :class="ui.caption" />
+            <Text :show="Number.isFinite(day.windMph) && Number.isFinite(day.precipitationMm)" :text="Math.round(day.windMph) + ' mph wind · ' + (day.precipitationMm / 25.4).toFixed(2) + ' in precipitation'" :class="ui.caption" />
+          </View>
           <Button @click="craft.linking.openURL(forecast()?.attribution.url)" :class="ui.caption" :text="forecast()?.attribution.label" />
         </View>
-        <Text class="mt-5" :class="ui.title">Surface types</Text>
-        <Text :for="surface in surfaces()" :key="surface.label" :text="surface.label" :class="ui.body" />
+      </View>
+      <View :class="ui.card" class="mt-3 gap-2">
+        <Text testID="trail-surfaces-heading" :class="ui.title">Surface types</Text>
+        <View :for="surface in surfaces()" :key="surface.label" :class="ui.row">
+          <View class="h-5 w-5 rounded-[4px]" :style="{backgroundColor:surface.color}" />
+          <Text :text="surface.label" :class="ui.body" />
+        </View>
         <Text :show="!surfaces().length" :class="ui.caption">Surface information has not been recorded for this trail.</Text>
       </View>
       <Text :class="ui.header">Reviews</Text>
