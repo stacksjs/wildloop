@@ -34,9 +34,11 @@ onFlowComplete:
       visible: "^Open$"
     commands:
       - tapOn: "^Open$"
+# Signed out, a link to Record lands on the sign-in form - drawn from the
+# bundle with no network, before any location prompt.
 - extendedWaitUntil:
     visible:
-      id: record-start
+      id: login-email
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
-- takeScreenshot: native-offline-record
+- takeScreenshot: native-offline-record-sign-in

@@ -9,9 +9,10 @@ tags:
       visible: "^Open$"
     commands:
       - tapOn: "^Open$"
+# The link reaches Record, which asks a signed-out viewer to sign in first.
 - extendedWaitUntil:
     visible:
-      id: record-start
+      id: login-email
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
 - takeScreenshot: native-deep-link
