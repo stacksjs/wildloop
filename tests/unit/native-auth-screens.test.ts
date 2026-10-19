@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { nativeUi } from '../../resources/functions/native-ui'
-import { nativeNodeProps, answer, answerNativeCsrf, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeNodeProps, nativeNodeText, answer, answerNativeCsrf, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 describe('native account forms',()=>{
   beforeAll(compileNativeBundle,30000)
@@ -47,6 +47,25 @@ describe('native account forms',()=>{
       expect(source).toContain('ui.authTitle')
       expect(source).not.toContain(':class="ui.title"')
     }
+  })
+  /*
+   * `accessibilityLabel` was already on every one of these fields, so
+   * VoiceOver always read them correctly — it was the sighted reader who got
+   * nothing. ResetPassword showed three identical rounded boxes with no way
+   * to tell email from new password from confirmation, and the only cue that
+   * two of them were secure was that typing in them was masked.
+   */
+  it.each([
+    ['ForgotPassword', { 'forgot-email-label': 'Email' }],
+    ['ResetPassword', {
+      'reset-email-label': 'Email',
+      'reset-password-label': 'New password',
+      'reset-confirmation-label': 'Confirm new password',
+    }],
+  ])('labels every field on %s where a reader can see it', async (name, labels) => {
+    const screen = await start(name as string, { token: 'preview' })
+    for (const [testID, label] of Object.entries(labels))
+      expect(nativeNodeText(screen, testID)).toBe(label)
   })
   it('stores a successful login in keychain and returns to the native trail',async()=>{
     const screen=await start('Login',{next:'/trail/7'})

@@ -172,6 +172,31 @@ function nativeNodeField(session: NativeSession, testID: string, field:'props'|'
   return props
 }
 
+/**
+ * The text a node actually draws: its string children, joined.
+ *
+ * `waitForText` cannot answer this. It harvests every string anywhere in the
+ * payload, `accessibilityLabel` included, so it reports a label as displayed
+ * when the only copy of that string is the one VoiceOver reads. A test that
+ * a sighted reader can see the label has to look at the node's children.
+ */
+export function nativeNodeText(session: NativeSession, testID: string): string {
+  let text = ''
+  const find = (node: any): void => {
+    if (node?.props?.testID === testID)
+      text = (node.children ?? []).filter((child: unknown) => typeof child === 'string').join('')
+    for (const child of node?.children ?? []) if (child && typeof child === 'object') find(child)
+  }
+  for (const message of session.sent) {
+    if (message.type === 'RENDER') find(message.payload.document)
+    if (message.type === 'MUTATE') {
+      for (const operation of message.payload.operations)
+        if (operation.op === 'createNode') find(operation.node)
+    }
+  }
+  return text
+}
+
 export function nativeNodeProps(session:NativeSession,testID:string):Record<string,any> {return nativeNodeField(session,testID,'props')}
 export function nativeNodeStyle(session:NativeSession,testID:string):Record<string,any> {return nativeNodeField(session,testID,'style')}
 
