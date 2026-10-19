@@ -3,6 +3,26 @@ import { nativeNodeProps, answer, answerNativeCsrf, compileNativeBundle, request
 
 describe('native account forms',()=>{
   beforeAll(compileNativeBundle,30000)
+
+  /*
+   * There is nowhere to go from here but in. An auth screen used to keep the
+   * app's tab bar underneath it, so a viewer asked to sign in could tap Feed,
+   * Record or Menu and leave with the question unanswered — and Record would
+   * send them straight back.
+   *
+   * `tabBarHidden` is read by the host (`CraftNativeScreen.swift`) and
+   * restored when the screen goes away, but it is missing from
+   * `NativeNavigationOptions`, so nothing but this test would notice it being
+   * dropped.
+   */
+  it.each(['Login', 'Register', 'ForgotPassword', 'ResetPassword'])('hides the tab bar on %s', async (name) => {
+    const screen = await start(name)
+    const options = screen.sent
+      .filter((message: any) => message.type === 'NAVIGATION_SET_OPTIONS')
+      .map((message: any) => message.payload)
+    expect(options.length).toBeGreaterThan(0)
+    expect(options.some((option: any) => option?.tabBarHidden === true)).toBe(true)
+  })
   it('stores a successful login in keychain and returns to the native trail',async()=>{
     const screen=await start('Login',{next:'/trail/7'})
     await screen.event('login-email','onChangeText',{text:'  native@example.test '})
