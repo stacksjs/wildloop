@@ -122,7 +122,13 @@ async function requireAccount(): Promise<boolean> {
        exactly how this screen kept letting a signed-out viewer in while
        Territory, which asks the server, said they were signed out. An account
        is a bearer the device still has a user for. --}}
-  if ((await readNativeAccount(craft))?.id) return true
+  try {
+    if ((await readNativeAccount(craft))?.id) return true
+  }
+  catch {
+    // Cancelled because the screen closed; there is nobody to send anywhere.
+    return true
+  }
   craft.navigation.open('/login?next=/record')
   return false
 }

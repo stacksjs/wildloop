@@ -226,7 +226,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 
     <ActivityIndicator :show="loading" testID="territories-loading" class="mt-6" />
     <Text :show="error" testID="territories-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your territory.</Text>
+    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-amber-300">Sign in to see your territory.</Text>
+    <Button :show="signedOut" testID="territories-sign-in" @click="craft.navigation.open('/login?next=/territories')">Sign in</Button>
 
     <View :show="rows().length > 0" testID="territories-body" class="mt-5 gap-4">
       {{-- The map. `fitToBounds` frames whatever is drawn, so the screen opens

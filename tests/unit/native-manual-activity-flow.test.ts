@@ -100,6 +100,25 @@ describe('Wildloop native manual activity flow', () => {
     expect(body).toMatchObject({ activity_type: 'Trail Run', distance: 3.1, recording_source: 'manual' })
   })
 
+  /*
+   * The Feed offers "Log activity" to everybody, and this form reads the
+   * bearer in `save` — at the very end. A signed-out viewer could fill in
+   * distance, time, elevation and a title and only then be told the app has
+   * nowhere to put it. Same rule as Record: ask on the way in.
+   */
+  it('sends a signed-out viewer to log in instead of taking a form it cannot save', async () => {
+    const screen = await start('ManualActivity', { userId: 12 })
+    for (let attempt = 0; attempt < 40; attempt++) {
+      for (const request of requests(screen).filter((r: any) => r.payload?.module === 'SecureStorage' && !r.answered)) {
+        ;(request as any).answered = true
+        answer(screen, request, null)
+      }
+      if (screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN')) break
+      await Bun.sleep(1)
+    }
+    expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN' && message.payload.path === '/login?next=/activity/new')).toBe(true)
+  })
+
   it('keeps route state isolated and supports back, replace, and teardown cancellation', async () => {
     const saved = await start('ActivitySaved', {
       id: 42,

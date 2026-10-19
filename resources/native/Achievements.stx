@@ -152,7 +152,8 @@ onMount(() => onNativeAccountChange(craft, () => { badges.set([]); records.set([
 
     <ActivityIndicator :show="loading" testID="achievements-loading" class="mt-6" />
     <Text :show="error" testID="achievements-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="achievements-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your achievements.</Text>
+    <Text :show="signedOut" testID="achievements-signed-out" class="mt-4 text-amber-300">Sign in to see your achievements.</Text>
+    <Button :show="signedOut" testID="achievements-sign-in" @click="craft.navigation.open('/login?next=/achievements')">Sign in</Button>
 
     {{-- The year, as twelve bars. A month that was run always gets a sliver:
          nothing and almost nothing look the same otherwise, and only one of

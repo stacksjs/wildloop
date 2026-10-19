@@ -67,10 +67,12 @@ describe('Wildloop native challenges screen', () => {
 
   it('asks for nothing at all when nobody is signed in', async () => {
     const { screen } = await board(null)
-    const texts = await waitForText(screen, 'Sign in on the web to see your challenges.')
+    const texts = await waitForText(screen, 'Sign in to see your challenges.')
+    // …and a way to do it: this screen used to send a guest to a browser.
+    expect(SOURCE).toContain("craft.navigation.open('/login?next=/challenges')")
 
     expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
-    expect(texts).toContain('Sign in on the web to see your challenges.')
+    expect(texts).toContain('Sign in to see your challenges.')
   })
 
   it('puts the viewer on whichever side of the challenge they are on', async () => {

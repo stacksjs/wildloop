@@ -1,5 +1,6 @@
 <script client lang="ts">
 import { nativeApiOrigin } from '../functions/native-api'
+import { readNativeAccount } from '../functions/native-session'
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { ACTIVITY_VISIBILITIES, buildManualActivity, MANUAL_ACTIVITY_TYPES, todayLocal } from '../functions/manual-activity'
 
@@ -106,8 +107,28 @@ async function submit() {
   }
 }
 
+{{-- A guest could fill in distance, time, elevation and a title and only be
+     told at Save that the app has nowhere to put it — the token is read in
+     `save`, at the end. The same rule as Record: an account is a bearer the
+     device still has a user for, since a revoked token outlives its session
+     and still reads as truthy. --}}
+async function requireAccount(): Promise<void> {
+  try {
+    if ((await readNativeAccount(craft))?.id) return
+  }
+  catch {
+    // The keychain read was cancelled because the screen closed. A screen
+    // nobody is looking at does not need to be sent anywhere.
+    return
+  }
+  craft.navigation.open('/login?next=/activity/new')
+}
+
 onMount(() => {
   craft.navigation.setOptions({ title: 'Log activity', largeTitle: true })
+  void requireAccount()
+  const appear = craft.navigation.onAppear(() => { void requireAccount() })
+  return () => { appear?.() }
 })
 onDestroy(() => {
   active = false

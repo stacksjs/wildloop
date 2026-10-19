@@ -208,7 +208,9 @@ describe('Wildloop native clubs screen', () => {
 
     const before = requests(screen).length
     await screen.event('club-action', 'onPress')
-    const texts = await waitForText(screen, 'Sign in on the web to join a club.')
+    const texts = await waitForText(screen, 'Sign in to join a club.')
+    // …and a way to do it: this screen used to send a guest to a browser.
+    expect(SOURCE).toContain("craft.navigation.open('/login?next=/clubs')")
 
     expect(requests(screen).length).toBe(before)
     expect(texts).toContain('Join')

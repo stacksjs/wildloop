@@ -71,7 +71,9 @@ describe('Wildloop native stats screen', () => {
 
   it('asks for nothing at all when nobody is signed in', async () => {
     const { screen } = await board(null)
-    await waitForText(screen, 'Sign in on the web to see your training stats.')
+    await waitForText(screen, 'Sign in to see your training stats.')
+    // …and a way to do it: this screen used to send a guest to a browser.
+    expect(SOURCE).toContain("craft.navigation.open('/login?next=/stats')")
 
     expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
     expect(visibility(screen, 'stats-body')).toBe('none')

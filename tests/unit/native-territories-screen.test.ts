@@ -106,7 +106,9 @@ describe('Wildloop native territories screen', () => {
 
   it('asks for nothing at all when nobody is signed in', async () => {
     const { screen } = await board(null)
-    await waitForText(screen, 'Sign in on the web to see your territory.')
+    await waitForText(screen, 'Sign in to see your territory.')
+    // …and a way to do it: this screen used to send a guest to a browser.
+    expect(SOURCE).toContain("craft.navigation.open('/login?next=/territories')")
 
     expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
     expect(visibility(screen, 'territories-body')).toBe('none')

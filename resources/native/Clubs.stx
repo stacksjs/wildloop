@@ -195,7 +195,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 
     <ActivityIndicator :show="loading" testID="clubs-loading" class="mt-6" />
     <Text :show="error" testID="clubs-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="clubs-signed-out" class="mt-4 text-amber-300">Sign in on the web to join a club.</Text>
+    <Text :show="signedOut" testID="clubs-signed-out" class="mt-4 text-amber-300">Sign in to join a club.</Text>
+    <Button :show="signedOut" testID="clubs-sign-in" @click="craft.navigation.open('/login?next=/clubs')">Sign in</Button>
 
     <Text :show="heading()" testID="clubs-count" class="mt-5 text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="heading()" />
 

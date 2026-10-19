@@ -190,7 +190,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
 
     <ActivityIndicator :show="loading" testID="challenges-loading" class="mt-6" />
     <Text :show="error" testID="challenges-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-amber-300">Sign in on the web to see your challenges.</Text>
+    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-amber-300">Sign in to see your challenges.</Text>
+    <Button :show="signedOut" testID="challenges-sign-in" @click="craft.navigation.open('/login?next=/challenges')">Sign in</Button>
 
     <View class="mt-4 gap-2">
       <View :for="row in shown()" :key="row.id" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
