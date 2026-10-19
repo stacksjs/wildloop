@@ -292,45 +292,45 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(null); mine.set({entered:false}); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="event-detail-scroll">
     <ActivityIndicator :show="loading" testID="event-loading" class="mt-6" />
-    <Text :show="error" testID="event-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <ErrorState :show="error()" testID="event-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
 
     <View :show="missing" testID="event-missing" class="mt-6 gap-3">
-      <Text class="text-lg font-semibold text-[#192414] dark:text-[#f0f5ec]">No such event</Text>
+      <Text class="text-lg font-semibold text-fg">No such event</Text>
       <Button testID="back-to-events" @click="backToEvents()">See what is on</Button>
     </View>
 
-    <Text :show="notice" testID="event-notice" class="mt-4 text-sm text-[#8a5300] dark:text-amber-300" :text="notice" />
+    <Text :show="notice" testID="event-notice" class="mt-4 text-sm text-warning" :text="notice" />
 
     <View :show="event()" testID="event-body" class="gap-4">
       <View class="gap-1">
-        <Text testID="event-name" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="nameText()" />
-        <Text testID="event-when" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="whenText()" />
+        <Text testID="event-name" class="text-2xl font-bold text-fg" :text="nameText()" />
+        <Text testID="event-when" class="text-sm text-fg-muted" :text="whenText()" />
         <View class="mt-1 flex-row gap-2">
-          <Text testID="event-type" class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]" :text="typeText()" />
-          <Text :show="placeText()" testID="event-place" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="placeText()" />
+          <Text testID="event-type" class="text-xs uppercase text-fg-soft" :text="typeText()" />
+          <Text :show="placeText()" testID="event-place" class="text-xs text-fg-soft" :text="placeText()" />
         </View>
       </View>
 
-      <Text :show="aboutText()" testID="event-about" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="aboutText()" />
+      <Text :show="aboutText()" testID="event-about" class="text-sm text-fg-strong" :text="aboutText()" />
 
       {{-- The corral clock. A still number, dated — the runtime promises no
            timer, and a frozen clock pretending to run is worse than this. --}}
-      <View :show="countdownText()" testID="event-corral" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text testID="corral-clock" class="text-3xl font-bold text-[#24724b] dark:text-[#9be579]" :text="countdownText()" />
-        <Text testID="corral-note" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="countdownNote()" />
+      <View :show="countdownText()" testID="event-corral" class="gap-1 rounded-xl bg-panel p-3">
+        <Text testID="corral-clock" class="text-3xl font-bold text-accent" :text="countdownText()" />
+        <Text testID="corral-note" class="text-xs text-fg-soft" :text="countdownNote()" />
       </View>
 
       <View :show="isLive()" class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Yard</Text>
-          <Text testID="event-yard" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="yardText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Yard</Text>
+          <Text testID="event-yard" class="text-lg font-bold text-fg" :text="yardText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Still in</Text>
-          <Text testID="event-still-in" class="text-lg font-bold text-[#192414] dark:text-[#f0f5ec]" :text="stillText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Still in</Text>
+          <Text testID="event-still-in" class="text-lg font-bold text-fg" :text="stillText()" />
         </View>
       </View>
 
@@ -340,30 +340,30 @@ onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(nul
 
       {{-- The loop, drawn open: it is a lap, and closing it would draw a leg
            nobody ran. --}}
-      <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-white dark:bg-[#1b2c22]">
+      <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-panel">
         <Map testID="event-map" class="flex-1" :fitToBounds="true" mapType="standard">
           <MapPolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>
 
       <View :show="standings().length > 0" testID="event-standings" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">The board</Text>
-        <Pressable :for="standing in standings()" :key="standing.userId" testID="event-standing" @click="openStanding(standing)" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs font-semibold uppercase text-fg-soft">The board</Text>
+        <Pressable :for="standing in standings()" :key="standing.userId" testID="event-standing" @click="openStanding(standing)" class="gap-1 rounded-xl bg-panel p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="standingText(standing)" />
-            <Text testID="standing-status" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="standingStatus(standing)" />
+            <Text class="flex-1 text-sm font-semibold text-fg" :text="standingText(standing)" />
+            <Text testID="standing-status" class="text-xs text-fg-muted" :text="standingStatus(standing)" />
           </View>
-          <Text testID="standing-yards" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="standingYards(standing)" />
+          <Text testID="standing-yards" class="text-xs text-fg-soft" :text="standingYards(standing)" />
         </Pressable>
       </View>
 
       <View :show="laps().length > 0" testID="event-laps" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Last laps in</Text>
-        <View :for="lap in laps()" :key="lap.finishedAt" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text testID="lap-line" class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="lapText(lap)" />
-          <Text testID="lap-clock" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="lapClock(lap)" />
+        <Text class="text-xs font-semibold uppercase text-fg-soft">Last laps in</Text>
+        <View :for="lap in laps()" :key="lap.finishedAt" class="flex-row justify-between rounded-xl bg-panel p-3">
+          <Text testID="lap-line" class="flex-1 text-sm text-fg" :text="lapText(lap)" />
+          <Text testID="lap-clock" class="text-xs text-fg-muted" :text="lapClock(lap)" />
         </View>
       </View>
     </View>
   </ScrollView>
-</SafeAreaView>
+</View>

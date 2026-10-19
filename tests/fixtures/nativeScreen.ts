@@ -49,7 +49,11 @@ export function nodesByTestId(node: any, found = new Map<string, string>()): Map
   return found
 }
 
-export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog']): Promise<NativeSession> {
+/**
+ * `globals` are what the host sets on the screen's context before its script
+ * runs - `__stxNativeFocused: false` is a tab the shell prepared hidden.
+ */
+export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog'], globals: Record<string, unknown> = {}): Promise<NativeSession> {
   const sent: any[] = []
   let callback: (raw: string) => void = () => {}
   /*
@@ -99,6 +103,7 @@ export async function start(route: string, params: Record<string, unknown> = {},
     WeakSet,
     __stxNativeRoute: route,
     __stxNativeParams: params,
+    ...globals,
     __stxNativeBridge: {
       platform: 'ios',
       capabilityProtocolVersion: 1,
@@ -374,30 +379,52 @@ export function shownTextSince(session: NativeSession, from: number): string[] {
  * static label is in the first RENDER regardless.
  */
 export function visibility(session: NativeSession, testID: string): string {
-  const operations = session.sent
-    .filter(message => message.type === 'MUTATE')
-    .flatMap(message => message.payload.operations)
-
-  const ids = new Set<string>()
-  const walk = (node: any): void => {
-    if (!node || typeof node !== 'object')
+  /*
+   * Effective visibility: hidden when the node or anything above it is. A
+   * shared component takes `:show` on its wrapper while the `testID` it is
+   * given lands on its own root inside, so reading the node alone reported a
+   * hidden error state as shown.
+   */
+  const parents = new Map<string, string>()
+  const displays = new Map<string, string>()
+  const matches: string[] = []
+  const adopt = (node: any, parent: string | null, id = node?.props?.__stxId): void => {
+    if (!node || typeof node !== 'object' || id == null)
       return
-    if (node.props?.testID === testID && node.props?.__stxId)
-      ids.add(String(node.props.__stxId))
+    const key = String(id)
+    if (parent !== null) parents.set(key, parent)
+    if (node.style?.display) displays.set(key, node.style.display)
+    if (node.props?.testID === testID) matches.push(key)
     for (const child of node.children ?? [])
-      walk(child)
+      if (child && typeof child === 'object') adopt(child, key)
   }
-  walk(session.sent.find(message => message.type === 'RENDER')?.payload.document)
-  for (const operation of operations) {
-    if (operation.op === 'createNode' && operation.node?.props?.testID === testID)
-      ids.add(String(operation.id))
+  for (const message of session.sent) {
+    if (message.type === 'RENDER') adopt(message.payload.document, null)
+    if (message.type !== 'MUTATE') continue
+    for (const operation of message.payload.operations) {
+      if (operation.op === 'createNode') adopt(operation.node, null, operation.node?.props?.__stxId ?? operation.id)
+      if (operation.op === 'insertChild' && operation.parentId != null && operation.childId != null)
+        parents.set(String(operation.childId), String(operation.parentId))
+      // `display: null` is a node shown again: its own display is gone.
+      if (operation.op === 'updateNode' && operation.patch?.style && 'display' in operation.patch.style) {
+        if (operation.patch.style.display) displays.set(String(operation.id), operation.patch.style.display)
+        else displays.delete(String(operation.id))
+      }
+      if (operation.op === 'updateNode' && operation.patch?.props?.testID === testID)
+        matches.push(String(operation.id))
+    }
   }
-
-  const display = operations
-    .filter(operation => operation.op === 'updateNode' && ids.has(String(operation.id)) && operation.patch?.style?.display)
-    .map(operation => operation.patch.style.display)
-
-  return display.at(-1) ?? (ids.size > 0 ? 'shown' : 'absent')
+  const id = matches.at(-1)
+  if (id === undefined)
+    return 'absent'
+  let explicit: string | undefined
+  for (let current: string | undefined = id; current !== undefined; current = parents.get(current)) {
+    const display = displays.get(current)
+    if (display === 'none')
+      return 'none'
+    explicit ??= display
+  }
+  return explicit ?? 'shown'
 }
 
 /** Choose through the actual system-sheet bridge, rather than synthesizing a Picker change. */

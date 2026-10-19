@@ -107,17 +107,17 @@ onMount(() => { void load(); return () => { alive = false } })
       <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
     </Map>
     <View class="absolute top-3 left-3 right-3 flex-row flex-wrap gap-2">
-      <Button testID="map-layer" class="bg-white dark:bg-[#1b2c22] rounded-[16px]" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
+      <Button testID="map-layer" class="bg-panel rounded-[16px]" :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
       <Button testID="map-3d" :class="ui.secondary" :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" />
       <Button testID="map-north" :class="ui.secondary" @click="heading.set(0)">North</Button>
     </View>
-    <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white dark:bg-[#1b2c22] p-3 shadow-lg" testID="map-floating-profile">
+    <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-panel p-3 shadow-lg" testID="map-floating-profile">
       <View class="flex-row justify-between items-center">
-        <Text :class="ui.title">Elevation profile</Text>
-        <Button testID="map-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
+        <Text :class="ui.titleStrong">Elevation profile</Text>
+        <Button testID="map-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-fg-strong" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" :text="profileOpen() ? 'Hide' : 'Show'" @click="profileOpen.set(!profileOpen())" accessibilityLabel="Toggle elevation profile" />
       </View>
       <View :show="profileOpen">
-        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full text-[#253321] dark:text-[#e3ecdf]" preserveAspectRatio="none">
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full text-fg-strong" preserveAspectRatio="none">
           <path d="M8,54 L992,54 M8,104 L992,104" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="4 4" stroke-width="1" vector-effect="non-scaling-stroke" />
           <path :d="trailProfilePath(profile())" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
         </svg>
@@ -133,7 +133,7 @@ onMount(() => { void load(); return () => { alive = false } })
     <ActivityIndicator :show="loading" class="absolute top-24 left-4" />
   </View>
   <Text :show="error" :text="error" :class="ui.danger" class="mx-4 my-2" testID="map-error" />
-  <View class="bg-white dark:bg-[#1b2c22] p-2 gap-2" testID="map-actions">
+  <View class="bg-panel p-2 gap-2" testID="map-actions">
     <View class="flex-row gap-2">
       <Button testID="map-fit" class="flex-1" :class="ui.secondary" @click="fit()">Fit route</Button>
       <Button testID="map-zoom-in" class="w-11" :class="ui.secondary" @click="region.set(nativeZoomRegion(currentRegion(),0.5))" accessibilityLabel="Zoom in">+</Button>

@@ -1,25 +1,32 @@
-/** Craft primitives and grouped layouts, matching HQ.training's native UI vocabulary. */
+import { nativeUi as grouped } from '@stacksjs/stx/native/ui'
+
+/**
+ * The native screens' vocabulary: stx's grouped vocabulary, in role classes,
+ * so its colours come from the role answers in config/crosswind.ts like the
+ * shared components' do.
+ *
+ * What is added here is what a Craft `<Button>` needs. A Button is one leaf -
+ * its box and its words are the same node - so a button entry carries both
+ * halves of the shared vocabulary's button, where a hand-built button is a
+ * View holding a Text.
+ */
 export const nativeUi = {
-  screen: 'flex-1 bg-[#f2f4ef] dark:bg-[#101c16]',
-  header: 'mx-4 mt-6 mb-2 text-[13px] font-semibold uppercase text-[#51604e] dark:text-[#b0bfac]',
-  card: 'mx-4 p-4 rounded-[12px] bg-white dark:bg-[#1b2c22]',
-  row: 'flex-row items-center gap-3 py-3 min-h-[44px]',
-  title: 'text-[17px] font-semibold text-[#192414] dark:text-[#f0f5ec]',
+  ...grouped,
+  /** The filled button at the end of a flow. */
+  action: `${grouped.primaryButton} ${grouped.primaryButtonText}`,
+  actionText: grouped.primaryButtonText,
+  /** A quieter button beside it. */
+  secondary: `${grouped.secondaryButton} ${grouped.secondaryButtonText}`,
+  secondaryText: grouped.secondaryButtonText,
+  /** A button floating over a map or a photograph. */
+  floating: `${grouped.floatingButton} ${grouped.secondaryButtonText}`,
+  /** Something that went wrong, said at reading size. */
+  danger: `text-[17px] ${grouped.destructive}`,
   /**
    * A sign-in screen's heading. The four auth screens are one flow — a
    * viewer walks Login -> Register -> ForgotPassword without the app around
    * them, since those screens carry no tab bar, no back chevron and no edge
-   * swipe — so they share one size and one alignment. `title` stays as it is
-   * for the eleven screens that use it inside the app's own chrome.
+   * swipe — so they share one size and one alignment.
    */
-  authTitle: 'text-center text-[30px] font-bold text-[#192414] dark:text-[#f0f5ec]',
-  body: 'text-[17px] text-[#253321] dark:text-[#e3ecdf]',
-  caption: 'text-[13px] text-[#51604e] dark:text-[#b0bfac]',
-  input: 'min-h-[44px] rounded-[8px] px-3 py-2 text-[17px] text-[#192414] bg-[#eef2e9] dark:text-white dark:bg-[#314536]',
-  action: 'text-[17px] font-semibold text-white min-h-[48px] rounded-[12px] bg-[#24724b] items-center justify-center px-4',
-  actionText: 'text-[17px] font-semibold text-white',
-  secondary: 'text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf] min-h-[44px] rounded-[12px] bg-[#e7edde] dark:bg-[#314536] items-center justify-center px-3',
-  floating: 'text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf] min-h-[44px] rounded-[20px] bg-white dark:bg-[#1b2c22] shadow-md items-center justify-center px-3',
-  secondaryText: 'text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]',
-  danger: 'text-[17px] text-[#b4232a] dark:text-[#ff8487]',
+  authTitle: `text-center ${grouped.heading}`,
 } as const

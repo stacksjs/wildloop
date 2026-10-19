@@ -75,13 +75,13 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); kudosed.set({})
     <Text :show="!loading() && !shown().length" :class="ui.caption" class="m-4">No activities here yet. Record a run or explore a trail.</Text>
     <View :for="activity in shown()" :key="activity.id" :class="ui.card" class="mt-4">
       <Pressable :class="ui.row" @click="craft.navigation.open('/athlete/' + activity.userId)">
-        <Text :text="activity.userName" :class="ui.title" />
+        <Text :text="activity.userName" :class="ui.titleStrong" />
       </Pressable>
       <Pressable testID="feed-activity" @click="craft.navigation.open('/activity/' + activity.id)" class="gap-2">
-        <Text :text="activity.title || activity.activityType" :class="ui.title" />
+        <Text :text="activity.title || activity.activityType" :class="ui.titleStrong" />
         <Text :text="activity.distance + ' mi · ' + activity.duration + ' · ' + activity.elevationGain + ' ft'" :class="ui.body" />
         <Image :show="photo(activity)" :source="{uri: photo(activity)}" class="h-40 w-full rounded-[12px]" resizeMode="cover" />
-        <View :show="!photo(activity) && shape(activity)" class="h-[140px] w-full rounded-[12px] bg-[#eef2e9] dark:bg-[#101c16]">
+        <View :show="!photo(activity) && shape(activity)" class="h-[140px] w-full rounded-[12px] bg-surface-sunken">
           <svg viewBox="0 0 320 140" class="h-full w-full"><polyline :points="shape(activity)" fill="none" stroke="#24724b" stroke-width="3" /></svg>
         </View>
       </Pressable>

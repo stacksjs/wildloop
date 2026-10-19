@@ -163,9 +163,9 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="leaderboard-scroll">
-    <Text testID="headline" class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="headline()" />
+    <Text testID="headline" class="mt-1 text-sm text-fg-muted" :text="headline()" />
 
     <View class="mt-4 gap-2">
       <SegmentedControl testID="scope" label="Who is ranked" stretch :value="chosenScope()" :options="SCOPE_OPTIONS" @change="chooseScope($event)" />
@@ -174,27 +174,25 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
     </View>
 
     <ActivityIndicator :show="loading" testID="leaderboard-loading" class="mt-6" />
-    <Text :show="error" testID="leaderboard-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-[#51604e] dark:text-[#b0bfac]">
+    <ErrorState :show="error()" testID="leaderboard-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <Text :show="needsSignIn" testID="leaderboard-signed-out" class="mt-4 text-sm text-fg-muted">
       Sign in to see how you rank against the people you follow.
     </Text>
 
     {{-- Keyed `:for` on the element: the portable list boundary (093ef1ac). --}}
     <View testID="leaderboard-list" class="mt-5 gap-3">
-      <Pressable :for="row in rows()" :key="row.rank" testID="leader-row" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openAthlete(row)">
-        <Text testID="leader-rank" class="w-7 text-center text-base font-bold text-[#51604e] dark:text-[#b0bfac]" :text="row.rank" />
+      <Pressable :for="row in rows()" :key="row.rank" testID="leader-row" class="flex-row items-center gap-3 rounded-xl bg-panel p-3" @click="openAthlete(row)">
+        <Text testID="leader-rank" class="w-7 text-center text-base font-bold text-fg-muted" :text="row.rank" />
         <Image :show="photo(row)" testID="leader-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
-        <Text :show="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-[#e7edde] dark:bg-[#314536] text-center text-base font-bold text-[#253321] dark:text-[#e3ecdf]" :text="initial(row)" />
+        <Text :show="!photo(row)" testID="leader-initial" class="h-10 w-10 rounded-full bg-surface-sunken text-center text-base font-bold text-fg-strong" :text="initial(row)" />
         <View class="flex-1">
-          <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.userName" />
-          <Text class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="secondary(row)" />
+          <Text class="text-base font-semibold text-fg" :text="row.userName" />
+          <Text class="text-xs text-fg-muted" :text="secondary(row)" />
         </View>
-        <Text class="text-lg font-bold text-[#24724b] dark:text-[#9be579]" :text="figure(row)" />
+        <Text class="text-lg font-bold text-accent" :text="figure(row)" />
       </Pressable>
     </View>
 
-    <Text :show="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
-      Nobody has logged anything in this period yet.
-    </Text>
+    <EmptyState :show="!loading && !error && !needsSignIn && rows().length === 0" testID="leaderboard-empty" variant="bare" className="mt-6" title="Nobody has logged anything in this period yet." />
   </ScrollView>
-</SafeAreaView>
+</View>

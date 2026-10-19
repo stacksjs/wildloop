@@ -160,49 +160,49 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { badges.set([]); records.set([]); months.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="achievements-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Your records, your year, and every badge.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Your records, your year, and every badge.</Text>
 
     <ActivityIndicator :show="loading" testID="achievements-loading" class="mt-6" />
-    <Text :show="error" testID="achievements-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="achievements-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your achievements.</Text>
+    <ErrorState :show="error()" testID="achievements-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <Text :show="signedOut" testID="achievements-signed-out" class="mt-4 text-warning">Sign in to see your achievements.</Text>
     <Button :show="signedOut" testID="achievements-sign-in" @click="craft.navigation.open('/login?next=/achievements')">Sign in</Button>
 
     {{-- The year, as twelve bars. A month that was run always gets a sliver:
          nothing and almost nothing look the same otherwise, and only one of
          them is true. --}}
     <View :show="months().length > 0" testID="year-chart" class="mt-6 gap-2">
-      <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">This year</Text>
-      <View :show="hasYearChart()" testID="year-chart-card" class="h-20 w-full rounded-xl bg-white dark:bg-[#1b2c22] p-2">
+      <Text class="text-xs font-semibold uppercase text-fg-soft">This year</Text>
+      <View :show="hasYearChart()" testID="year-chart-card" class="h-20 w-full rounded-xl bg-panel p-2">
         <svg :viewBox="chartBox()" class="h-full w-full">
           <rect :for="bar in bars()" :key="bar.month" :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" fill="#34d399" />
         </svg>
       </View>
-      <Text testID="year-total" class="text-sm text-[#192414] dark:text-[#f0f5ec]" :text="yearTotal()" />
-      <Text :show="bestMonth()" testID="best-month" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="bestMonth()" />
+      <Text testID="year-total" class="text-sm text-fg" :text="yearTotal()" />
+      <Text :show="bestMonth()" testID="best-month" class="text-xs text-fg-muted" :text="bestMonth()" />
     </View>
 
     <View :show="records().length > 0" class="mt-6 gap-2">
-      <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Personal bests</Text>
-      <Pressable :for="record in records()" :key="record.key" testID="record-row" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openRecord(record)">
-        <Text class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="record.label" />
-        <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="record.value" />
-        <Text class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="record.activityTitle" />
+      <Text class="text-xs font-semibold uppercase text-fg-soft">Personal bests</Text>
+      <Pressable :for="record in records()" :key="record.key" testID="record-row" class="rounded-xl bg-panel p-3" @click="openRecord(record)">
+        <Text class="text-xs text-fg-muted" :text="record.label" />
+        <Text class="text-xl font-bold text-fg" :text="record.value" />
+        <Text class="text-xs text-fg-muted" :text="record.activityTitle" />
       </Pressable>
     </View>
 
     <View :show="badges().length > 0" class="mt-6 gap-2">
-      <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Badges</Text>
-      <View :for="badge in badges()" :key="badge.id" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+      <Text class="text-xs font-semibold uppercase text-fg-soft">Badges</Text>
+      <View :for="badge in badges()" :key="badge.id" class="flex-row items-center gap-3 rounded-xl bg-panel p-3">
         <View class="flex-1">
-          <Text testID="badge-name" class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="badgeLine(badge)" />
-          <Text :show="badge.description" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="badge.description" />
+          <Text testID="badge-name" class="text-sm font-semibold text-fg" :text="badgeLine(badge)" />
+          <Text :show="badge.description" class="text-xs text-fg-muted" :text="badge.description" />
         </View>
-        <Text testID="badge-progress" :class="earned(badge) ? 'text-xs font-semibold text-[#24724b] dark:text-[#9be579]' : 'text-xs font-semibold text-[#64745f] dark:text-[#91a28b]'" :text="progress(badge)" />
+        <Text testID="badge-progress" :class="earned(badge) ? 'text-xs font-semibold text-accent' : 'text-xs font-semibold text-fg-soft'" :text="progress(badge)" />
       </View>
     </View>
 
-    <Text :show="!loading && !error && !signedOut && badges().length === 0 && records().length === 0" testID="achievements-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">Record runs and take territory to start unlocking badges.</Text>
+    <EmptyState :show="!loading && !error && !signedOut && badges().length === 0 && records().length === 0" testID="achievements-empty" variant="bare" className="mt-6" title="Record runs and take territory to start unlocking badges." />
   </ScrollView>
-</SafeAreaView>
+</View>

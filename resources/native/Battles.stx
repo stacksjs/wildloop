@@ -118,43 +118,43 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="battles-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Ground changing hands across the game.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Ground changing hands across the game.</Text>
 
     <ActivityIndicator :show="loading" testID="battles-loading" class="mt-6" />
-    <Text :show="error" testID="battles-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <ErrorState :show="error()" testID="battles-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
 
     <View :show="!loading() && !error()" testID="battles-body" class="mt-5 gap-4">
       <SegmentedControl testID="battles-period" label="Period" stretch v-model:value="chosenPeriod" :options="PERIOD_OPTIONS" />
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Live</Text>
-          <Text testID="battles-live" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="liveText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Live</Text>
+          <Text testID="battles-live" class="text-base font-semibold text-fg" :text="liveText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Taken</Text>
-          <Text testID="battles-conquered" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="conqueredText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Taken</Text>
+          <Text testID="battles-conquered" class="text-2xl font-bold text-fg" :text="conqueredText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Held</Text>
-          <Text testID="battles-defended" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="defendedText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Held</Text>
+          <Text testID="battles-defended" class="text-2xl font-bold text-fg" :text="defendedText()" />
         </View>
       </View>
 
-      <Text :show="shown().length === 0" testID="battles-empty" class="mt-2 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyText()" />
+      <EmptyState :show="shown().length === 0" testID="battles-empty" variant="bare" className="mt-6" :title="emptyText()" />
 
       <View :show="shown().length > 0" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">What is happening</Text>
-        <Pressable :for="battle in shown()" :key="battle.id" testID="battle-row" @click="openTerritory(battle)" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs font-semibold uppercase text-fg-soft">What is happening</Text>
+        <Pressable :for="battle in shown()" :key="battle.id" testID="battle-row" @click="openTerritory(battle)" class="gap-1 rounded-xl bg-panel p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="lineText(battle)" />
-            <Text testID="battle-badge" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="badgeText(battle)" />
+            <Text class="flex-1 text-sm text-fg" :text="lineText(battle)" />
+            <Text testID="battle-badge" class="text-xs text-fg-muted" :text="badgeText(battle)" />
           </View>
-          <Text testID="battle-ground" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="groundText(battle)" />
+          <Text testID="battle-ground" class="text-xs text-fg-soft" :text="groundText(battle)" />
         </Pressable>
       </View>
     </View>
   </ScrollView>
-</SafeAreaView>
+</View>

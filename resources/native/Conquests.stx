@@ -158,64 +158,64 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="conquests-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Every zone you have taken, held or lost.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Every zone you have taken, held or lost.</Text>
 
     <ActivityIndicator :show="loading" testID="conquests-loading" class="mt-6" />
-    <Text :show="error" testID="conquests-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="conquests-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your record.</Text>
+    <ErrorState :show="error()" testID="conquests-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <Text :show="signedOut" testID="conquests-signed-out" class="mt-4 text-warning">Sign in to see your record.</Text>
     <Button :show="signedOut" testID="conquests-sign-in" @click="craft.navigation.open('/login?next=/conquests')">Sign in</Button>
 
     <View :show="viewerId() > 0 && !error()" testID="conquests-body" class="mt-5 gap-4">
       {{-- Ground of theirs being taken right now, above everything else: it is
            the only thing on this screen they can still do something about. --}}
-      <View :show="threatened().length > 0" testID="conquests-threat" class="gap-2 rounded-xl bg-[#fdeceb] dark:bg-rose-950 p-3">
-        <Text testID="threat-count" class="text-sm font-semibold text-[#8f1d24] dark:text-rose-200" :text="threatCount()" />
-        <Text :for="battle in threatened()" :key="battle.id" testID="threat-row" class="text-xs text-[#b4232a] dark:text-[#ff8487]" :text="lineText(battle)" />
+      <View :show="threatened().length > 0" testID="conquests-threat" class="gap-2 rounded-xl bg-danger-soft p-3">
+        <Text testID="threat-count" class="text-sm font-semibold text-danger-soft-ink" :text="threatCount()" />
+        <Text :for="battle in threatened()" :key="battle.id" testID="threat-row" class="text-xs text-danger" :text="lineText(battle)" />
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Taken</Text>
-          <Text testID="record-taken" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="takenText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Taken</Text>
+          <Text testID="record-taken" class="text-2xl font-bold text-fg" :text="takenText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Held</Text>
-          <Text testID="record-held" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="heldText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Held</Text>
+          <Text testID="record-held" class="text-2xl font-bold text-fg" :text="heldText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Lost</Text>
-          <Text testID="record-lost" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="lostText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Lost</Text>
+          <Text testID="record-lost" class="text-2xl font-bold text-fg" :text="lostText()" />
         </View>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Win rate</Text>
-          <Text testID="record-winrate" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="winRateText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Win rate</Text>
+          <Text testID="record-winrate" class="text-base font-semibold text-fg" :text="winRateText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Power</Text>
-          <Text testID="record-power" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="powerText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Power</Text>
+          <Text testID="record-power" class="text-base font-semibold text-fg" :text="powerText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Ground won</Text>
-          <Text testID="record-ground" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="groundWonText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Ground won</Text>
+          <Text testID="record-ground" class="text-base font-semibold text-fg" :text="groundWonText()" />
         </View>
       </View>
 
       <SegmentedControl testID="conquests-filter" label="Show" stretch v-model:value="chosenFilter" :options="FILTER_OPTIONS" />
 
-      <Text :show="shown().length === 0" testID="conquests-empty" class="mt-2 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyText()" />
+      <EmptyState :show="shown().length === 0" testID="conquests-empty" variant="bare" className="mt-6" :title="emptyText()" />
 
       <View :show="shown().length > 0" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Your battles</Text>
-        <Pressable :for="battle in shown()" :key="battle.id" testID="conquest-row" @click="openTerritory(battle)" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="lineText(battle)" />
-          <Text testID="conquest-badge" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="badgeText(battle)" />
+        <Text class="text-xs font-semibold uppercase text-fg-soft">Your battles</Text>
+        <Pressable :for="battle in shown()" :key="battle.id" testID="conquest-row" @click="openTerritory(battle)" class="flex-row justify-between rounded-xl bg-panel p-3">
+          <Text class="flex-1 text-sm text-fg" :text="lineText(battle)" />
+          <Text testID="conquest-badge" class="text-xs text-fg-muted" :text="badgeText(battle)" />
         </Pressable>
       </View>
     </View>
   </ScrollView>
-</SafeAreaView>
+</View>

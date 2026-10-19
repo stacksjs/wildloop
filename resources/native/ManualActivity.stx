@@ -129,46 +129,46 @@ onDestroy(() => {
 })
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="manual-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">The same manual entry saved by the Wildloop web feed.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">The same manual entry saved by the Wildloop web feed.</Text>
 
     <View class="mt-5 gap-2">
-      <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]">Activity</Text>
+      <Text class="text-sm font-semibold text-fg-strong">Activity</Text>
       <SegmentedControl testID="activity-type" label="Activity" stretch v-model:value="chosenType" :options="TYPE_OPTIONS" />
     </View>
 
     <View class="mt-4 gap-2">
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Distance (miles)</Text>
+      <Text class="text-sm text-fg-muted">Distance (miles)</Text>
       <TextInput testID="distance-input" placeholder="5.0" :value="distance" @input="distance.set(eventText($event))" />
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Duration (MM:SS or H:MM:SS)</Text>
+      <Text class="text-sm text-fg-muted">Duration (MM:SS or H:MM:SS)</Text>
       <TextInput testID="duration-input" placeholder="45:30" :value="duration" @input="duration.set(eventText($event))" />
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Elevation gain (feet)</Text>
+      <Text class="text-sm text-fg-muted">Elevation gain (feet)</Text>
       <TextInput testID="elevation-input" placeholder="800" :value="elevation" @input="elevation.set(eventText($event))" />
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Trail id (optional)</Text>
+      <Text class="text-sm text-fg-muted">Trail id (optional)</Text>
       <TextInput testID="trail-input" placeholder="42" :value="trailId" @input="trailId.set(eventText($event))" />
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Date</Text>
+      <Text class="text-sm text-fg-muted">Date</Text>
       <TextInput testID="date-input" placeholder="YYYY-MM-DD" :value="date" @input="date.set(eventText($event))" />
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Notes</Text>
+      <Text class="text-sm text-fg-muted">Notes</Text>
       <TextInput testID="notes-input" placeholder="How did it go?" :value="notes" @input="notes.set(eventText($event))" />
     </View>
 
     <View class="mt-4 gap-2">
-      <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]">Who can see it</Text>
+      <Text class="text-sm font-semibold text-fg-strong">Who can see it</Text>
       <SegmentedControl testID="visibility" label="Who can see it" stretch v-model:value="chosenVisibility" :options="VISIBILITY_OPTIONS" />
     </View>
 
     <View class="mt-5 gap-2">
       <NativeRunMetric label="Distance" testID="distance-preview">
-        <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="distance() ? distance() + ' mi' : '--'" />
+        <Text class="text-xl font-bold text-fg" :text="distance() ? distance() + ' mi' : '--'" />
       </NativeRunMetric>
       <NativeRunMetric label="Duration" testID="duration-preview">
-        <Text class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="duration() || '--'" />
+        <Text class="text-xl font-bold text-fg" :text="duration() || '--'" />
       </NativeRunMetric>
     </View>
 
-    <Text :show="error" testID="manual-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <Text :show="error" testID="manual-error" class="mt-4 text-danger" :text="error" />
     <Button testID="save-activity" class="mt-5" @click="submit()">Save activity</Button>
     <Button testID="manual-back" class="mt-2" @click="goBack()">Back</Button>
   </ScrollView>
-</SafeAreaView>
+</View>

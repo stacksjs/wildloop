@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answer, chooseNativeOption, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * One athlete, natively.
@@ -264,14 +264,14 @@ describe('Wildloop native athlete detail screen', () => {
     const { screen } = await open('44')
     await waitForVisibility(screen, 'athlete-safety', 'flex')
 
-    await screen.event('cycle-reason', 'onPress')
+    await chooseNativeOption(screen, 'report-reason', 'Spam')
     await screen.event('athlete-report', 'onPress')
     const posted = await waitForRequest(screen, 0, r => String(r.payload?.args?.[0]?.method ?? '') === 'POST')
 
     expect(String(posted.payload.args[0].url)).toBe('https://wildloop.org/api/reports')
     const body = JSON.parse(String(posted.payload.args[0].body))
     expect(body).toMatchObject({ subject_type: 'user', subject_id: 44 })
-    // Cycled once off the first reason.
+    // The reason chosen from the system sheet.
     expect(body.reason).toBe('spam')
   })
 

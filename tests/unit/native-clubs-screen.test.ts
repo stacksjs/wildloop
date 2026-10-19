@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { clubMemberText, clubWeekLine } from '../../resources/functions/clubs'
 
 /**
@@ -25,6 +25,11 @@ const CLUBS = {
   ],
 }
 
+/** Whether some line on screen carries this text: a row's details share one subtitle. */
+function shows(texts: string[], text: string): boolean {
+  return texts.some(line => line.includes(text))
+}
+
 function ok(body: unknown) {
   return { status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
 }
@@ -46,7 +51,8 @@ describe('Wildloop native clubs screen', () => {
   beforeAll(compileNativeBundle, 30000)
 
   it('renders the list through the portable keyed boundary', () => {
-    expect(SOURCE).toContain(':for="club in shown()" :key="club.id"')
+    expect(SOURCE).toContain(':for="(club, index) in shown()"')
+    expect(SOURCE).toContain(':key="club.id"')
     expect(SOURCE).not.toContain('<FlatList')
   })
 
@@ -76,9 +82,9 @@ describe('Wildloop native clubs screen', () => {
     answer(screen, request, ok(CLUBS))
     const texts = await waitForText(screen, 'Queen City Trail Club')
 
-    expect(texts).toContain('Cincinnati, OH · Running')
-    expect(texts).toContain(`${clubMemberText(48)} · ${clubWeekLine(CLUBS.clubs[0] as any)}`)
-    expect(texts).toContain('48 members · 312 mi · 27 activities this week')
+    expect(shows(texts, 'Cincinnati, OH · Running')).toBe(true)
+    expect(shows(texts, `${clubMemberText(48)} · ${clubWeekLine(CLUBS.clubs[0] as any)}`)).toBe(true)
+    expect(shows(texts, '48 members · 312 mi · 27 activities this week')).toBe(true)
   })
 
   /*
@@ -90,7 +96,7 @@ describe('Wildloop native clubs screen', () => {
     answer(screen, request, ok(CLUBS))
     const texts = await waitForText(screen, 'Alpenverein Munich')
 
-    expect(texts).toContain('1 member · Quiet week')
+    expect(shows(texts, '1 member · Quiet week')).toBe(true)
   })
 
   it('names the door only where the button has not said it', async () => {
@@ -98,8 +104,8 @@ describe('Wildloop native clubs screen', () => {
     answer(screen, request, ok(CLUBS))
     const texts = await waitForText(screen, 'Gorge Land Grab')
 
-    expect(texts).toContain('Invite only')
-    expect(texts).toContain('Ask to join')
+    expect(shows(texts, 'Invite only')).toBe(true)
+    expect(shows(texts, 'Ask to join')).toBe(true)
   })
 
   it('filters in the client, because the directory arrives whole', async () => {
@@ -108,12 +114,12 @@ describe('Wildloop native clubs screen', () => {
     await waitForText(screen, 'Queen City Trail Club')
 
     const before = requests(screen).length
-    await screen.event('cycle-filter', 'onPress')
+    await screen.event('clubs-filter-mine', 'onPress')
     await Bun.sleep(0)
 
     // "My clubs": the one the viewer is in, and no second trip to the server.
     expect(requests(screen).length).toBe(before)
-    expect(shownText(screen)).toContain('My clubs')
+    expect(segmentChosen(screen, 'clubs-filter-mine')).toBe(true)
   })
 
   /*

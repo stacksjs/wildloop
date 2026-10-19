@@ -114,7 +114,7 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
       <Text :show="saveNotice" :text="saveNotice" :class="ui.caption" class="m-4" />
       <View :class="ui.card" class="mt-4 gap-3">
         <Button :text="activity()?.userName || 'Athlete'" @click="craft.navigation.open('/athlete/' + activity().userId)" />
-        <Text :text="activity()?.activityType || ''" :class="ui.title" />
+        <Text :text="activity()?.activityType || ''" :class="ui.titleStrong" />
         <Text :text="(activity()?.distance || 0) + ' mi · ' + (activity()?.duration || '') + ' · ' + (activity()?.elevation || 0) + ' ft'" :class="ui.body" />
         <Text :show="activity()?.notes" :text="activity()?.notes || ''" :class="ui.body" />
         <Map testID="activity-native-map" :tileOverlay="nativeOutdoorTiles" :show="route().length >= 4" :fitToBounds="true" :showsCompass="true" class="h-[320px] rounded-[12px]">
@@ -128,7 +128,7 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
       <Text :class="ui.header">Comments</Text>
       <View :class="ui.card" class="gap-3">
         <View :for="entry in activity()?.comments ?? []" :key="entry.id" class="gap-1 mb-3">
-          <Text :text="entry.userName" :class="ui.title" />
+          <Text :text="entry.userName" :class="ui.titleStrong" />
           <Text :text="entry.body" :class="ui.body" />
         </View>
         <TextInput testID="activity-comment" accessibilityLabel="Comment" :value="comment" :multiline="true" :class="ui.input" placeholder="Add a comment" @input="comment.set($event.text || '')" />
@@ -138,7 +138,7 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
   </ScrollView>
   <Modal :visible="editing" presentationStyle="pageSheet" @requestClose="editing.set(false)">
     <KeyboardAvoidingView :class="ui.screen"><ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
-      <Text :class="ui.title">Edit activity</Text>
+      <Text :class="ui.titleStrong">Edit activity</Text>
       <Text :class="ui.caption" class="mt-4">Activity type</Text><Button :class="ui.secondary" :title="'Activity type' + ': ' + nativeChoiceLabel(['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),editType())" accessibilityLabel="Activity type" :accessibilityValue="nativeChoiceLabel(['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),editType())" @click="chooseNativeChoice(craft,'Activity type',['Trail Run','Hike','Walk','Bike'].map(value=>({value,label:value})),choice=>{editType.set(choice)},message=>error.set(message))" />
       <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="activity-edit-notes" :class="ui.input" :value="editNotes" :multiline="true" @input="editNotes.set($event.text)" />
       <Text :class="ui.caption" class="mt-4">Visibility</Text><Button :class="ui.secondary" :title="'Visibility' + ': ' + nativeChoiceLabel(['public','followers','private'].map(value=>({value,label:value})),editVisibility())" accessibilityLabel="Visibility" :accessibilityValue="nativeChoiceLabel(['public','followers','private'].map(value=>({value,label:value})),editVisibility())" @click="chooseNativeChoice(craft,'Visibility',['public','followers','private'].map(value=>({value,label:value})),choice=>{editVisibility.set(choice)},message=>error.set(message))" />

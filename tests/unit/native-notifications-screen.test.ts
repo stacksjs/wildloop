@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, nativeNodeText, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { timeAgo } from '../../resources/functions/notifications'
@@ -62,8 +62,9 @@ describe('Wildloop native notifications screen', () => {
    * expansion is host-specific. Nested, because this list has day headings.
    */
   it('renders its rows through the portable keyed :for boundary', () => {
-    expect(SOURCE).toContain('<View :for="day in sections()" :key="day.label"')
-    expect(SOURCE).toContain('<Pressable :for="row in day.items" :key="row.id"')
+    expect(SOURCE).toContain('<GroupedList :for="day in sections()" :key="day.label"')
+    expect(SOURCE).toContain(':for="(row, index) in day.items"')
+    expect(SOURCE).toContain(':key="row.id"')
     expect(SOURCE).not.toContain('<FlatList')
   })
 
@@ -103,10 +104,10 @@ describe('Wildloop native notifications screen', () => {
     const { screen, read } = await signedInScreen()
     answer(screen, read, ok({ notifications: [] }))
     await waitForText(screen, 'No notifications yet.')
-    expect(nativeNodeText(screen, 'notifications-empty')).toBe('No notifications yet.')
-    await screen.event('cycle-filter', 'onPress')
+    await waitForVisibility(screen, 'notifications-empty', 'flex')
+    await screen.event('filter-unread', 'onPress')
     await waitForText(screen, 'Nothing under this filter.')
-    expect(nativeNodeText(screen, 'notifications-empty')).toBe('Nothing under this filter.')
+    expect(segmentChosen(screen, 'filter-unread')).toBe(true)
   })
 
   it('clears the badge before the write lands, then writes', async () => {

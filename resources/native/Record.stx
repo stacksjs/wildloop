@@ -168,6 +168,10 @@ async function requireAccount(): Promise<boolean> {
     // Cancelled because the screen closed; there is nobody to send anywhere.
     return true
   }
+  // Only a screen in front sends anybody anywhere. The shell prepares this
+  // tab hidden beside the Feed at launch, and a guard that ran there pushed
+  // Login over the Feed; it asks again when the tab is shown (onAppear).
+  if (!craft.navigation.isFocused()) return false
   craft.navigation.open('/login?next=/record')
   return false
 }
@@ -277,7 +281,7 @@ onMount(()=>{
     <Text :show="error" :text="error" :class="ui.danger" class="m-4" testID="record-error" />
     <Text :show="notice" :text="notice" :class="ui.body" class="m-4" testID="record-notice" />
     <View :class="ui.card" class="mt-4 gap-3">
-      <Text :text="figures().distance.toFixed(2) + ' mi'" class="text-[42px] font-bold text-[#192414] dark:text-white" testID="record-distance" />
+      <Text :text="figures().distance.toFixed(2) + ' mi'" class="text-[42px] font-bold text-fg" testID="record-distance" />
       <Text :text="nativeRecordingDuration(movingTime()) + ' moving · ' + Math.round(figures().elevation) + ' ft gain'" :class="ui.body" testID="record-time" />
       <Text :text="recordingState()" :class="ui.caption" testID="record-state" />
       <Map testID="record-native-map" :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
@@ -292,7 +296,7 @@ onMount(()=>{
       <Button @click="craft.navigation.open('/activity/new')">Log a manual activity instead</Button>
     </View>
   </ScrollView>
-  <View class="px-4 py-3 gap-2 bg-white dark:bg-[#1b2c22]">
+  <View class="px-4 py-3 gap-2 bg-panel">
     <Button :show="!recording()" testID="record-start" :disabled="busy || loading" :class="ui.action" @click="start()" title="Start recording" />
     <View :show="running()" class="flex-row gap-3">
       <Button testID="record-pause" :disabled="busy" :class="ui.secondary" class="flex-1" @click="togglePause()" :text="paused() ? 'Resume' : 'Pause'" />

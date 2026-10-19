@@ -221,9 +221,9 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
       </View>
       <Text :class="ui.header">Connected devices</Text>
       <View :class="ui.card" class="gap-3">
-        <View :show="Boolean(craft.health)" class="gap-2"><Text :class="ui.title">Health</Text><Text :show="healthSummary" :text="healthSummary" :class="ui.caption" /><Button testID="settings-health" :disabled="busy" @click="connectHealth()">Connect or refresh health summary</Button></View>
-        <View :show="Boolean(craft.push)" class="gap-2 mt-4"><Text :class="ui.title">Device notifications</Text><Button testID="settings-push" :disabled="busy" @click="togglePush()" :text="pushEnabled() ? 'Turn off device notifications' : 'Enable device notifications'" /></View>
-        <Text :class="ui.title">Garmin</Text><Text :text="garmin() ? garminConnectedLabel(garmin()) : 'Status unavailable'" :class="ui.caption" />
+        <View :show="Boolean(craft.health)" class="gap-2"><Text :class="ui.titleStrong">Health</Text><Text :show="healthSummary" :text="healthSummary" :class="ui.caption" /><Button testID="settings-health" :disabled="busy" @click="connectHealth()">Connect or refresh health summary</Button></View>
+        <View :show="Boolean(craft.push)" class="gap-2 mt-4"><Text :class="ui.titleStrong">Device notifications</Text><Button testID="settings-push" :disabled="busy" @click="togglePush()" :text="pushEnabled() ? 'Turn off device notifications' : 'Enable device notifications'" /></View>
+        <Text :class="ui.titleStrong">Garmin</Text><Text :text="garmin() ? garminConnectedLabel(garmin()) : 'Status unavailable'" :class="ui.caption" />
         <Button :disabled="busy" @click="connectGarmin()">Connect Garmin</Button>
         <Button :show="garminCardState(garmin() || {}) === 'connected'" :disabled="busy" @click="disconnectGarmin()">Disconnect Garmin</Button>
         <Button @click="craft.permissions.openSettings()">Device permissions and notifications</Button>
@@ -243,12 +243,11 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
         </View>
       </View>
     </View>
-    <Text :class="ui.header">About Wildloop</Text>
-    <View :class="ui.card" class="gap-3">
-      <Button @click="craft.navigation.open('/privacy')">Privacy policy</Button>
-      <Button @click="craft.navigation.open('/terms')">Terms of use</Button>
-      <Button @click="craft.navigation.open('/support')">Support</Button>
-      <Button @click="craft.navigation.open('/map-attribution')">Map data attribution</Button>
-    </View>
+    <GroupedList title="About Wildloop" className="mt-7">
+      <GroupedListRow testID="settings-privacy" title="Privacy policy" chevron @select="craft.navigation.open('/privacy')" />
+      <GroupedListRow testID="settings-terms" title="Terms of use" separator chevron @select="craft.navigation.open('/terms')" />
+      <GroupedListRow testID="settings-support" title="Support" separator chevron @select="craft.navigation.open('/support')" />
+      <GroupedListRow testID="settings-attribution" title="Map data attribution" separator chevron @select="craft.navigation.open('/map-attribution')" />
+    </GroupedList>
   </ScrollView>
 </KeyboardAvoidingView>

@@ -38,7 +38,7 @@ describe('Wildloop native events screen', () => {
 
   it('renders every list through the portable keyed boundary', () => {
     for (const list of ['live()', 'upcoming()', 'past()'])
-      expect(SOURCE).toContain(`:for="row in ${list}" :key="row.id"`)
+      expect(SOURCE).toContain(`:for="(row, index) in ${list}" :key="row.id"`)
     expect(SOURCE).not.toContain('<FlatList')
   })
 
@@ -95,7 +95,7 @@ describe('Wildloop native events screen', () => {
     await waitForText(screen, 'Sunday Long Run')
 
     const before = requests(screen).length
-    await screen.event('cycle-type', 'onPress')
+    await screen.event('type-backyard', 'onPress')
     const second = await waitForRequest(screen, before, r => r.payload?.module === 'Network')
 
     expect(second.payload.args[0].url).toContain('type=backyard')

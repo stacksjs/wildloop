@@ -24,16 +24,16 @@ onMount(() => {
          Everything behind it has already been filtered out of the list below,
          so this is the only mention of an account on the screen. --}}
     <View :show="account() === 0" testID="menu-signed-out" :class="ui.card" class="mt-4 p-4">
-      <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]">Your runs, trails and territory, on every device.</Text>
+      <Text class="text-base font-semibold text-fg">Your runs, trails and territory, on every device.</Text>
       <Button testID="menu-sign-in" :class="ui.action" class="mt-4" @click="craft.navigation.open('/login?next=/menu')" title="Sign in" />
     </View>
     <View :for="group in groups()" :key="group.title">
       <Text :class="ui.header" :text="group.title" />
       <View :class="ui.card">
         <Pressable :for="item in group.items" :key="item.href" :class="ui.row" :testID="'menu-' + item.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')" @click="craft.navigation.open(item.href)" :accessibilityLabel="item.label">
-          <Icon :name="item.symbol" class="h-6 w-6 text-[#24724b] dark:text-[#9be579]" />
+          <Icon :name="item.symbol" class="h-6 w-6 text-accent" />
           <Text :class="ui.body" class="flex-1" :text="item.label" />
-          <Icon name="chevron.right" class="h-4 w-4 text-[#75856f]" />
+          <Icon name="chevron.right" class="h-4 w-4 text-fg-soft" />
         </Pressable>
       </View>
     </View>

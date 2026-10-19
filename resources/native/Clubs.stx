@@ -2,6 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { settledFollowerCount } from '../functions/athletes'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
+import { nativeUi } from '../functions/native-ui'
 import {
   CLUB_FILTER_LABELS,
   CLUB_FILTERS,
@@ -36,8 +37,10 @@ import {
  */
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const ui = nativeUi
 
-const filterIndex = state(0)
+const FILTER_OPTIONS = CLUB_FILTERS.map(value => ({ value, label: CLUB_FILTER_LABELS[value] }))
+const chosenFilter = state<string>(CLUB_FILTERS[0])
 const rows = state<any[]>([])
 const loading = state(true)
 const error = state('')
@@ -46,11 +49,7 @@ const api = createNativeApi(craft)
 let active = true
 
 function currentFilter(): any {
-  return CLUB_FILTERS[filterIndex()]
-}
-
-function filterName(): string {
-  return CLUB_FILTER_LABELS[currentFilter()]
+  return chosenFilter()
 }
 
 function shown(): any[] {
@@ -84,6 +83,7 @@ function action(club: any): string {
   return clubActionLabel(club)
 }
 
+
 let loadVersion = 0
 async function load(): Promise<void> {
   const currentLoad = ++loadVersion
@@ -105,10 +105,6 @@ async function load(): Promise<void> {
     if (active && currentLoad === loadVersion)
       loading.set(false)
   }
-}
-
-function cycleFilter(): void {
-  filterIndex.set((filterIndex() + 1) % CLUB_FILTERS.length)
 }
 
 /** Replace one club in the list, leaving the rest and their order alone. */
@@ -184,34 +180,39 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
-  <ScrollView class="p-4" testID="clubs-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Crews training together — join one, or start your own on the web.</Text>
+<View :class="ui.screen">
+  <ScrollView class="flex-1 pb-8" testID="clubs-scroll">
+    <Text :class="ui.caption" class="mx-4 mt-3">Crews training together — join one, or start your own on the web.</Text>
 
-    <View class="mt-4 gap-2">
-      <Text testID="clubs-filter" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="filterName()" />
-      <Button testID="cycle-filter" @click="cycleFilter()">Change the filter</Button>
-    </View>
+    <ChoiceChips testID="clubs-filter" label="Show" className="mt-3" v-model:value="chosenFilter" :options="FILTER_OPTIONS" />
 
-    <ActivityIndicator :show="loading" testID="clubs-loading" class="mt-6" />
-    <Text :show="error" testID="clubs-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="clubs-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to join a club.</Text>
-    <Button :show="signedOut" testID="clubs-sign-in" @click="craft.navigation.open('/login?next=/clubs')">Sign in</Button>
+    <ActivityIndicator :show="loading() && rows().length === 0" testID="clubs-loading" class="mt-8" />
+    <ErrorState :show="error()" testID="clubs-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <EmptyState :show="signedOut()" testID="clubs-signed-out" variant="bare" className="mt-4" title="Sign in to join a club." description="Clubs are crews of athletes who train together.">
+      <Button testID="clubs-sign-in" :class="ui.action" @click="craft.navigation.open('/login?next=/clubs')">Sign in</Button>
+    </EmptyState>
 
-    <Text :show="heading()" testID="clubs-count" class="mt-5 text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="heading()" />
-
-    <View class="mt-2 gap-2">
-      <View :for="club in shown()" :key="club.id" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Pressable testID="club-row" @click="openClub(club)">
-          <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="club.name" />
-          <Text :show="place(club)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="place(club)" />
-          <Text class="mt-1 text-xs text-[#253321] dark:text-[#e3ecdf]" :text="members(club) + ' · ' + week(club)" />
-          <Text :show="door(club)" testID="club-door" class="mt-1 text-xs text-[#8a5300] dark:text-amber-300" :text="door(club)" />
-        </Pressable>
-        <Button testID="club-action" class="mt-2" @click="toggleMembership(club)" :text="action(club)" />
+    {{-- Rows from the grouped vocabulary rather than GroupedListRow: a crew's
+         place, its week and its door are separate lines, and the week line is
+         the one a join changes in place. --}}
+    <View :show="heading()" testID="clubs-list" class="mt-6">
+      <Text :class="ui.header" class="mt-0" :text="heading()" />
+      <View :class="ui.group">
+        <View :for="(club, index) in shown()" :key="club.id">
+          <View :show="index > 0" :class="ui.separator" />
+          <View :class="ui.row">
+            <Pressable testID="club-row" class="flex-1 gap-0.5" @click="openClub(club)">
+              <Text :class="ui.titleStrong" :text="club.name" />
+              <Text :show="place(club)" :class="ui.subtitle" :text="place(club)" />
+              <Text :class="ui.caption" :text="members(club) + ' · ' + week(club)" />
+              <Text :show="door(club)" testID="club-door" class="text-[13px] text-warning" :text="door(club)" />
+            </Pressable>
+            <Button testID="club-action" :class="ui.secondary" @click="toggleMembership(club)" :text="action(club)" />
+          </View>
+        </View>
       </View>
     </View>
 
-    <Text :show="!loading && !error && shown().length === 0" testID="clubs-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">No club under that filter yet.</Text>
+    <EmptyState :show="!loading() && !error() && shown().length === 0" testID="clubs-empty" variant="bare" className="mt-6" title="No club under that filter yet." />
   </ScrollView>
-</SafeAreaView>
+</View>

@@ -220,44 +220,44 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="territories-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Green is yours. Run a closed loop to claim new ground.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Green is yours. Run a closed loop to claim new ground.</Text>
 
     <ActivityIndicator :show="loading" testID="territories-loading" class="mt-6" />
-    <Text :show="error" testID="territories-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your territory.</Text>
+    <ErrorState :show="error()" testID="territories-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-warning">Sign in to see your territory.</Text>
     <Button :show="signedOut" testID="territories-sign-in" @click="craft.navigation.open('/login?next=/territories')">Sign in</Button>
 
     <View :show="rows().length > 0" testID="territories-body" class="mt-5 gap-4">
       {{-- The map. `fitToBounds` frames whatever is drawn, so the screen opens
            on the athlete's own ground rather than the middle of the ocean. --}}
-      <View :show="shapes().length > 0" testID="territory-map-frame" class="h-64 overflow-hidden rounded-2xl bg-white dark:bg-[#1b2c22]">
+      <View :show="shapes().length > 0" testID="territory-map-frame" class="h-64 overflow-hidden rounded-2xl bg-panel">
         <Map testID="territory-map" class="flex-1" :fitToBounds="true" :showsUserLocation="true" mapType="standard">
           <MapPolyline :for="shape in shapes()" :key="shape.id" :geometry="shape.geometry" :strokeColor="shape.color" :strokeWidth="3" />
         </Map>
       </View>
 
       <View class="gap-2">
-        <Text testID="territories-filter" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="filterName()" />
+        <Text testID="territories-filter" class="text-xs font-semibold uppercase text-fg-soft" :text="filterName()" />
         <Button testID="cycle-filter" @click="cycleFilter()">Change the filter</Button>
       </View>
 
-      <Text :show="shown().length === 0" testID="territories-empty-title" class="mt-2 text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="emptyTitle()" />
-      <Text :show="shown().length === 0" testID="territories-empty-body" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyBody()" />
+      <Text :show="shown().length === 0" testID="territories-empty-title" class="mt-2 text-base font-semibold text-fg" :text="emptyTitle()" />
+      <Text :show="shown().length === 0" testID="territories-empty-body" class="text-sm text-fg-muted" :text="emptyBody()" />
 
       <View :show="shown().length > 0" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Nearby territories</Text>
-        <Pressable :for="row in shown()" :key="row.id" testID="territory-row" @click="openTerritory(row)" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+        <Text class="text-xs font-semibold uppercase text-fg-soft">Nearby territories</Text>
+        <Pressable :for="row in shown()" :key="row.id" testID="territory-row" @click="openTerritory(row)" class="gap-2 rounded-xl bg-panel p-3">
           <View class="flex-row justify-between">
-            <Text class="flex-1 text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
-            <Text testID="territory-badge" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="badgeText(row)" />
+            <Text class="flex-1 text-sm font-semibold text-fg" :text="row.name" />
+            <Text testID="territory-badge" class="text-xs text-fg-muted" :text="badgeText(row)" />
           </View>
-          <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="ownerText(row)" />
+          <Text class="text-xs text-fg-soft" :text="ownerText(row)" />
           <View class="flex-row gap-4">
-            <Text testID="territory-area" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="areaText(row)" />
-            <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="row.conquestCount" />
-            <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="row.defendCount" />
+            <Text testID="territory-area" class="text-xs text-fg-muted" :text="areaText(row)" />
+            <Text class="text-xs text-fg-soft" :text="row.conquestCount" />
+            <Text class="text-xs text-fg-soft" :text="row.defendCount" />
           </View>
         </Pressable>
       </View>
@@ -265,16 +265,16 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
       {{-- Who holds the land in view, built from the zones themselves rather
            than a roster — a roster lists strangers holding nothing. --}}
       <View :show="holders().length > 0" testID="territory-leaders" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Territory leaders</Text>
-        <View :for="holder in holders()" :key="holder.userId" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text testID="holder-rank" class="text-xs font-bold text-[#8a5300] dark:text-amber-400" :text="rankText(holder)" />
+        <Text class="text-xs font-semibold uppercase text-fg-soft">Territory leaders</Text>
+        <View :for="holder in holders()" :key="holder.userId" class="flex-row items-center gap-3 rounded-xl bg-panel p-3">
+          <Text testID="holder-rank" class="text-xs font-bold text-warning" :text="rankText(holder)" />
           <View class="flex-1">
-            <Text class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="holderName(holder)" />
-            <Text testID="holder-zones" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="holderZones(holder)" />
+            <Text class="text-sm font-semibold text-fg" :text="holderName(holder)" />
+            <Text testID="holder-zones" class="text-xs text-fg-soft" :text="holderZones(holder)" />
           </View>
-          <Text testID="holder-area" class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="holderArea(holder)" />
+          <Text testID="holder-area" class="text-sm font-semibold text-fg" :text="holderArea(holder)" />
         </View>
       </View>
     </View>
   </ScrollView>
-</SafeAreaView>
+</View>

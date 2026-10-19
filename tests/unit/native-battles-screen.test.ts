@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * The live battle feed, natively.
@@ -148,7 +148,7 @@ describe('Wildloop native battles screen', () => {
     const { screen } = await board(null, { success: true, battles: [] })
     await waitForText(screen, 'Nobody has fought over anything today.')
 
-    expect(visibility(screen, 'battles-empty')).toBe('flex')
+    await waitForVisibility(screen, 'battles-empty', 'flex')
   })
 
   it('opens the contested zone on the web', async () => {

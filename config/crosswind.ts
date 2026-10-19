@@ -1,11 +1,107 @@
 import type { CrosswindOptions } from '@cwcss/crosswind'
+import type { ThemeRoleOverrides } from '@stacksjs/stx/theme-tokens'
 
 /**
  * The typed config the CSS engine reads. `@cwcss/crosswind` is the package
  * that actually generates the stylesheet, so its own option type is the one
  * that can be trusted to match what the generator supports.
  */
-const config: CrosswindOptions = {
+/**
+ * Wildloop's answers for stx's role tokens, read by stx on the web and in
+ * every native screen (docs: stx docs/features/theming.md).
+ *
+ * The shared components (`SegmentedControl`, `GroupedList`, `ChoiceChips`,
+ * `EmptyState`, `ErrorState`, the dialogs) and the native screens'
+ * vocabulary (`@stacksjs/stx/native/ui`) paint themselves with these roles,
+ * so this one map is the app's palette on both targets: slate for the
+ * neutrals, emerald for what can be tapped, rose for what cannot be undone.
+ * Every role is answered - one left out draws stx's stock neutral, which on a
+ * slate page reads as a design decision rather than a missing line.
+ *
+ * The page is a step darker than the panels on it, in both modes, which is
+ * what lets an inset group read as a group on a phone.
+ */
+const theme: ThemeRoleOverrides = {
+  roles: {
+    'fg': { light: 'slate-900', dark: 'white' },
+    'fg-strong': { light: 'slate-700', dark: 'slate-200' },
+    'fg-muted': { light: 'slate-600', dark: 'slate-300' },
+    'fg-soft': { light: 'slate-500', dark: 'slate-400' },
+    'fg-subtle': { light: 'slate-400', dark: 'slate-500' },
+
+    'page': { light: 'slate-100', dark: 'slate-900' },
+    'surface': { light: 'white', dark: 'slate-800' },
+    'surface-raised': { light: 'slate-50', dark: 'slate-700' },
+    'surface-sunken': { light: 'slate-200', dark: 'slate-700' },
+    'panel': { light: 'white', dark: 'slate-800' },
+    'content': { light: 'white', dark: 'slate-900' },
+    'field': { light: 'white', dark: 'slate-700' },
+    'surface-hover': { light: 'slate-50', dark: 'slate-700' },
+    'surface-raised-hover': { light: 'slate-100', dark: 'slate-600' },
+    'surface-sunken-hover': { light: 'slate-300', dark: 'slate-600' },
+    'field-hover': { light: 'slate-50', dark: 'slate-600' },
+
+    'line': { light: 'slate-200', dark: 'slate-700' },
+    'line-strong': { light: 'slate-300', dark: 'slate-600' },
+    'line-hover': { light: 'slate-400', dark: 'slate-500' },
+
+    'link': { light: 'emerald-700', dark: 'emerald-400' },
+    'link-hover': { light: 'emerald-800', dark: 'emerald-300' },
+    'inverse': { light: 'slate-900', dark: 'slate-700' },
+    'inverse-ink': { light: 'white', dark: 'white' },
+
+    'accent': { light: 'emerald-700', dark: 'emerald-400' },
+    'info': { light: 'sky-700', dark: 'sky-400' },
+    'danger': { light: 'rose-700', dark: 'rose-400' },
+    'success': { light: 'emerald-700', dark: 'emerald-400' },
+    'warning': { light: 'amber-700', dark: 'amber-300' },
+    'secondary': { light: 'violet-700', dark: 'violet-400' },
+
+    'accent-solid': { light: 'emerald-600', dark: 'emerald-600' },
+    'info-solid': { light: 'sky-600', dark: 'sky-600' },
+    'danger-solid': { light: 'rose-600', dark: 'rose-600' },
+    'success-solid': { light: 'emerald-600', dark: 'emerald-600' },
+    'warning-solid': { light: 'amber-500', dark: 'amber-400' },
+    'secondary-solid': { light: 'violet-600', dark: 'violet-600' },
+    'accent-solid-hover': { light: 'emerald-700', dark: 'emerald-700' },
+    'info-solid-hover': { light: 'sky-700', dark: 'sky-700' },
+    'danger-solid-hover': { light: 'rose-700', dark: 'rose-700' },
+    'success-solid-hover': { light: 'emerald-700', dark: 'emerald-700' },
+    'warning-solid-hover': { light: 'amber-600', dark: 'amber-500' },
+    'secondary-solid-hover': { light: 'violet-700', dark: 'violet-700' },
+
+    'accent-ink': { light: 'white', dark: 'white' },
+    'info-ink': { light: 'white', dark: 'white' },
+    'danger-ink': { light: 'white', dark: 'white' },
+    'success-ink': { light: 'white', dark: 'white' },
+    'warning-ink': { light: 'slate-900', dark: 'slate-900' },
+    'secondary-ink': { light: 'white', dark: 'white' },
+
+    'accent-soft': { light: 'emerald-50', dark: 'emerald-950' },
+    'accent-soft-ink': { light: 'emerald-800', dark: 'emerald-200' },
+    'info-soft': { light: 'sky-50', dark: 'sky-950' },
+    'info-soft-ink': { light: 'sky-800', dark: 'sky-200' },
+    'danger-soft': { light: 'rose-50', dark: 'rose-950' },
+    'danger-soft-ink': { light: 'rose-800', dark: 'rose-200' },
+    'success-soft': { light: 'emerald-50', dark: 'emerald-950' },
+    'success-soft-ink': { light: 'emerald-800', dark: 'emerald-200' },
+    'warning-soft': { light: 'amber-50', dark: 'amber-950' },
+    'warning-soft-ink': { light: 'amber-900', dark: 'amber-200' },
+    'secondary-soft': { light: 'violet-50', dark: 'violet-950' },
+    'secondary-soft-ink': { light: 'violet-800', dark: 'violet-200' },
+
+    // A field in its error state.
+    'danger-fg': { light: 'rose-900', dark: 'rose-200' },
+    'danger-fg-subtle': { light: 'rose-300', dark: 'rose-500' },
+    'danger-line': { light: 'rose-300', dark: 'rose-600' },
+    'danger-focus': { light: 'rose-500', dark: 'rose-400' },
+  },
+  // Wildloop's controls are pills, on the web and now on a phone.
+  shapes: { control: '9999px', panel: '1rem' },
+}
+
+const config: CrosswindOptions & ThemeRoleOverrides = {
+  ...theme,
   theme: {
     fontFamily: {
       sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

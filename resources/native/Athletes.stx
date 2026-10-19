@@ -170,9 +170,9 @@ onDestroy(() => {
 })
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="athletes-scroll">
-    <Text testID="athletes-heading" class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="heading()" />
+    <Text testID="athletes-heading" class="mt-1 text-sm text-fg-muted" :text="heading()" />
 
     <View class="mt-4 gap-2">
       <TextInput testID="athlete-search" placeholder="Search by name" :value="query" @input="query.set(eventText($event))" />
@@ -180,28 +180,26 @@ onDestroy(() => {
     </View>
 
     <ActivityIndicator :show="loading" testID="athletes-loading" class="mt-6" />
-    <Text :show="error" testID="athletes-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="athletes-signed-out" class="mt-3 text-xs text-[#64745f] dark:text-[#91a28b]">
+    <Text :show="error" testID="athletes-error" class="mt-4 text-danger" :text="error" />
+    <Text :show="signedOut" testID="athletes-signed-out" class="mt-3 text-xs text-fg-soft">
       Sign in to follow athletes and see their runs in your feed.
     </Text>
 
     {{-- Keyed `:for` on the element: the portable list boundary (093ef1ac). --}}
     <View testID="athletes-list" class="mt-5 gap-3">
-      <View :for="row in rows()" :key="row.id" testID="athlete-row" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
+      <View :for="row in rows()" :key="row.id" testID="athlete-row" class="flex-row items-center gap-3 rounded-xl bg-panel p-3">
         <Pressable testID="athlete-open" class="flex-1 flex-row items-center gap-3" @click="openAthlete(row)">
           <Image :show="photo(row)" testID="athlete-avatar" class="h-10 w-10 rounded-full" :source="photo(row)" />
-          <Text :show="!photo(row)" testID="athlete-initial" class="h-10 w-10 rounded-full bg-[#e7edde] dark:bg-[#314536] text-center text-base font-bold text-[#253321] dark:text-[#e3ecdf]" :text="initial(row)" />
+          <Text :show="!photo(row)" testID="athlete-initial" class="h-10 w-10 rounded-full bg-surface-sunken text-center text-base font-bold text-fg-strong" :text="initial(row)" />
           <View class="flex-1">
-            <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
-            <Text testID="athlete-stats" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="stats(row)" />
+            <Text class="text-base font-semibold text-fg" :text="row.name" />
+            <Text testID="athlete-stats" class="text-xs text-fg-muted" :text="stats(row)" />
           </View>
         </Pressable>
         <Button testID="follow-toggle" @click="toggleFollow(row)" :title="followLabel(row)">{{ followLabel(row) }}</Button>
       </View>
     </View>
 
-    <Text :show="!loading && !error && rows().length === 0" testID="athletes-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
-      Nobody matches that name.
-    </Text>
+    <EmptyState :show="!loading && !error && rows().length === 0" testID="athletes-empty" variant="bare" className="mt-6" title="Nobody matches that name." />
   </ScrollView>
-</SafeAreaView>
+</View>

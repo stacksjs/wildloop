@@ -121,7 +121,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{rows.set([]);editing.set(false);own
     <Text :show="notice" :text="notice" :class="ui.body" class="m-4" />
     <Text :show="!loading() && !rows().length" :class="ui.caption" class="m-4">Your upcoming trail days will appear here.</Text>
     <View :for="plan in rows()" :key="plan.id" :class="ui.card" class="mt-4 gap-3">
-      <Text :text="plan.title" :class="ui.title" /><Text :text="plan.planned_for + (plan.start_time ? ' at ' + plan.start_time : '')" :class="ui.body" />
+      <Text :text="plan.title" :class="ui.titleStrong" /><Text :text="plan.planned_for + (plan.start_time ? ' at ' + plan.start_time : '')" :class="ui.body" />
       <Text :show="plan.notes" :text="plan.notes" :class="ui.caption" />
       <Button :show="plan.trail_id" @click="craft.navigation.open('/trail/' + plan.trail_id)">View trail</Button>
       <Button :testID="'plan-directions-' + plan.id" @click="directions(plan)">Get directions</Button><Button :testID="'plan-reminder-' + plan.id" @click="reminder(plan)">Remind me the evening before</Button>
@@ -130,7 +130,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{rows.set([]);editing.set(false);own
   </ScrollView>
   <Modal :visible="editing" presentationStyle="pageSheet" @requestClose="editing.set(false)">
     <KeyboardAvoidingView :class="ui.screen"><ScrollView class="flex-1 p-4" keyboardDismissMode="on-drag">
-      <Text :class="ui.title" :text="id() ? 'Edit your plan' : 'Plan a visit'" />
+      <Text :class="ui.titleStrong" :text="id() ? 'Edit your plan' : 'Plan a visit'" />
       <Text :class="ui.caption" class="mt-4">Name</Text><TextInput testID="plan-title" :class="ui.input" :value="title" @input="title.set($event.text||'')" />
       <Text :class="ui.caption" class="mt-4">Date</Text><DatePicker testID="plan-date" mode="date" display="compact" :value="date" :minimumDate="today()" @change="date.set(String($event.value).slice(0,10))" />
       <Text :class="ui.caption" class="mt-4">Start time (optional, HH:MM)</Text><TextInput testID="plan-time" :class="ui.input" :value="time" @input="time.set($event.text||'')" />

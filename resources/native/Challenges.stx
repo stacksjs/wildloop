@@ -172,27 +172,27 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="challenges-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Other athletes, for the ground they hold.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Other athletes, for the ground they hold.</Text>
 
     <SegmentedControl testID="challenges-tab" label="Challenges" stretch className="mt-4" v-model:value="chosenTab" :options="TAB_OPTIONS" />
 
     <ActivityIndicator :show="loading" testID="challenges-loading" class="mt-6" />
-    <Text :show="error" testID="challenges-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your challenges.</Text>
+    <ErrorState :show="error()" testID="challenges-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-warning">Sign in to see your challenges.</Text>
     <Button :show="signedOut" testID="challenges-sign-in" @click="craft.navigation.open('/login?next=/challenges')">Sign in</Button>
 
     <View class="mt-4 gap-2">
-      <View :for="row in shown()" :key="row.id" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text testID="challenge-status" class="text-xs font-semibold uppercase text-[#8a5300] dark:text-amber-300" :text="standing(row)" />
-        <Text testID="challenge-sides" class="mt-1 text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="sides(row)" />
+      <View :for="row in shown()" :key="row.id" class="rounded-xl bg-panel p-3">
+        <Text testID="challenge-status" class="text-xs font-semibold uppercase text-warning" :text="standing(row)" />
+        <Text testID="challenge-sides" class="mt-1 text-base font-semibold text-fg" :text="sides(row)" />
 
         <Pressable testID="challenge-territory" class="mt-2" @click="openTerritory(row)">
-          <Text class="text-xs text-[#253321] dark:text-[#e3ecdf]" :text="stake(row)" />
+          <Text class="text-xs text-fg-strong" :text="stake(row)" />
         </Pressable>
 
-        <Text :show="waiting(row)" testID="challenge-waiting" class="mt-2 text-xs text-[#64745f] dark:text-[#91a28b]" :text="waiting(row)" />
+        <Text :show="waiting(row)" testID="challenge-waiting" class="mt-2 text-xs text-fg-soft" :text="waiting(row)" />
 
         {{-- Only the defender answers, and only while it is still being asked. --}}
         <View :show="canAnswer(row)" testID="challenge-answer" class="mt-3 flex-row gap-2">
@@ -202,6 +202,6 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
       </View>
     </View>
 
-    <Text :show="!loading && !error && !signedOut && shown().length === 0" testID="challenges-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyText()" />
+    <EmptyState :show="!loading && !error && !signedOut && shown().length === 0" testID="challenges-empty" variant="bare" className="mt-6" :title="emptyText()" />
   </ScrollView>
-</SafeAreaView>
+</View>

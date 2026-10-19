@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, nativeApiOrigin } from '../functions/native-api'
+import { nativeUi } from '../functions/native-ui'
 import {
   EVENT_TYPES,
   EVENT_TYPE_LABELS,
@@ -32,19 +33,17 @@ import {
  */
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const ui = nativeUi
 
 const TYPE_CHOICES = ['all', ...EVENT_TYPES] as const
 
-const typeIndex = state(0)
+const TYPE_OPTIONS = TYPE_CHOICES.map(value => ({ value, label: value === 'all' ? 'Every kind' : EVENT_TYPE_LABELS[value] }))
+const chosenType = state<string>(TYPE_CHOICES[0])
 const rows = state<any[]>([])
 const loading = state(true)
 const error = state('')
 let active = true
 
-function typeName(): string {
-  const choice = TYPE_CHOICES[typeIndex()]
-  return choice === 'all' ? 'Every kind' : EVENT_TYPE_LABELS[choice]
-}
 
 function live(): any[] {
   return eventSections(rows()).live
@@ -80,7 +79,7 @@ async function load(): Promise<void> {
   loading.set(true)
   error.set('')
   try {
-    const response = await fetch(`${nativeApiOrigin(craft)}${eventsPath(TYPE_CHOICES[typeIndex()])}`, {
+    const response = await fetch(`${nativeApiOrigin(craft)}${eventsPath(chosenType() as any)}`, {
       headers: { Accept: 'application/json' },
     })
     const body = await response.json().catch(() => null)
@@ -100,8 +99,9 @@ async function load(): Promise<void> {
   }
 }
 
-function cycleType(): void {
-  typeIndex.set((typeIndex() + 1) % TYPE_CHOICES.length)
+/* Each kind is its own list on the server, so a change reloads it. */
+function chooseType(value: string): void {
+  chosenType.set(value)
   void load()
 }
 
@@ -126,50 +126,30 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
-  <ScrollView class="p-4" testID="events-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Races, group runs and backyard ultras.</Text>
+<View :class="ui.screen">
+  <ScrollView class="flex-1 pb-8" testID="events-scroll">
+    <Text :class="ui.caption" class="mx-4 mt-3">Races, group runs and backyard ultras.</Text>
 
-    <View class="mt-4 gap-2">
-      <Text testID="type-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="typeName()" />
-      <Button testID="cycle-type" @click="cycleType()">Change the kind</Button>
-    </View>
+    <ChoiceChips testID="type" label="Kind" className="mt-3" :value="chosenType()" :options="TYPE_OPTIONS" @change="chooseType($event)" />
 
-    <ActivityIndicator :show="loading" testID="events-loading" class="mt-6" />
-    <Text :show="error" testID="events-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <ActivityIndicator :show="loading() && rows().length === 0" testID="events-loading" class="mt-8" />
+    <ErrorState :show="error()" testID="events-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
 
-    {{-- Three keyed lists rather than one with headings: a live event and a
+    {{-- Three groups rather than one list with headings: a live event and a
          finished one are different things to somebody standing at a start
          line, and the order is the information. --}}
-    <View :show="live().length > 0" class="mt-5 gap-2">
-      <Text testID="live-heading" class="text-xs font-semibold uppercase text-[#24724b] dark:text-[#9be579]">Live now</Text>
-      <Pressable :for="row in live()" :key="row.id" testID="live-row" class="rounded-xl bg-[#e4f1e7] dark:bg-[#183a28] p-3" @click="openEvent(row)">
-        <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
-        <Text class="text-xs text-[#1d5c3c] dark:text-emerald-200" :text="standing(row)" />
-        <Text :show="where(row)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="where(row)" />
-      </Pressable>
-    </View>
+    <GroupedList :show="live().length > 0" testID="live-heading" className="mt-6" title="Live now">
+      <GroupedListRow :for="(row, index) in live()" :key="row.id" testID="live-row" :title="row.name" :subtitle="standing(row)" :value="where(row)" :separator="index > 0" chevron @select="openEvent(row)" />
+    </GroupedList>
 
-    <View :show="upcoming().length > 0" class="mt-5 gap-2">
-      <Text testID="upcoming-heading" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Coming up</Text>
-      <Pressable :for="row in upcoming()" :key="row.id" testID="upcoming-row" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openEvent(row)">
-        <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
-        <Text class="text-xs text-[#253321] dark:text-[#e3ecdf]" :text="kind(row) + ' · ' + when(row)" />
-        <Text :show="where(row)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="where(row)" />
-        <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="standing(row)" />
-      </Pressable>
-    </View>
+    <GroupedList :show="upcoming().length > 0" testID="upcoming-heading" className="mt-6" title="Coming up">
+      <GroupedListRow :for="(row, index) in upcoming()" :key="row.id" testID="upcoming-row" :title="row.name" :subtitle="kind(row) + ' · ' + when(row)" :value="standing(row)" :separator="index > 0" chevron @select="openEvent(row)" />
+    </GroupedList>
 
-    <View :show="past().length > 0" class="mt-5 gap-2">
-      <Text testID="past-heading" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Finished</Text>
-      <Pressable :for="row in past()" :key="row.id" testID="past-row" class="rounded-xl bg-white dark:bg-[#1b2c22]/60 p-3" @click="openEvent(row)">
-        <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]" :text="row.name" />
-        <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="kind(row) + ' · ' + when(row)" />
-      </Pressable>
-    </View>
+    <GroupedList :show="past().length > 0" testID="past-heading" className="mt-6" title="Finished">
+      <GroupedListRow :for="(row, index) in past()" :key="row.id" testID="past-row" :title="row.name" :subtitle="kind(row) + ' · ' + when(row)" :separator="index > 0" chevron @select="openEvent(row)" />
+    </GroupedList>
 
-    <Text :show="!loading && !error && rows().length === 0" testID="events-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
-      No events of this kind yet.
-    </Text>
+    <EmptyState :show="!loading() && !error() && rows().length === 0" testID="events-empty" variant="bare" className="mt-6" title="No events of this kind yet." />
   </ScrollView>
-</SafeAreaView>
+</View>

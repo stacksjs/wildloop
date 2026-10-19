@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path'
  * config/stx.ts). Each family named here renders the same source on the web
  * and in the native screens.
  */
-const FAMILIES = ['dialog', 'segmented-control']
+const FAMILIES = ['dialog', 'segmented-control', 'choice-chips', 'grouped-list', 'empty-state', 'error-state']
 
 const ui = join(dirname(Bun.resolveSync('@stacksjs/components/stx-plugin', import.meta.dir)), 'src/ui')
 

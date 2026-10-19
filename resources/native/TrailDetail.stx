@@ -268,7 +268,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
     <Text :show="error" :text="error" :class="ui.caption" testID="trail-detail-error" />
     <View :show="trail()">
       <View class="mx-4 mt-4 gap-2">
-        <Text :text="trail()?.name" class="text-[28px] font-bold text-[#192414] dark:text-white" />
+        <Text :text="trail()?.name" class="text-[28px] font-bold text-fg" />
         <Text :text="trail()?.location" :class="ui.caption" />
         <Text :text="trail()?.difficultyLabel + ' · ' + (trail()?.routeType || 'Route type unrecorded')" :class="ui.caption" />
         <Text :text="trailStatsLine(trail())" :class="ui.body" />
@@ -295,10 +295,10 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
           <MapMarker :show="inspected()" id="elevation-point" title="Elevation position" :geometry="[inspected()?.lat, inspected()?.lng]" />
         </Map>
         <Button testID="trail-map-preview-expand" accessibilityLabel="Open interactive map" :class="ui.floating" class="absolute top-3 right-3" @click="craft.navigation.open('/trail/' + wanted + '/map')" title="Expand map" />
-          <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-white p-3 shadow-lg dark:bg-[#1b2c22]" testID="trail-floating-profile">
-        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-[#253321] dark:text-[#e3ecdf]" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
+          <View class="absolute bottom-5 left-3 right-3 rounded-[20px] bg-panel p-3 shadow-lg" testID="trail-floating-profile">
+        <View class="flex-row items-center justify-between"><Text :class="ui.caption">Elevation profile</Text><Button testID="trail-profile-toggle" class="h-11 min-w-[44px] text-[15px] font-semibold text-fg-strong" accessibilityLabel="Toggle elevation profile" :accessibilityValue="profileOpen() ? 'Elevation profile expanded' : 'Elevation profile collapsed'" @click="profileOpen.set(!profileOpen())" :text="profileOpen() ? 'Hide' : 'Show'" /></View>
           <View :show="profileOpen">
-        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full text-[#253321] dark:text-[#e3ecdf]" preserveAspectRatio="none">
+        <svg :show="profile().some(point => point.ft !== null)" viewBox="0 0 1000 108" class="h-16 w-full text-fg-strong" preserveAspectRatio="none">
           <path d="M8,54 L992,54 M8,104 L992,104" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="4 4" stroke-width="1" vector-effect="non-scaling-stroke" />
           <path :d="profilePath()" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
         </svg>
@@ -330,25 +330,25 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       </View>
       <Text :class="ui.header">Conditions</Text>
       <View :class="ui.card">
-        <Text :class="ui.title">Weather</Text>
+        <Text :class="ui.titleStrong">Weather</Text>
         <Text :show="!forecast()" :class="ui.caption">No forecast is available right now. Pull down to retry.</Text>
         <View :show="forecast()" class="gap-3 mt-2">
           <Text :show="forecast()?.current" :text="Math.round(forecast()?.current.temperature) + '°F, ' + forecast()?.current.label" :class="ui.body" />
           <Text :for="(day, index) in forecast()?.days ?? []" :key="day.date" :text="weatherLine(day, index)" :class="ui.body" />
           <Button @click="craft.linking.openURL(forecast()?.attribution.url)" :class="ui.caption" :text="forecast()?.attribution.label" />
         </View>
-        <Text class="mt-5" :class="ui.title">Surface types</Text>
+        <Text class="mt-5" :class="ui.titleStrong">Surface types</Text>
         <Text :for="surface in surfaces()" :key="surface.label" :text="surface.label" :class="ui.body" />
         <Text :show="!surfaces().length" :class="ui.caption">Surface information has not been recorded for this trail.</Text>
       </View>
       <Text :class="ui.header">Reviews</Text>
       <View :class="ui.card">
-        <Text :text="trail()?.reviewCount ? trail().rating.toFixed(1) + ' out of 5, ' + trail().reviewCount + ' reviews' : 'No ratings yet'" :class="ui.title" />
+        <Text :text="trail()?.reviewCount ? trail().rating.toFixed(1) + ' out of 5, ' + trail().reviewCount + ' reviews' : 'No ratings yet'" :class="ui.titleStrong" />
         <Button testID="trail-write-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.action" @click="editReview()" :title="loading() ? 'Loading your review…' : !viewerReady() ? 'Review unavailable' : ownReview() ? 'Edit your review' : 'Leave a review'" />
         <Button :show="ownReview()" testID="trail-delete-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.danger" @click="deleteReview()">Delete your review</Button>
         <Text :show="!reviews().length" :class="ui.caption">No reviews yet. Yours would be the first.</Text>
         <View :for="review in reviews()" :key="review.id" class="mt-5 gap-2">
-          <Text :text="review.userName + (Number(review.userId) === viewer() ? ' (your review)' : '')" :class="ui.title" />
+          <Text :text="review.userName + (Number(review.userId) === viewer() ? ' (your review)' : '')" :class="ui.titleStrong" />
           <Text :text="review.rating + ' out of 5 stars' + (review.visitDate ? ', visited ' + review.visitDate : '')" :class="ui.caption" />
           <Text :text="review.content" :class="ui.body" />
           <Text :show="review.conditions" :text="'Conditions: ' + review.conditions" :class="ui.caption" />
@@ -358,7 +358,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
     </View>
   </ScrollView>
   <Text :show="notice" :text="notice" :class="ui.caption" class="mx-4 my-2" testID="trail-notice" />
-  <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-white dark:bg-[#1b2c22]" testID="trail-sticky-actions">
+  <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-panel" testID="trail-sticky-actions">
     <Button testID="trail-save" class="flex-1" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()" :title="saved() ? 'Saved' : 'Save'" :accessibilityHint="!loading() && !viewerReady() ? 'Your saved trail status is unavailable. Pull down to retry.' : ''" />
     <Button testID="trail-directions" class="flex-1" :class="ui.secondary" @click="directions()">Directions</Button>
     <Button testID="trail-share" class="flex-1" :class="ui.secondary" @click="shareTrail()">Share</Button>
@@ -366,9 +366,9 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
   <Modal :visible="composer" presentationStyle="pageSheet" @requestClose="composer.set(false)" testID="trail-review-composer">
     <KeyboardAvoidingView :class="ui.screen">
       <ScrollView class="flex-1 p-4 gap-2" keyboardDismissMode="on-drag">
-        <Text :class="ui.title">Your trail review</Text>
+        <Text :class="ui.titleStrong">Your trail review</Text>
         <Text :class="ui.caption">Rating</Text>
-        <View class="flex-row gap-2" testID="trail-review-rating"><Pressable :for="stars in [1,2,3,4,5]" :key="stars" :testID="'trail-review-star-' + stars" :accessibilityLabel="'Rate ' + stars + ' out of 5 stars'" :accessibilityState="{selected:rating()===stars}" class="h-11 w-11 items-center justify-center" @click="rating.set(stars)"><Icon :name="rating() >= stars ? 'star.fill' : 'star'" class="h-8 w-8 text-[#24724b] dark:text-[#9be579]" /></Pressable></View>
+        <View class="flex-row gap-2" testID="trail-review-rating"><Pressable :for="stars in [1,2,3,4,5]" :key="stars" :testID="'trail-review-star-' + stars" :accessibilityLabel="'Rate ' + stars + ' out of 5 stars'" :accessibilityState="{selected:rating()===stars}" class="h-11 w-11 items-center justify-center" @click="rating.set(stars)"><Icon :name="rating() >= stars ? 'star.fill' : 'star'" class="h-8 w-8 text-accent" /></Pressable></View>
         <Text :class="ui.caption" :text="rating() ? rating() + ' out of 5 stars' : 'Choose a rating'" />
         <Text :class="ui.caption">What should others know?</Text>
         <TextInput testID="trail-review-content" :class="ui.input + ' min-h-[120px]'" :value="content" :multiline="true" :maxLength="2000" @input="content.set(textOf($event))" accessibilityLabel="What should others know?" />

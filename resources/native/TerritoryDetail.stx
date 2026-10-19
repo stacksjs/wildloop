@@ -191,66 +191,66 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { territory.set(null); battles.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="territory-detail-scroll">
     <ActivityIndicator :show="loading" testID="detail-loading" class="mt-6" />
-    <Text :show="error" testID="detail-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <ErrorState :show="error()" testID="detail-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
 
     <View :show="missing" testID="detail-missing" class="mt-6 gap-3">
-      <Text class="text-lg font-semibold text-[#192414] dark:text-[#f0f5ec]">No such territory</Text>
-      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">It may have been decayed or never claimed.</Text>
+      <Text class="text-lg font-semibold text-fg">No such territory</Text>
+      <Text class="text-sm text-fg-muted">It may have been decayed or never claimed.</Text>
       <Button testID="back-to-territories" @click="backToList()">See the territory map</Button>
     </View>
 
     <View :show="territory()" testID="detail-body" class="gap-4">
       <View class="gap-1">
-        <Text testID="detail-name" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="name()" />
-        <Text testID="detail-holder" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="holderText()" />
+        <Text testID="detail-name" class="text-2xl font-bold text-fg" :text="name()" />
+        <Text testID="detail-holder" class="text-sm text-fg-muted" :text="holderText()" />
         <View class="mt-1 flex-row gap-2">
-          <Text testID="detail-mine" class="text-xs font-semibold uppercase text-[#24724b] dark:text-[#9be579]" :text="mineText()" />
-          <Text testID="detail-standing" class="text-xs font-semibold uppercase text-[#8a5300] dark:text-amber-400" :text="standingText()" />
+          <Text testID="detail-mine" class="text-xs font-semibold uppercase text-accent" :text="mineText()" />
+          <Text testID="detail-standing" class="text-xs font-semibold uppercase text-warning" :text="standingText()" />
         </View>
       </View>
 
       {{-- The zone itself. `fitToBounds` frames the boundary, which is the only
            thing drawn, so the map opens on the ground rather than the ocean. --}}
-      <View :show="shape().length > 0" testID="detail-map-frame" class="h-56 overflow-hidden rounded-2xl bg-white dark:bg-[#1b2c22]">
+      <View :show="shape().length > 0" testID="detail-map-frame" class="h-56 overflow-hidden rounded-2xl bg-panel">
         <Map testID="detail-map" class="flex-1" :fitToBounds="true" mapType="standard">
           <MapPolyline :geometry="shape()" :strokeColor="shapeColor()" :strokeWidth="3" />
         </Map>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Ground</Text>
-          <Text testID="detail-area" class="text-xl font-bold text-[#24724b] dark:text-[#9be579]" :text="areaText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Ground</Text>
+          <Text testID="detail-area" class="text-xl font-bold text-accent" :text="areaText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Conquests</Text>
-          <Text testID="detail-conquests" class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="conquestsText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Conquests</Text>
+          <Text testID="detail-conquests" class="text-xl font-bold text-fg" :text="conquestsText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Defenses</Text>
-          <Text testID="detail-defences" class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="defencesText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Defenses</Text>
+          <Text testID="detail-defences" class="text-xl font-bold text-fg" :text="defencesText()" />
         </View>
       </View>
 
       <Button testID="territory-action" @click="openRecord()" :text="actionText()" />
 
-      <Pressable :show="territory()?.userId > 0" testID="detail-owner" @click="openOwner()" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Holder</Text>
-        <Text testID="detail-owner-name" class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="territory()?.ownerName" />
+      <Pressable :show="territory()?.userId > 0" testID="detail-owner" @click="openOwner()" class="rounded-xl bg-panel p-3">
+        <Text class="text-xs uppercase text-fg-soft">Holder</Text>
+        <Text testID="detail-owner-name" class="text-sm font-semibold text-fg" :text="territory()?.ownerName" />
       </Pressable>
 
       <View :show="history().length > 0" testID="detail-history" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">How it changed hands</Text>
-        <View :for="battle in history()" :key="battle.id" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text testID="history-line" class="flex-1 text-sm text-[#192414] dark:text-[#f0f5ec]" :text="eventText(battle)" />
-          <Text testID="history-badge" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="eventBadge(battle)" />
+        <Text class="text-xs font-semibold uppercase text-fg-soft">How it changed hands</Text>
+        <View :for="battle in history()" :key="battle.id" class="flex-row justify-between rounded-xl bg-panel p-3">
+          <Text testID="history-line" class="flex-1 text-sm text-fg" :text="eventText(battle)" />
+          <Text testID="history-badge" class="text-xs text-fg-muted" :text="eventBadge(battle)" />
         </View>
       </View>
 
-      <Text :show="history().length === 0" testID="detail-no-history" class="text-sm text-[#64745f] dark:text-[#91a28b]">Nobody has fought over this ground yet.</Text>
+      <Text :show="history().length === 0" testID="detail-no-history" class="text-sm text-fg-soft">Nobody has fought over this ground yet.</Text>
     </View>
   </ScrollView>
-</SafeAreaView>
+</View>

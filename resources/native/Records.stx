@@ -134,18 +134,18 @@ onDestroy(() => {
 })
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="records-scroll">
-    <Text class="text-3xl font-bold text-[#192414] dark:text-[#f0f5ec]">Fastest known times</Text>
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Verified and pending claims across the catalog.</Text>
+    <Text class="text-3xl font-bold text-fg">Fastest known times</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Verified and pending claims across the catalog.</Text>
 
     <View class="mt-4 gap-2">
-      <Text testID="style-filter" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="styleLabel()" />
+      <Text testID="style-filter" class="text-sm text-fg-strong" :text="styleLabel()" />
       <Button testID="cycle-style" @click="cycleStyle()">Change style</Button>
     </View>
 
     <ActivityIndicator :show="loading" testID="records-loading" class="mt-6" />
-    <Text :show="error" testID="records-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
+    <ErrorState :show="error()" testID="records-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
 
     {{--
       Keep this as a keyed :for inside ScrollView. FlatList's legacy item
@@ -153,20 +153,18 @@ onDestroy(() => {
       keyed identity, event scope, and scroll preservation on this path.
     --}}
     <View testID="records-list" class="mt-5 gap-3">
-      <Pressable :for="row in rows()" :key="row.id" testID="record-row" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3" @click="openEffort(row.id)">
-        <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.trailName" />
-        <Text :show="row.where" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="row.where" />
+      <Pressable :for="row in rows()" :key="row.id" testID="record-row" class="rounded-xl bg-panel p-3" @click="openEffort(row.id)">
+        <Text class="text-base font-semibold text-fg" :text="row.trailName" />
+        <Text :show="row.where" class="text-xs text-fg-muted" :text="row.where" />
         <View class="mt-2 flex-row items-baseline gap-2">
-          <Text class="text-xl font-bold text-[#24724b] dark:text-[#9be579]" :text="row.elapsed" />
-          <Text :show="row.pace" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="row.pace" />
+          <Text class="text-xl font-bold text-accent" :text="row.elapsed" />
+          <Text :show="row.pace" class="text-xs text-fg-muted" :text="row.pace" />
         </View>
-        <Text class="mt-1 text-xs text-[#253321] dark:text-[#e3ecdf]" :text="row.who + ' · ' + row.kind" />
-        <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="row.status" />
+        <Text class="mt-1 text-xs text-fg-strong" :text="row.who + ' · ' + row.kind" />
+        <Text class="text-xs text-fg-soft" :text="row.status" />
       </Pressable>
     </View>
 
-    <Text :show="!loading && !error && rows().length === 0" testID="records-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
-      No claims match this style yet.
-    </Text>
+    <EmptyState :show="!loading && !error && rows().length === 0" testID="records-empty" variant="bare" className="mt-6" title="No claims match this style yet." />
   </ScrollView>
-</SafeAreaView>
+</View>

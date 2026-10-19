@@ -3,7 +3,7 @@ const label = $props.label ?? ''
 const testID = $props.testID ?? ''
 </script>
 
-<View class="rounded-xl bg-[#e4f1e7] dark:bg-[#183a28] p-3" testID="{{ testID }}">
-  <Text class="text-xs text-[#1d5c3c] dark:text-emerald-300">{{ label }}</Text>
+<View class="rounded-xl bg-accent-soft p-3" testID="{{ testID }}">
+  <Text class="text-xs text-accent-soft-ink">{{ label }}</Text>
   <slot />
 </View>

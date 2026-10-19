@@ -153,46 +153,46 @@ onDestroy(() => {
 onMount(() => onNativeAccountChange(craft, () => { stats.set(null); activities.set([]); void load() }))
 </script>
 
-<SafeAreaView class="flex-1 bg-[#f2f4ef] dark:bg-[#101c16]">
+<View class="flex-1 bg-page">
   <ScrollView class="p-4" testID="stats-scroll">
-    <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">Your training, folded from everything you record.</Text>
+    <Text class="mt-1 text-sm text-fg-muted">Your training, folded from everything you record.</Text>
 
     <ActivityIndicator :show="loading" testID="stats-loading" class="mt-6" />
-    <Text :show="error" testID="stats-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="stats-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your training stats.</Text>
+    <ErrorState :show="error()" testID="stats-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
+    <Text :show="signedOut" testID="stats-signed-out" class="mt-4 text-warning">Sign in to see your training stats.</Text>
     <Button :show="signedOut" testID="stats-sign-in" @click="craft.navigation.open('/login?next=/stats')">Sign in</Button>
 
     <View :show="stats()" testID="stats-body" class="mt-5 gap-4">
       <SegmentedControl testID="stats-period" label="Period" stretch v-model:value="chosenPeriod" :options="PERIOD_OPTIONS" />
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Miles</Text>
-          <Text testID="stat-miles" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="milesText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Miles</Text>
+          <Text testID="stat-miles" class="text-2xl font-bold text-fg" :text="milesText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Climbing</Text>
-          <Text testID="stat-elevation" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="elevationText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Climbing</Text>
+          <Text testID="stat-elevation" class="text-2xl font-bold text-fg" :text="elevationText()" />
         </View>
       </View>
 
       <View class="flex-row gap-2">
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Activities</Text>
-          <Text testID="stat-activities" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="activitiesText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Activities</Text>
+          <Text testID="stat-activities" class="text-base font-semibold text-fg" :text="activitiesText()" />
         </View>
-        <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Day streak</Text>
-          <Text testID="stat-streak" class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="streakText()" />
-          <Text testID="stat-best-streak" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="bestStreakText()" />
+        <View class="flex-1 rounded-xl bg-panel p-3">
+          <Text class="text-xs uppercase text-fg-soft">Day streak</Text>
+          <Text testID="stat-streak" class="text-base font-semibold text-fg" :text="streakText()" />
+          <Text testID="stat-best-streak" class="text-xs text-fg-muted" :text="bestStreakText()" />
         </View>
       </View>
 
       {{-- Six weeks of history. A week that was run always gets a sliver; a
            week nobody ran gets no bar, which is the honest shape of it. --}}
       <View :show="hasWeekChart()" testID="week-chart" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Last six weeks</Text>
-        <View class="h-20 w-full rounded-xl bg-white dark:bg-[#1b2c22] p-2">
+        <Text class="text-xs font-semibold uppercase text-fg-soft">Last six weeks</Text>
+        <View class="h-20 w-full rounded-xl bg-panel p-2">
           <svg :viewBox="chartBox()" class="h-full w-full">
             <rect :for="bar in bars()" :key="bar.week" :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" fill="#34d399" />
           </svg>
@@ -200,12 +200,12 @@ onMount(() => onNativeAccountChange(craft, () => { stats.set(null); activities.s
       </View>
 
       <View :show="breakdown().length > 0" testID="breakdown" class="gap-2">
-        <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">What you do</Text>
-        <View :for="row in breakdown()" :key="row.type" class="flex-row justify-between rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-sm text-[#192414] dark:text-[#f0f5ec]" :text="row.label" />
-          <Text testID="breakdown-count" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="breakdownText(row)" />
+        <Text class="text-xs font-semibold uppercase text-fg-soft">What you do</Text>
+        <View :for="row in breakdown()" :key="row.type" class="flex-row justify-between rounded-xl bg-panel p-3">
+          <Text class="text-sm text-fg" :text="row.label" />
+          <Text testID="breakdown-count" class="text-sm text-fg-muted" :text="breakdownText(row)" />
         </View>
       </View>
     </View>
   </ScrollView>
-</SafeAreaView>
+</View>

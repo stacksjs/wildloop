@@ -50,13 +50,13 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); profile.set(n
     <ActivityIndicator :show="loading" />
     <Text :show="error" :text="error" :class="ui.danger" class="m-4" />
     <View :show="!user() && !loading()" :class="ui.card" class="mt-4">
-      <Text :class="ui.title">Your miles, trails, and territory</Text>
+      <Text :class="ui.titleStrong">Your miles, trails, and territory</Text>
       <Button :class="ui.action" @click="craft.navigation.open('/login?next=/profile')" title="Log in" />
     </View>
     <View :show="user()">
       <View :class="ui.card" class="mt-4 gap-3">
         <Image :show="user()?.avatar" :source="{uri:nativeImageUrl(craft, user()?.avatar)}" class="h-20 w-20 rounded-full" />
-        <Text :text="user()?.name || ''" :class="ui.title" />
+        <Text :text="user()?.name || ''" :class="ui.titleStrong" />
         <Text :show="user()?.bio" :text="user()?.bio || ''" :class="ui.body" />
         <Text :show="user()?.location" :text="user()?.location || ''" :class="ui.caption" />
         <Text :show="profile()" :text="(profile()?.stats?.activityCount || 0) + ' activities · ' + (profile()?.stats?.totalDistance || 0) + ' mi · ' + (profile()?.stats?.territoriesOwned || 0) + ' territories'" :class="ui.body" />
@@ -67,14 +67,14 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); profile.set(n
       <View :show="tab() === 'activities'">
         <Text :show="!activities().length" :class="ui.caption" class="m-4">No activities yet. Record one or log a past activity.</Text>
         <Pressable :for="activity in activities()" :key="activity.id" :class="ui.card" class="mt-3 gap-2" @click="craft.navigation.open('/activity/' + activity.id)">
-          <Text :text="activity.title || activity.activityType" :class="ui.title" />
+          <Text :text="activity.title || activity.activityType" :class="ui.titleStrong" />
           <Text :text="activity.distance + ' mi · ' + activity.duration" :class="ui.body" />
         </Pressable>
       </View>
       <View :show="tab() === 'saved'">
         <Text :show="!saved().length" :class="ui.caption" class="m-4">Save a trail to find it here before your next visit.</Text>
         <Pressable :for="entry in saved()" :key="entry.trailId" :class="ui.card" class="mt-3 gap-2" @click="craft.navigation.open('/trail/' + entry.trailId)">
-          <Text :text="entry.trail.name" :class="ui.title" />
+          <Text :text="entry.trail.name" :class="ui.titleStrong" />
           <Text :text="entry.trail.location + ' · ' + entry.trail.distance + ' mi'" :class="ui.caption" />
         </Pressable>
       </View>

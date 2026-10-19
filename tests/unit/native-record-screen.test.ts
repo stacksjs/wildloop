@@ -70,6 +70,31 @@ describe('native Record checkpoint recovery',()=>{
   })
 
   /*
+   * The shell prepares this tab hidden beside the Feed at launch. Its guard
+   * ran there and pushed Login over the Feed, which is what the navigation
+   * journey caught on the simulator: a hidden screen sends nobody anywhere,
+   * and asks when it is shown.
+   */
+  it('waits until the prepared tab is shown before sending anybody to log in',async()=>{
+    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{__stxNativeFocused:false})
+    const answerKeychain=async()=>{
+      for(let attempt=0;attempt<40;attempt++){
+        for(const request of requests(screen).filter((r:any)=>r.payload.module==='SecureStorage' && !r.answered)){
+          ;(request as any).answered=true
+          answer(screen,request,null)
+        }
+        await Bun.sleep(1)
+      }
+    }
+    await answerKeychain()
+    expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN')).toBe(false)
+
+    screen.receive({type:'SCREEN_FOCUS',payload:{focused:true}})
+    await answerKeychain()
+    expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=/record')).toBe(true)
+  })
+
+  /*
    * A retained recording was started by somebody who was signed in. Bouncing
    * them to a login screen is how a run gets lost, so the guard stands aside
    * while one is held.
