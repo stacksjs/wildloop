@@ -173,8 +173,16 @@ export function createNativeApi(host: NativeApiHost, origin = nativeApiOrigin(ho
 }
 
 /** Clear private screen state immediately when a warm tab changes accounts. */
+/**
+ * The signed-in account's id, or 0 — read from the snapshot the session keeps,
+ * not the keychain, so a screen can branch on it while it is still rendering.
+ */
+export function nativeAccountId(host: Pick<NativeApiHost, 'snapshots'>): number {
+  return Number((host.snapshots?.get('wildloop-session') as { user?: { id?: number } } | null)?.user?.id) || 0
+}
+
 export function onNativeAccountChange(host: NativeApiHost, clear: () => void): () => void {
-  const owner = (): number => Number((host.snapshots?.get('wildloop-session') as {user?:{id?:number}} | null)?.user?.id) || 0
+  const owner = (): number => nativeAccountId(host)
   let previous = owner()
   return host.snapshots?.onChange?.((name) => {
     if (name !== 'wildloop-session') return
