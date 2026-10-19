@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { createNativeApi, loadOutcome, nativeHeaders, WILDLOOP_ORIGIN } from '../../resources/functions/native-api'
+import { createNativeApi, loadOutcome, nativeApiOrigin, nativeHeaders, nativeImageUrl, WILDLOOP_ORIGIN } from '../../resources/functions/native-api'
 
 /**
  * The request skeleton twelve native screens were each holding a copy of.
@@ -74,6 +74,48 @@ describe('nativeHeaders', () => {
   it('declares a JSON body only when there is one', () => {
     expect(nativeHeaders('tok', false)).not.toHaveProperty('Content-Type')
     expect(nativeHeaders('tok', true)).toMatchObject({ 'Content-Type': 'application/json' })
+  })
+})
+
+describe('nativeImageUrl', () => {
+  const local = { app: { url: 'http://localhost:3000/feed' } }
+
+  /*
+   * The bug this was written for, seen on a device on 19 Oct 2026: Athletes
+   * and Leaderboard passed `/api/avatars/7/….jpg` straight to `<Image>`.
+   * Craft reads a schemeless source as a *bundled asset name*, not a URL
+   * (`updateImage`: `if !uri.contains(":")` → `UIImage(named:)`), so the face
+   * never loaded — and because `:show` saw a non-empty string, the initial
+   * that should have stood in was hidden too. A blank circle, on every row.
+   */
+  it('joins a server path to the origin the app is pointed at', () => {
+    expect(nativeImageUrl(local, '/api/avatars/7/a-b.jpg')).toBe('http://localhost:3000/api/avatars/7/a-b.jpg')
+  })
+
+  it('points at production when the app declares no url', () => {
+    expect(nativeImageUrl({}, '/api/avatars/7/a-b.jpg')).toBe(`${WILDLOOP_ORIGIN}/api/avatars/7/a-b.jpg`)
+    expect(nativeImageUrl({}, '/api/avatars/7/a-b.jpg').startsWith(nativeApiOrigin({}))).toBe(true)
+  })
+
+  /*
+   * Anything already carrying a scheme is somebody else's URL — an avatar
+   * hosted elsewhere, a preview the page made. Joining an origin to it would
+   * produce a path that resolves nowhere.
+   */
+  it('leaves an absolute url alone', () => {
+    expect(nativeImageUrl(local, 'https://cdn.example.com/face.jpg')).toBe('https://cdn.example.com/face.jpg')
+    expect(nativeImageUrl(local, 'blob:abc')).toBe('blob:abc')
+    expect(nativeImageUrl(local, 'data:image/png;base64,AA')).toBe('data:image/png;base64,AA')
+  })
+
+  /*
+   * Nothing in, nothing out — the empty string is what `:show` reads to decide
+   * the initial stands in instead, so it must survive the trip.
+   */
+  it('answers nothing for a missing photo', () => {
+    expect(nativeImageUrl(local, null)).toBe('')
+    expect(nativeImageUrl(local, undefined)).toBe('')
+    expect(nativeImageUrl(local, '   ')).toBe('')
   })
 })
 

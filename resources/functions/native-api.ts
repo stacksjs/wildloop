@@ -67,6 +67,34 @@ export function nativeApiOrigin(host: Pick<NativeApiHost, 'app'>): string {
   return /^https?:\/\/[^/?#]+/i.exec(host.app?.url ?? '')?.[0] ?? WILDLOOP_ORIGIN
 }
 
+/**
+ * An image URL a native screen can actually load.
+ *
+ * A browser resolves `/api/avatars/7/….jpg` against the page it came from. A
+ * native screen has no page, and Craft does not treat a schemeless source as a
+ * URL at all: `updateImage` falls through to `if !uri.contains(":")` and asks
+ * `UIImage(named:)` for a **bundled asset** of that name
+ * (CraftNativeScreen.swift). So a relative path fails as "Bundled image was
+ * not found" — it is never fetched, and no amount of waiting helps.
+ *
+ * Six screens wrote this check inline. Athletes and Leaderboard did not, and
+ * showed a blank circle where a face belongs: `:show` on the image sees a
+ * non-empty string, renders an image that cannot load, and hides the initial
+ * that would otherwise have stood in. Found on a device, 19 Oct 2026.
+ *
+ * Only a server path is joined: anything already carrying a scheme (`https:`,
+ * `blob:`, `data:`) is returned untouched. This is for URLs the API answered
+ * with. A path the device gave us — the photo a viewer just picked, which is
+ * an absolute `/private/var/…` and would be joined just the same — is handed
+ * to the image view directly instead, never through here.
+ */
+export function nativeImageUrl(host: Pick<NativeApiHost, 'app'>, url: string | null | undefined): string {
+  const value = String(url ?? '').trim()
+  if (!value || !value.startsWith('/'))
+    return value
+  return nativeApiOrigin(host) + value
+}
+
 export interface NativeApi {
   /** The stored bearer token, cached only within the current native account session. */
   readToken: () => Promise<string>

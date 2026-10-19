@@ -8,6 +8,7 @@ import {
   followRequest,
 } from '../functions/athletes'
 import { avatarInitial, avatarUrl } from '../functions/avatars'
+import { nativeImageUrl } from '../functions/native-api'
 
 /*
  * The athlete directory, natively.
@@ -59,7 +60,7 @@ function stats(row: any): string {
 }
 
 function photo(row: any): string {
-  return avatarUrl(row?.avatar ?? null)
+  return nativeImageUrl(craft, avatarUrl(row?.avatar ?? null))
 }
 
 function initial(row: any): string {

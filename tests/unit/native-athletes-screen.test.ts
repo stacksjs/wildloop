@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeNodeProps, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { athleteStatsLine } from '../../resources/functions/athletes'
 
 /**
@@ -18,8 +18,8 @@ const SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Athlet
 const ATHLETES = {
   success: true,
   athletes: [
-    { id: 9, name: 'Harvey Lewis', avatar: null, nearYou: false, activityCount: 6, followerCount: 4, territoriesOwned: 3, totalAreaOwned: 3_030_000 },
-    { id: 12, name: 'Kim Gottwald', avatar: null, nearYou: false, activityCount: 5, followerCount: 3, territoriesOwned: 0, totalAreaOwned: 0 },
+    { id: 9, name: 'Harvey Lewis', avatar: '/api/avatars/9/0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9.jpg', nearYou: false, activityCount: 6, followerCount: 4, territoriesOwned: 3, totalAreaOwned: 3_030_000 },
+    { id: 12, name: 'Kim Gottwald', avatar: '/api/avatars/12/1b2c3d4e-5f60-7182-93a4-b5c6d7e8f901.jpg', nearYou: false, activityCount: 5, followerCount: 3, territoriesOwned: 0, totalAreaOwned: 0 },
   ],
 }
 
@@ -55,6 +55,28 @@ describe('Wildloop native athletes screen', () => {
   it('renders through the portable keyed boundary', () => {
     expect(SOURCE).toContain('<View :for="row in rows()" :key="row.id"')
     expect(SOURCE).not.toContain('<FlatList')
+  })
+
+  /*
+   * Seen on a device, 19 Oct 2026: every face in this list was a blank circle.
+   * `avatarUrl` answers the app's own path, `/api/avatars/9/….jpg`, which a
+   * browser resolves against the page it came from. A native screen has no
+   * page, and Craft does not treat a schemeless source as a URL at all — it
+   * asks `UIImage(named:)` for a bundled asset of that name and gives up. The
+   * initial that should have stood in was hidden too, because `:show` on the
+   * image only asks whether the string is empty.
+   *
+   * Asserted on the source the host was handed, not on whether an image
+   * appeared: the fixture has no network, so a URL is as far as a test can
+   * follow this.
+   */
+  it('hands the host an avatar url the device can actually fetch', async () => {
+    const screen = await directory()
+    // `nativeNodeProps` answers for the last row carrying that testID, so both
+    // rows have a photo: whichever one it lands on has to be fetchable.
+    const source = String(nativeNodeProps(screen, 'athlete-avatar').source ?? '')
+    expect(source).toMatch(/^https?:\/\//)
+    expect(source).toEndWith('/api/avatars/12/1b2c3d4e-5f60-7182-93a4-b5c6d7e8f901-thumb.jpg')
   })
 
   it('reads who the viewer follows before offering to follow anybody', async () => {

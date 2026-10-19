@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeNodeProps, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { avatarUrl } from '../../resources/functions/avatars'
 import { leaderMetricText, leaderSecondaryText, metricPhrase, periodPhrase } from '../../resources/functions/leaderboard'
 
@@ -67,6 +67,14 @@ describe('Wildloop native leaderboard screen', () => {
     // default. Composed from the helper so the two cannot drift.
     expect(shownText(screen).some(text => text.includes(avatarUrl(AVATAR)))).toBe(true)
     expect(avatarUrl(AVATAR)).toContain('-thumb.jpg')
+    // …and it has to be a url, not just the right path. This assertion is the
+    // half that was missing: on a device, 19 Oct 2026, every face here was a
+    // blank circle, because Craft reads a schemeless source as the name of a
+    // bundled asset rather than something to fetch. The line above passed the
+    // whole time.
+    const source = String(nativeNodeProps(screen, 'leader-avatar').source ?? '')
+    expect(source).toMatch(/^https?:\/\//)
+    expect(source).toEndWith(avatarUrl(AVATAR))
     // The anonymous row has no photo, so it shows an initial instead.
     expect(texts).toContain('A')
   })

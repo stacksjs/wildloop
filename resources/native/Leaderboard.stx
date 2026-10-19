@@ -1,6 +1,6 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin, nativeImageUrl } from '../functions/native-api'
 import { avatarInitial, avatarUrl } from '../functions/avatars'
 import {
   LEADERBOARD_METRICS,
@@ -86,7 +86,7 @@ function secondary(row: any): string {
  * mobile data. An account with no photo answers '' and gets its initial.
  */
 function photo(row: any): string {
-  return avatarUrl(row?.userAvatar ?? null)
+  return nativeImageUrl(craft, avatarUrl(row?.userAvatar ?? null))
 }
 
 function initial(row: any): string {

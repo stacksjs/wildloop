@@ -1,6 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../functions/native-api'
 import { exportNativeGpx } from '../functions/native-export'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
@@ -26,7 +26,7 @@ const editDuration = state('')
 const own = derived(()=>viewer()>0 && viewer()===Number(activity()?.userId))
 let alive = true
 function route(): number[] { return (activity()?.route ?? []).flatMap((point: any) => Array.isArray(point) ? point : [point.lat, point.lng]) }
-function photoUrl(photo: any): string { return String(photo.url ?? '').startsWith('/') ? nativeApiOrigin(craft) + photo.url : photo.url }
+function photoUrl(photo: any): string { return nativeImageUrl(craft, photo.url) }
 let loadVersion = 0
 async function load() {
   const currentLoad = ++loadVersion

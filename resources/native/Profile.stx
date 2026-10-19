@@ -1,6 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../functions/native-api'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
@@ -55,7 +55,7 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); profile.set(n
     </View>
     <View :show="user()">
       <View :class="ui.card" class="mt-4 gap-3">
-        <Image :show="user()?.avatar" :source="{uri:String(user()?.avatar ?? '').startsWith('/') ? nativeApiOrigin(craft)+user()?.avatar : user()?.avatar}" class="h-20 w-20 rounded-full" />
+        <Image :show="user()?.avatar" :source="{uri:nativeImageUrl(craft, user()?.avatar)}" class="h-20 w-20 rounded-full" />
         <Text :text="user()?.name || ''" :class="ui.title" />
         <Text :show="user()?.bio" :text="user()?.bio || ''" :class="ui.body" />
         <Text :show="user()?.location" :text="user()?.location || ''" :class="ui.caption" />

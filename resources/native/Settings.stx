@@ -1,6 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, nativeApiOrigin, nativeImageUrl } from '../functions/native-api'
 import { clearNativeSession, storeNativeSession } from '../functions/native-session'
 import { nativeOAuthCallback } from '../functions/native-oauth'
 import { formatHealthSummary } from '../functions/health-summary'
@@ -198,7 +198,7 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
     <View :show="user()">
       <Text :class="ui.header">Profile</Text>
       <View :class="ui.card" class="gap-3">
-        <Image :show="user()?.avatar" :source="{uri:String(user()?.avatar ?? '').startsWith('/') ? nativeApiOrigin(craft)+user()?.avatar : user()?.avatar}" class="h-20 w-20 rounded-full" />
+        <Image :show="user()?.avatar" :source="{uri:nativeImageUrl(craft, user()?.avatar)}" class="h-20 w-20 rounded-full" />
         <Button :disabled="busy" @click="uploadAvatar()">Change profile photo</Button>
         <Button :show="user()?.avatar" :disabled="busy" @click="removeAvatar()">Remove photo</Button>
         <Text :class="ui.caption">Name</Text><TextInput testID="settings-name" accessibilityLabel="Name" :class="ui.input" :value="name" @input="name.set(field($event))" />

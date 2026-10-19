@@ -1,6 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../functions/native-api'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { routeShapeFor } from '../functions/route-shape'
@@ -19,8 +19,7 @@ let loadVersion = 0
 const shown = derived(() => rows())
 function shape(row: any): string { return routeShapeFor(row.route, 320, 140, 12)?.points ?? '' }
 function photo(row: any): string {
-  const url = row.photo?.url || ''
-  return url.startsWith('/') ? nativeApiOrigin(craft) + url : url
+  return nativeImageUrl(craft, row.photo?.url)
 }
 async function load(more = false) {
   const currentLoad = ++loadVersion

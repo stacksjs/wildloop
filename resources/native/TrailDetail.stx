@@ -1,6 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
-import { onNativeAccountChange, createNativeApi, loadOutcome, nativeApiOrigin } from '../functions/native-api'
+import { onNativeAccountChange, createNativeApi, loadOutcome, nativeImageUrl } from '../functions/native-api'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
@@ -67,8 +67,8 @@ const photos = derived(() => trailGallery(trail(),reviews()))
 
 function textOf(event: any): string { return String(event?.text ?? '') }
 function profilePath(): string { return trailProfilePath(profile()) }
-function photoUrls(row: any): string[] { return parsePhotoList(row.photos).map(url=>url.startsWith('/') ? nativeApiOrigin(craft)+url : url) }
-function photoUrl(url:string):string {return url.startsWith('/') ? nativeApiOrigin(craft)+url : url}
+function photoUrls(row: any): string[] { return parsePhotoList(row.photos).map(url=>nativeImageUrl(craft, url)) }
+function photoUrl(url:string):string { return nativeImageUrl(craft, url) }
 function weatherLine(day: any, index: number): string {
   return `${forecastDayLabel(day.date, index)}: ${day.label}, ${Math.round(day.low)} to ${Math.round(day.high)}°F`
 }
