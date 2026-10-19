@@ -64,10 +64,30 @@ function choosePlace(place: any) {
   region.set({center:{latitude:place.lat,longitude:place.lng},span:{latitudeDelta:0.025,longitudeDelta:0.025}})
   places.set([])
 }
-async function locate() {
+/*
+ * Framing this map on the device was tried and reverted. Asking for a position
+ * on mount makes iOS put up the location prompt the moment somebody opens a
+ * route planner, explained by the app's purpose string — "Wildloop uses your
+ * location while you record an activity" — which is not why this screen would
+ * be asking. An uninvited permission dialog carrying the wrong reason is worse
+ * than a map that starts zoomed out, so the planner keeps opening on
+ * `initialRegion` (the centre of the contiguous United States, 30x60 degrees)
+ * and "My location" does the asking, in context, after a tap.
+ *
+ * Doing it properly needs the host to answer whether location is *already*
+ * granted, so the map could centre silently for somebody who has allowed it
+ * and stay put for everybody else. `CraftNativeScreen.swift` has that check
+ * (`locationPermissionGranted`) and keeps it to itself.
+ */
+async function locate(): Promise<void> {
   try {
     if (!craft.location) throw new Error('Location is unavailable in this app build.')
     const point = await craft.location.getCurrentPosition({enableHighAccuracy:true,timeout:15000})
+    // A refused position resolves with an object carrying no coordinates, and
+    // a NaN centre sends the camera nowhere at all — the same trap the
+    // territory map fell into when it sent the server `min_lat=NaN`.
+    if (!Number.isFinite(point?.latitude) || !Number.isFinite(point?.longitude))
+      throw new Error('Your position could not be found.')
     region.set({center:{latitude:point.latitude,longitude:point.longitude},span:{latitudeDelta:0.025,longitudeDelta:0.025}})
   }
   catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your position could not be found.') }
@@ -184,7 +204,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{accountGeneration++;editGeneration+
     <View :class="ui.card" class="mt-3 gap-3">
       <Text :text="distance().toFixed(2) + ' mi' + (elevation() === null ? '' : ' · ' + Math.round(elevation()) + ' ft gain')" :class="ui.title" />
       <Button :show="seedParts().length > 1" :class="ui.secondary" :title="'Trail section' + ': ' + nativeChoiceLabel(seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index})),selectedPart())" accessibilityLabel="Trail section" :accessibilityValue="nativeChoiceLabel(seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index})),selectedPart())" @click="chooseNativeChoice(craft,'Trail section',seedParts().map((part,index)=>({label:'Section ' + (index+1),value:index})),choice=>{selectSeed(Number(choice))},message=>error.set(message))" />
-      <View class="flex-row flex-wrap gap-2"><Button testID="route-undo" :disabled="busy" @click="undo()">Undo</Button><Button testID="route-loop" :disabled="busy || points().length < 2" @click="add({latitude:first()?.[0],longitude:first()?.[1]})">Close loop</Button><Button testID="route-clear" :disabled="busy" @click="clear()">Clear</Button><Button @click="region.set(null)">Fit route</Button><Button @click="locate()">My location</Button><Button :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" /></View>
+      <View class="flex-row flex-wrap gap-2"><Button testID="route-undo" :disabled="busy" @click="undo()">Undo</Button><Button testID="route-loop" :disabled="busy || points().length < 2" @click="add({latitude:first()?.[0],longitude:first()?.[1]})">Close loop</Button><Button testID="route-clear" :disabled="busy" @click="clear()">Clear</Button><Button @click="region.set(null)">Fit route</Button><Button testID="route-locate" @click="locate()">My location</Button><Button :text="pitch() ? '2D' : '3D'" @click="pitch.set(pitch() ? 0 : 45)" /></View>
       <Button :class="ui.secondary" :title="'Map layer' + ': ' + nativeChoiceLabel(nativeBasemapOptions,mapType())" accessibilityLabel="Map layer" :accessibilityValue="nativeChoiceLabel(nativeBasemapOptions,mapType())" @click="chooseNativeChoice(craft,'Map layer',nativeBasemapOptions,choice=>{mapType.set(choice)},message=>error.set(message))" />
       <TextInput testID="route-name" :class="ui.input" placeholder="Route name" :value="name" :maxLength="200" @input="name.set($event.text)" />
       <Text :show="error" :text="error" :class="ui.danger" testID="route-error" /><Text :show="notice" :text="notice" :class="ui.caption" testID="route-notice" />

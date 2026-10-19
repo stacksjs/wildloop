@@ -9,6 +9,21 @@ async function open(){
 }
 describe('native route planner',()=>{
   beforeAll(compileNativeBundle,30000)
+  /*
+   * A device that will not say where it is does not reject — it resolves with
+   * an object that simply carries no coordinates. `Number(undefined)` is NaN,
+   * and a region centred on NaN sends the camera nowhere, leaving a blank map
+   * with no hint of why. The territory map shipped that exact bug as
+   * `min_lat=NaN` on the wire; this is the same shape, one screen over.
+   */
+  it('keeps the map where it is when the device answers without coordinates',async()=>{
+    const screen=await open()
+    await screen.event('route-locate','onPress')
+    const position=await waitForRequest(screen,0,r=>r.payload?.module==='Location')
+    answer(screen,position,{accuracy:65})
+    await waitForText(screen,'Your position could not be found.')
+    expect(nativeNodeProps(screen,'route-builder-map').region ?? null).toBeNull()
+  })
   it('draws native map taps only after routing succeeds',async()=>{
     const screen=await open()
     await screen.event('route-builder-map','onPress',{latitude:35,longitude:-82})
