@@ -44,9 +44,11 @@ tags:
       platform: Android
     commands:
       - tapOn: "^Record$"
+# The journey runs signed out, and recording belongs to an account: the
+# Record tab asks a guest to sign in, before any location prompt.
 - extendedWaitUntil:
     visible:
-      id: record-start
+      id: login-email
     timeout: 30000
 - assertNotVisible: "would like to use your current location"
-- takeScreenshot: native-record
+- takeScreenshot: native-record-sign-in
