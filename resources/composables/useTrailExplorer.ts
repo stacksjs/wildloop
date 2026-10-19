@@ -81,13 +81,17 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
   }
 
   function fitRoute() {
+    activePoint.set(null)
+    handle()?.highlightPoint(null)
+    fitRouteViewport()
+  }
+
+  function fitRouteViewport() {
     const points = route().flat()
     if (points.length < 2) {
       mapMessage.set('This trail has no recorded route to fit. The map shows its trailhead.')
       return
     }
-    activePoint.set(null)
-    handle()?.highlightPoint(null)
     const card = document.getElementById('trail-elevation-card')
     const height = card?.getBoundingClientRect().height ?? 180
     handle()?.fitPoints(points, { topLeft: [56, 60], bottomRight: [56, height + 56] })
@@ -194,7 +198,7 @@ export function useTrailExplorer(handle: () => TrailMapHandle | null, route: () 
 
   function toggleProfile() {
     profileOpen.set(!profileOpen())
-    requestAnimationFrame(fitRoute)
+    requestAnimationFrame(fitRouteViewport)
   }
 
   function showProfilePoint(index: number) {

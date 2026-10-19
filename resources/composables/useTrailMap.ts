@@ -822,8 +822,8 @@ export async function drawTrailRoute(
             element.style.visibility = visible[index] ? '' : 'hidden'
           }
         }
-        map.on('rotate zoom resize', rotate)
-        marker.once('remove', () => map.off('rotate zoom resize', rotate))
+        map.on('rotate zoom resize pitch', rotate)
+        marker.once('remove', () => map.off('rotate zoom resize pitch', rotate))
         rotate()
       })
       target.addLayer(marker)
