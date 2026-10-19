@@ -54,6 +54,20 @@ function bars(): any[] {
   return monthBars(months())
 }
 
+/*
+ * Twelve months of zeroes still produce twelve bars, each zero high, so the
+ * card drew nothing and "This year" sat over an empty white box — the same
+ * shape the six-week chart had on Stats. A month nobody ran still gets no bar,
+ * which is the honest gap beside a month that was run; it is only every month
+ * being empty that has nothing to draw.
+ *
+ * The caption below the chart stays either way: "0 mi this year" is a fact
+ * worth reading, and it is what is left once the empty card goes.
+ */
+function hasYearChart(): boolean {
+  return months().some((month: any) => Number(month?.miles) > 0)
+}
+
 function yearTotal(): string {
   return yearTotalText(months())
 }
@@ -160,7 +174,7 @@ onMount(() => onNativeAccountChange(craft, () => { badges.set([]); records.set([
          them is true. --}}
     <View :show="months().length > 0" testID="year-chart" class="mt-6 gap-2">
       <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">This year</Text>
-      <View class="h-20 w-full rounded-xl bg-white dark:bg-[#1b2c22] p-2">
+      <View :show="hasYearChart()" testID="year-chart-card" class="h-20 w-full rounded-xl bg-white dark:bg-[#1b2c22] p-2">
         <svg :viewBox="chartBox()" class="h-full w-full">
           <rect :for="bar in bars()" :key="bar.month" :x="bar.x" :y="bar.y" :width="bar.width" :height="bar.height" fill="#34d399" />
         </svg>

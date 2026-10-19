@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * Achievements, natively.
@@ -46,7 +46,7 @@ function ok(body: unknown) {
 }
 
 /** Keychain, then `/api/me`, then the badges and the activities together. */
-async function board(token: string | null = 'tok_abc') {
+async function board(token: string | null = 'tok_abc', rows: unknown = ACTIVITIES) {
   const screen = await start('Achievements')
   const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
   answer(screen, keychain, token)
@@ -59,7 +59,7 @@ async function board(token: string | null = 'tok_abc') {
   const badgeRequest = await waitForRequest(screen, 0, r => r.payload?.module === 'Network' && r.payload.args[0].url.includes('/achievements'))
   const activityRequest = await waitForRequest(screen, 0, r => r.payload?.module === 'Network' && r.payload.args[0].url.includes('/api/activities'))
   answer(screen, badgeRequest, ok(BADGES))
-  answer(screen, activityRequest, ok(ACTIVITIES))
+  answer(screen, activityRequest, ok(rows))
   return { screen, badgeRequest, activityRequest }
 }
 
@@ -105,6 +105,26 @@ describe('Wildloop native achievements screen', () => {
     // The 99-mile row belongs to somebody else and is not in the total.
     expect(texts).not.toContain('117.6 mi this year')
     expect(texts).toContain('March was the biggest, at 12.4 mi')
+  })
+
+  /*
+   * Twelve months of zeroes still produce twelve bars, each zero high, so a
+   * new account got "This year" over an empty white box. The same bug as the
+   * six-week chart on Stats, and tested the same way: the busy screen is
+   * waited on for a real transition, which proves the batch resolving this
+   * screen's `:show` bindings has run, and only then is the empty screen read.
+   * Reading it alone passes against the bug, because hidden is also the state
+   * of the first frame.
+   *
+   * The caption survives either way — "0 mi this year" is worth reading, and
+   * it is what is left once the empty card goes.
+   */
+  it('drops the year chart when no month was run, and keeps the total', async () => {
+    const empty = await board('tok_abc', { success: true, activities: [] })
+    const busy = await board()
+    await waitForVisibility(busy.screen, 'year-chart-card', 'flex')
+    await waitForText(empty.screen, '0 mi this year')
+    expect(visibility(empty.screen, 'year-chart-card')).toBe('none')
   })
 
   it('shows the personal bests the shared module computes', async () => {
