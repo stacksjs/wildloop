@@ -151,7 +151,7 @@ jobs:
       - name: Test Suite
         env:
           AWS_DYNAMODB_ENDPOINT: http://localhost:8000
-        run: bun test
+        run: ./buddy test
 
   recording-qa:
     runs-on: ubuntu-latest
