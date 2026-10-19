@@ -135,13 +135,20 @@ const ROUTE_WORDS: Record<string, string> = {
   'network': 'network of',
 }
 
+/**
+ * Built by hand rather than with `URLSearchParams`: `resources/native/TrailDetail.stx`
+ * imports this module, and JavaScriptCore has no `URLSearchParams` — nothing
+ * assigns one. It only reaches `forecastDayLabel` today, so this was a note on
+ * `bun run gate:stx` rather than a failure, but a native breadcrumb would have
+ * rendered an empty query and linked to every trail on earth.
+ */
 function stateQuery(trail: PageTrail): string {
-  const params = new URLSearchParams()
+  const parts: string[] = []
   if (trail.country)
-    params.set('country', trail.country)
+    parts.push(`country=${encodeURIComponent(trail.country)}`)
   if (trail.state)
-    params.set('state', trail.state)
-  return params.toString()
+    parts.push(`state=${encodeURIComponent(trail.state)}`)
+  return parts.join('&')
 }
 
 /** Explore › United States › California › Santa Monica Mountains NRA. */

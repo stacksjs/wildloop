@@ -54,7 +54,7 @@
     count and "No trail matches that." together, and a challenge the viewer sent
     got an Accept button. stx 0.2.532 adds a `display` patch beside each
     structural op, but the branches are still all in that initial RENDER, so the
-    window does not close — measured on 0.2.520 and 0.2.532 alike. `:show` lands
+    window does not close — measured on 0.2.520, 0.2.532 and 0.2.563 alike. `:show` lands
     in the same batch, so it is no faster; it is just far easier to assert on,
     and it keeps the node mounted, so a test asserting a control is *not*
     offered reads `style.display`, not the text. The gate fails on any `:if`
@@ -66,12 +66,14 @@
     the render document will report a drop that is really a delay.
     `tests/unit/native-conditional-timing.test.ts` pins both halves
   - a bound `:geometry` on `MapPolyline` **does** reach the host — as
-    `{"op":"updateNode","patch":{"props":{"geometry":[…]}}}`, on 0.2.520 as well
-    as 0.2.532. I filed stacksjs/stx#2073 claiming the compiler dropped it, and
-    it does not: the initial RENDER carries only
+    `{"op":"updateNode","patch":{"props":{"geometry":[…]}}}`, on 0.2.520, 0.2.532
+    and 0.2.563 alike. I filed stacksjs/stx#2073 claiming the compiler dropped
+    it, and it does not: the initial RENDER carries only
     `data-stx-parent-bindings="geometry"` and the flat array follows in the first
-    post-mount batch, which is what I mistook for a drop. Nothing was blocking
-    the map screens
+    post-mount batch, which is what I mistook for a drop. What *was* blocking the
+    map screens is gone too: craft-native 0.0.173 had no renderer for `Map`,
+    `MapPolyline` or `MapMarker`, and the installed version is 0.0.237, which
+    has all three
   - text from a signal is interpolated as its own call — `{{ heading() }}` (stacksjs/stx#2069). Concatenating a
     bare signal (`{{ 'for ' + query }}`) renders `[object Object]`, and `{{ 'for ' + query() }}`
     renders nothing; build the string in a `derived()` and interpolate that
