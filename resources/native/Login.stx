@@ -25,7 +25,7 @@ async function login() {
   catch (cause) { error.set(cause instanceof Error ? cause.message : 'Sign-in failed.') }
   finally { busy.set(false) }
 }
-onMount(() => { craft.navigation.setOptions({ title: 'Log in', largeTitle: false, tabBarHidden: true }) })
+onMount(() => { craft.navigation.setOptions({ title: 'Log in', largeTitle: false, tabBarHidden: true, hidden: true, swipeBack: false }) })
 </script>
 <KeyboardAvoidingView :class="ui.screen">
   <ScrollView class="flex-1 p-6" keyboardDismissMode="on-drag">

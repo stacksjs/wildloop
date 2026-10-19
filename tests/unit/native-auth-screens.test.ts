@@ -8,7 +8,10 @@ describe('native account forms',()=>{
    * There is nowhere to go from here but in. An auth screen used to keep the
    * app's tab bar underneath it, so a viewer asked to sign in could tap Feed,
    * Record or Menu and leave with the question unanswered — and Record would
-   * send them straight back.
+   * send them straight back. Hiding the bar left two more ways out: the
+   * navigation bar's back chevron, and the edge swipe that still popped the
+   * screen with that chevron gone (measured on a device — hiding the bar does
+   * not disable the gesture).
    *
    * `tabBarHidden` is read by the host (`CraftNativeScreen.swift`) and
    * restored when the screen goes away, but it is missing from
@@ -21,7 +24,11 @@ describe('native account forms',()=>{
       .filter((message: any) => message.type === 'NAVIGATION_SET_OPTIONS')
       .map((message: any) => message.payload)
     expect(options.length).toBeGreaterThan(0)
+    // No tab bar, no navigation bar and no edge swipe: the three ways off an
+    // auth screen that are not answering it.
     expect(options.some((option: any) => option?.tabBarHidden === true)).toBe(true)
+    expect(options.some((option: any) => option?.hidden === true)).toBe(true)
+    expect(options.some((option: any) => option?.swipeBack === false)).toBe(true)
   })
   it('stores a successful login in keychain and returns to the native trail',async()=>{
     const screen=await start('Login',{next:'/trail/7'})

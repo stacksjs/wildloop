@@ -28,7 +28,7 @@ async function register() {
   catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your account could not be created.') }
   finally { busy.set(false) }
 }
-onMount(() => { craft.navigation.setOptions({title:'Create an account',largeTitle:false,tabBarHidden:true}) })
+onMount(() => { craft.navigation.setOptions({title:'Create an account',largeTitle:false,tabBarHidden:true,hidden:true,swipeBack:false}) })
 </script>
 <KeyboardAvoidingView :class="ui.screen">
   <ScrollView class="flex-1 p-6" keyboardDismissMode="on-drag">
