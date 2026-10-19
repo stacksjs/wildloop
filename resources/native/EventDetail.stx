@@ -302,7 +302,7 @@ onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(nul
       <Button testID="back-to-events" @click="backToEvents()">See what is on</Button>
     </View>
 
-    <Text :show="notice" testID="event-notice" class="mt-4 text-sm text-amber-300" :text="notice" />
+    <Text :show="notice" testID="event-notice" class="mt-4 text-sm text-[#8a5300] dark:text-amber-300" :text="notice" />
 
     <View :show="event()" testID="event-body" class="gap-4">
       <View class="gap-1">
@@ -319,7 +319,7 @@ onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(nul
       {{-- The corral clock. A still number, dated — the runtime promises no
            timer, and a frozen clock pretending to run is worse than this. --}}
       <View :show="countdownText()" testID="event-corral" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text testID="corral-clock" class="text-3xl font-bold text-emerald-400" :text="countdownText()" />
+        <Text testID="corral-clock" class="text-3xl font-bold text-[#24724b] dark:text-[#9be579]" :text="countdownText()" />
         <Text testID="corral-note" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="countdownNote()" />
       </View>
 

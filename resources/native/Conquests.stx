@@ -171,14 +171,14 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
 
     <ActivityIndicator :show="loading" testID="conquests-loading" class="mt-6" />
     <Text :show="error" testID="conquests-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="conquests-signed-out" class="mt-4 text-amber-300">Sign in to see your record.</Text>
+    <Text :show="signedOut" testID="conquests-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your record.</Text>
     <Button :show="signedOut" testID="conquests-sign-in" @click="craft.navigation.open('/login?next=/conquests')">Sign in</Button>
 
     <View :show="viewerId() > 0 && !error()" testID="conquests-body" class="mt-5 gap-4">
       {{-- Ground of theirs being taken right now, above everything else: it is
            the only thing on this screen they can still do something about. --}}
-      <View :show="threatened().length > 0" testID="conquests-threat" class="gap-2 rounded-xl bg-rose-950 p-3">
-        <Text testID="threat-count" class="text-sm font-semibold text-rose-200" :text="threatCount()" />
+      <View :show="threatened().length > 0" testID="conquests-threat" class="gap-2 rounded-xl bg-[#fdeceb] dark:bg-rose-950 p-3">
+        <Text testID="threat-count" class="text-sm font-semibold text-[#8f1d24] dark:text-rose-200" :text="threatCount()" />
         <Text :for="battle in threatened()" :key="battle.id" testID="threat-row" class="text-xs text-[#b4232a] dark:text-[#ff8487]" :text="lineText(battle)" />
       </View>
 

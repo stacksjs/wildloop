@@ -143,9 +143,9 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
          line, and the order is the information. --}}
     <View :show="live().length > 0" class="mt-5 gap-2">
       <Text testID="live-heading" class="text-xs font-semibold uppercase text-[#24724b] dark:text-[#9be579]">Live now</Text>
-      <Pressable :for="row in live()" :key="row.id" testID="live-row" class="rounded-xl bg-emerald-950 p-3" @click="openEvent(row)">
+      <Pressable :for="row in live()" :key="row.id" testID="live-row" class="rounded-xl bg-[#e4f1e7] dark:bg-[#183a28] p-3" @click="openEvent(row)">
         <Text class="text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="row.name" />
-        <Text class="text-xs text-emerald-200" :text="standing(row)" />
+        <Text class="text-xs text-[#1d5c3c] dark:text-emerald-200" :text="standing(row)" />
         <Text :show="where(row)" class="text-xs text-[#51604e] dark:text-[#b0bfac]" :text="where(row)" />
       </Pressable>
     </View>
@@ -161,7 +161,7 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
     </View>
 
     <View :show="past().length > 0" class="mt-5 gap-2">
-      <Text testID="past-heading" class="text-xs font-semibold uppercase text-slate-600">Finished</Text>
+      <Text testID="past-heading" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Finished</Text>
       <Pressable :for="row in past()" :key="row.id" testID="past-row" class="rounded-xl bg-white dark:bg-[#1b2c22]/60 p-3" @click="openEvent(row)">
         <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]" :text="row.name" />
         <Text class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="kind(row) + ' · ' + when(row)" />

@@ -207,8 +207,8 @@ onMount(() => onNativeAccountChange(craft, () => { territory.set(null); battles.
         <Text testID="detail-name" class="text-2xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="name()" />
         <Text testID="detail-holder" class="text-sm text-[#51604e] dark:text-[#b0bfac]" :text="holderText()" />
         <View class="mt-1 flex-row gap-2">
-          <Text testID="detail-mine" class="text-xs font-semibold uppercase text-emerald-400" :text="mineText()" />
-          <Text testID="detail-standing" class="text-xs font-semibold uppercase text-amber-400" :text="standingText()" />
+          <Text testID="detail-mine" class="text-xs font-semibold uppercase text-[#24724b] dark:text-[#9be579]" :text="mineText()" />
+          <Text testID="detail-standing" class="text-xs font-semibold uppercase text-[#8a5300] dark:text-amber-400" :text="standingText()" />
         </View>
       </View>
 
@@ -223,7 +223,7 @@ onMount(() => onNativeAccountChange(craft, () => { territory.set(null); battles.
       <View class="flex-row gap-2">
         <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Ground</Text>
-          <Text testID="detail-area" class="text-xl font-bold text-emerald-400" :text="areaText()" />
+          <Text testID="detail-area" class="text-xl font-bold text-[#24724b] dark:text-[#9be579]" :text="areaText()" />
         </View>
         <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Conquests</Text>

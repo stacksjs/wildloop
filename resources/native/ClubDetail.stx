@@ -422,7 +422,7 @@ onMount(() => onNativeAccountChange(craft, () => { club.set(null); invites.set([
       <Button testID="back-to-clubs" @click="backToClubs()">See the directory</Button>
     </View>
 
-    <Text :show="notice" testID="club-notice" class="mt-4 text-sm text-amber-300" :text="notice" />
+    <Text :show="notice" testID="club-notice" class="mt-4 text-sm text-[#8a5300] dark:text-amber-300" :text="notice" />
 
     <View :show="club()" testID="club-body" class="gap-4">
       <View class="gap-1">
@@ -431,7 +431,7 @@ onMount(() => onNativeAccountChange(craft, () => { club.set(null); invites.set([
         <View class="mt-1 flex-row gap-2">
           <Text testID="club-type" class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]" :text="typeText()" />
           <Text testID="club-members" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="membersText()" />
-          <Text :show="roleText()" testID="club-role" class="text-xs uppercase text-emerald-400" :text="roleText()" />
+          <Text :show="roleText()" testID="club-role" class="text-xs uppercase text-[#24724b] dark:text-[#9be579]" :text="roleText()" />
         </View>
       </View>
 
@@ -442,7 +442,7 @@ onMount(() => onNativeAccountChange(craft, () => { club.set(null); invites.set([
       {{-- An invite-only club is reached with a code, not a button. The door
            label says which kind of club this is. --}}
       <View :show="isClosedDoor()" testID="club-closed" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text testID="club-door" class="text-sm text-amber-300" :text="doorText()" />
+        <Text testID="club-door" class="text-sm text-[#8a5300] dark:text-amber-300" :text="doorText()" />
         <TextInput testID="redeem-code" placeholder="Invite code" :value="redeemCode" @input="redeemCode.set(eventText($event))" />
         <Button testID="club-redeem" @click="redeem()">Redeem</Button>
       </View>
@@ -482,7 +482,7 @@ onMount(() => onNativeAccountChange(craft, () => { club.set(null); invites.set([
         <Button testID="club-invite" @click="createInvite()">Create an invite</Button>
         <View :for="invite in invites()" :key="invite.id" class="gap-1 rounded-lg bg-[#f2f4ef] dark:bg-[#101c16] p-2">
           <Text testID="invite-line" class="text-sm text-[#192414] dark:text-[#f0f5ec]" :text="inviteText(invite)" />
-          <Text testID="invite-code" class="text-xs text-emerald-400" :text="invite.code" />
+          <Text testID="invite-code" class="text-xs text-[#24724b] dark:text-[#9be579]" :text="invite.code" />
           <Text testID="invite-status" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="inviteStatus(invite)" />
         </View>
       </View>

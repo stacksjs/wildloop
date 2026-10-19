@@ -342,7 +342,7 @@ onMount(() => onNativeAccountChange(craft, () => { profile.set(null); records.se
       <Button testID="back-to-athletes" @click="backToAthletes()">See the directory</Button>
     </View>
 
-    <Text :show="notice" testID="athlete-notice" class="mt-4 text-sm text-amber-300" :text="notice" />
+    <Text :show="notice" testID="athlete-notice" class="mt-4 text-sm text-[#8a5300] dark:text-amber-300" :text="notice" />
 
     <View :show="profile()" testID="athlete-body" class="gap-4">
       <View class="gap-1">
@@ -391,7 +391,7 @@ onMount(() => onNativeAccountChange(craft, () => { profile.set(null); records.se
         <Pressable :for="record in records()" :key="record.id" testID="athlete-record" @click="openRecord(record)" class="gap-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <View class="flex-row justify-between">
             <Text class="flex-1 text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="record.trailName" />
-            <Text testID="record-time" class="text-sm text-emerald-400" :text="record.elapsedLabel" />
+            <Text testID="record-time" class="text-sm text-[#24724b] dark:text-[#9be579]" :text="record.elapsedLabel" />
           </View>
           <Text testID="record-line" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="recordLine(record)" />
         </Pressable>

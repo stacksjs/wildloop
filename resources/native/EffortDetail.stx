@@ -307,7 +307,7 @@ onMount(() => onNativeAccountChange(craft, () => { effort.set(null); void load()
         <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Time</Text>
           <Text testID="effort-clock" class="text-xl font-bold text-[#192414] dark:text-[#f0f5ec]" :text="clockText()" />
-          <Text :show="liveText()" testID="effort-live" class="text-xs text-amber-400" :text="liveText()" />
+          <Text :show="liveText()" testID="effort-live" class="text-xs text-[#8a5300] dark:text-amber-400" :text="liveText()" />
         </View>
         <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
           <Text class="text-xs uppercase text-[#64745f] dark:text-[#91a28b]">Pace</Text>
@@ -341,7 +341,7 @@ onMount(() => onNativeAccountChange(craft, () => { effort.set(null); void load()
       {{-- A reviewer's decision. The note is required for a reject and
            optional otherwise, which is why the field sits above all three. --}}
       <View :show="actions().review" testID="effort-review" class="gap-2 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text class="text-sm text-amber-300">This attempt is waiting on a decision.</Text>
+        <Text class="text-sm text-[#8a5300] dark:text-amber-300">This attempt is waiting on a decision.</Text>
         <TextInput testID="review-note" placeholder="Why? (required to reject)" :value="note" @input="note.set(eventText($event))" />
         <Button testID="effort-verify" @click="verify()">Verify it</Button>
         <Button testID="effort-reject" @click="reject()">Reject it</Button>
@@ -356,7 +356,7 @@ onMount(() => onNativeAccountChange(craft, () => { effort.set(null); void load()
       <View :show="evidence().length > 0" testID="effort-evidence" class="gap-2">
         <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Evidence</Text>
         <Pressable :for="row in evidence()" :key="row.label" testID="evidence-row" @click="openEvidence(row)" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text class="text-sm text-emerald-400" :text="row.label" />
+          <Text class="text-sm text-[#24724b] dark:text-[#9be579]" :text="row.label" />
         </Pressable>
       </View>
 

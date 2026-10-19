@@ -226,7 +226,7 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 
     <ActivityIndicator :show="loading" testID="territories-loading" class="mt-6" />
     <Text :show="error" testID="territories-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-amber-300">Sign in to see your territory.</Text>
+    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your territory.</Text>
     <Button :show="signedOut" testID="territories-sign-in" @click="craft.navigation.open('/login?next=/territories')">Sign in</Button>
 
     <View :show="rows().length > 0" testID="territories-body" class="mt-5 gap-4">
@@ -267,12 +267,12 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
       <View :show="holders().length > 0" testID="territory-leaders" class="gap-2">
         <Text class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]">Territory leaders</Text>
         <View :for="holder in holders()" :key="holder.userId" class="flex-row items-center gap-3 rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-          <Text testID="holder-rank" class="text-xs font-bold text-amber-400" :text="rankText(holder)" />
+          <Text testID="holder-rank" class="text-xs font-bold text-[#8a5300] dark:text-amber-400" :text="rankText(holder)" />
           <View class="flex-1">
             <Text class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="holderName(holder)" />
             <Text testID="holder-zones" class="text-xs text-[#64745f] dark:text-[#91a28b]" :text="holderZones(holder)" />
           </View>
-          <Text testID="holder-area" class="text-sm font-semibold text-slate-200" :text="holderArea(holder)" />
+          <Text testID="holder-area" class="text-sm font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="holderArea(holder)" />
         </View>
       </View>
     </View>

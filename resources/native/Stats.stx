@@ -166,7 +166,7 @@ onMount(() => onNativeAccountChange(craft, () => { stats.set(null); activities.s
 
     <ActivityIndicator :show="loading" testID="stats-loading" class="mt-6" />
     <Text :show="error" testID="stats-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="stats-signed-out" class="mt-4 text-amber-300">Sign in to see your training stats.</Text>
+    <Text :show="signedOut" testID="stats-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your training stats.</Text>
     <Button :show="signedOut" testID="stats-sign-in" @click="craft.navigation.open('/login?next=/stats')">Sign in</Button>
 
     <View :show="stats()" testID="stats-body" class="mt-5 gap-4">

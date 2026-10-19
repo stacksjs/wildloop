@@ -190,12 +190,12 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
 
     <ActivityIndicator :show="loading" testID="challenges-loading" class="mt-6" />
     <Text :show="error" testID="challenges-error" class="mt-4 text-[#b4232a] dark:text-[#ff8487]" :text="error" />
-    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-amber-300">Sign in to see your challenges.</Text>
+    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-[#8a5300] dark:text-amber-300">Sign in to see your challenges.</Text>
     <Button :show="signedOut" testID="challenges-sign-in" @click="craft.navigation.open('/login?next=/challenges')">Sign in</Button>
 
     <View class="mt-4 gap-2">
       <View :for="row in shown()" :key="row.id" class="rounded-xl bg-white dark:bg-[#1b2c22] p-3">
-        <Text testID="challenge-status" class="text-xs font-semibold uppercase text-amber-300" :text="standing(row)" />
+        <Text testID="challenge-status" class="text-xs font-semibold uppercase text-[#8a5300] dark:text-amber-300" :text="standing(row)" />
         <Text testID="challenge-sides" class="mt-1 text-base font-semibold text-[#192414] dark:text-[#f0f5ec]" :text="sides(row)" />
 
         <Pressable testID="challenge-territory" class="mt-2" @click="openTerritory(row)">
