@@ -33,9 +33,14 @@ const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 
 const SCOPES = ['global', 'following'] as const
 
-const periodIndex = state(0)
-const metricIndex = state(0)
-const scopeIndex = state(0)
+/* What each control offers, in the web board's words. */
+const SCOPE_OPTIONS = [{ value: 'global', label: 'Global' }, { value: 'following', label: 'Following' }]
+const PERIOD_OPTIONS = [{ value: 'weekly', label: 'This week' }, { value: 'monthly', label: 'This month' }, { value: 'alltime', label: 'All time' }]
+const METRIC_OPTIONS = [{ value: 'distance', label: 'Distance' }, { value: 'elevation', label: 'Elevation' }, { value: 'activities', label: 'Activities' }]
+
+const chosenPeriod = state<string>(LEADERBOARD_PERIODS[0])
+const chosenMetric = state<string>(LEADERBOARD_METRICS[0])
+const chosenScope = state<string>(SCOPES[0])
 const rows = state<any[]>([])
 const loading = state(true)
 const error = state('')
@@ -44,32 +49,20 @@ const api = createNativeApi(craft)
 let active = true
 
 function period(): any {
-  return LEADERBOARD_PERIODS[periodIndex()]
+  return chosenPeriod()
 }
 
 function metric(): any {
-  return LEADERBOARD_METRICS[metricIndex()]
+  return chosenMetric()
 }
 
 function scope(): any {
-  return SCOPES[scopeIndex()]
+  return chosenScope()
 }
 
 /** "Who covered the most ground this week." */
 function headline(): string {
   return `Who ${metricPhrase(metric())} ${periodPhrase(period())}.`
-}
-
-function periodName(): string {
-  return periodPhrase(period())
-}
-
-function metricName(): string {
-  return metricPhrase(metric())
-}
-
-function scopeName(): string {
-  return scope() === 'following' ? 'People you follow' : 'Everyone'
 }
 
 function figure(row: any): string {
@@ -133,18 +126,19 @@ async function load(): Promise<void> {
   }
 }
 
-function cyclePeriod(): void {
-  periodIndex.set((periodIndex() + 1) % LEADERBOARD_PERIODS.length)
+/* Each choice is its own board on the server, so a change reloads it. */
+function chooseScope(value: string): void {
+  chosenScope.set(value)
   void load()
 }
 
-function cycleMetric(): void {
-  metricIndex.set((metricIndex() + 1) % LEADERBOARD_METRICS.length)
+function choosePeriod(value: string): void {
+  chosenPeriod.set(value)
   void load()
 }
 
-function cycleScope(): void {
-  scopeIndex.set((scopeIndex() + 1) % SCOPES.length)
+function chooseMetric(value: string): void {
+  chosenMetric.set(value)
   void load()
 }
 
@@ -174,12 +168,9 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
     <Text testID="headline" class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="headline()" />
 
     <View class="mt-4 gap-2">
-      <Text testID="scope-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="scopeName()" />
-      <Button testID="cycle-scope" @click="cycleScope()">Change who is ranked</Button>
-      <Text testID="period-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="periodName()" />
-      <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
-      <Text testID="metric-label" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="metricName()" />
-      <Button testID="cycle-metric" @click="cycleMetric()">Change the measure</Button>
+      <SegmentedControl testID="scope" label="Who is ranked" stretch :value="chosenScope()" :options="SCOPE_OPTIONS" @change="chooseScope($event)" />
+      <SegmentedControl testID="period" label="Period" stretch :value="chosenPeriod()" :options="PERIOD_OPTIONS" @change="choosePeriod($event)" />
+      <SegmentedControl testID="metric" label="Measure" stretch :value="chosenMetric()" :options="METRIC_OPTIONS" @change="chooseMetric($event)" />
     </View>
 
     <ActivityIndicator :show="loading" testID="leaderboard-loading" class="mt-6" />

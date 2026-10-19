@@ -153,23 +153,42 @@ export function requests(session: NativeSession): any[] {
   return session.sent.filter(message => message.type === 'API_REQUEST')
 }
 
-/** Apply the host's prop patches before asserting the current visible state. */
+/**
+ * Apply the host's prop patches before asserting the current visible state.
+ *
+ * Every node's fields are replayed, not only the one found first, because a
+ * `testID` can itself be bound: a shared component inside a `:for` names each
+ * row from its item (`period-week`), so the name arrives as an `updateNode`
+ * on a node created without it.
+ */
 function nativeNodeField(session: NativeSession, testID: string, field:'props'|'style'): Record<string, any> {
-  let id = ''
-  let props: Record<string, any> = {}
-  function find(node: any) {
-    if (node?.props?.testID === testID) { id = String(node.props.__stxId); props = { ...node[field] } }
-    for (const child of node?.children ?? []) if (child && typeof child === 'object') find(child)
+  const fields = new Map<string, Record<string, any>>()
+  const names = new Map<string, string>()
+  function adopt(node: any, id = node?.props?.__stxId) {
+    if (id != null) {
+      fields.set(String(id), { ...node[field] })
+      if (node.props?.testID != null) names.set(String(id), String(node.props.testID))
+    }
+    for (const child of node?.children ?? []) if (child && typeof child === 'object') adopt(child)
   }
   for (const message of session.sent) {
-    if (message.type === 'RENDER') find(message.payload.document)
+    if (message.type === 'RENDER') adopt(message.payload.document)
     if (message.type !== 'MUTATE') continue
     for (const operation of message.payload.operations) {
-      if (operation.op === 'createNode') find(operation.node)
-      if (operation.op === 'updateNode' && String(operation.id) === id) Object.assign(props, operation.patch?.[field] ?? {})
+      if (operation.op === 'createNode') adopt(operation.node, operation.node?.props?.__stxId ?? operation.id)
+      if (operation.op !== 'updateNode') continue
+      const id = String(operation.id)
+      fields.set(id, Object.assign(fields.get(id) ?? {}, operation.patch?.[field] ?? {}))
+      if (operation.patch?.props?.testID != null) names.set(id, String(operation.patch.props.testID))
     }
   }
-  return props
+  const matches = [...names].filter(([, name]) => name === testID)
+  return matches.length ? fields.get(matches.at(-1)![0]) ?? {} : {}
+}
+
+/** Whether the host is told this segment (a SegmentedControl's `<testID>-<value>`) is the chosen one. */
+export function segmentChosen(session: NativeSession, testID: string): boolean {
+  return nativeNodeField(session, testID, 'props').accessibilityState?.selected === true
 }
 
 /**

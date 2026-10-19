@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * Training stats, natively.
@@ -99,11 +99,11 @@ describe('Wildloop native stats screen', () => {
     await waitForText(screen, 'This week')
 
     const before = requests(screen).length
-    await screen.event('cycle-period', 'onPress')
+    await screen.event('stats-period-monthly', 'onPress')
     await Bun.sleep(1)
 
     expect(requests(screen).length).toBe(before)
-    expect(shownText(screen)).toContain('This month')
+    expect(segmentChosen(screen, 'stats-period-monthly')).toBe(true)
   })
 
   /*

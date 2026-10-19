@@ -118,6 +118,15 @@
 
   const periodLabel = derived(() => periodPhrase(period()))
   const metricLabel = derived(() => metricPhrase(metric()))
+
+  /* What each control offers. "Near you" only once there is somewhere to be near. */
+  const PERIOD_CHOICES = [{ value: 'weekly', label: 'This week' }, { value: 'monthly', label: 'This month' }, { value: 'alltime', label: 'All time' }]
+  const METRIC_CHOICES = [{ value: 'distance', label: 'Distance' }, { value: 'elevation', label: 'Elevation' }, { value: 'activities', label: 'Activities' }]
+  const scopeChoices = derived(() => [
+    { value: 'global', label: 'Global' },
+    ...(areaLabel() !== '' ? [{ value: 'local', label: 'Near you' }] : []),
+    { value: 'following', label: 'Following' },
+  ])
 </script>
 
   <div class="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
@@ -126,30 +135,14 @@
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Leaderboard</h1>
         <p class="mt-1 text-slate-600 dark:text-slate-400">{{ 'Who ' + metricLabel() + (scope === 'local' ? ' near ' + areaLabel() : '') + ' ' + periodLabel() + '.' }}</p>
       </div>
-      <div class="mt-1 flex shrink-0 rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Scope">
-        <button @click="scope.set('global')" x-class="scope === 'global' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Global</button>
-        <button :if="areaLabel() !== ''" @click="scope.set('local')" x-class="scope === 'local' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Near you</button>
-        <button @click="scope.set('following')" x-class="scope === 'following' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'" class="min-h-9 rounded-full px-3 text-xs font-semibold transition">Following</button>
-      </div>
+      <SegmentedControl className="mt-1 shrink-0" label="Scope" size="sm" v-model:value="scope" :options="scopeChoices()" />
     </header>
 
-    {{-- Controls. Period is the primary choice, so it is a full-width
-         segmented control; metric is a quieter tab row below it, and the
-         global/following scope sits beside the title. --}}
+    {{-- Controls. Period and measure each fill the width, period first as
+         the primary choice; the global/following scope sits beside the title. --}}
     <div class="mb-6 space-y-4">
-      <div class="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Period">
-        <button @click="period.set('weekly')" x-class="period === 'weekly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">This week</button>
-        <button @click="period.set('monthly')" x-class="period === 'monthly' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">This month</button>
-        <button @click="period.set('alltime')" x-class="period === 'alltime' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-10 rounded-full px-3 text-sm font-semibold transition active:scale-[0.98]">All time</button>
-      </div>
-
-      <div class="border-b border-slate-200 dark:border-slate-700">
-        <div class="-mb-px flex">
-          <button @click="metric.set('distance')" x-class="metric === 'distance' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 text-sm font-semibold transition">Distance</button>
-          <button @click="metric.set('elevation')" x-class="metric === 'elevation' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 text-sm font-semibold transition">Elevation</button>
-          <button @click="metric.set('activities')" x-class="metric === 'activities' ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'" class="min-h-11 border-b-2 px-3 text-sm font-semibold transition">Activities</button>
-        </div>
-      </div>
+      <SegmentedControl label="Period" stretch v-model:value="period" :options="PERIOD_CHOICES" />
+      <SegmentedControl label="Measure" stretch v-model:value="metric" :options="METRIC_CHOICES" />
     </div>
 
     {{-- First load: skeletons in the shape of the podium and rows, so nothing

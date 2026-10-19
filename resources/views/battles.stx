@@ -83,6 +83,8 @@
   const area = state<MapBounds | null>(null)
   const areaLabel = state('')
   const scope = state<'near' | 'all'>('all')
+  const scopeChoices = derived(() => [{ value: 'near', label: 'Near ' + areaLabel() }, { value: 'all', label: 'Everywhere' }])
+  const PERIOD_CHOICES = [{ value: 'today', label: 'Today' }, { value: 'week', label: 'This week' }, { value: 'all', label: 'All time' }]
 
   onMount(async () => {
     const place = await resolveNearby().catch(() => null)
@@ -190,15 +192,10 @@
     {{-- Period filter --}}
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 class="font-display text-xl font-bold text-slate-900 dark:text-white">Recent battles</h2>
-      <div :if="area" class="flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Where">
-        <button @click="scope.set('near')" :aria-pressed="scope === 'near' ? 'true' : 'false'" x-class="scope === 'near' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 max-w-[12rem] truncate rounded-full px-3.5 text-xs font-semibold transition">{{ 'Near ' + areaLabel }}</button>
-        <button @click="scope.set('all')" :aria-pressed="scope === 'all' ? 'true' : 'false'" x-class="scope === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">Everywhere</button>
+      <div :if="area">
+        <SegmentedControl label="Where" size="sm" v-model:value="scope" :options="scopeChoices()" />
       </div>
-      <div class="flex rounded-full bg-slate-100 p-1 dark:bg-slate-800" aria-label="Period">
-        <button @click="period.set('today')" x-class="period === 'today' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">Today</button>
-        <button @click="period.set('week')" x-class="period === 'week' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">This week</button>
-        <button @click="period.set('all')" x-class="period === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'" class="min-h-9 rounded-full px-3.5 text-xs font-semibold transition">All time</button>
-      </div>
+      <SegmentedControl label="Period" size="sm" v-model:value="period" :options="PERIOD_CHOICES" />
     </div>
 
     <ol :if="filteredBattles.length > 0" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700/70 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">

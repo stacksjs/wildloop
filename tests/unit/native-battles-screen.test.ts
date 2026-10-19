@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 /**
  * The live battle feed, natively.
@@ -116,11 +116,12 @@ describe('Wildloop native battles screen', () => {
     await waitForText(screen, 'Today')
 
     const before = requests(screen).length
-    await screen.event('cycle-period', 'onPress')
+    await screen.event('battles-period-week', 'onPress')
     await Bun.sleep(1)
 
     expect(requests(screen).length).toBe(before)
-    expect(shownText(screen)).toContain('This week')
+    expect(segmentChosen(screen, 'battles-period-week')).toBe(true)
+    expect(segmentChosen(screen, 'battles-period-today')).toBe(false)
   })
 
   /*
@@ -133,11 +134,11 @@ describe('Wildloop native battles screen', () => {
 
     // Ten days old: outside today and outside the week, inside all time.
     expect(shownText(screen)).not.toContain('Tam failed to conquer Old Mill')
-    await screen.event('cycle-period', 'onPress')
+    await screen.event('battles-period-week', 'onPress')
     await Bun.sleep(1)
     expect(shownText(screen)).not.toContain('Tam failed to conquer Old Mill')
 
-    await screen.event('cycle-period', 'onPress')
+    await screen.event('battles-period-all', 'onPress')
     await Bun.sleep(1)
     expect(shownText(screen)).toContain('Tam failed to conquer Old Mill')
     expect(shownText(screen)).toContain('Defended')

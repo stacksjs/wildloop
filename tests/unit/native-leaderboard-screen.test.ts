@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, nativeNodeProps, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeNodeProps, requests, segmentChosen, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { avatarUrl } from '../../resources/functions/avatars'
 import { leaderMetricText, leaderSecondaryText, metricPhrase, periodPhrase } from '../../resources/functions/leaderboard'
 
@@ -91,11 +91,12 @@ describe('Wildloop native leaderboard screen', () => {
 
     const before = requests(screen).length
     const sentBefore = screen.sent.length
-    await screen.event('cycle-metric', 'onPress')
+    await screen.event('metric-elevation', 'onPress')
 
     const second = await waitForRequest(screen, before, r => r.payload?.module === 'Network')
     expect(second.payload.args[0].url).toContain('metric=elevation')
-    expect(shownTextSince(screen, sentBefore)).toContain(metricPhrase('elevation'))
+    expect(shownTextSince(screen, sentBefore)).toContain(`Who ${metricPhrase('elevation')} this week.`)
+    expect(segmentChosen(screen, 'metric-elevation')).toBe(true)
   })
 
   /*
@@ -139,7 +140,7 @@ describe('Wildloop native leaderboard screen', () => {
     answer(screen, request, ok(BOARD))
     await waitForText(screen, 'Harvey Lewis')
 
-    await screen.event('cycle-scope', 'onPress')
+    await screen.event('scope-following', 'onPress')
     const token = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
     expect(token.payload).toMatchObject({ method: 'get', args: ['auth_token'] })
 

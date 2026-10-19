@@ -35,7 +35,8 @@ import {
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 
-const filterIndex = state(0)
+const FILTER_OPTIONS = CONQUEST_FILTERS.map(value => ({ value, label: CONQUEST_FILTER_LABELS[value] }))
+const chosenFilter = state<string>(CONQUEST_FILTERS[0])
 const rows = state<any[]>([])
 const viewerId = state(0)
 const loading = state(true)
@@ -45,15 +46,7 @@ const api = createNativeApi(craft)
 let active = true
 
 function filter(): any {
-  return CONQUEST_FILTERS[filterIndex()]
-}
-
-function filterName(): string {
-  return CONQUEST_FILTER_LABELS[filter()]
-}
-
-function cycleFilter(): void {
-  filterIndex.set((filterIndex() + 1) % CONQUEST_FILTERS.length)
+  return chosenFilter()
 }
 
 function shown(): any[] {
@@ -212,10 +205,7 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
         </View>
       </View>
 
-      <View class="gap-2">
-        <Text testID="conquests-filter" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="filterName()" />
-        <Button testID="cycle-filter" @click="cycleFilter()">Change the filter</Button>
-      </View>
+      <SegmentedControl testID="conquests-filter" label="Show" stretch v-model:value="chosenFilter" :options="FILTER_OPTIONS" />
 
       <Text :show="shown().length === 0" testID="conquests-empty" class="mt-2 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyText()" />
 

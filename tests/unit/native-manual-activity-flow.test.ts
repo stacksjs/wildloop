@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, start, waitForRequest } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, segmentChosen, start, waitForRequest } from '../fixtures/nativeScreen'
 
 const ROOT = join(import.meta.dir, '../..')
 
@@ -60,7 +60,9 @@ describe('Wildloop native manual activity flow', () => {
       body: JSON.stringify({ activity: { id: 42, userId: 12 } }),
     })
     const haptic = await waitForRequest(manual, postRequestCount, request => request.payload?.module === 'Haptics')
-    expect(haptic.payload).toMatchObject({ module: 'Haptics', method: 'impact', args: ['light'] })
+    // A saved activity is a success, and stx sends the host its own
+    // notification haptic rather than approximating it as an impact.
+    expect(haptic.payload).toMatchObject({ module: 'Haptics', method: 'notification', args: ['success'] })
     answer(manual, haptic, true)
     await Bun.sleep(0)
     expect(manual.sent.at(-1)).toMatchObject({
@@ -98,6 +100,30 @@ describe('Wildloop native manual activity flow', () => {
     expect(post.payload.args[0].headers.authorization).toBe('Bearer native-token')
     expect('user_id' in body, 'the session owns identity; the body must not claim it').toBe(false)
     expect(body).toMatchObject({ activity_type: 'Trail Run', distance: 3.1, recording_source: 'manual' })
+  })
+
+  /*
+   * The type and audience are segmented controls: every choice on screen,
+   * the chosen one announced as selected. Choosing is what reaches the body.
+   */
+  it('saves the type and audience chosen from the segmented controls', async () => {
+    const manual = await start('ManualActivity')
+    await manual.event('distance-input', 'onChangeText', { text: '4.2' })
+    await manual.event('duration-input', 'onChangeText', { text: '50:00' })
+    expect(segmentChosen(manual, 'activity-type-Trail Run')).toBe(true)
+    expect(segmentChosen(manual, 'visibility-followers')).toBe(true)
+
+    await manual.event('activity-type-Hike', 'onPress')
+    await manual.event('visibility-private', 'onPress')
+    expect(segmentChosen(manual, 'activity-type-Hike')).toBe(true)
+    expect(segmentChosen(manual, 'activity-type-Trail Run')).toBe(false)
+    expect(segmentChosen(manual, 'visibility-private')).toBe(true)
+    await manual.event('save-activity', 'onPress')
+
+    const before = requests(manual).length
+    answer(manual, requests(manual).at(-1), 'native-token')
+    const post = await waitForRequest(manual, before, request => request.payload?.module === 'Network')
+    expect(JSON.parse(post.payload.args[0].body)).toMatchObject({ activity_type: 'Hike', visibility: 'private' })
   })
 
   /*

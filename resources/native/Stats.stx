@@ -34,7 +34,8 @@ import {
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 
-const periodIndex = state(0)
+const PERIOD_OPTIONS = STATS_PERIODS.map(value => ({ value, label: STATS_PERIOD_LABELS[value] }))
+const chosenPeriod = state<string>(STATS_PERIODS[0])
 const stats = state<any>(null)
 const activities = state<any[]>([])
 const loading = state(true)
@@ -44,11 +45,7 @@ const api = createNativeApi(craft)
 let active = true
 
 function period(): any {
-  return STATS_PERIODS[periodIndex()]
-}
-
-function periodName(): string {
-  return STATS_PERIOD_LABELS[period()]
+  return chosenPeriod()
 }
 
 function milesText(): string {
@@ -102,10 +99,6 @@ function breakdown(): any[] {
 
 function breakdownText(row: any): string {
   return `${row.count} · ${row.share}%`
-}
-
-function cyclePeriod(): void {
-  periodIndex.set((periodIndex() + 1) % STATS_PERIODS.length)
 }
 
 let loadVersion = 0
@@ -170,10 +163,7 @@ onMount(() => onNativeAccountChange(craft, () => { stats.set(null); activities.s
     <Button :show="signedOut" testID="stats-sign-in" @click="craft.navigation.open('/login?next=/stats')">Sign in</Button>
 
     <View :show="stats()" testID="stats-body" class="mt-5 gap-4">
-      <View class="gap-2">
-        <Text testID="stats-period" class="text-xs font-semibold uppercase text-[#64745f] dark:text-[#91a28b]" :text="periodName()" />
-        <Button testID="cycle-period" @click="cyclePeriod()">Change the period</Button>
-      </View>
+      <SegmentedControl testID="stats-period" label="Period" stretch v-model:value="chosenPeriod" :options="PERIOD_OPTIONS" />
 
       <View class="flex-row gap-2">
         <View class="flex-1 rounded-xl bg-white dark:bg-[#1b2c22] p-3">

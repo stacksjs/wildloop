@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * The athlete's own record in the territory game, natively.
@@ -170,11 +170,11 @@ describe('Wildloop native conquests screen', () => {
     await waitForText(screen, 'All')
 
     const before = requests(screen).length
-    await screen.event('cycle-filter', 'onPress')
+    await screen.event('conquests-filter-attacks', 'onPress')
     await Bun.sleep(1)
 
     expect(requests(screen).length).toBe(before)
-    expect(shownText(screen)).toContain('Attacks')
+    expect(segmentChosen(screen, 'conquests-filter-attacks')).toBe(true)
   })
 
   /*
@@ -186,7 +186,7 @@ describe('Wildloop native conquests screen', () => {
     const { screen } = await board()
     await waitForText(screen, 'All')
 
-    await screen.event('cycle-filter', 'onPress')
+    await screen.event('conquests-filter-attacks', 'onPress')
     await Bun.sleep(1)
 
     const texts = shownText(screen)
@@ -199,9 +199,8 @@ describe('Wildloop native conquests screen', () => {
     const { screen } = await board('tok_abc', { success: true, battles: [OWN.battles[2]] })
     await waitForText(screen, 'You took ground from Marta at Old Mill')
 
-    // Cycle to defences: the athlete has none in this payload.
-    await screen.event('cycle-filter', 'onPress')
-    await screen.event('cycle-filter', 'onPress')
+    // Defences: the athlete has none in this payload.
+    await screen.event('conquests-filter-defenses', 'onPress')
     await waitForVisibility(screen, 'conquests-empty', 'flex')
 
     expect(shownText(screen)).toContain('Nobody has come for your ground yet.')

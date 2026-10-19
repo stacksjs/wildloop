@@ -8,8 +8,10 @@ const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const types = [...MANUAL_ACTIVITY_TYPES]
 const visibilities = [...ACTIVITY_VISIBILITIES]
 
-const typeIndex = state(0)
-const visibilityIndex = state(1)
+const TYPE_OPTIONS = [...types]
+const VISIBILITY_OPTIONS = [{ value: 'public', label: 'Everyone' }, { value: 'followers', label: 'Followers' }, { value: 'private', label: 'Only me' }]
+const chosenType = state<string>(types[0])
+const chosenVisibility = state<string>(visibilities[1])
 const distance = state('')
 const duration = state('')
 const elevation = state('')
@@ -22,14 +24,6 @@ let active = true
 
 function eventText(event: { text?: unknown }): string {
   return event?.text == null ? '' : String(event.text)
-}
-
-function cycleType() {
-  typeIndex.set((typeIndex() + 1) % types.length)
-}
-
-function cycleVisibility() {
-  visibilityIndex.set((visibilityIndex() + 1) % visibilities.length)
 }
 
 function goBack() {
@@ -48,14 +42,14 @@ async function messageFrom(response: Response, fallback: string): Promise<{ body
 async function submit() {
   if (saving()) return
   const built = buildManualActivity({
-    type: types[typeIndex()],
+    type: chosenType(),
     distance: distance(),
     duration: duration(),
     elevation: elevation(),
     trailId: trailId(),
     date: date(),
     notes: notes(),
-    visibility: visibilities[visibilityIndex()],
+    visibility: chosenVisibility(),
     // No id: the token below is the only identity this screen has, and the API
     // takes the actor from the session regardless. Reading one from
     // `route.params` refused a save on a cold start, where `initialScreen`
@@ -140,29 +134,28 @@ onDestroy(() => {
     <Text class="mt-1 text-sm text-[#51604e] dark:text-[#b0bfac]">The same manual entry saved by the Wildloop web feed.</Text>
 
     <View class="mt-5 gap-2">
-      <Text class="text-sm font-semibold text-slate-200">Activity</Text>
-      <Text testID="activity-type" class="text-lg text-[#24724b] dark:text-[#9be579]" :text="types[typeIndex()]" />
-      <Button testID="cycle-type" @click="cycleType()">Change activity type</Button>
+      <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]">Activity</Text>
+      <SegmentedControl testID="activity-type" label="Activity" stretch v-model:value="chosenType" :options="TYPE_OPTIONS" />
     </View>
 
     <View class="mt-4 gap-2">
-      <Text class="text-sm text-slate-200">Distance (miles)</Text>
+      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Distance (miles)</Text>
       <TextInput testID="distance-input" placeholder="5.0" :value="distance" @input="distance.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Duration (MM:SS or H:MM:SS)</Text>
+      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Duration (MM:SS or H:MM:SS)</Text>
       <TextInput testID="duration-input" placeholder="45:30" :value="duration" @input="duration.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Elevation gain (feet)</Text>
+      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Elevation gain (feet)</Text>
       <TextInput testID="elevation-input" placeholder="800" :value="elevation" @input="elevation.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Trail id (optional)</Text>
+      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Trail id (optional)</Text>
       <TextInput testID="trail-input" placeholder="42" :value="trailId" @input="trailId.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Date</Text>
+      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Date</Text>
       <TextInput testID="date-input" placeholder="YYYY-MM-DD" :value="date" @input="date.set(eventText($event))" />
-      <Text class="text-sm text-slate-200">Notes</Text>
+      <Text class="text-sm text-[#51604e] dark:text-[#b0bfac]">Notes</Text>
       <TextInput testID="notes-input" placeholder="How did it go?" :value="notes" @input="notes.set(eventText($event))" />
     </View>
 
     <View class="mt-4 gap-2">
-      <Text testID="visibility" class="text-sm text-[#253321] dark:text-[#e3ecdf]" :text="'Visible to ' + visibilities[visibilityIndex()]" />
-      <Button testID="cycle-visibility" @click="cycleVisibility()">Change visibility</Button>
+      <Text class="text-sm font-semibold text-[#253321] dark:text-[#e3ecdf]">Who can see it</Text>
+      <SegmentedControl testID="visibility" label="Who can see it" stretch v-model:value="chosenVisibility" :options="VISIBILITY_OPTIONS" />
     </View>
 
     <View class="mt-5 gap-2">

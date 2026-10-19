@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 /**
  * Challenges, natively.
@@ -90,9 +90,7 @@ describe('Wildloop native challenges screen', () => {
     const { screen } = await board()
     await waitForText(screen, 'You vs Marta Keller')
 
-    await screen.event('cycle-tab', 'onPress')
-    await screen.event('cycle-tab', 'onPress')
-    await screen.event('cycle-tab', 'onPress')
+    await screen.event('challenges-tab-completed', 'onPress')
     const texts = await waitForText(screen, 'Lost')
 
     expect(texts).toContain('Completed')
@@ -119,11 +117,11 @@ describe('Wildloop native challenges screen', () => {
     await waitForText(screen, 'You vs Marta Keller')
 
     const before = requests(screen).length
-    await screen.event('cycle-tab', 'onPress')
+    await screen.event('challenges-tab-sent', 'onPress')
     await Bun.sleep(0)
 
     expect(requests(screen).length).toBe(before)
-    expect(shownText(screen)).toContain('Sent')
+    expect(segmentChosen(screen, 'challenges-tab-sent')).toBe(true)
   })
 
   /*
