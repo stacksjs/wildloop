@@ -10,6 +10,9 @@ import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choic
 import { nativeUi as ui } from '../functions/native-ui'
 import { nativeRecordingDuration, movingSeconds, recordingFigures, recordingPayload, recordingSamples, type NativeRecording } from '../functions/native-recording'
 const craft = (globalThis as typeof globalThis & {craft:NativeCraft}).craft
+{{-- One api for the screen: the keychain is read once, however many of
+     these paths run. --}}
+const api = createNativeApi(craft)
 const KEY = 'wildloop-native-recording-v1'
 const recording = state<NativeRecording|null>(null)
 const running = state(false)
@@ -71,7 +74,6 @@ async function recover() {
   if (recovering || busy()) return
   recovering=true;loading.set(true)
   try {
-    const api=createNativeApi(craft)
     const cached=await readNativeAccount(craft)
     const me=cached ? null : await api.send('/api/me')
     if (!alive) return
@@ -103,9 +105,32 @@ async function recover() {
   catch { if (alive) error.set('Could not check the device recording. Pull down to retry before starting another activity.') }
   finally { recovering=false;if(alive) loading.set(false) }
 }
+/**
+ * Recording belongs to an account. Every sample is uploaded under one, so a
+ * signed-out viewer could start a run, cover ten miles and find the app has
+ * nowhere to put it — the screen used to let them in and only say so when
+ * they pressed Start.
+ *
+ * A retained recording is the exception: it was started by somebody who was
+ * signed in, and bouncing them to a login screen is how a run gets lost.
+ */
+async function requireAccount(): Promise<boolean> {
+  if (recording()) return true
+  {{-- `readNativeAccount` is the test, not the bearer on its own. A token
+       outlives the session it belongs to — logging out revokes it server-side
+       and a stale one left on the device still reads as truthy, which is
+       exactly how this screen kept letting a signed-out viewer in while
+       Territory, which asks the server, said they were signed out. An account
+       is a bearer the device still has a user for. --}}
+  if ((await readNativeAccount(craft))?.id) return true
+  craft.navigation.open('/login?next=/record')
+  return false
+}
+function guarded(): void {
+  void (async () => { if (await requireAccount()) await recover() })()
+}
 function start() { void perform(async () => {
   if (!craft.location) throw new Error('Location recording is unavailable in this app build.')
-  const api=createNativeApi(craft)
   const cached=await readNativeAccount(craft)
   const me=cached ? null : await api.send('/api/me')
   const userId=cached?.id ?? (Number(me?.body?.user?.id)||0)
@@ -146,7 +171,6 @@ function togglePause() { void perform(async () => {
 async function upload() {
   const value=recording()
   if (!value?.pending) return
-  const api=createNativeApi(craft)
   const me=await api.send('/api/me')
   if (!me.ok || Number(me.body?.user?.id) !== value.userId) throw new Error('Log in as the account that started this recording before uploading it.')
   const response=await api.send('/api/activities','POST',value.pending)
@@ -195,9 +219,9 @@ function discard() {void perform(async()=>{
 onMount(()=>onNativeAccountChange(craft,()=>{recording.set(null);running.set(false);paused.set(false);owner=0;if(watch!==null){craft.location?.clearWatch(watch);watch=null}void recover()}))
 onMount(()=>{
   craft.navigation.setOptions({title:'Record',largeTitle:false})
-  void recover()
+  guarded()
   const clock=useIntervalFn(()=>{if(running() && !paused())now.set(Date.now())},1000)
-  const appear=craft.navigation.onAppear(()=>{void recover()})
+  const appear=craft.navigation.onAppear(()=>{guarded()})
   const lifecycle=craft.lifecycle.onStateChange(value=>{if(value==='active') void recover()})
   return()=>{alive=false;clock.pause();appear();lifecycle();if(watch!==null)craft.location?.clearWatch(watch)}
 })
