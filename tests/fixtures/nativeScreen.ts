@@ -173,28 +173,36 @@ function nativeNodeField(session: NativeSession, testID: string, field:'props'|'
 }
 
 /**
- * The text a node actually draws: its string children, joined.
+ * The text a node actually draws: its string children, with any later patch to
+ * them applied.
  *
  * `waitForText` cannot answer this. It harvests every string anywhere in the
  * payload, `accessibilityLabel` included, so it reports a label as displayed
- * when the only copy of that string is the one VoiceOver reads. A test that
- * a sighted reader can see the label has to look at the node's children.
+ * when the only copy of that string is the one VoiceOver reads. A test that a
+ * sighted reader can see the text has to look at the node itself.
+ *
+ * Both shapes of text land here. `<Text>Email</Text>` is in the children of
+ * the first RENDER; `<Text :text="message()" />` arrives afterwards as an
+ * `updateNode` patch — on `children`, not on `props`, which is why reading
+ * `nativeNodeProps(...).text` comes back undefined for a bound one.
  */
 export function nativeNodeText(session: NativeSession, testID: string): string {
-  let text = ''
+  let id = ''
+  let children: unknown[] = []
   const find = (node: any): void => {
-    if (node?.props?.testID === testID)
-      text = (node.children ?? []).filter((child: unknown) => typeof child === 'string').join('')
+    if (node?.props?.testID === testID) { id = String(node.props.__stxId); children = node.children ?? [] }
     for (const child of node?.children ?? []) if (child && typeof child === 'object') find(child)
   }
   for (const message of session.sent) {
     if (message.type === 'RENDER') find(message.payload.document)
-    if (message.type === 'MUTATE') {
-      for (const operation of message.payload.operations)
-        if (operation.op === 'createNode') find(operation.node)
+    if (message.type !== 'MUTATE') continue
+    for (const operation of message.payload.operations) {
+      if (operation.op === 'createNode') find(operation.node)
+      if (operation.op === 'updateNode' && String(operation.id) === id && operation.patch?.children)
+        children = operation.patch.children
     }
   }
-  return text
+  return children.filter((child: unknown) => typeof child === 'string').join('')
 }
 
 export function nativeNodeProps(session:NativeSession,testID:string):Record<string,any> {return nativeNodeField(session,testID,'props')}

@@ -40,6 +40,18 @@ function filterLabel(): string {
   return NOTIFICATION_FILTERS[filterIndex()].label
 }
 
+/*
+ * An empty list means two different things. Under "Conquests" it means the
+ * filter is hiding everything else, and saying so tells the reader what to do.
+ * Under "All" there is no filter to blame — "Nothing under this filter" then
+ * reads as though something is being withheld, when the truthful answer is
+ * that nothing has happened yet.
+ *
+ * Built in a `derived` rather than inlined in `:text`, because concatenating a
+ * signal inside an interpolation renders `[object Object]` (stacksjs/stx#2069).
+ */
+const emptyMessage = derived(() => FILTERS[filterIndex()] === 'all' ? 'No notifications yet.' : 'Nothing under this filter.')
+
 /** The rows under the chosen chip, grouped the way the web page groups them. */
 function sections(): any[] {
   const chosen = FILTERS[filterIndex()]
@@ -182,8 +194,6 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
       </View>
     </View>
 
-    <Text :show="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]">
-      Nothing under this filter.
-    </Text>
+    <Text :show="!loading && !error && !signedOut && sections().length === 0" testID="notifications-empty" class="mt-6 text-sm text-[#51604e] dark:text-[#b0bfac]" :text="emptyMessage()" />
   </ScrollView>
 </SafeAreaView>

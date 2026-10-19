@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answer, compileNativeBundle, nativeNodeText, requests, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { timeAgo } from '../../resources/functions/notifications'
@@ -92,6 +92,23 @@ describe('Wildloop native notifications screen', () => {
    * the request follows. A write that had to land first would read as a tap
    * that did nothing.
    */
+  /*
+   * An empty list means two different things, and the screen used to give one
+   * answer for both. Under "Conquests" the filter really is hiding the rest,
+   * and naming it tells the reader what to change. Under "All" nothing is
+   * being withheld, so "Nothing under this filter" reads as though the app is
+   * keeping something back when the truth is that nothing has happened.
+   */
+  it('blames the filter for an empty list only when a filter is on', async () => {
+    const { screen, read } = await signedInScreen()
+    answer(screen, read, ok({ notifications: [] }))
+    await waitForText(screen, 'No notifications yet.')
+    expect(nativeNodeText(screen, 'notifications-empty')).toBe('No notifications yet.')
+    await screen.event('cycle-filter', 'onPress')
+    await waitForText(screen, 'Nothing under this filter.')
+    expect(nativeNodeText(screen, 'notifications-empty')).toBe('Nothing under this filter.')
+  })
+
   it('clears the badge before the write lands, then writes', async () => {
     const { screen, read } = await signedInScreen()
     answer(screen, read, ok(PAYLOAD))
