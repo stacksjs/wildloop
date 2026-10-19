@@ -18,7 +18,9 @@
 .trail-action-bar.trail-floating-with-tabs { bottom: calc(4.5rem + var(--native-safe-area-bottom, 0px)); }
 .dark .trail-action-bar.trail-floating-actions { border-color: #334155; background: #0f172a; }
 @media (min-width: 1024px) {
-  #trail-map-explorer .trail-map-panel { height: 42rem; }
+  /* Keep the floating profile and camera tools above the page action pill
+     when the map is brought into view on a shorter desktop viewport. */
+  #trail-map-explorer:not(:fullscreen) .trail-map-panel { height: clamp(24rem, calc(100svh - 14rem), 42rem); }
   .trail-action-bar.trail-floating-actions { bottom: 24px; }
 }
 @media print {

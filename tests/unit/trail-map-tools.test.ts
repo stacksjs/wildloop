@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { trailDirectionSigns, trailGpx, trailheadPosition, trailSurfaceTypes } from '../../resources/functions/trail-map'
+import { trailDirectionSigns, trailDirectionVisibility, trailGpx, trailheadPosition, trailSurfaceTypes } from '../../resources/functions/trail-map'
 
 describe('trailhead navigation', () => {
   it('uses the recorded route start instead of its catalog center', () => {
@@ -37,6 +37,19 @@ describe('route direction signs', () => {
     expect(trailDirectionSigns([[[1, 1], [1, 1]]])).toEqual([])
     expect(trailDirectionSigns([[[1, 1], [1, 1], [1.01, 1]]], 2)).toHaveLength(2)
     expect(trailDirectionSigns([])).toEqual([])
+  })
+})
+
+describe('direction badge spacing on screen', () => {
+  it('keeps a short vertical route legible and reveals more badges as it grows', () => {
+    const compact = Array.from({ length: 14 }, (_, index) => ({ x: 80, y: index * 12 }))
+    expect(trailDirectionVisibility(compact).filter(Boolean)).toHaveLength(3)
+    expect(trailDirectionVisibility(compact.map(point => ({ x: point.x, y: point.y * 6 }))).every(Boolean)).toBe(true)
+  })
+
+  it('avoids collisions across crossing route sections and rejects invalid projections', () => {
+    expect(trailDirectionVisibility([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 2, y: 2 }, { x: NaN, y: 20 }])).toEqual([true, true, false, false])
+    expect(trailDirectionVisibility([])).toEqual([])
   })
 })
 

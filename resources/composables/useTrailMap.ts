@@ -1,4 +1,4 @@
-import { trailDirectionSigns, trailRouteStyle } from '../functions/trail-map'
+import { trailDirectionSigns, trailDirectionVisibility, trailRouteStyle } from '../functions/trail-map'
 import type { CircleMarker as CircleMarkerType, Marker as MarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { Polyline as PolylineType } from 'ts-maps'
@@ -800,7 +800,7 @@ export async function drawTrailRoute(
   if (options?.directions) {
     const maps = await ensureTsMaps()
     const signs = trailDirectionSigns(parts)
-    for (const sign of signs) {
+    for (const [index, sign] of signs.entries()) {
       const icon = maps.divIcon({
         className: 'wildloop-route-direction',
         html: `<span style="transform:rotate(${sign.bearing}deg)"><i class="i-lucide-arrow-up" aria-hidden="true"></i></span>`,
@@ -813,12 +813,17 @@ export async function drawTrailRoute(
       marker.on('add', () => {
         const map = marker._map as TsMapType
         const rotate = () => {
-          const arrow = marker.getElement()?.firstElementChild as HTMLElement | null
+          const element = marker.getElement()
+          const arrow = element?.firstElementChild as HTMLElement | null
           if (arrow)
             arrow.style.transform = `rotate(${sign.bearing - map.getBearing()}deg)`
+          if (element) {
+            const visible = trailDirectionVisibility(signs.map(candidate => map.latLngToContainerPoint(candidate.point)))
+            element.style.visibility = visible[index] ? '' : 'hidden'
+          }
         }
-        map.on('rotate', rotate)
-        marker.once('remove', () => map.off('rotate', rotate))
+        map.on('rotate zoom resize', rotate)
+        marker.once('remove', () => map.off('rotate zoom resize', rotate))
         rotate()
       })
       target.addLayer(marker)

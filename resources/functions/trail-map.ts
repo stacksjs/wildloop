@@ -50,6 +50,18 @@ export function trailDirectionSigns(parts: LatLng[][], limit = 14): Array<{ poin
   return signs
 }
 
+/** Leave room between direction badges when routes shrink or cross on screen. */
+export function trailDirectionVisibility(points: Array<{ x: number, y: number }>, clearance = 64): boolean[] {
+  const visible: Array<{ x: number, y: number }> = []
+  return points.map(point => {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)
+      || visible.some(other => Math.hypot(point.x - other.x, point.y - other.y) < clearance))
+      return false
+    visible.push(point)
+    return true
+  })
+}
+
 const SURFACES: Record<string, { label: string, color: string, icon: string }> = {
   dirt: { label: 'Natural', color: '#b58a58', icon: 'i-lucide-footprints' },
   earth: { label: 'Natural', color: '#b58a58', icon: 'i-lucide-footprints' },
