@@ -58,13 +58,21 @@ const GPS_SILENCE_SECONDS = 30
  * Granting the permission mid-recording fixed it on the spot, which is what
  * pinned the cause.
  *
- * The screen cannot ask whether permission was granted — the host keeps
- * `locationPermissionGranted` to itself (`CraftNativeScreen.swift`) — and it
- * does not need to. A recording holding no samples at all is either waiting
- * for a fix or never going to get one, and both of those are worth saying
- * instead of dressing up as recording. Once half a minute has passed with
- * nothing, the likely cause gets named, because by then it is no longer a
- * cold start.
+ * The screen cannot ask whether permission was granted, and the reason is
+ * worth writing down because the API looks like it answers.
+ * `craft.permissions.check('location')` is typed, callable, never throws —
+ * and stx's bridge resolves it as the literal `'undetermined'` for every
+ * permission except notifications (`native/runtime/craft-bridge.js`), so it
+ * reads identically whether the viewer allowed, denied or was never asked.
+ * The host has the real check (`locationPermissionGranted` in
+ * `CraftNativeScreen.swift`); the native bridge serves no Permissions module
+ * to reach it.
+ *
+ * It does not matter here, because a recording holding no samples at all is
+ * either waiting for a fix or never going to get one, and both of those are
+ * worth saying instead of dressing up as recording. Once half a minute has
+ * passed with nothing, the likely cause gets named, because by then it is no
+ * longer a cold start.
  *
  * It never stops the recording. A fix can arrive late from a pocket or a
  * valley, and throwing away a run that was about to start working is worse

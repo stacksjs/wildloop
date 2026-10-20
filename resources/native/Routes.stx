@@ -76,8 +76,14 @@ function choosePlace(place: any) {
  *
  * Doing it properly needs the host to answer whether location is *already*
  * granted, so the map could centre silently for somebody who has allowed it
- * and stay put for everybody else. `CraftNativeScreen.swift` has that check
- * (`locationPermissionGranted`) and keeps it to itself.
+ * and stay put for everybody else. `craft.permissions.check('location')`
+ * looks like that answer and is not: stx's bridge resolves it as the literal
+ * `'undetermined'` for every permission except notifications
+ * (`native/runtime/craft-bridge.js`), so it reads the same whether the viewer
+ * allowed, denied, or was never asked. It is typed, it never throws, and it is
+ * wrong — the `useDebounceFn` shape of trap. The host has the real check
+ * (`locationPermissionGranted` in `CraftNativeScreen.swift`) and the native
+ * bridge serves no Permissions module to reach it.
  */
 async function locate(): Promise<void> {
   try {
