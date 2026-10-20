@@ -2125,13 +2125,10 @@
 @endif
 {{--
   All of a trail's photos, full screen: a masonry grid under a bar that says
-  whose they are. Picking one closes the grid on that photo. A page overlay,
-  like the sheets below, so it stacks over the site header.
+  whose they are. Picking one closes the grid on that photo.
 --}}
 <div
   :if="galleryOpen() && trail"
-  data-page-overlay
-  :data-open="galleryOpen() ? 'true' : 'false'"
   class="fixed inset-0 z-[90] overflow-y-auto bg-white dark:bg-slate-950"
   role="dialog"
   aria-modal="true"
@@ -2159,10 +2156,9 @@
 </div>
 {{--
   Leave a review. A bottom sheet on a phone, a centred dialog on a wider
-  screen. Visibility is a class rather than :if so the half-written review,
-  photos included, survives closing the sheet by accident.
+  screen. The Dialog stays in the page while closed, so the half-written
+  review, photos included, survives closing the sheet by accident.
 --}}
-<div data-page-overlay :data-open="phoneOpen() ? 'true' : 'false'">
 <Dialog :open="phoneOpen()" title="Take this trail with you" className="relative z-[90]" @close="phoneOpen.set(false)">
   <DialogBackdrop />
   <DialogPanel className="w-full max-w-sm !rounded-3xl !bg-white !p-5 sm:!p-6 text-center dark:!bg-slate-900">
@@ -2174,12 +2170,10 @@
     <p role="status" class="mt-3 min-h-6 text-sm text-slate-600 dark:text-slate-300">{{ shareMessage() || '' }}</p>
   </DialogPanel>
 </Dialog>
-</div>
 
-<div data-page-overlay :data-open="reviewSheetOpen() || deleteReviewOpen() ? 'true' : 'false'">
 <Dialog :open="reviewSheetOpen()" title="Trail review" className="relative z-[90]" @close="closeReviewSheet()">
   <DialogBackdrop />
-  <DialogPanel className="w-full max-w-lg !rounded-3xl !bg-white !p-0 dark:!bg-slate-900">
+  <DialogPanel flush className="w-full max-w-lg !rounded-3xl !bg-white dark:!bg-slate-900">
   <form @submit.prevent="submitReview()" class="relative flex max-h-[88dvh] w-full flex-col text-left">
 
     <div class="flex items-start justify-between gap-4 px-6 pt-5">
@@ -2304,24 +2298,13 @@
     </div>
   </DialogPanel>
 </Dialog>
-</div>
 {{--
   Plan a visit: a day, maybe a start time, and notes. The trailhead comes
   from the trail. A bottom sheet on a phone, a centred dialog wider up.
 --}}
-<div
-  data-page-overlay
-  :data-open="planSheetOpen() ? 'true' : 'false'"
-  x-class="planSheetOpen() ? 'flex' : 'hidden'"
-  class="fixed inset-0 z-[90] items-end justify-center sm:items-center sm:p-4"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="plan-visit-title"
->
-  <div @click="closePlanSheet()" class="absolute inset-0 bg-slate-900/50"></div>
-
-  <div class="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl dark:bg-slate-900">
-    <div aria-hidden="true" class="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+<Dialog :open="planSheetOpen()" @close="closePlanSheet()">
+  <DialogBackdrop />
+  <DialogPanel variant="sheet" flush className="max-h-[92dvh] max-w-lg">
 
     <div class="flex items-start justify-between gap-4 px-6 pt-5">
       <div class="min-w-0">
@@ -2372,8 +2355,8 @@
     <div class="border-t border-slate-100 px-6 py-4 dark:border-slate-800">
       <button type="button" @click="savePlan()" x-disabled="planSaving()" class="btn-primary min-h-12 w-full text-base">{{ planSaving() ? 'Saving…' : 'Save plan' }}</button>
     </div>
-  </div>
-</div>
+  </DialogPanel>
+</Dialog>
 <style>
   /* The map tile beside the photos: a quiet contour ground with the route on
      it, pointing down to the live map. */

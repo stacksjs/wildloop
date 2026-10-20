@@ -606,24 +606,22 @@
     A sheet on a phone and a centred card from `sm` up, same as the manual
     entry dialog below it, so the two behave alike.
   --}}
-  <div :if="unfollowing()" data-covers-tab-bar class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="unfollow-title">
-    <div @click="unfollowing.set(null)" class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-sm rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6 dark:bg-slate-900" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
-      <div aria-hidden="true" class="mx-auto -mt-2 mb-4 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
-      <h2 id="unfollow-title" class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Unfollow {{ unfollowing()?.name }}?</h2>
-      <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Their runs stop appearing in your feed. You can follow them again whenever you like.</p>
+  <Dialog :open="unfollowing() !== null" title="Unfollow" @close="unfollowing.set(null)">
+    <DialogBackdrop />
+    <DialogPanel variant="sheet" className="max-w-sm">
+      <h2 id="unfollow-title" class="font-display text-lg font-bold tracking-tight text-fg">Unfollow {{ unfollowing()?.name }}?</h2>
+      <p class="mt-1.5 text-sm text-fg-soft">Their runs stop appearing in your feed. You can follow them again whenever you like.</p>
       <div class="mt-5 flex gap-3">
         <button type="button" @click="unfollowing.set(null)" class="btn-secondary min-h-11 flex-1 text-sm active:scale-[0.98]">Cancel</button>
         <button type="button" @click="confirmUnfollow()" class="btn-danger min-h-11 flex-1 text-sm active:scale-[0.98]">Unfollow</button>
       </div>
-    </div>
-  </div>
+    </DialogPanel>
+  </Dialog>
 
   {{-- Manual entry modal (#955) --}}
-  <div :if="manualOpen" data-covers-tab-bar class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="manual-entry-title">
-    <div @click="closeManualEntry()" class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6 dark:bg-slate-900" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
-      <div aria-hidden="true" class="mx-auto -mt-2 mb-3 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+  <Dialog :open="manualOpen()" title="Log an activity" @close="closeManualEntry()">
+    <DialogBackdrop />
+    <DialogPanel variant="sheet" className="max-h-[92dvh] max-w-md overflow-y-auto">
       <div class="mb-5 flex items-center justify-between gap-4">
         <div>
           <h2 id="manual-entry-title" class="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Log an activity</h2>
@@ -693,8 +691,8 @@
         </div>
         <p class="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400"><i class="i-lucide-info mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>Manual entries don't capture territory. Record with GPS to claim ground.</p>
       </div>
-    </div>
-  </div>
+    </DialogPanel>
+  </Dialog>
 <style>
   /* Chip rows scroll sideways on a phone; the scrollbar under them read as a
      stray grey rule rather than as a hint. */

@@ -471,22 +471,12 @@
 
 {{--
   New spot or edit. A bottom sheet on a phone, a centred dialog wider up.
-  Visibility is a class rather than :if so the pin map is not rebuilt, and a
-  half-typed note survives closing the sheet by accident.
+  The Dialog stays in the page while closed, so the pin map is not rebuilt
+  and a half-typed note survives closing the sheet by accident.
 --}}
-<div
-  data-page-overlay
-  :data-open="sheetOpen() ? 'true' : 'false'"
-  x-class="sheetOpen() ? 'flex' : 'hidden'"
-  class="fixed inset-0 z-[90] items-end justify-center sm:items-center sm:p-4"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="plan-sheet-title"
->
-  <div @click="closeSheet()" class="absolute inset-0 bg-slate-900/50"></div>
-
-  <div class="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl dark:bg-slate-900">
-    <div aria-hidden="true" class="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"></div>
+<Dialog :open="sheetOpen()" @close="closeSheet()">
+  <DialogBackdrop />
+  <DialogPanel variant="sheet" flush className="max-h-[92dvh] max-w-lg">
 
     <div class="flex items-start justify-between gap-4 px-6 pt-5">
       <div>
@@ -558,6 +548,6 @@
     <div class="border-t border-slate-100 px-6 py-4 dark:border-slate-800">
       <button type="button" @click="savePlan()" x-disabled="saving()" class="btn-primary min-h-12 w-full text-base">{{ saving() ? 'Saving…' : (editing() ? 'Save changes' : 'Save plan') }}</button>
     </div>
-  </div>
-</div>
+  </DialogPanel>
+</Dialog>
 @endsection

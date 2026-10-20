@@ -132,6 +132,8 @@
  * its own, so no z-index inside it clears the bar. An overlay marks itself
  * with data-covers-tab-bar instead, and the bar steps aside while it is open. */
 .native-app-shell:has([data-covers-tab-bar]) .native-app-tab-slot { display: none; }
+/* The same for any open library Dialog, which stays in the page while closed. */
+.native-app-shell:has([data-stx-dialog][data-state="open"]) .native-app-tab-slot { display: none; }
 
 .native-tab-bar {
   display: grid;
