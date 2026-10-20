@@ -97,20 +97,45 @@ bun run build:reset        # Full reset: rm deps → reinstall → generate → 
 
 ## Lockfiles
 
-A Stacks project commits two lockfiles, and they describe one tree:
+A Stacks workspace commits two lockfiles with separate ownership:
 
-- `bun.lock` resolves `node_modules/`, which the app root reads.
-- `pantry.lock` records the system toolchain (Bun itself, SQLite, curl, git)
-  **and** every npm package, which `pantry/` holds and the framework source
-  resolves from.
+- `bun.lock` owns the complete JavaScript graph in `node_modules/`.
+- `pantry.lock` owns the system toolchain and explicitly declared Pantry
+  packages in `pantry/`. It also records workspace declarations, but Pantry
+  0.11.102 and later delegates workspace JavaScript installs to the selected
+  package manager instead of installing a second npm graph.
 
-Since pantry 0.11.65 an npm range resolves to `bun.lock`'s pin whenever that
-pin satisfies it, so the two agree on every package they both name. Since
-0.11.60 the file is platform-independent: `pantry install` on macOS writes what
-CI writes on Linux, foreign-platform records included.
+Use the published Pantry version pinned by the repository's CI. A normal
+install migrates legacy Pantry npm shadows after checking their recorded and
+installed identities. Do not remove those entries or directories by hand.
+Native platform records can differ between hosts. Review the generated
+changes and use the repository's lock guards: an allowed platform addition
+does not excuse stale workspace declarations or a lost system-toolchain block.
 
-**Regenerating.** Change the ranges, run `bun install`, then `pantry install`,
-on any platform, and commit `bun.lock` and `pantry.lock` with the manifests.
+**Regenerating.** Use the repository's declared, Pantry-managed Bun. Change the
+ranges, run `bun install`, then `pantry install --ignore-scripts --quiet`, and
+commit both lockfiles with the manifests. These are real dependency installs,
+which can download native packages and invoke the JavaScript package manager;
+they are not metadata-only operations. The native CLI has no supported
+`install --lockfile-only` mode. Pantry 0.11.103 and later forwards
+`--ignore-scripts` to the JavaScript package manager as well as suppressing
+Pantry project hooks. On 0.11.102 the flag does not suppress JavaScript
+lifecycle scripts; use the qualified 0.11.103 or later when that policy matters.
+A plain `pantry install` can also activate project services and run
+`postDatabaseSetup` or `postSetup` hooks, including migrations and seeding.
+
+The Pantry that writes `pantry.lock` must satisfy the declared `ts-pantry`
+range (`@stacksjs/buddy`'s in the framework, the root manifest's in an app),
+the version CI installs: another version writes a different lock. A release
+checks this before it bumps anything and refuses otherwise; point `PANTRY_BIN`
+at a qualified Pantry when the one on PATH is older.
+
+After migration, run `bun install --frozen-lockfile` and
+`pantry install --frozen-lockfile --ignore-scripts --quiet`, and verify that
+neither committed lockfile changes. Frozen mode rejects a legacy JavaScript
+shadow graph that still needs migration; resolve it through the normal install
+before checking the frozen graph.
+
 Check `head -2 bun.lock` says `lockfileVersion: 2`; an older Bun on PATH
 downgrades it.
 

@@ -1,4 +1,5 @@
 <script client>
+import { formatCurrency } from '@stacksjs/commerce/money'
 /**
  * The data table.
  *
@@ -11,6 +12,36 @@
  * meant a table whose parent ignored the event had sort arrows that did
  * nothing. It now sorts what it was given. A parent that sorts server-side
  * sets `manual-sort` and keeps the event.
+ *
+ * ## The slots, and what to use instead
+ *
+ * Three upstream stx limitations, and together they are why this component
+ * had no callers at all while 69 dashboard components hand-rolled a `<table>`:
+ *
+ * - `{{ … }}` in slot content is evaluated at slot-expansion time against an
+ *   empty context and written out as an empty string, so the expression is
+ *   gone before the client loop runs. Attribute bindings (`x-text`, `:attr`,
+ *   `@click`) survive intact, so half of a slot works and the text silently
+ *   vanishes. stacksjs/stx#2095.
+ * - `stx typecheck` does not bind scoped slot props, so every reference to
+ *   `row` in `<template #cell="{ row }">` is a TS2304, in every binding form.
+ *   It is a required CI step, so correct usage cannot land. stacksjs/stx#2096.
+ * - `$slots.name` evaluates falsy inside a compound condition, so every
+ *   `$slots` reference below stands alone and the branches are split rather
+ *   than combined. stacksjs/stx#2098.
+ *
+ * So prefer the props over the slots until those are fixed:
+ *
+ * - action buttons: `rowActions` + the `row-action` event, with `when` for
+ *   per-row availability and `busy-key`/`busy-value` to disable a row that is
+ *   being written
+ * - a second line under a value: the column's `subtitleKey`
+ * - a pill that only marks some rows: a `badge` column with `emptyText: ''`
+ * - page-level filters that belong beside the table: `#toolbar`, which sits
+ *   outside the row loop and so is unaffected by #2095
+ *
+ * `Library/DependenciesDashboard` and the Commerce `*Table.stx` migrations are
+ * the worked examples. See stacksjs/stacks#2924 and stacksjs/stacks#2925.
  */
 interface DashboardTableColumn {
   key: string
@@ -28,11 +59,115 @@ interface DashboardTableColumn {
    * formatter function because props cross an attribute boundary, where a
    * function does not survive.
    */
-  type?: 'text' | 'number' | 'currency' | 'date' | 'boolean'
+  type?: 'text' | 'number' | 'currency' | 'date' | 'datetime' | 'boolean' | 'badge'
+  /**
+   * For a `badge` column: the classes each value wears. A value with no
+   * entry gets a neutral pill, so a new status never renders unstyled.
+   *
+   * A map rather than a function because props cross an attribute boundary,
+   * which a function does not survive - the same reason `type` is a string.
+   */
+  badgeClasses?: Record<string, string>
+  /**
+   * For a `badge` column: what each value reads as, when the stored value is
+   * not the word to show. `active` displaying as "Available" is a real case
+   * and is not derivable from the value.
+   *
+   * Without an entry the value is humanised: `on_delivery` becomes
+   * "On delivery".
+   */
+  badgeLabels?: Record<string, string>
+  /**
+   * Row field holding the pill's text, when it varies per row rather than per
+   * value.
+   *
+   * `badgeLabels` is a static map, which covers a status whose wording is
+   * fixed. It cannot cover a pill coloured by state but labelled with
+   * something row-specific - a publish pill that is green when published and
+   * grey when not, and reads as the date it happened. Wins over
+   * `badgeLabels` when both are given.
+   */
+  badgeLabelKey?: string
+  /**
+   * Row field rendered as a second, quieter line under the value.
+   *
+   * A name with its slug, abbreviation or description underneath is by far the
+   * most common custom cell in the dashboard - 38 of the 67 hand-rolled tables
+   * have one - and it is the only reason most of them needed a slot at all.
+   * Doing it here keeps them off the `cell` slot, which cannot carry text
+   * (stacksjs/stx#2095). A row with no value for the key renders one line.
+   */
+  subtitleKey?: string
+
+  /**
+   * What an empty cell reads as. Defaults to `-`. On a `badge` column, `''`
+   * means no pill at all for rows without a value, which is what a flag
+   * column wants.
+   *
+   * Per column because the right word is specific: a shipping table wants
+   * "No minimum" for an absent free-shipping threshold, which is a statement
+   * about the rate rather than missing data.
+   */
+  emptyText?: string
+  /**
+   * Fixed ISO code for a `currency` column, when every row is the same
+   * currency. Defaults to USD, which is what this column did before it
+   * could be told otherwise.
+   */
+  currency?: string
+  /**
+   * Row field holding the ISO code, when currency varies per row. Wins over
+   * `currency` when both are given and the row actually carries one.
+   */
+  currencyKey?: string
   width?: string
   class?: string
   /** Hidden until switched on in the column menu. */
   hidden?: boolean
+  /**
+   * Route this column through the `cell` slot and leave every other column on
+   * the built-in rendering.
+   *
+   * Without this, a caller that needs custom markup in one column has to
+   * re-implement all of them, because the slot replaces the default content
+   * wholesale. Per-column slots would be the obvious answer and are not
+   * reachable: stx matches slot names literally, so `:name="'cell-' + key"`
+   * never resolves and its content is dropped silently.
+   *
+   * A table where no column sets this keeps the old behaviour and sends every
+   * cell through the slot, so existing callers are unaffected.
+   * See stacksjs/stacks#2924.
+   */
+  slotted?: boolean
+}
+
+/**
+ * An icon button in the actions column, declared rather than slotted.
+ *
+ * The `actions` slot needs `row`, and `stx typecheck` rejects every reference
+ * to a scoped slot prop (stacksjs/stx#2096), so a table with action buttons
+ * could not be migrated at all. Props and events cross the attribute boundary
+ * cleanly, which this does: Table renders the buttons and emits `row-action`
+ * with the action name and the row.
+ */
+interface DashboardTableRowAction {
+  /** Identifies this action in the `row-action` payload. */
+  action: string
+  /** Read out as "<label> <row[actionLabelKey]>", e.g. "Edit Kilogram". */
+  label: string
+  /** Iconify class, e.g. `i-hugeicons-edit-01`. */
+  icon: string
+  /** Colour class for the icon. Defaults to the usual blue. */
+  class?: string
+  /**
+   * Show this action only on rows where `row[key]` equals `equals`.
+   *
+   * Approving, seating or cancelling is usually only offered on the rows it
+   * applies to - a restaurant party can be seated while it is still waiting,
+   * and not afterwards. Without this the whole actions column had to be a
+   * slot, which is the thing that could not be migrated.
+   */
+  when?: { key: string, equals: unknown }
 }
 
 type DashboardTableRow = Record<string, any>
@@ -63,6 +198,17 @@ const columnToggle = useReactiveProp('columnToggle', false)
 const exportable = useReactiveProp('exportable', false)
 const exportFilename = useReactiveProp('exportFilename', 'table')
 const stickyFirstColumn = useReactiveProp('stickyFirstColumn', false)
+const rowActions = useReactiveProp<DashboardTableRowAction[]>('rowActions', [])
+const actionLabelKey = useReactiveProp('actionLabelKey', '')
+/**
+ * Disable every action on the row currently being written.
+ *
+ * `busyValue` is whatever the parent is tracking - usually the id of the row
+ * whose request is in flight - and `busyKey` is the field it compares against,
+ * defaulting to the row key. Empty means nothing is busy.
+ */
+const busyKey = useReactiveProp('busyKey', '')
+const busyValue = useReactiveProp<unknown>('busyValue', '')
 
 const selectedKeys = state<TableKey[]>([])
 const sortKey = state('')
@@ -106,21 +252,41 @@ function rawValue(row: DashboardTableRow, key: string): any {
 function displayValue(row: DashboardTableRow, column: DashboardTableColumn): string {
   const value = rawValue(row, column.key)
   if (value === null || value === undefined || value === '')
-    return '-'
+    return column.emptyText ?? '-'
 
   if (column.type === 'currency') {
     const amount = Number(value)
-    return Number.isFinite(amount)
-      ? amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' })
-      : String(value)
+    if (!Number.isFinite(amount))
+      return String(value)
+
+    // Through @stacksjs/commerce/money, not Intl directly. Stacks stores
+    // money in MINOR units, so formatting the stored number as if it were
+    // major multiplies every amount by the currency's exponent: a 1200 cent
+    // base rate rendered as $1,200.00 instead of $12.00 (stacksjs/stacks#2916).
+    //
+    // And the exponent is per currency, not always 100 - JPY and KRW have
+    // none - so dividing here rather than delegating would be a second bug
+    // behind the first. `currencyExponent` is the only thing that knows.
+    const perRow = column.currencyKey ? rawValue(row, column.currencyKey) : undefined
+    const code = typeof perRow === 'string' && perRow ? perRow : column.currency
+    return formatCurrency(amount, code)
   }
   if (column.type === 'number') {
     const amount = Number(value)
     return Number.isFinite(amount) ? amount.toLocaleString() : String(value)
   }
   if (column.type === 'date') {
-    const at = new Date(value)
+    const at = toDate(value)
     return Number.isNaN(at.getTime()) ? String(value) : at.toLocaleDateString()
+  }
+  // An event or log row is ordered by when it happened, and to the minute, so
+  // the date alone is not enough to read it. Separate from `date` rather than
+  // a flag on it because the two render differently everywhere they appear.
+  if (column.type === 'datetime') {
+    const at = toDate(value)
+    return Number.isNaN(at.getTime())
+      ? String(value)
+      : at.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
   }
   if (column.type === 'boolean')
     return value ? 'Yes' : 'No'
@@ -160,6 +326,61 @@ const filtered = derived(() => {
 })
 
 /** Nulls sort last in both directions: "missing" is not a small value. */
+const BADGE_BASE = 'inline-flex px-2.5 py-1 font-medium text-xs ring-1 ring-inset rounded-full'
+const BADGE_NEUTRAL = 'bg-stone-100 text-stone-600 ring-stone-500/20 dark:bg-white/5 dark:text-neutral-300 dark:ring-white/10'
+
+/** The pill's classes for this row's value, neutral when the value is unmapped. */
+function badgeClass(row: DashboardTableRow, column: DashboardTableColumn): string {
+  const key = String(rawValue(row, column.key) ?? '')
+  return `${BADGE_BASE} ${column.badgeClasses?.[key] ?? BADGE_NEUTRAL}`
+}
+
+/**
+ * Whether this row gets a pill at all.
+ *
+ * A badge column with `emptyText: ''` is a flag: it marks the rows that have
+ * the value and leaves the rest blank, rather than drawing an empty pill
+ * around a dash on every other row.
+ */
+function hasBadge(row: DashboardTableRow, column: DashboardTableColumn): boolean {
+  return badgeLabel(row, column) !== ''
+}
+
+/**
+ * Parse a stored timestamp.
+ *
+ * SQLite hands back `2026-01-01 12:00:00`, with a space and no zone. `new
+ * Date()` reads that as local time where it reads it at all, so every row
+ * shifted by the viewer's offset - a date near midnight landing on the wrong
+ * day. The hand-rolled tables each normalised it themselves; this is the same
+ * knowledge in the one place that needs it.
+ */
+function toDate(value: unknown): Date {
+  const text = String(value)
+  return new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? `${text.replace(' ', 'T')}Z` : text)
+}
+
+/** The pill's text: the mapped label, else the value with its underscores read as spaces. */
+function badgeLabel(row: DashboardTableRow, column: DashboardTableColumn): string {
+  const value = rawValue(row, column.key)
+  if (value === null || value === undefined || value === '')
+    return column.emptyText ?? '-'
+
+  if (column.badgeLabelKey) {
+    const label = rawValue(row, column.badgeLabelKey)
+    if (label !== null && label !== undefined && label !== '')
+      return String(label)
+  }
+
+  const key = String(value)
+  const mapped = column.badgeLabels?.[key]
+  if (mapped)
+    return mapped
+
+  const words = key.replaceAll('_', ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 function compare(a: any, b: any, type: DashboardTableColumn['type']): number {
   const aMissing = a === null || a === undefined || a === ''
   const bMissing = b === null || b === undefined || b === ''
@@ -172,8 +393,11 @@ function compare(a: any, b: any, type: DashboardTableColumn['type']): number {
 
   if (type === 'number' || type === 'currency')
     return Number(a) - Number(b)
-  if (type === 'date')
-    return new Date(a).getTime() - new Date(b).getTime()
+  // `datetime` sorts as a date too. Left out, it fell through to the string
+  // comparison below, which is only accidentally right for ISO timestamps and
+  // wrong for every other format.
+  if (type === 'date' || type === 'datetime')
+    return toDate(a).getTime() - toDate(b).getTime()
   if (type === 'boolean')
     return (a ? 1 : 0) - (b ? 1 : 0)
 
@@ -384,6 +608,55 @@ function rowClass(index: number): string {
   ].filter(Boolean).join(' ')
 }
 
+/**
+ * Whether any column opted into the `cell` slot.
+ *
+ * Once one does, only those columns route through the slot and the rest keep
+ * the built-in rendering. A table that marks none of them behaves as it always
+ * did: the slot, when given, takes every cell. `$slots` is template-only, so
+ * the presence of the slot is checked alongside this in the markup.
+ */
+function hasSlottedColumns(): boolean {
+  return columns().some(column => column.slotted)
+}
+
+/** Whether the actions column is shown at all. */
+function hasRowActions(): boolean {
+  return rowActions().length > 0
+}
+
+/** The quieter second line, when the column asked for one and the row has it. */
+function subtitleValue(row: DashboardTableRow, column: DashboardTableColumn): string {
+  if (!column.subtitleKey)
+    return ''
+  const value = rawValue(row, column.subtitleKey)
+  return value === null || value === undefined ? '' : String(value)
+}
+
+/** "Edit Kilogram", built from the action's label and the row's own name. */
+function rowActionLabel(row: DashboardTableRow, action: DashboardTableRowAction): string {
+  const key = actionLabelKey() || rowKey()
+  const name = rawValue(row, key)
+  return name === null || name === undefined || name === '' ? action.label : `${action.label} ${String(name)}`
+}
+
+/** Whether this action applies to this row. */
+function showsRowAction(row: DashboardTableRow, action: DashboardTableRowAction): boolean {
+  return !action.when || rawValue(row, action.when.key) === action.when.equals
+}
+
+/** Whether this row has a write in flight, so its actions are inert. */
+function rowIsBusy(row: DashboardTableRow): boolean {
+  const value = busyValue()
+  if (value === '' || value === null || value === undefined)
+    return false
+  return rawValue(row, busyKey() || rowKey()) === value
+}
+
+function rowActionIconClass(action: DashboardTableRowAction): string {
+  return `block h-4 w-4 ${action.class || 'text-blue-500'} ${action.icon}`
+}
+
 function cellClass(column: DashboardTableColumn, index: number): string {
   return [
     index === 0 && !selectable() ? 'pl-6' : 'pl-4',
@@ -404,8 +677,13 @@ function cellClass(column: DashboardTableColumn, index: number): string {
   </div>
 
   <!-- Toolbar: only rendered when something asked for it. -->
+  {{-- `$slots.toolbar` used to be the last arm of this `||`, which only ever
+       worked because one of the calls before it was usually true: `$slots`
+       does not resolve inside a compound expression, so a table whose ONLY
+       toolbar content came from the slot rendered no toolbar at all. The
+       slot-only case gets its own branch below. See stacksjs/stx#2098. --}}
   <div
-    :if="searchable() || columnToggle() || exportable() || $slots.toolbar"
+    :if="searchable() || columnToggle() || exportable()"
     class="flex flex-wrap gap-3 items-center justify-between px-4 py-3 border-b border-stone-200/80 dark:border-neutral-700"
   >
     <div class="flex flex-wrap gap-2 items-center">
@@ -435,16 +713,16 @@ function cellClass(column: DashboardTableColumn, index: number): string {
 
     <div class="flex gap-2 items-center">
       <div :if="columnToggle()" class="relative">
-        <button
-          type="button"
-          aria-haspopup="true"
-          :aria-expanded="columnMenuOpen() ? 'true' : 'false'"
+        <Button
+          variant="outline"
+          size="sm"
+          ariaHasPopup="true"
+          :ariaExpanded="columnMenuOpen() ? 'true' : 'false'"
           @click="columnMenuOpen.set(!columnMenuOpen())"
-          class="inline-flex gap-1.5 items-center px-2.5 py-1.5 text-neutral-600 text-xs dark:text-neutral-300 hover:bg-stone-50 dark:hover:bg-neutral-800 border border-stone-300 rounded-lg dark:border-neutral-600"
         >
           <span aria-hidden="true" class="h-3.5 w-3.5 i-hugeicons-layout-table-01"></span>
           Columns
-        </button>
+        </Button>
 
         <div
           :if="columnMenuOpen()"
@@ -480,6 +758,17 @@ function cellClass(column: DashboardTableColumn, index: number): string {
     </div>
   </div>
 
+  {{-- A table that only contributes toolbar content through the slot, with
+       none of the built-in controls switched on. --}}
+  <div
+    :else-if="$slots.toolbar"
+    class="flex flex-wrap gap-3 items-center justify-between px-4 py-3 border-b border-stone-200/80 dark:border-neutral-700"
+  >
+    <div class="flex flex-wrap gap-2 items-center">
+      <slot name="toolbar" />
+    </div>
+  </div>
+
   <div class="overflow-x-auto">
     <table class="w-full">
       <thead :class="'bg-stone-50/80 dark:bg-neutral-800/50 ' + (stickyHeader() ? 'sticky top-0 z-20' : '')">
@@ -502,10 +791,14 @@ function cellClass(column: DashboardTableColumn, index: number): string {
               :style="column.width ? 'width: ' + column.width : undefined"
               :aria-sort="ariaSort(column)"
             >
-              <button
+              {{-- `bare`: a header button fills its `<th>` and carries no box
+                   of its own, so none of the sizes fit. It still comes through
+                   `UI/Button` for the shared focus ring and disabled handling.
+                   See stacksjs/stacks#2926. --}}
+              <Button
                 :if="column.sortable"
-                type="button"
-                :aria-label="sortLabel(column)"
+                variant="bare"
+                :ariaLabel="sortLabel(column)"
                 class="inline-flex gap-1.5 items-center hover:text-stone-700 dark:hover:text-neutral-200"
                 @click="sort(column)"
               >
@@ -514,12 +807,17 @@ function cellClass(column: DashboardTableColumn, index: number): string {
                   aria-hidden="true"
                   :class="'h-3.5 w-3.5 ' + (sortKey() === column.key ? (sortDirection() === 'asc' ? 'i-hugeicons-arrow-up-02' : 'i-hugeicons-arrow-down-02') : 'opacity-30 i-hugeicons-arrow-up-down')"
                 ></span>
-              </button>
+              </Button>
               <span :else>{{ column.label }}</span>
             </th>
           </template>
 
+          {{-- `$slots` only resolves as a standalone reference: inside a
+               compound expression like `$slots.actions || hasRowActions()` the
+               whole condition comes out falsy, so the column silently vanished.
+               Hence the pair. See stacksjs/stx#2098. --}}
           <th :if="$slots.actions" scope="col" class="px-4 py-3 w-12"><span class="sr-only">Actions</span></th>
+          <th :else-if="hasRowActions()" scope="col" class="px-4 py-3 w-12"><span class="sr-only">Actions</span></th>
         </tr>
 
         <!-- Per-column filter row. -->
@@ -551,6 +849,7 @@ function cellClass(column: DashboardTableColumn, index: number): string {
             </td>
           </template>
           <td :if="$slots.actions" class="px-4 py-2"></td>
+          <td :else-if="hasRowActions()" class="px-4 py-2"></td>
         </tr>
       </thead>
 
@@ -569,14 +868,44 @@ function cellClass(column: DashboardTableColumn, index: number): string {
 
             <template :for="(column, columnIndex) in visibleColumns()">
               <td :class="cellClass(column, columnIndex)">
-                <slot name="cell" :row="row" :column="column" :value="row[column.key]">
-                  {{ displayValue(row, column) }}
-                </slot>
+                {{-- No `$slots` here: it only resolves standalone, so the
+                     compound condition this used to carry made every slotted
+                     cell render nothing. The slot's own fallback covers the
+                     "caller gave no slot" case instead. See stacksjs/stx#2098. --}}
+                <template :if="column.slotted || !hasSlottedColumns()">
+                  <slot name="cell" :row="row" :column="column" :value="row[column.key]">
+                    <span :if="column.type === 'badge' && hasBadge(row, column)" :class="badgeClass(row, column)">{{ badgeLabel(row, column) }}</span>
+                    <span :if="column.type !== 'badge'">{{ displayValue(row, column) }}</span>
+                    <p :if="subtitleValue(row, column)" class="mt-1 text-neutral-500 text-xs dark:text-neutral-400">{{ subtitleValue(row, column) }}</p>
+                  </slot>
+                </template>
+                <template :else>
+                  <span :if="column.type === 'badge' && hasBadge(row, column)" :class="badgeClass(row, column)">{{ badgeLabel(row, column) }}</span>
+                  <span :if="column.type !== 'badge'">{{ displayValue(row, column) }}</span>
+                  <p :if="subtitleValue(row, column)" class="mt-1 text-neutral-500 text-xs dark:text-neutral-400">{{ subtitleValue(row, column) }}</p>
+                </template>
               </td>
             </template>
 
             <td :if="$slots.actions" class="px-4 w-12" :class="compact() ? 'py-2' : 'py-3'">
               <slot name="actions" :row="row" />
+            </td>
+            <td :else-if="hasRowActions()" class="px-4 w-12" :class="compact() ? 'py-2' : 'py-3'">
+              <div class="flex gap-1 justify-end">
+                <template :for="action in rowActions()">
+                  <Button
+                    :if="showsRowAction(row, action)"
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    :disabled="rowIsBusy(row)"
+                    :ariaLabel="rowActionLabel(row, action)"
+                    @click="emit('row-action', { action: action.action, row })"
+                  >
+                    <span aria-hidden="true" :class="rowActionIconClass(action)"></span>
+                  </Button>
+                </template>
+              </div>
             </td>
           </tr>
         </template>
@@ -628,25 +957,27 @@ function cellClass(column: DashboardTableColumn, index: number): string {
     </div>
 
     <nav class="flex gap-1 items-center" aria-label="Pagination">
-      <button
-        type="button"
-        aria-label="Previous page"
+      <Button
+        variant="outline"
+        size="sm"
+        iconOnly
+        ariaLabel="Previous page"
         :disabled="page() <= 1"
         @click="goToPage(page() - 1)"
-        class="p-1.5 text-neutral-600 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 border border-stone-300 rounded dark:border-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <span aria-hidden="true" class="h-4 w-4 i-hugeicons-arrow-left-01"></span>
-      </button>
+      </Button>
       <span class="px-2 tabular-nums text-neutral-600 text-sm dark:text-neutral-300">{{ page() }} / {{ pageCount() }}</span>
-      <button
-        type="button"
-        aria-label="Next page"
+      <Button
+        variant="outline"
+        size="sm"
+        iconOnly
+        ariaLabel="Next page"
         :disabled="page() >= pageCount()"
         @click="goToPage(page() + 1)"
-        class="p-1.5 text-neutral-600 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 border border-stone-300 rounded dark:border-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <span aria-hidden="true" class="h-4 w-4 i-hugeicons-arrow-right-01"></span>
-      </button>
+      </Button>
     </nav>
   </div>
 

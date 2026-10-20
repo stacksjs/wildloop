@@ -32,6 +32,29 @@ route.options('/users', handler)
 route.health()  // GET /health endpoint
 ```
 
+### Redirects
+
+Laravel's `Route::redirect` and `Route::permanentRedirect`:
+
+```typescript
+route.redirect('/here', '/there')            // 302
+route.redirect('/here', '/there', 307)       // any of 301, 302, 303, 307, 308
+route.permanentRedirect('/old', '/new')      // 301
+```
+
+The incoming query string is carried onto the target unless the target names
+its own. Group prefixes apply, and the call returns a chainable route.
+
+A redirect for a page path goes in a root-mounted route file (`'web'` in
+`app/Routes.ts`, or any entry with `prefix: ''`). The views server answers
+page paths and never loads route files, so `buddy generate:types` writes those
+redirects to `storage/framework/auto-imports/routes.ts` (`routeRedirects`) and
+both `buddy dev` and `buddy serve` answer them before looking for a page: no
+`config/server.ts` proxy rule and no hop to the API. Re-run
+`generate:types` after adding one (CI's barrel check catches a stale map).
+Exact paths only; a `{param}` redirect stays an API route. A rule in
+`config/server.ts` `redirects` wins a clash.
+
 ### Zero-allocation static responses
 
 Use `staticResponse()` only when the response is final at registration time and
@@ -61,6 +84,25 @@ route.get('/admin', handler)
   .name('admin.dashboard')
 ```
 
+### Rate limits and the client address
+
+`.rateLimit(max, 'minute' | seconds)` on a route and `await rateLimit(key, max,
+{ identity? }).per('hour')` in an action count in the configured Redis cache
+when `config/cache.ts` selects Redis (one budget across every worker and
+instance), otherwise, and while Redis is unreachable (warned once), in process
+memory. `useRateLimitStorage(storage | null)` installs any ts-rate-limiter
+`StorageProvider` (call `resetRateLimiters()` after). Every `max`, the Throttle
+middleware's and the login lockout's are multiplied by
+`config.security.rateLimit.scale` (`STACKS_RATE_LIMIT_SCALE`, default 1):
+raise it in a test suite instead of turning limits off.
+
+The anonymous identity is `clientAddress(req)` from `@stacksjs/router`, which
+shadows bun-router's export and believes forwarding headers only from
+`config.security.trustedProxies` (unset: loopback, private and link-local
+networks; `[]`: none). Set it to the load balancer's ranges when other hosts
+share the private network. bun-router's own `request.ip()` and the server
+package's maintenance allow-list still use the bun-router default.
+
 ### Route Groups
 ```typescript
 route.group({ prefix: '/api/v1', middleware: ['auth', 'throttle'] }, () => {
@@ -78,6 +120,14 @@ route.group({ prefix: '/api/v1', middleware: ['auth', 'throttle'] }, () => {
 - Action string: `'Actions/CreateUser'` — auto-loads action, lazily
 - Action object: an imported action, passed directly — see typed routes below
 - Controller: `'Controllers/UserController@index'` — calls controller method
+
+Generated Action registries keep their source `.ts` targets. For current
+`app/Actions/` files, the loader uses a colocated regular `.js` file only when
+the exact source target is absent. An existing source always wins, including
+when its import fails. Nested Actions and app overrides follow the same rule.
+Packaged defaults, controllers and middleware keep their own resolution.
+This supports native app-build output; it does not qualify a complete server
+image or Docker deployment.
 
 ## The strings are typed
 
@@ -336,6 +386,9 @@ bundles, and feature gates decide the mounted surface; inspect `buddy route:list
 - `POST /login`, `POST /register`, `POST /auth/refresh`, `POST /auth/token`
 - `GET /auth/tokens`, `DELETE /auth/tokens/{id}` (auth)
 - `GET /me`, `POST /logout` (auth)
+- Social bundle: `GET /auth/{provider}`, `GET|POST /auth/{provider}/callback`
+  (POST skips CSRF; the browser-bound OAuth state is checked instead),
+  `POST /auth/handoff` (redeems the callback's one-use code)
 
 ### Email
 - `POST /api/email/subscribe`, `GET /api/email/unsubscribe`
@@ -375,7 +428,7 @@ url('user.show', { id: 42 })             // '/users/42'
 
 ## Gotchas
 - Routes use `@stacksjs/bun-router` under the hood
-- Rate limiting via `ts-rate-limiter` is built into the router
+- Rate limiting via `ts-rate-limiter` is built into the router; it is shared through Redis only when the cache driver is Redis
 - Route registry in `app/Routes.ts` maps file names to URL prefixes
 - String-based handlers (`'Actions/MyAction'`) are dynamically imported
 - Middleware priority: lower number = runs first

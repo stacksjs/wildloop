@@ -298,6 +298,7 @@ declare global {
   const nativeRouteRegion: typeof autoImports.nativeRouteRegion
   const nativeZoomRegion: typeof autoImports.nativeZoomRegion
   const nativeOAuthCallback: typeof autoImports.nativeOAuthCallback
+  const recordingStoppedAt: typeof autoImports.recordingStoppedAt
   const nativeRecordingDuration: typeof autoImports.nativeRecordingDuration
   const movingSeconds: typeof autoImports.movingSeconds
   const recordingSamples: typeof autoImports.recordingSamples
@@ -313,6 +314,7 @@ declare global {
   const readNativeAccount: typeof autoImports.readNativeAccount
   const storeNativeSession: typeof autoImports.storeNativeSession
   const clearNativeSession: typeof autoImports.clearNativeSession
+  const requireNativeAccount: typeof autoImports.requireNativeAccount
   const nativeShellReady: typeof autoImports.nativeShellReady
   const whenNativeShell: typeof autoImports.whenNativeShell
   const activeTabFor: typeof autoImports.activeTabFor

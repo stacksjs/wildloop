@@ -4,6 +4,8 @@ import { env } from '@stacksjs/env'
 import { readdirSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import process from 'node:process'
+import { frameworkDefaultsRoot } from '@stacksjs/path'
+import { resolveDashboardModel } from '../../../../resources/functions/dashboard/model-access'
 import { dashboardOperationalError } from '../dashboard-response'
 
 interface SearchableModel {
@@ -113,7 +115,7 @@ function iconForModel(name: string): string {
 }
 
 async function loadSearchableModels(): Promise<SearchableModel[]> {
-  const defaultsRoot = join(process.cwd(), 'storage/framework/defaults/app/Models')
+  const defaultsRoot = join(frameworkDefaultsRoot(), 'app/Models')
   const userRoot = join(process.cwd(), 'app/Models')
   const merged = new Map<string, string>()
 
@@ -126,7 +128,8 @@ async function loadSearchableModels(): Promise<SearchableModel[]> {
   for (const [fallbackName, file] of merged) {
     try {
       const module = await import(file)
-      const definition = module.default ?? module
+      const definition = await resolveDashboardModel(fallbackName, module.default ?? module)
+      if (!definition) continue
       const name = String(definition.name || fallbackName)
       const search = definition.traits?.useSearch
       if (!search || typeof search !== 'object' || !Array.isArray(search.searchable)) continue
@@ -197,13 +200,15 @@ export default new Action({
     if (!q) return { results: {} }
 
     try {
+      const models = await catalog()
+      if (models.length === 0) return { results: {}, unavailable: [] }
       const { Database } = await import('bun:sqlite')
       const db = new Database(env.DB_DATABASE_PATH || 'database/stacks.sqlite', { readonly: true })
       const results: Record<string, SearchResult[]> = {}
       const unavailable: SearchUnavailable[] = []
 
       try {
-        for (const model of await catalog()) {
+        for (const model of models) {
           if (Object.keys(results).length >= MAX_GROUPS) break
 
           const columns = db.query(`PRAGMA table_info(${model.table})`).all() as Array<{ name: string }>

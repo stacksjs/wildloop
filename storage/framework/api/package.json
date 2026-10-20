@@ -8,11 +8,11 @@
     "prod": "bun --hot run dist/dev.js"
   },
   "dependencies": {
-    "@stacksjs/logging": "^0.75.219",
-    "@stacksjs/queue": "^0.75.219",
-    "@stacksjs/router": "^0.75.219",
-    "@stacksjs/storage": "^0.75.219",
-    "@stacksjs/utils": "^0.75.219"
+    "@stacksjs/logging": "^0.75.246",
+    "@stacksjs/queue": "^0.75.246",
+    "@stacksjs/router": "^0.75.246",
+    "@stacksjs/storage": "^0.75.246",
+    "@stacksjs/utils": "^0.75.246"
   },
   "workspaces": [
     "../core/*"
