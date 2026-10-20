@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { movingSeconds, recordingFigures, recordingPayload, recordingSamples, type NativeRecording } from '../../resources/functions/native-recording'
+import { movingSeconds, recordingFigures, recordingPayload, recordingSamples, recordingStoppedAt, type NativeRecording } from '../../resources/functions/native-recording'
 
 function track(): NativeRecording {
   return { userId:7,id:'native-run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[] }
@@ -36,5 +36,36 @@ describe('native recording recovery math',()=>{
     expect(geometry.coordinates[0]).toEqual([-119,37])
     expect(geometry.properties.samples[0].altitude).toBeCloseTo(100)
     expect(recordingPayload(value,160000).upload_id).toBe(payload.upload_id)
+  })
+})
+
+describe('when a stopped recording\'s clock reads to', () => {
+  /*
+   * `movingSeconds` measures against whatever "now" it is handed. That is
+   * right while a run is in progress and wrong the moment it ends: a track
+   * kept on the device — too few fixes to save, or an upload waiting for
+   * signal — went on accruing moving time against the wall clock. One left
+   * overnight on a simulator read eighteen hours of movement over zero miles.
+   */
+  it('freezes at the moment the recorder stopped', () => {
+    const stopped = { ...track(), endedAt: 160000, samples: [{ t: 150000, lat: 1, lng: 2, movingS: 50 }] } as NativeRecording
+    expect(recordingStoppedAt(stopped)).toBe(160000)
+    expect(movingSeconds(stopped, recordingStoppedAt(stopped))).toBe(60)
+  })
+
+  it('falls back to the last fix for a track checkpointed before endedAt existed', () => {
+    const legacy = { ...track(), samples: [{ t: 130000, lat: 1, lng: 2, movingS: 30 }] } as NativeRecording
+    expect(recordingStoppedAt(legacy)).toBe(130000)
+  })
+
+  /*
+   * A track with no fixes never moved, so it reads zero rather than however
+   * long the phone has been switched on. This is the shape the GPS-denied
+   * recording left behind.
+   */
+  it('reads zero for a track that never captured a fix', () => {
+    const empty = track()
+    expect(recordingStoppedAt(empty)).toBe(empty.startedAt)
+    expect(movingSeconds(empty, recordingStoppedAt(empty))).toBe(0)
   })
 })

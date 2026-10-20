@@ -16,7 +16,27 @@ export interface NativeRecording {
   targetTerritoryId: number | null
   pauses: Array<{ start: number, end: number | null }>
   samples: RecorderSample[]
+  /** When the recorder was stopped. Absent while it is still running. */
+  endedAt?: number
   pending?: Record<string, unknown>
+}
+
+/*
+ * The instant a stopped recording's clock should read to.
+ *
+ * `movingSeconds` measures against whatever "now" it is handed, which is right
+ * while a run is in progress and wrong the moment it ends: a track stopped and
+ * kept on the device (too few fixes to save, or an upload waiting for signal)
+ * went on accruing moving time against the wall clock. One left overnight read
+ * eighteen hours of movement over zero miles.
+ *
+ * `endedAt` is written when the recorder stops. The fallbacks are for tracks
+ * checkpointed before it existed: the last fix is where the evidence stops, and
+ * a track with no fixes at all never moved, so it reads zero rather than
+ * however long the phone has been on.
+ */
+export function recordingStoppedAt(recording: NativeRecording): number {
+  return recording.endedAt ?? recording.samples.at(-1)?.t ?? recording.startedAt
 }
 
 export function nativeRecordingDuration(seconds: number): string {

@@ -8,7 +8,7 @@ import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
-import { nativeRecordingDuration, movingSeconds, recordingFigures, recordingPayload, recordingSamples, type NativeRecording } from '../functions/native-recording'
+import { nativeRecordingDuration, movingSeconds, recordingFigures, recordingPayload, recordingSamples, recordingStoppedAt, type NativeRecording } from '../functions/native-recording'
 const craft = (globalThis as typeof globalThis & {craft:NativeCraft}).craft
 {{-- One api for the screen: the keychain is read once, however many of
      these paths run. --}}
@@ -26,7 +26,7 @@ const visibility = state('followers')
 const gameMode = state('capture')
 const now = state(Date.now())
 const figures = derived(() => recording() ? recordingFigures(recording()!) : {distance:0,elevation:0})
-const movingTime = derived(() => { const value=recording(); return value ? movingSeconds(value,now()) : 0 })
+const movingTime = derived(() => { const value=recording(); return value ? movingSeconds(value,running() ? now() : recordingStoppedAt(value)) : 0 })
 const coordinates = derived(() => recording()?.samples.flatMap(sample => [sample.lat,sample.lng]) ?? [])
 /*
  * Where the map opens before there is a track to frame.
@@ -286,6 +286,9 @@ function finish() { void perform(async () => {
   if (running()) {
     const ended=await craft.location.stopRecording()
     append(ended.locations)
+    // Stamped before anything can refuse the save: a track kept on the device
+    // still needs to know when its clock stopped.
+    recording.set({...recording()!,endedAt:Date.now()})
     running.set(false);paused.set(false)
     await live.end().catch(()=>{})
     await craft.setKeepAwake?.(false)
