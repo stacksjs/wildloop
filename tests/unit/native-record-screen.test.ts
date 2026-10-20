@@ -113,6 +113,38 @@ describe('native Record checkpoint recovery',()=>{
    * it can see: no samples at all means it is not recording GPS, whatever the
    * host claims, and after half a minute of that the likely reason is named.
    */
+  /*
+   * With no region of its own the map fell back to MapKit's default camera,
+   * which is the device's own region at country scale: a simulator set to the
+   * Philippines opened on the Philippines, a phone in Oregon on the United
+   * States. Either way the runner is a speck under the Start button.
+   *
+   * Asking for a position on mount is right on this screen and wrong on the
+   * route planner — Record is the screen whose job is GPS, and the app's
+   * purpose string describes exactly this, so the prompt is one the viewer
+   * invited. A refusal is silent: the caption under the clock is where the
+   * GPS story gets told.
+   */
+  it('opens the map where the device is, and yields to the track once there is one',async()=>{
+    const screen=await recover()
+    const position=await waitForRequest(screen,0,r=>r.payload?.module==='Location' && r.payload.method==='getCurrentPosition')
+    answer(screen,position,{latitude:45.5152,longitude:-122.6784})
+    for(let attempt=0;attempt<60 && !nativeNodeProps(screen,'record-native-map').initialRegion;attempt++)await Bun.sleep(1)
+    const region=nativeNodeProps(screen,'record-native-map').initialRegion
+    expect(region.center).toEqual({latitude:45.5152,longitude:-122.6784})
+    // Tight enough to read a street, not a country.
+    expect(region.span.latitudeDelta).toBeLessThan(0.05)
+  })
+
+  it('ignores a position that carries no coordinates',async()=>{
+    const screen=await recover()
+    const position=await waitForRequest(screen,0,r=>r.payload?.module==='Location' && r.payload.method==='getCurrentPosition')
+    answer(screen,position,{accuracy:65})
+    await Bun.sleep(30)
+    // Never a NaN centre, which sends the camera nowhere at all.
+    expect(nativeNodeProps(screen,'record-native-map').initialRegion ?? null).toBeNull()
+  })
+
   it('does not claim to be recording GPS before a single fix arrives',async()=>{
     const fresh=await live([],Date.now()-2000)
     await waitForText(fresh,'Waiting for GPS…')

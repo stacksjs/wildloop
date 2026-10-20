@@ -28,6 +28,36 @@ const now = state(Date.now())
 const figures = derived(() => recording() ? recordingFigures(recording()!) : {distance:0,elevation:0})
 const movingTime = derived(() => { const value=recording(); return value ? movingSeconds(value,now()) : 0 })
 const coordinates = derived(() => recording()?.samples.flatMap(sample => [sample.lat,sample.lng]) ?? [])
+/*
+ * Where the map opens before there is a track to frame.
+ *
+ * With no region of its own the map fell back to MapKit's default camera,
+ * which is the device's own region at country scale — a simulator set to the
+ * Philippines opened on the Philippines, and a phone in Oregon opens on the
+ * United States. Either way the runner is a speck, and "Start recording" sits
+ * under a map showing nothing they can recognise.
+ *
+ * Asking the device for a position on mount is right *here* and wrong on the
+ * route planner, which is why only this screen does it. Record is the screen
+ * whose whole job is GPS, and the app's purpose string — "Wildloop uses your
+ * location while you record an activity" — describes exactly this. A prompt
+ * raised by opening Record is one the viewer invited.
+ *
+ * A refusal says nothing. The caption under the clock already tells the GPS
+ * story once a recording starts, and a map that stayed wide is not worth a
+ * second complaint.
+ */
+const here = state<any>(null)
+async function frameOnDevice(): Promise<void> {
+  try {
+    const point = await craft.location?.getCurrentPosition({enableHighAccuracy:true,timeout:15000})
+    // A refused position resolves carrying no coordinates, and a NaN centre
+    // sends the camera nowhere at all.
+    if (!alive || !Number.isFinite(point?.latitude) || !Number.isFinite(point?.longitude)) return
+    here.set({center:{latitude:point!.latitude,longitude:point!.longitude},span:{latitudeDelta:0.01,longitudeDelta:0.01}})
+  }
+  catch { /* The GPS caption is the place this gets reported, not the camera. */ }
+}
 let alive = true
 let owner = 0
 let watch: number | null = null
@@ -277,6 +307,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{recording.set(null);running.set(fal
 onMount(()=>{
   craft.navigation.setOptions({title:'Record',largeTitle:false})
   guarded()
+  void frameOnDevice()
   const clock=useIntervalFn(()=>{if(running() && !paused())now.set(Date.now())},1000)
   const appear=craft.navigation.onAppear(()=>{guarded()})
   const lifecycle=craft.lifecycle.onStateChange(value=>{if(value==='active') void recover()})
@@ -292,7 +323,7 @@ onMount(()=>{
       <Text :text="figures().distance.toFixed(2) + ' mi'" class="text-[42px] font-bold text-fg" testID="record-distance" />
       <Text :text="nativeRecordingDuration(movingTime()) + ' moving · ' + Math.round(figures().elevation) + ' ft gain'" :class="ui.body" testID="record-time" />
       <Text :text="recordingState()" :class="ui.caption" testID="record-state" />
-      <Map testID="record-native-map" :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
+      <Map testID="record-native-map" :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :initialRegion="coordinates().length >= 4 ? null : here()" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
         <MapPolyline :geometry="coordinates()" strokeColor="#24724b" :strokeWidth="5" />
       </Map>
     </View>
