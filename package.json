@@ -23,12 +23,12 @@
     "ts-web-scraper": "^0.1.10"
   },
   "overrides": {
-    "@stacksjs/components": "0.2.594",
-    "@stacksjs/desktop": "0.2.594",
-    "@stacksjs/sanitizer": "0.2.594",
-    "@stacksjs/stx": "0.2.594",
-    "bun-plugin-stx": "0.2.594",
-    "stx-router": "0.2.594"
+    "@stacksjs/components": "0.2.603",
+    "@stacksjs/desktop": "0.2.603",
+    "@stacksjs/sanitizer": "0.2.603",
+    "@stacksjs/stx": "0.2.603",
+    "bun-plugin-stx": "0.2.603",
+    "stx-router": "0.2.603"
   },
   "bugs": {
     "url": "https://github.com/stacksjs/wildloop/issues"
