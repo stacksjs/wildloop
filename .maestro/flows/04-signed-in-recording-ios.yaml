@@ -7,9 +7,10 @@ tags:
 ---
 - launchApp:
     clearState: true
+# A fresh install opens on the account gate.
 - extendedWaitUntil:
     visible:
-      id: native-feed-scroll
+      id: login-email
     timeout: 30000
 - openLink: wildloop://login?next=/record
 - runFlow:

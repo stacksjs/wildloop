@@ -3,8 +3,10 @@ import type { SimulatorStep } from '@stacksjs/mobile/testing'
 /** Real native UI interactions against the isolated QA database. */
 export function nativeTrailJourneys(input:{trailId:number,trailName:string,email:string,password:string,review:string,edit:string}):{name:string,steps:SimulatorStep[],completion:string}[] {
 const arrival:SimulatorStep[] = [
+ // An account is required to use the app: a fresh install opens on the
+ // gate, a relaunch with a kept session on the feed. Either way the login
+ // link is the door to the trail, so the journey goes straight to it.
  {command:'launch'},
- {command:'expectid',text:'native-feed-scroll',seconds:15},
  {command:'openurl',url:`wildloop://login?next=/trail/${input.trailId}`},
  {command:'expectid',text:'login-email',seconds:10},
  {command:'typeid',id:'login-email',text:input.email},

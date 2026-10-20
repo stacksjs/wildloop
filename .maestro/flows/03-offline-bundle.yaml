@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Native cold start and navigation offline
+name: Native cold start offline
 tags:
   - mobile
   - offline
@@ -9,25 +9,15 @@ onFlowComplete:
 - setAirplaneMode: enabled
 - launchApp:
     clearState: true
+# The account gate is drawn from the bundle with no network: a fresh install
+# offline opens on Login, not a blank screen or a spinner.
 - extendedWaitUntil:
     visible:
-      id: native-feed-scroll
+      id: login-email
     timeout: 30000
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      - tapOn:
-          id: craft-tab-/menu
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - tapOn: "^Menu$"
-- extendedWaitUntil:
-    visible:
-      id: native-menu
-    timeout: 30000
+- assertNotVisible:
+    id: craft-tab-/menu
+- takeScreenshot: native-offline-login
 - openLink: wildloop://record
 - runFlow:
     when:
