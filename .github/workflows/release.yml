@@ -28,16 +28,16 @@ jobs:
           # The Bun deps.yaml pins for pantry, as in ci.yml.
           bun-version: '1.4.2'
 
-      - name: Use Cached node_modules
+      - name: Cache Bun downloads
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
+          path: ~/.bun/install/cache
+          key: bun-downloads-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            node-modules-
+            bun-downloads-${{ runner.os }}-
 
       - name: Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Publish Framework
         run: ./storage/framework/scripts/publish

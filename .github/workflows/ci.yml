@@ -39,16 +39,18 @@ jobs:
           # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
-      - name: Use cached node_modules
+      # Reuse downloaded archives; materialize the dependency tree from this
+      # lockfile so an older nested STX engine cannot survive a cache restore.
+      - name: Cache Bun downloads
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
+          path: ~/.bun/install/cache
+          key: bun-downloads-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            node-modules-
+            bun-downloads-${{ runner.os }}-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Lint
         run: bunx --bun pickier .
@@ -75,16 +77,18 @@ jobs:
           # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
-      - name: Use cached node_modules
+      # Reuse downloaded archives; materialize the dependency tree from this
+      # lockfile so an older nested STX engine cannot survive a cache restore.
+      - name: Cache Bun downloads
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
+          path: ~/.bun/install/cache
+          key: bun-downloads-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            node-modules-
+            bun-downloads-${{ runner.os }}-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Typecheck
         run: bun buddy test:types
@@ -137,16 +141,18 @@ jobs:
           # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
-      - name: Use cached node_modules
+      # Reuse downloaded archives; materialize the dependency tree from this
+      # lockfile so an older nested STX engine cannot survive a cache restore.
+      - name: Cache Bun downloads
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
+          path: ~/.bun/install/cache
+          key: bun-downloads-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            node-modules-
+            bun-downloads-${{ runner.os }}-
 
       - name: Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Test Suite
         env:
@@ -165,7 +171,7 @@ jobs:
           # Production's Bun, as in the jobs above.
           bun-version: '1.4.2'
       - name: Install app dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
       # Isolated test dependencies: no changes to the app's hoisted ORM tree.
       # Server-side regressions that need the QA app but no browser.
       #
@@ -234,16 +240,18 @@ jobs:
           # and hung the dashboard, failures 1.4.2 and production do not have.
           bun-version: '1.4.2'
 
-      - name: Use cached node_modules
+      # Reuse downloaded archives; materialize the dependency tree from this
+      # lockfile so an older nested STX engine cannot survive a cache restore.
+      - name: Cache Bun downloads
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('**/bun.lock') }}
+          path: ~/.bun/install/cache
+          key: bun-downloads-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            node-modules-
+            bun-downloads-${{ runner.os }}-
 
       - name: Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build
         run: bun run build
