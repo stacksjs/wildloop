@@ -202,7 +202,7 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); garmin.set(nu
         <Button :disabled="busy" @click="uploadAvatar()">Change profile photo</Button>
         <Button :show="user()?.avatar" :disabled="busy" @click="removeAvatar()">Remove photo</Button>
         <Text :class="ui.caption">Name</Text><TextInput testID="settings-name" accessibilityLabel="Name" :class="ui.input" :value="name" @input="name.set(field($event))" />
-        <Text :class="ui.caption">Bio</Text><TextInput testID="settings-bio" accessibilityLabel="Bio" :class="ui.input" :value="bio" :multiline="true" :maxLength="280" @input="bio.set(field($event))" />
+        <Text :class="ui.caption">Bio</Text><TextInput testID="settings-bio" accessibilityLabel="Bio" :class="ui.textarea" :value="bio" :multiline="true" :maxLength="280" @input="bio.set(field($event))" />
         <Text :class="ui.caption">Location</Text><TextInput testID="settings-location" accessibilityLabel="Location" :class="ui.input" :value="place" @input="place.set(field($event))" />
         <Button testID="settings-save-profile" :disabled="busy" :class="ui.action" @click="saveProfile()" title="Save profile" />
       </View>

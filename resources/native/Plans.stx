@@ -139,7 +139,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{rows.set([]);editing.set(false);own
       <TextInput testID="plan-latitude" accessibilityLabel="Latitude" :class="ui.input" :value="latitude" keyboardType="numbers-and-punctuation" @input="latitude.set($event.text||'')" />
       <TextInput testID="plan-longitude" accessibilityLabel="Longitude" :class="ui.input" :value="longitude" keyboardType="numbers-and-punctuation" @input="longitude.set($event.text||'')" />
       <Button @click="craft.navigation.open('/trails')">Choose a trail</Button>
-      <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="plan-notes" :class="ui.input" :multiline="true" :value="notes" @input="notes.set($event.text||'')" />
+      <Text :class="ui.caption" class="mt-4">Notes</Text><TextInput testID="plan-notes" :class="ui.textarea" :multiline="true" :value="notes" @input="notes.set($event.text||'')" />
       <Text :show="error" :text="error" :class="ui.danger" class="my-4" />
       <Button testID="plan-save" :disabled="busy" :class="ui.action" @click="save()" title="Save plan" /><Button class="mt-3" @click="editing.set(false)">Close</Button>
     </ScrollView></KeyboardAvoidingView>
