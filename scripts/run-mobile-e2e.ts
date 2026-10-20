@@ -196,15 +196,46 @@ export function validateAnalyticsScriptCount(outputRoot: string): void {
   }
 }
 
+/**
+ * The compiled native screens in `dir`, in whichever layout the build made.
+ *
+ * Stacks builds one file per screen under `native-screens/` when its Craft
+ * builder runs each route from its own file, so a tab or a push parses only
+ * its own code: `<Screen>.js` for every screen, `__app.js` for the app script
+ * and `__runtime.js` for stx's shared runtime. Older builds made one
+ * `native-screen.js` holding every screen. `screens` are the screen names the
+ * app's craft.config.json routes to (and its app script, when it has one);
+ * each has to be there and not empty.
+ */
+export function nativeScreenBundle(dir: string, screens: readonly string[]): string {
+  const routes = join(dir, 'native-screens')
+  if (existsSync(routes)) {
+    for (const screen of new Set(screens)) {
+      const file = join(routes, `${screen}.js`)
+      if (!existsSync(file)) throw new Error(`Compiled native screens are missing ${screen}: ${file}`)
+      if (!readFileSync(file, 'utf8').trim()) throw new Error(`Compiled native screen ${screen} is empty: ${file}`)
+    }
+    return routes
+  }
+  const single = join(dir, 'native-screen.js')
+  requirePath(single, 'compiled native screens')
+  if (!readFileSync(single, 'utf8').trim()) throw new Error('Compiled native screen bundle is empty')
+  return single
+}
+
+/** The screens a craft.config.json routes to, and its app script. */
+function configuredNativeScreens(config: { nativeScreens?: Record<string, string>, nativeApp?: string }): string[] {
+  return [...Object.values(config.nativeScreens ?? {}), ...(config.nativeApp ? [config.nativeApp] : [])]
+}
+
 export function validateIosAppBundle(app: string): string {
-  const index = readdirSync(app, { recursive: true })
-    .map(path => path.toString())
-    .find(path => path === 'native-screen.js' || path.endsWith('/native-screen.js'))
-  if (!index) throw new Error(`Built iOS app is missing its native-screen.js: ${app}`)
   const config = JSON.parse(readFileSync(join(app, 'craft.config.json'), 'utf8'))
   if (config.renderer !== 'native') throw new Error('Built iOS app must use the native renderer')
-  const bundledIndex = join(app, index)
-  if (!readFileSync(bundledIndex, 'utf8').trim()) throw new Error('Built iOS native screen bundle is empty')
+  const found = readdirSync(app, { recursive: true })
+    .map(path => path.toString())
+    .find(path => /(?:^|\/)(?:native-screens|native-screen\.js)$/.test(path))
+  if (!found) throw new Error(`Built iOS app is missing its compiled native screens: ${app}`)
+  const bundledIndex = nativeScreenBundle(join(app, found, '..'), configuredNativeScreens(config))
   console.log(`Verified native iOS entry point: ${bundledIndex}`)
   return bundledIndex
 }
@@ -218,10 +249,7 @@ export function validateGeneratedNativeApp(outputRoot: string): void {
   for (const route of ['/feed', '/record', '/menu', '/profile', '/settings', '/login', '/plans', '/routes', '/trail/:id', '/trail/:id/map']) {
     if (!config.nativeScreens?.[route]) throw new Error(`Native app is missing screen ${route}`)
   }
-  const bundle = provenance.platform === 'android' ? 'app/src/main/assets/native-screen.js' : 'dist/native-screen.js'
-  const file = join(outputRoot, bundle)
-  requirePath(file, 'compiled native screens')
-  if (!readFileSync(file, 'utf8').trim()) throw new Error('Compiled native screen bundle is empty')
+  nativeScreenBundle(join(outputRoot, provenance.platform === 'android' ? 'app/src/main/assets' : 'dist'), configuredNativeScreens(config))
 }
 
 export function signedInTargetURL(environment: Record<string, string | undefined> = process.env): string | null {

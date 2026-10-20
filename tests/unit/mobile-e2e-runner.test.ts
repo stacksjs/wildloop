@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
@@ -289,6 +289,21 @@ describe('mobile E2E runner', () => {
     const root = mkdtempSync(join(tmpdir(), 'wildloop-empty-app-'))
     mkdirSync(join(root, 'Wildloop.app'), { recursive: true })
 
-    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('missing its native-screen.js')
+    writeFileSync(join(root, 'Wildloop.app', 'craft.config.json'), JSON.stringify({renderer:'native'}))
+    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('missing its compiled native screens')
+  })
+
+  it('accepts one compiled file per screen, and names a missing screen', () => {
+    const root = mkdtempSync(join(tmpdir(), 'wildloop-route-app-'))
+    const routes = join(root, 'Wildloop.app', 'dist', 'native-screens')
+    mkdirSync(routes, { recursive: true })
+    writeFileSync(join(root, 'Wildloop.app', 'craft.config.json'), JSON.stringify({ renderer: 'native', nativeScreens: { '/feed': 'Feed', '/': 'Feed', '/login': 'Login' }, nativeApp: '__app' }))
+    for (const screen of ['Feed', 'Login', '__app', '__runtime']) writeFileSync(join(routes, `${screen}.js`), `${screen} bundle`)
+
+    expect(validateIosAppBundle(join(root, 'Wildloop.app'))).toBe(routes)
+    rmSync(join(routes, 'Login.js'))
+    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('missing Login')
+    writeFileSync(join(routes, 'Login.js'), '   ')
+    expect(() => validateIosAppBundle(join(root, 'Wildloop.app'))).toThrow('Login is empty')
   })
 })

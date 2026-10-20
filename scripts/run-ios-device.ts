@@ -180,7 +180,8 @@ function generateProject(xcode: string, teamId: string, server: string, personal
 export function requiredIosAppPaths(app: string, includeWatchApp = watchAppEnabled): string[] {
   return [
     join(app, 'Wildloop'),
-    join(app, 'dist/native-screen.js'),
+    // One file per screen in a current build, one bundle in an older one.
+    existsSync(join(app, 'dist/native-screens')) ? join(app, 'dist/native-screens') : join(app, 'dist/native-screen.js'),
     join(app, 'PlugIns/WildloopLiveActivity.appex'),
     ...(includeWatchApp ? [join(app, 'Watch/WildloopWatch.app')] : []),
   ]
