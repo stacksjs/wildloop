@@ -274,12 +274,15 @@ declare global {
   const mentionCandidates: typeof autoImports.mentionCandidates
   const applyMention: typeof autoImports.applyMention
   const parseMentions: typeof autoImports.parseMentions
+  const mobileMenuGroups: typeof autoImports.mobileMenuGroups
   const MOBILE_MENU_GROUPS: typeof autoImports.MOBILE_MENU_GROUPS
   const completedLabel: typeof autoImports.completedLabel
   const nativeHeaders: typeof autoImports.nativeHeaders
   const loadOutcome: typeof autoImports.loadOutcome
   const nativeApiOrigin: typeof autoImports.nativeApiOrigin
+  const nativeImageUrl: typeof autoImports.nativeImageUrl
   const createNativeApi: typeof autoImports.createNativeApi
+  const nativeAccountId: typeof autoImports.nativeAccountId
   const onNativeAccountChange: typeof autoImports.onNativeAccountChange
   const WILDLOOP_ORIGIN: typeof autoImports.WILDLOOP_ORIGIN
   const startNativeApp: typeof autoImports.startNativeApp
@@ -444,6 +447,7 @@ declare global {
   const territoryActionLabel: typeof autoImports.territoryActionLabel
   const territoryIdFrom: typeof autoImports.territoryIdFrom
   const TERRITORY_LIMIT: typeof autoImports.TERRITORY_LIMIT
+  const TERRITORY_RADIUS_KM: typeof autoImports.TERRITORY_RADIUS_KM
   const TERRITORY_FILTERS: typeof autoImports.TERRITORY_FILTERS
   const TERRITORY_FILTER_LABELS: typeof autoImports.TERRITORY_FILTER_LABELS
   const classifyBattleOutcome: typeof autoImports.classifyBattleOutcome
@@ -475,10 +479,13 @@ declare global {
   const decodeRouteParts: typeof autoImports.decodeRouteParts
   const primaryRoutePart: typeof autoImports.primaryRoutePart
   const ROUTE_SNAP_METERS: typeof autoImports.ROUTE_SNAP_METERS
+  const trailheadPosition: typeof autoImports.trailheadPosition
   const trailSegmentMiles: typeof autoImports.trailSegmentMiles
   const trailDirectionSigns: typeof autoImports.trailDirectionSigns
+  const trailDirectionVisibility: typeof autoImports.trailDirectionVisibility
   const trailSurfaceTypes: typeof autoImports.trailSurfaceTypes
   const trailGpx: typeof autoImports.trailGpx
+  const trailRouteStyle: typeof autoImports.trailRouteStyle
   const placeOfLocation: typeof autoImports.placeOfLocation
   const whereLocation: typeof autoImports.whereLocation
   const wholeTrailFigures: typeof autoImports.wholeTrailFigures
