@@ -602,6 +602,7 @@ path.tsmap-interactive:focus:not(:focus-visible) {
 }
 
 .tsmap-control-attribution a {
+  color: inherit;
   text-decoration: none;
 
   &:hover,
@@ -629,9 +630,11 @@ path.tsmap-interactive:focus:not(:focus-visible) {
   }
 }
 
-/* cooperativeGestures: a map that shares the page.
-   One finger scrolls the page; two move the map. Declared after, and more
-   specific than, the drag/zoom `touch-action: none` above. */
+/*
+ * cooperativeGestures: a map that shares the page.
+ * One finger scrolls the page; two move the map. Declared after, and more
+ * specific than, the drag/zoom `touch-action: none` above.
+ */
 .tsmap-container.tsmap-cooperative,
 .tsmap-container.tsmap-cooperative.tsmap-touch-drag,
 .tsmap-container.tsmap-cooperative.tsmap-touch-drag.tsmap-touch-zoom {
@@ -1039,8 +1042,8 @@ a.tsmap-control-locate-locating .tsmap-locate-icon {
 }
 
 /* Denied or unavailable. Struck through rather than merely greyed: grey reads
-  as "disabled, try later" when the real state is "this will not work until
-  you change a browser setting". */
+  as 'disabled, try later' when the real state is 'this will not work until
+  you change a browser setting'. */
 /*
  * The state class lands on the <a> itself (see LocateControl._setState), so
  * these select the anchor rather than a parent. Written as `.tsmap-control-
@@ -1190,7 +1193,7 @@ a.tsmap-control-locate-denied::after {
 }
 
 /* A spinner would be more literal, but the input is already the thing the eye
-  is on — dimming its text says "working" without adding a moving part. */
+  is on — dimming its text says 'working' without adding a moving part. */
 .tsmap-control-geocoder-busy .tsmap-control-geocoder-input {
   color: var(--tsmap-fg-muted);
 }
@@ -1360,6 +1363,13 @@ a.tsmap-control-locate-denied::after {
   --tsmap-nav-card-fg: #1d1d1f;
   --tsmap-nav-card-muted: #6e6e73;
   --tsmap-nav-option-bg: #f2f2f7;
+  /* Action blue, warning red and Saved yellow, each at 4.5:1 or better
+   * against the card and its option rows (WCAG AA for text). Apple's own
+   * #0a84ff is 3.6:1 on white. */
+  --tsmap-action: #0066cc;
+  --tsmap-action-bg: #0066cc;
+  --tsmap-danger: #d70015;
+  --tsmap-saved: #8a6500;
 }
 
 .tsmap-container.tsmap-dark {
@@ -1368,6 +1378,10 @@ a.tsmap-control-locate-denied::after {
   --tsmap-nav-card-fg: #f5f5f7;
   --tsmap-nav-card-muted: #98989d;
   --tsmap-nav-option-bg: #3a3a3c;
+  --tsmap-action: #5eb0ff;
+  --tsmap-action-bg: #0066cc;
+  --tsmap-danger: #ff6961;
+  --tsmap-saved: #ffd60a;
 }
 
 .tsmap-nav-banner,
@@ -1613,7 +1627,7 @@ a.tsmap-control-locate-denied::after {
   padding: 10px 18px;
   border-radius: 20px;
   background: var(--tsmap-nav-card-bg);
-  color: #0a84ff;
+  color: var(--tsmap-action);
   font: 600 16px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   cursor: pointer;
 }
@@ -1634,7 +1648,7 @@ a.tsmap-control-locate-denied::after {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #0a84ff;
+  background: var(--tsmap-action-bg);
   position: relative;
 
   &::after {
@@ -1661,6 +1675,229 @@ a.tsmap-control-locate-denied::after {
   box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
   transform: rotate(-45deg);
   box-sizing: border-box;
+}
+
+/* A transit line as its sign shows it: its name on its colour. */
+.tsmap-nav-line {
+  display: inline-block;
+  min-width: 14px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #636366;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.tsmap-nav-line-sep {
+  margin: 0 3px;
+  color: var(--tsmap-nav-card-muted);
+}
+
+/* Indoor maps (see indoor/IndoorMap): the level picker, highest level at the
+ * top, the level showing filled in. */
+.tsmap-indoor-control {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tsmap-indoor-control .tsmap-indoor-level {
+  min-width: 34px;
+  height: 32px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--tsmap-fg);
+  font: 600 13px -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  cursor: pointer;
+
+  &.tsmap-indoor-active {
+    background: var(--tsmap-accent);
+    color: #fff;
+  }
+}
+
+/* Traffic (see traffic/TrafficLayer): incident markers and their card, and
+ * what traffic does to a route in the preview. */
+.tsmap-traffic-incident-icon {
+  background: none;
+  border: 0;
+}
+
+.tsmap-traffic-incident {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ff9500;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  color: #fff;
+  font: 700 13px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  cursor: pointer;
+
+  &.tsmap-traffic-accident,
+  &.tsmap-traffic-closure {
+    background: #ff3b30;
+  }
+}
+
+.tsmap-traffic-card-title {
+  font-weight: 600;
+}
+
+.tsmap-traffic-card-road,
+.tsmap-traffic-card-until {
+  color: var(--tsmap-fg-muted);
+}
+
+.tsmap-traffic-card-delay {
+  color: var(--tsmap-danger);
+  font-weight: 600;
+}
+
+.tsmap-nav-traffic {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+
+  &.tsmap-nav-traffic-light {
+    color: #1e7b34;
+  }
+
+  &.tsmap-nav-traffic-moderate {
+    color: #c93400;
+  }
+
+  &.tsmap-nav-traffic-heavy {
+    color: #d70015;
+  }
+}
+
+.tsmap-maptype-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+  font-weight: 600;
+}
+
+/* The map type picker, after Apple Maps (see control/MapTypeControl): a card
+ * of map types, each a swatch of what it looks like. */
+.tsmap-maptype-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: var(--tsmap-fg-muted);
+}
+
+.tsmap-maptype-card {
+  position: absolute;
+  z-index: 1000;
+  left: 12px;
+  right: 12px;
+  bottom: 28px;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: var(--tsmap-nav-card-bg);
+  color: var(--tsmap-nav-card-fg);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  font: 15px -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  box-sizing: border-box;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+
+  & button {
+    font: inherit;
+    cursor: pointer;
+    border: 0;
+    background: none;
+    color: inherit;
+  }
+}
+
+.tsmap-maptype-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tsmap-maptype-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tsmap-maptype-card .tsmap-maptype-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tsmap-nav-option-bg);
+  color: var(--tsmap-nav-card-muted);
+  font-size: 13px;
+}
+
+.tsmap-maptype-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 10px;
+}
+
+.tsmap-maptype-card .tsmap-maptype-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tsmap-maptype-swatch {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 3px solid transparent;
+  border-radius: 12px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #f5f3ee 0 45%, #a9d3f5 45% 60%, #d4ebc4 60%);
+}
+
+.tsmap-maptype-swatch-driving {
+  background:
+    linear-gradient(90deg, transparent 46%, #f6c55d 46% 54%, transparent 54%),
+    linear-gradient(0deg, transparent 46%, #fff 46% 54%, transparent 54%),
+    #ece8df;
+}
+
+.tsmap-maptype-swatch-satellite,
+.tsmap-maptype-swatch-hybrid {
+  background: radial-gradient(circle at 30% 30%, #6d7f4e, #3d4a2e 55%, #1f2a33);
+}
+
+.tsmap-maptype-swatch-transit {
+  background:
+    linear-gradient(45deg, transparent 46%, #e5383b 46% 52%, transparent 52%),
+    linear-gradient(-45deg, transparent 46%, #0a84ff 46% 52%, transparent 52%),
+    #f2f2f2;
+}
+
+.tsmap-maptype-active .tsmap-maptype-swatch {
+  border-color: var(--tsmap-accent);
+}
+
+.tsmap-maptype-active .tsmap-maptype-label {
+  color: var(--tsmap-accent);
 }
 
 /* Offline Maps, after Apple Maps (see control/OfflineMapsControl). The card
@@ -1740,7 +1977,7 @@ a.tsmap-control-locate-denied::after {
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--tsmap-nav-option-bg);
-  color: #0a84ff;
+  color: var(--tsmap-action);
   font-weight: 600;
   text-align: left;
 }
@@ -1797,7 +2034,7 @@ a.tsmap-control-locate-denied::after {
 .tsmap-offline-card .tsmap-offline-action {
   padding: 5px 9px;
   border-radius: 8px;
-  color: #0a84ff;
+  color: var(--tsmap-action);
   font-size: 14px;
 
   &:hover {
@@ -1805,7 +2042,7 @@ a.tsmap-control-locate-denied::after {
   }
 
   &.tsmap-offline-danger {
-    color: #ff3b30;
+    color: var(--tsmap-danger);
     font-weight: 600;
   }
 }
@@ -1820,7 +2057,7 @@ a.tsmap-control-locate-denied::after {
     display: block;
     height: 100%;
     border-radius: 2px;
-    background: #0a84ff;
+    background: var(--tsmap-action-bg);
     transition: width 0.3s ease;
   }
 
@@ -1830,7 +2067,7 @@ a.tsmap-control-locate-denied::after {
 }
 
 .tsmap-offline-error {
-  color: #ff3b30;
+  color: var(--tsmap-danger);
 }
 
 .tsmap-offline-empty,
@@ -1923,7 +2160,7 @@ a.tsmap-control-locate-denied::after {
 }
 
 .tsmap-offline-card .tsmap-offline-download {
-  background: #0a84ff;
+  background: var(--tsmap-action-bg);
   color: #fff;
 
   &:disabled {
@@ -2075,7 +2312,7 @@ a.tsmap-control-locate-denied::after {
 .tsmap-search .tsmap-search-cancel {
   display: none;
   margin-right: -2px;
-  color: #0a84ff;
+  color: var(--tsmap-action);
   font-size: 16px;
   white-space: nowrap;
 }
@@ -2109,7 +2346,7 @@ a.tsmap-control-locate-denied::after {
 }
 
 .tsmap-search .tsmap-search-link {
-  color: #0a84ff;
+  color: var(--tsmap-action);
   font-size: 14px;
   font-weight: 400;
 }
@@ -2271,10 +2508,68 @@ a.tsmap-control-locate-denied::after {
   margin-top: 14px;
   padding: 11px;
   border-radius: 12px;
-  background: #0a84ff;
+  background: var(--tsmap-action-bg);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
+}
+
+/* "Open · Closes 9 PM", green while open and red once closed, as Apple's. */
+.tsmap-search-place-hours {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+
+  &.tsmap-search-open {
+    color: #1e7b34;
+  }
+
+  &.tsmap-search-closed {
+    color: #d70015;
+  }
+}
+
+.tsmap-dark .tsmap-search-place-hours {
+  &.tsmap-search-open {
+    color: #30d158;
+  }
+
+  &.tsmap-search-closed {
+    color: #ff6961;
+  }
+}
+
+/* Call, Website and Share: smaller than Directions, side by side. */
+.tsmap-search-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tsmap-search .tsmap-search-action {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: var(--tsmap-nav-option-bg);
+  color: var(--tsmap-action);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tsmap-search-note {
+  margin-top: 6px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--tsmap-nav-card-muted);
+
+  &:empty {
+    display: none;
+  }
 }
 
 .tsmap-search-place-info {
@@ -2378,6 +2673,49 @@ a.tsmap-control-locate-denied::after {
   }
 }
 
+/* Favorites on the map: a small yellow star, below results' pins. */
+.tsmap-search-star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ffcc00;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
+  color: #fff;
+  cursor: pointer;
+
+  & svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+.tsmap-search .tsmap-search-action.tsmap-search-saved {
+  color: var(--tsmap-saved);
+}
+
+/* Results too close to tell apart, as one bubble with how many: the colour
+ * of the kind most of them are. They come apart as the map zooms in. */
+.tsmap-search-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--pin);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+  color: #fff;
+  font: 700 14px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  cursor: pointer;
+}
+
 .tsmap-search-area {
   position: absolute;
   z-index: 1000;
@@ -2388,10 +2726,255 @@ a.tsmap-control-locate-denied::after {
   border: 0;
   border-radius: 18px;
   background: var(--tsmap-nav-card-bg);
-  color: #0a84ff;
+  color: var(--tsmap-action);
   box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   font: 600 14px -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   cursor: pointer;
+}
+
+/* Read by screen readers, not shown: the live regions that announce
+ * results and choices. */
+.tsmap-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* A corner of the offline area picker, focused from the keyboard. */
+.tsmap-offline-handle:focus-visible {
+  outline: 3px solid var(--tsmap-action-bg);
+  outline-offset: 2px;
+}
+
+/* Less motion, where the reader asks for it: pins drop and cards appear
+ * without moving. Camera flights are cut short in TsMap.flyTo/easeTo. */
+@media (prefers-reduced-motion: reduce) {
+  .tsmap-search-pin,
+  .tsmap-search-cluster,
+  .tsmap-offline-card,
+  .tsmap-maptype-card,
+  .tsmap-nav-card,
+  .tsmap-nav-banner {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* --- Look Around ---------------------------------------------------------
+ * The binoculars button, the streets with pictures while choosing, and the
+ * full-bleed viewer over the map. */
+.tsmap-lookaround-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: var(--tsmap-fg-muted);
+}
+
+.tsmap-lookaround-button[aria-pressed='true'] {
+  color: var(--tsmap-action);
+}
+
+.tsmap-lookaround-choosing,
+.tsmap-lookaround-choosing .tsmap-interactive {
+  cursor: crosshair;
+}
+
+.tsmap-lookaround-hint {
+  position: absolute;
+  z-index: 1000;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--tsmap-card-bg, rgba(255, 255, 255, 0.95));
+  color: var(--tsmap-fg, #1c1c1e);
+  font: 600 13px/1.2 -apple-system, system-ui, sans-serif;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tsmap-lookaround-hint:empty {
+  display: none;
+}
+
+.tsmap-lookaround {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  font: 13px/1.3 -apple-system, system-ui, sans-serif;
+  outline: none;
+}
+
+.tsmap-lookaround-view {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.tsmap-lookaround-view:active {
+  cursor: grabbing;
+}
+
+.tsmap-lookaround-view canvas,
+.tsmap-lookaround-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tsmap-lookaround-fallback {
+  background-repeat: repeat-x;
+}
+
+.tsmap-lookaround-top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 28px;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
+  pointer-events: none;
+}
+
+.tsmap-lookaround-title {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.tsmap-lookaround-date {
+  opacity: 0.8;
+}
+
+.tsmap-lookaround-done {
+  pointer-events: auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #000;
+  font: 600 14px -apple-system, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.tsmap-lookaround-arrows {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+
+.tsmap-lookaround-arrow {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.tsmap-lookaround-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.tsmap-lookaround-back svg {
+  transform: rotate(180deg);
+}
+
+.tsmap-lookaround-done:focus-visible,
+.tsmap-lookaround-arrow:focus-visible,
+.tsmap-lookaround:focus-visible {
+  outline: 3px solid var(--tsmap-action-bg, #5eb0ff);
+  outline-offset: 2px;
+}
+
+.tsmap-lookaround-credit {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  font-size: 11px;
+  opacity: 0.85;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.tsmap-lookaround-note {
+  position: absolute;
+  left: 50%;
+  top: 64px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.tsmap-lookaround-note:empty {
+  display: none;
+}
+
+.tsmap-lookaround-mini {
+  position: absolute !important;
+  left: 12px;
+  bottom: 12px;
+  width: 150px;
+  height: 150px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.tsmap-lookaround-cone {
+  background: none;
+  border: 0;
+}
+
+/* The place card's way in: a picture of the street, labelled. */
+.tsmap-search-lookaround {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 96px;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #222 center / cover no-repeat;
+  cursor: pointer;
+}
+
+.tsmap-search-lookaround span {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: 600 12px -apple-system, system-ui, sans-serif;
 }

@@ -1,4 +1,5 @@
 import { trailDirectionSigns, trailDirectionVisibility, trailRouteStyle } from '../functions/trail-map'
+import { TRAIL_MAP_CSS, TRAIL_MAP_JS } from '../assets/scripts/map-assets'
 import type { CircleMarker as CircleMarkerType, Marker as MarkerType } from 'ts-maps'
 import type { Polygon as PolygonType } from 'ts-maps'
 import type { Polyline as PolylineType } from 'ts-maps'
@@ -121,9 +122,6 @@ function currentTheme(): BasemapTheme {
 let mapsModule: TsMapsModule | null = null
 let mapsLoad: Promise<TsMapsModule> | null = null
 
-const TS_MAPS_JS = '/js/ts-maps.mjs'
-const TS_MAPS_CSS = '/css/ts-maps.css'
-
 function ensureTsMapsCss() {
   if (typeof document === 'undefined')
     return
@@ -131,7 +129,7 @@ function ensureTsMapsCss() {
     return
   const link = document.createElement('link')
   link.rel = 'stylesheet'
-  link.href = TS_MAPS_CSS
+  link.href = TRAIL_MAP_CSS
   link.dataset.tsMapsCss = '1'
   document.head.appendChild(link)
 }
@@ -143,7 +141,7 @@ export async function ensureTsMaps(): Promise<TsMapsModule> {
   if (!mapsLoad) {
     mapsLoad = (async () => {
       ensureTsMapsCss()
-      mapsModule = await import(/* @vite-ignore */ TS_MAPS_JS) as TsMapsModule
+      mapsModule = await import(/* @vite-ignore */ TRAIL_MAP_JS) as TsMapsModule
       return mapsModule
     })()
   }

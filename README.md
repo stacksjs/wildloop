@@ -92,7 +92,10 @@ locations.
 bunx --bun pickier .
 bun run typecheck:app
 ./buddy test
+bun run gate:maps
 ```
+
+After updating `ts-maps`, run `bun run build:maps` and commit its browser bundle, stylesheet, and generated asset URLs. CI checks all three against the locked package. Both URLs share a content hash so browsers load matching map code and styles after deployment.
 
 Run the scheduled maintenance worker in deployed environments:
 

@@ -1,5 +1,5 @@
 import type { LatLng, UiTrail } from './trail-data'
-import { resolveVectorTiles } from '../../composables/useTrailMap'
+import { ensureTsMaps, resolveVectorTiles } from '../../composables/useTrailMap'
 import { withDifficultyLabel } from './trail-data'
 
 const DATABASE_NAME = 'wildloop-offline'
@@ -46,8 +46,7 @@ export async function saveTrailOffline(trail: UiTrail, route: LatLng[], onProgre
   // Keep the route immediately; tile downloads can take longer on a trailhead connection.
   await request('readwrite', store => store.put({ id: trail.id, trail, route, savedAt: new Date().toISOString() }))
   try {
-    const mapsModuleUrl = '/js/ts-maps.mjs'
-    const module = await import(/* @vite-ignore */ mapsModuleUrl) as typeof import('ts-maps')
+    const module = await ensureTsMaps()
     // The tiles the basemap actually requests, which is the point: this used to
     // pre-fetch raster OpenStreetMap images, and once the map moved to vector
     // tiles nothing ever read them back. A download that fills a cache the map

@@ -1,6 +1,11 @@
+<script server>
+import { TRAIL_MAP_CSS } from '../assets/scripts/map-assets'
+export const trailMapCssUrl = TRAIL_MAP_CSS
+</script>
+
 @include('../components/styles')
 @include('../components/theme')
-<link rel="stylesheet" href="/css/ts-maps.css" data-ts-maps-css>
+<link rel="stylesheet" href="{{ trailMapCssUrl }}" data-ts-maps-css>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#059669">

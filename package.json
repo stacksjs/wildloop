@@ -122,6 +122,7 @@
     "bud": "./buddy",
     "stx": "./buddy",
     "gate:stx": "bun scripts/stx-gate.ts",
+    "gate:maps": "bun scripts/build-maps.ts --check",
     "hooks:install": "git config core.hooksPath .githooks && echo 'hooks on: .githooks (git commit --no-verify to skip, bun run hooks:uninstall to turn off)'",
     "hooks:uninstall": "git config --unset core.hooksPath && echo 'hooks off'"
   },
