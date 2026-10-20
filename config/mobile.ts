@@ -53,6 +53,11 @@ export default {
     // Every app destination uses the same Craft screen registry on both platforms.
     // Legal pages and external services open in the platform browser.
     nativeScreens,
+    // The screens' JavaScript runs on a thread of its own, not the main
+    // thread, so a sign-in - which every open screen answers by checking the
+    // account again and reloading - never holds UIKit. On main, one CI run
+    // froze the app for 16 seconds after the Log in tap.
+    nativeScriptThread: 'background' as const,
     orientations: ['portrait'],
     deviceFamilies: ['iphone'],
     privacy: {
