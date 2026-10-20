@@ -1,4 +1,4 @@
-import { mkdir, appendFile, writeFile } from 'node:fs/promises'
+import { mkdir, appendFile, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { generateXcodeProject, resolveXcodegen } from '@stacksjs/actions/build/ios-toolchain'
@@ -139,10 +139,20 @@ export async function runNativeTrailE2e(): Promise<void> {
     const tool=await resolveXcodegen(process.cwd())
     generateXcodeProject(tool,driver.output)
     await writeFile(join(root,'driver-generation.log'),JSON.stringify({package:tool.pkg,version:tool.version})+'\n')
-    for(const journey of journeys) {
+    // NATIVE_QA_JOURNEYS=reviews,sharing runs only those, for working on one
+    // journey locally; CI runs them all. A journey that leans on an earlier
+    // one (review-delete on reviews) still needs that one in the list.
+    const only=(process.env.NATIVE_QA_JOURNEYS ?? '').split(',').map(name=>name.trim()).filter(Boolean)
+    const unknown=only.filter(name=>!journeys.some(journey=>journey.name===name))
+    if(unknown.length)throw new Error(`NATIVE_QA_JOURNEYS names no journey: ${unknown.join(', ')}`)
+    for(const journey of journeys.filter(journey=>!only.length || only.includes(journey.name))) {
       activeJourney=journey.name
       activeScript=serializeSimulatorSteps(journey.steps)
       console.log(`Native trail QA: ${activeJourney} journey`)
+      // A run before this one left its result bundle, which xcodebuild
+      // refuses to overwrite, and its notes, which would be read as this run's.
+      await rm(join(root,`results-${activeJourney}.xcresult`),{recursive:true,force:true})
+      await rm(join(root,`driver-${activeJourney}.log`),{force:true})
       nativeRun=Bun.spawn(['xcodebuild','-project',join(driver.output,`${driver.projectName}.xcodeproj`),'-scheme',driver.projectName,'-destination',`id=${device}`,'-derivedDataPath',join(root,'driver-build'),'-resultBundlePath',join(root,`results-${activeJourney}.xcresult`),'-parallel-testing-enabled','NO','-maximum-concurrent-test-simulator-destinations','1','-collect-test-diagnostics','never','-jobs','2','CODE_SIGNING_ALLOWED=NO','test'],{stdout:Bun.file(join(root,`driver-${activeJourney}-build-test.log`)),stderr:'inherit'})
       const status=await nativeRun.exited
       const notes=await Bun.file(join(root,`driver-${activeJourney}.log`)).text().catch(()=>'')
