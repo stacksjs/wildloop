@@ -725,7 +725,7 @@
           </div>
         </div>
         <div class="mt-9 flex flex-col gap-3 sm:flex-row">
-          <StxLink to="/records" class="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+          <StxLink to="/records" class="btn-primary inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-bold active:scale-[0.98]">
             Browse the records
             <i class="i-lucide-arrow-right h-4 w-4" aria-hidden="true"></i>
           </StxLink>
@@ -865,7 +865,7 @@
           <button
             :if="!installed && canPrompt"
             @click="promptInstall()"
-            class="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+            class="btn-primary inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-bold active:scale-[0.98]"
           >
             <i class="i-lucide-download h-4 w-4" aria-hidden="true"></i>
             Install Wildloop

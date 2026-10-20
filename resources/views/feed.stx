@@ -313,7 +313,7 @@
             <p class="font-display text-lg font-bold text-slate-900 dark:text-white">Join Wildloop</p>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record your runs and hikes, follow friends, and give kudos.</p>
             <div class="mt-4 space-y-2">
-              <button type="button" @click="openFeedSignup()" class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98] bg-emerald-600 text-white hover:bg-emerald-700">Sign up</button>
+              <button type="button" @click="openFeedSignup()" class="btn-primary inline-flex min-h-10 w-full items-center justify-center gap-2 px-4 text-sm active:scale-[0.98]">Sign up</button>
               <button type="button" @click="openFeedLogin()" class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98] border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700">Log in</button>
             </div>
           </div>
@@ -530,8 +530,8 @@
               <span :if="scope === 'following'">Follow a few athletes and their runs land here.</span>
               <span :else>Record a run and it shows up here — yours and everyone else's.</span>
             </p>
-            <StxLink :if="scope === 'following'" to="/athletes" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>Find athletes</StxLink>
-            <StxLink :else to="/record" class="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"><i class="i-lucide-circle-dot h-4 w-4" aria-hidden="true"></i>Record an activity</StxLink>
+            <StxLink :if="scope === 'following'" to="/athletes" class="btn-primary inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]"><i class="i-lucide-user-plus h-4 w-4" aria-hidden="true"></i>Find athletes</StxLink>
+            <StxLink :else to="/record" class="btn-primary inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]"><i class="i-lucide-circle-dot h-4 w-4" aria-hidden="true"></i>Record an activity</StxLink>
           </div>
         </div>
       </div>
@@ -613,8 +613,8 @@
       <h2 id="unfollow-title" class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Unfollow {{ unfollowing()?.name }}?</h2>
       <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">Their runs stop appearing in your feed. You can follow them again whenever you like.</p>
       <div class="mt-5 flex gap-3">
-        <button type="button" @click="unfollowing.set(null)" class="min-h-11 flex-1 rounded-full border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Cancel</button>
-        <button type="button" @click="confirmUnfollow()" class="min-h-11 flex-1 rounded-full bg-rose-600 text-sm font-semibold text-white transition hover:bg-rose-700 active:scale-[0.98]">Unfollow</button>
+        <button type="button" @click="unfollowing.set(null)" class="btn-secondary min-h-11 flex-1 text-sm active:scale-[0.98]">Cancel</button>
+        <button type="button" @click="confirmUnfollow()" class="btn-danger min-h-11 flex-1 text-sm active:scale-[0.98]">Unfollow</button>
       </div>
     </div>
   </div>
@@ -688,7 +688,7 @@
         </div>
         <p :if="manualError" class="text-sm text-red-500">{{ manualError }}</p>
         <div class="flex gap-2 pt-1">
-          <button @click="submitManualEntry()" class="min-h-11 flex-1 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">{{ submitting ? 'Saving…' : 'Log activity' }}</button>
+          <button @click="submitManualEntry()" class="btn-primary min-h-11 flex-1 px-4 text-sm active:scale-[0.98]">{{ submitting ? 'Saving…' : 'Log activity' }}</button>
           <button @click="closeManualEntry()" class="min-h-11 rounded-full px-5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">Cancel</button>
         </div>
         <p class="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400"><i class="i-lucide-info mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>Manual entries don't capture territory. Record with GPS to claim ground.</p>

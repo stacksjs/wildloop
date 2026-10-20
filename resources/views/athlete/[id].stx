@@ -301,7 +301,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Couldn't load this athlete</h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Something went wrong reaching the server.</p>
-      <button @click="loadAthlete()" class="mt-5 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
+      <button @click="loadAthlete()" class="btn-primary mt-5 min-h-11 px-6 text-sm active:scale-[0.98]">Try again</button>
     </div>
 
 @if (ssrAthleteMissing)
@@ -318,7 +318,7 @@
       <i class="i-lucide-user-x h-7 w-7 text-slate-400" aria-hidden="true"></i>
     </div>
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Athlete not found</h1>
-    <StxLink to="/feed" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to feed</StxLink>
+    <StxLink to="/feed" class="btn-primary mt-5 inline-flex min-h-11 items-center px-6 text-sm">Back to feed</StxLink>
   </div>
 @else
     <div :if="!loading && !loadError && !profile" class="py-20 text-center">
@@ -327,7 +327,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Athlete not found</h3>
       <p :if="safetyMessage" class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ safetyMessage }}</p>
-      <StxLink to="/feed" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Back to feed</StxLink>
+      <StxLink to="/feed" class="btn-primary mt-5 inline-flex min-h-11 items-center px-6 text-sm">Back to feed</StxLink>
     </div>
 @endif
 

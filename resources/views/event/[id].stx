@@ -263,7 +263,7 @@
     </div>
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Event not found</h1>
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been cancelled and removed, or the link is wrong.</p>
-    <StxLink to="/events" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to events</StxLink>
+    <StxLink to="/events" class="btn-primary mt-6 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Back to events</StxLink>
   </div>
 @else
   <div :if="notFound" class="px-4 py-24 text-center">
@@ -276,7 +276,7 @@
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Event not found</h1>
 @endif
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been cancelled and removed, or the link is wrong.</p>
-    <StxLink to="/events" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to events</StxLink>
+    <StxLink to="/events" class="btn-primary mt-6 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Back to events</StxLink>
   </div>
 @endif
 
@@ -385,7 +385,7 @@
             <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">You are running this event.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button :if="event.status === 'scheduled'" @click="changeStatus('live')" x-disabled="working()" class="min-h-11 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">Start the race</button>
+            <button :if="event.status === 'scheduled'" @click="changeStatus('live')" x-disabled="working()" class="btn-primary min-h-11 px-5 text-sm active:scale-[0.98]">Start the race</button>
             <button :if="event.status === 'live'" @click="changeStatus('finished')" x-disabled="working()" class="min-h-11 rounded-full bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">Call it</button>
             <button :if="event.status === 'scheduled'" @click="changeStatus('cancelled')" x-disabled="working()" class="min-h-11 rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
             <button :if="event.status === 'live'" @click="consoleOpen.set(!consoleOpen())" class="min-h-11 rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
@@ -427,7 +427,7 @@
           <button
             @click="recordLap()"
             x-disabled="working() || (me.yardsCompleted ?? 0) >= currentYard()"
-            class="min-h-14 w-full rounded-full bg-emerald-600 px-7 text-base font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none sm:w-auto"
+            class="btn-primary min-h-14 w-full px-7 text-base font-bold shadow-lg shadow-emerald-600/25 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none sm:w-auto"
           >
             {{ (me.yardsCompleted ?? 0) >= currentYard() ? 'Yard banked' : 'I finished yard ' + currentYard() }}
           </button>

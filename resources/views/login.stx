@@ -213,7 +213,7 @@
           <button
             type="submit"
             x-disabled="loading()"
-            class="px-4 py-3 w-full font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 transition"
+            class="btn-primary px-4 py-3 w-full"
           >
             <span :if="!loading">Sign In</span>
             <span :if="loading" class="inline-flex items-center">

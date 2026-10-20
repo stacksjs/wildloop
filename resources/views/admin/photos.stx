@@ -206,7 +206,7 @@
               <p :if="matchedLabel(candidate) !== ''" class="text-slate-400 dark:text-slate-500">{{ matchedLabel(candidate) }}</p>
               <div class="mt-auto grid grid-cols-2 gap-2 pt-2">
                 <button type="button" @click="decide(trail, candidate, 'reject')" x-disabled="busy() !== 0" class="inline-flex min-h-10 items-center justify-center rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40">{{ buttonLabel(candidate, 'reject', 'Reject') }}</button>
-                <button type="button" @click="decide(trail, candidate, 'approve')" x-disabled="busy() !== 0" class="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{{ buttonLabel(candidate, 'approve', 'Approve') }}</button>
+                <button type="button" @click="decide(trail, candidate, 'approve')" x-disabled="busy() !== 0" class="btn-primary inline-flex min-h-10 items-center justify-center px-3 text-sm shadow-sm">{{ buttonLabel(candidate, 'approve', 'Approve') }}</button>
               </div>
             </div>
           </li>

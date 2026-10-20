@@ -160,7 +160,7 @@
         <a href="/forgot-password" class="font-semibold text-emerald-600 underline dark:text-emerald-400">Reset password</a>
       </div>
 
-      <button type="submit" x-disabled="formBusy()" class="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+      <button type="submit" x-disabled="formBusy()" class="btn-primary w-full px-4 py-2.5 text-sm active:scale-[0.98]">
         {{ formBusy() ? 'One moment…' : (gateRegistering() ? 'Create account' : 'Log in') }}
       </button>
     </form>

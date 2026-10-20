@@ -315,7 +315,7 @@
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Plans</h1>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Where you're headed, with directions ready for Apple Maps or Google Maps.</p>
       </div>
-      <button :if="signedIn()" type="button" @click="openNew()" class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+      <button :if="signedIn()" type="button" @click="openNew()" class="btn-primary inline-flex min-h-11 shrink-0 items-center gap-1.5 px-4 text-sm shadow-sm active:scale-[0.98]">
         <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>
         Plan a spot
       </button>
@@ -429,7 +429,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Nothing planned yet</h3>
       <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Search a town above to see its trails, or plan a trail from its page. You'll get a reminder the evening before, with directions ready.</p>
-      <StxLink to="/trails" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <StxLink to="/trails" class="btn-primary mt-6 inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]">
         <i class="i-lucide-mountain h-4 w-4" aria-hidden="true"></i>
         Browse trails
       </StxLink>
@@ -465,7 +465,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Plan your next trip</h3>
       <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Sign in to plan trails anywhere, get a reminder the evening before, and keep directions on this device.</p>
-      <button type="button" @click="openLogin()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in</button>
+      <button type="button" @click="openLogin()" class="btn-primary mt-6 min-h-11 px-6 text-sm active:scale-[0.98]">Log in</button>
     </div>
   </div>
 
@@ -556,7 +556,7 @@
     </div>
 
     <div class="border-t border-slate-100 px-6 py-4 dark:border-slate-800">
-      <button type="button" @click="savePlan()" x-disabled="saving()" class="min-h-12 w-full rounded-full bg-emerald-600 text-base font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">{{ saving() ? 'Saving…' : (editing() ? 'Save changes' : 'Save plan') }}</button>
+      <button type="button" @click="savePlan()" x-disabled="saving()" class="btn-primary min-h-12 w-full text-base">{{ saving() ? 'Saving…' : (editing() ? 'Save changes' : 'Save plan') }}</button>
     </div>
   </div>
 </div>

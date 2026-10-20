@@ -99,7 +99,7 @@
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Challenges</h1>
         <p class="mt-1 text-slate-600 dark:text-slate-400">Challenge other athletes for the ground they hold.</p>
       </div>
-      <button @click="openCreate()" aria-label="New challenge" class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 pl-4 pr-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+      <button @click="openCreate()" aria-label="New challenge" class="btn-primary inline-flex min-h-11 shrink-0 items-center gap-1.5 pl-4 pr-5 text-sm shadow-sm active:scale-[0.98]">
         <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>
         <span>New<span class="hidden sm:inline"> challenge</span></span>
       </button>
@@ -152,7 +152,7 @@
           {{-- Accept / decline (received + pending only) (#965) --}}
           <div :if="challenge.challenged_id === currentUserId && challenge.status === 'pending'" class="mt-3 grid grid-cols-2 gap-2">
             <button @click="respond(challenge, 'decline')" x-disabled="busyId === challenge.id" class="min-h-11 rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-red-300 hover:text-red-600 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300">Decline</button>
-            <button @click="respond(challenge, 'accept')" x-disabled="busyId === challenge.id" class="min-h-11 rounded-full bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">Accept</button>
+            <button @click="respond(challenge, 'accept')" x-disabled="busyId === challenge.id" class="btn-primary min-h-11 text-sm active:scale-[0.98]">Accept</button>
           </div>
           <p :if="challenge.challenger_id === currentUserId && challenge.status === 'pending'" class="mt-3 text-center text-xs text-slate-400">Waiting for <span>{{ challenge.challengedName }}</span> to respond…</p>
         </article>
@@ -164,7 +164,7 @@
         </div>
         <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ tab === 'active' ? 'No active challenges' : tab === 'sent' ? 'You have not sent any' : tab === 'received' ? 'Nobody has challenged you' : 'No finished challenges yet' }}</h3>
         <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Pick a territory someone else holds and challenge them for it.</p>
-        <button @click="openCreate()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">New challenge</button>
+        <button @click="openCreate()" class="btn-primary mt-6 min-h-11 px-6 text-sm active:scale-[0.98]">New challenge</button>
       </div>
     </div>
   </div>
@@ -193,12 +193,12 @@
         <p :if="createError" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ createError }}</p>
         <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
           <button @click="closeCreate()" class="min-h-11 rounded-full px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
-          <button @click="submitCreate()" x-disabled="submitting" class="min-h-11 flex-1 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{{ submitting ? 'Sending…' : 'Throw down' }}</button>
+          <button @click="submitCreate()" x-disabled="submitting" class="btn-primary min-h-11 flex-1 px-5 text-sm active:scale-[0.98]">{{ submitting ? 'Sending…' : 'Throw down' }}</button>
         </div>
       </div>
       <div :if="rivalTerritories().length === 0" class="py-4 text-center">
         <p class="mb-5 text-sm text-slate-500 dark:text-slate-400">No rival territories to challenge right now. They're all yours, or the map is still loading.</p>
-        <StxLink to="/territories" class="inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Open the map</StxLink>
+        <StxLink to="/territories" class="btn-primary inline-flex min-h-11 items-center px-6 text-sm">Open the map</StxLink>
       </div>
     </div>
   </div>

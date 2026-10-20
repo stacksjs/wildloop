@@ -79,7 +79,7 @@
         <button
           :if="!installed && canPrompt"
           @click="promptInstall()"
-          class="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-8 py-4 text-base font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+          class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-bold active:scale-[0.98]"
         >
           <i class="i-lucide-download h-5 w-5" aria-hidden="true"></i>
           Install Wildloop

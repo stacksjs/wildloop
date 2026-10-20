@@ -147,7 +147,7 @@
           <span :if="filtered.length === 0">Find a crew to train with, or start your own.</span>
         </p>
       </div>
-      <button @click="openCreate()" aria-label="Create a club" class="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 pl-4 pr-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+      <button @click="openCreate()" aria-label="Create a club" class="btn-primary inline-flex min-h-11 shrink-0 items-center gap-1.5 pl-4 pr-5 text-sm shadow-sm active:scale-[0.98]">
         <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>
         <span>New<span class="hidden sm:inline"> club</span></span>
       </button>
@@ -170,7 +170,7 @@
         <span class="font-semibold">{{ 'No crew near ' + (here()?.label ?? 'you') + ' yet.' }}</span>
         Start the first one and the runners around you will find it here.
       </p>
-      <button @click="startLocalClub()" class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <button @click="startLocalClub()" class="btn-primary inline-flex min-h-10 shrink-0 items-center gap-1.5 px-4 text-sm active:scale-[0.98]">
         <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>Start a local club
       </button>
     </div>
@@ -252,7 +252,7 @@
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ filter === 'mine' ? 'You have not joined a club yet' : 'No clubs here yet' }}</h3>
       <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ filter === 'mine' ? 'Join a crew from the full list, or start your own.' : 'Nothing matches this filter. Try another, or start the crew you were looking for.' }}</p>
       <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <button @click="openCreate()" class="min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Create a club</button>
+        <button @click="openCreate()" class="btn-primary min-h-11 px-6 text-sm active:scale-[0.98]">Create a club</button>
         <button :if="filter !== 'all'" @click="filter.set('all')" class="min-h-11 rounded-full px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Show all clubs</button>
       </div>
     </div>
@@ -308,7 +308,7 @@
         <p :if="createError" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ createError }}</p>
         <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
           <button @click="closeCreate()" class="min-h-11 rounded-full px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">Cancel</button>
-          <button @click="submitCreate()" x-disabled="submitting" class="min-h-11 flex-1 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{{ submitting ? 'Creating…' : 'Create club' }}</button>
+          <button @click="submitCreate()" x-disabled="submitting" class="btn-primary min-h-11 flex-1 px-5 text-sm active:scale-[0.98]">{{ submitting ? 'Creating…' : 'Create club' }}</button>
         </div>
       </div>
     </div>

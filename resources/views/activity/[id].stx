@@ -786,7 +786,7 @@
         <p :if="activity.hasGps" class="text-xs text-slate-400">Distance, time and elevation come from the GPS track and can't be edited.</p>
         <p :if="editorError" class="text-sm text-red-500">{{ editorError }}</p>
         <div class="flex gap-2">
-          <button @click="saveEdit(activity)" class="min-h-11 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">{{ saving ? 'Saving…' : 'Save changes' }}</button>
+          <button @click="saveEdit(activity)" class="btn-primary min-h-11 px-5 text-sm active:scale-[0.98]">{{ saving ? 'Saving…' : 'Save changes' }}</button>
           <button @click="closeEditor()" class="min-h-11 rounded-full px-4 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">Cancel</button>
         </div>
       </div>
@@ -939,7 +939,7 @@
             type="button"
             @click="saveSegment()"
             x-disabled="segmentSaving || !segmentName.trim() || segmentSpan() < 0.1"
-            class="min-h-11 flex-1 rounded-full bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50"
+            class="btn-primary min-h-11 flex-1 text-sm active:scale-[0.98]"
           >{{ segmentSaving ? 'Creating…' : 'Create segment' }}</button>
         </div>
       </div>
@@ -1081,7 +1081,7 @@
           </div>
 
           <div class="mt-4 flex flex-col gap-2 sm:flex-row">
-            <button @click="shareImage()" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60" x-disabled="shareBusy">
+            <button @click="shareImage()" class="btn-primary inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold active:scale-[0.98]" x-disabled="shareBusy">
               <i class="i-lucide-share-2 h-4 w-4" aria-hidden="true"></i>
               {{ shareBusy ? 'Creating image…' : 'Share image' }}
             </button>
@@ -1146,7 +1146,7 @@
             enterkeyhint="send"
             class="min-w-0 flex-1 bg-transparent py-2 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-400"
           />
-          <button @click="handlers.submitComment()" aria-label="Post comment" x-class="commentEmpty() ? 'opacity-40' : ''" class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700 active:scale-95">
+          <button @click="handlers.submitComment()" aria-label="Post comment" x-class="commentEmpty() ? 'opacity-40' : ''" class="btn-primary grid h-10 w-10 shrink-0 place-items-center active:scale-95">
             <i class="i-lucide-arrow-up h-5 w-5" aria-hidden="true"></i>
           </button>
         </div>
@@ -1161,7 +1161,7 @@
     </div>
     <p class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Activity deleted</p>
     <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Its kudos and comments are gone too. Territory you captured stays yours.</p>
-    <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
+    <StxLink to="/feed" class="btn-primary mt-6 inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]">Back to Feed</StxLink>
   </div>
 
 @if (ssrActivityMissing)
@@ -1179,7 +1179,7 @@
     </div>
     <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Activity not found</h1>
     <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">It may be private, or it has been deleted.</p>
-    <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
+    <StxLink to="/feed" class="btn-primary mt-6 inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]">Back to Feed</StxLink>
   </div>
 @endif
 @else
@@ -1189,7 +1189,7 @@
     </div>
     <p class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Activity not found</p>
     <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">It may be private, or it has been deleted.</p>
-    <StxLink to="/feed" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to Feed</StxLink>
+    <StxLink to="/feed" class="btn-primary mt-6 inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]">Back to Feed</StxLink>
   </div>
 <style>
   @keyframes action-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }

@@ -226,7 +226,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">No rankings yet</h3>
       <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ scope === 'following' ? 'Nobody you follow has logged anything ' + periodLabel() + '. Try the global board.' : scope === 'local' ? 'Nobody near ' + areaLabel() + ' has posted ' + periodLabel() + ' yet. Put your town on your profile and your runs count here.' : 'Nothing logged ' + periodLabel() + ' yet. Record an activity to open the board.' }}</p>
-      <StxLink to="/record" class="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <StxLink to="/record" class="btn-primary mt-6 inline-flex min-h-11 items-center gap-2 px-6 text-sm active:scale-[0.98]">
         <Icon name="play" size="16" />
         Record an activity
       </StxLink>

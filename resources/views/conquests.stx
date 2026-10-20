@@ -102,7 +102,7 @@
         <p class="mt-2 max-w-xl leading-relaxed text-slate-600 dark:text-slate-400">Track every territory you have taken, and every attempt on the ground you hold.</p>
       </div>
       <div class="flex shrink-0 gap-2">
-        <StxLink to="/territories" class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:flex-none">
+        <StxLink to="/territories" class="btn-primary inline-flex min-h-11 flex-1 items-center justify-center gap-2 px-5 text-sm shadow-sm active:scale-[0.98] sm:flex-none">
           <i class="i-lucide-map h-4 w-4" aria-hidden="true"></i>View map
         </StxLink>
         <StxLink to="/record" class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 active:scale-[0.98] sm:flex-none dark:border-slate-700 dark:text-white dark:hover:bg-slate-900">
@@ -172,7 +172,7 @@
           </div>
           <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ signedIn ? 'No battles yet' : 'Sign in to see your battles' }}</h3>
           <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Run a closed loop to claim ground of your own, or run straight across someone else's territory to take part of it.</p>
-          <StxLink to="/territories" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Find territories</StxLink>
+          <StxLink to="/territories" class="btn-primary mt-6 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Find territories</StxLink>
         </div>
       </div>
 

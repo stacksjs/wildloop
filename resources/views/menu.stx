@@ -55,7 +55,7 @@
   <div :if="!account" class="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-500/20 dark:from-emerald-500/10 dark:to-slate-800">
     <span class="mb-3 grid h-11 w-11 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm"><i class="i-lucide-user h-5 w-5" aria-hidden="true"></i></span>
     <p class="font-display text-lg font-semibold text-slate-900 dark:text-white">Your runs, trails and territory, on every device.</p>
-    <button type="button" @click="openLogin()" class="mt-4 min-h-11 w-full rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in or create an account</button>
+    <button type="button" @click="openLogin()" class="btn-primary mt-4 min-h-11 w-full px-6 text-sm active:scale-[0.98]">Log in or create an account</button>
   </div>
 
   <template :for="group in GROUPS">

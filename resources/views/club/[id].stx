@@ -367,7 +367,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Couldn't load this club</h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Check your connection and try again.</p>
-      <button @click="loadClub()" class="mt-5 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
+      <button @click="loadClub()" class="btn-primary mt-5 min-h-11 px-6 text-sm active:scale-[0.98]">Try again</button>
     </div>
 
 @if (ssrClubMissing)
@@ -385,7 +385,7 @@
     </div>
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Club not found</h1>
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been deleted, or it is private.</p>
-    <StxLink to="/clubs" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Browse clubs</StxLink>
+    <StxLink to="/clubs" class="btn-primary mt-5 inline-flex min-h-11 items-center px-6 text-sm">Browse clubs</StxLink>
   </div>
 @else
     <div :if="!loading && !loadError && !club" class="py-20 text-center">
@@ -394,7 +394,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Club not found</h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been deleted, or it is private.</p>
-      <StxLink to="/clubs" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700">Browse clubs</StxLink>
+      <StxLink to="/clubs" class="btn-primary mt-5 inline-flex min-h-11 items-center px-6 text-sm">Browse clubs</StxLink>
     </div>
 @endif
 
@@ -588,7 +588,7 @@
           <input type="text" placeholder="Tuesday sessions start at 6." x-value="inviteNote" @input="inviteNote.set($event.target.value)" class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
         </label>
         <p :if="inviteError" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ inviteError }}</p>
-        <button @click="sendInvite()" x-disabled="inviteWorking()" class="min-h-11 w-full rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{{ inviteWorking ? 'Creating…' : 'Create invite' }}</button>
+        <button @click="sendInvite()" x-disabled="inviteWorking()" class="btn-primary min-h-11 w-full px-5 text-sm active:scale-[0.98]">{{ inviteWorking ? 'Creating…' : 'Create invite' }}</button>
       </div>
 
       <div class="mt-6 border-t border-slate-100 pt-5 dark:border-slate-700">

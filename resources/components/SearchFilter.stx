@@ -47,7 +47,7 @@ function selectFilter(filterId) {
           <input type="text" placeholder="Near me" class="pl-12 pr-4 py-3 w-full md:w-48 bg-gray-50 border border-gray-200 rounded-xl focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         {{-- Search button --}}
-        <button class="px-8 py-3 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg hover:shadow-xl transition">
+        <button class="btn-primary px-8 py-3 shadow-lg hover:shadow-xl">
           Search
         </button>
       </div>

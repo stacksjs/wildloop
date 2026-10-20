@@ -163,7 +163,7 @@
       </div>
       <h3 class="mb-1 text-base font-semibold text-slate-900 dark:text-white">Couldn't load athletes</h3>
       <p class="mx-auto mb-4 max-w-sm text-sm text-slate-500 dark:text-slate-400">{{ error }}</p>
-      <button @click="retrySearch()" class="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Try again</button>
+      <button @click="retrySearch()" class="btn-primary px-5 py-2 text-sm active:scale-[0.98]">Try again</button>
     </div>
 
     <div :if="!searching && !error" class="space-y-2">

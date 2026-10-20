@@ -70,7 +70,7 @@
         <h1 class="font-display text-3xl font-bold tracking-tight text-slate-900 md:text-4xl dark:text-white">Your territory map</h1>
         <p class="mt-2 max-w-xl leading-relaxed text-slate-600 dark:text-slate-400">Green is yours. Orange belongs to someone else. Run a closed loop to claim new ground, or run straight across someone else's zone to take part of it.</p>
       </div>
-      <StxLink to="/record" class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-full bg-emerald-600 px-6 font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:self-auto">
+      <StxLink to="/record" class="btn-primary inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start px-6 shadow-sm active:scale-[0.98] sm:self-auto">
         <Icon name="play" size="18" />
         Start tracking
       </StxLink>
@@ -141,7 +141,7 @@
             </div>
             <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ filter === 'contested' ? 'Nothing contested right now' : 'No territories yet' }}</h3>
             <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">{{ filter === 'contested' ? 'Every zone in view is held without a fight.' : 'Run a closed loop to claim your first territory.' }}</p>
-            <StxLink to="/record" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Start a run</StxLink>
+            <StxLink to="/record" class="btn-primary mt-6 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Start a run</StxLink>
           </div>
         </div>
       </div>

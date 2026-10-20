@@ -157,7 +157,7 @@
       </div>
       <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Kudos, challenges and captures</h3>
       <p class="mx-auto mt-1 max-w-sm text-slate-500 dark:text-slate-400">Sign in to hear when somebody gives you kudos, challenges you, or takes your ground.</p>
-      <button type="button" @click="openLogin()" class="mt-6 min-h-11 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Log in</button>
+      <button type="button" @click="openLogin()" class="btn-primary mt-6 min-h-11 px-6 text-sm active:scale-[0.98]">Log in</button>
     </div>
 
     {{-- Empty state --}}

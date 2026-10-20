@@ -525,7 +525,7 @@
         <i class="i-lucide-copy-plus h-4 w-4" aria-hidden="true"></i>
         Save as new
       </button>
-      <button type="button" @click="saveRoute()" x-disabled="saving() || pending() > 0" class="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">
+      <button type="button" @click="saveRoute()" x-disabled="saving() || pending() > 0" class="btn-primary inline-flex h-12 items-center justify-center gap-2 px-6 text-sm active:scale-[0.98]">
         <i x-class="saving() ? 'i-lucide-loader-circle h-4 w-4 animate-spin' : 'i-lucide-bookmark-plus h-4 w-4'" aria-hidden="true"></i>
         {{ saving() ? 'Saving…' : savedRouteId() > 0 ? 'Save changes' : 'Save route' }}
       </button>
@@ -535,7 +535,7 @@
         <i class="i-lucide-circle-check h-4 w-4 shrink-0" aria-hidden="true"></i>
         {{ saveMessage() }}
       </p>
-      <StxLink :if="savedRouteId() > 0" x-to="planSavedUrl()" class="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700">
+      <StxLink :if="savedRouteId() > 0" x-to="planSavedUrl()" class="btn-primary inline-flex min-h-10 items-center gap-1.5 px-4 text-sm">
         <i class="i-lucide-calendar-plus h-4 w-4" aria-hidden="true"></i>
         Plan this route
       </StxLink>

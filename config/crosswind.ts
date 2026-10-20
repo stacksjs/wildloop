@@ -1,5 +1,6 @@
 import type { CrosswindOptions } from '@cwcss/crosswind'
 import type { ThemeRoleOverrides } from '@stacksjs/stx/theme-tokens'
+import { roleShortcuts } from '@stacksjs/stx/role-shortcuts'
 
 /**
  * The typed config the CSS engine reads. `@cwcss/crosswind` is the package
@@ -110,6 +111,9 @@ const config: CrosswindOptions & ThemeRoleOverrides = {
   },
 
   shortcuts: {
+    // Buttons, fields and badges in the role palette (btn-primary, btn-danger,
+    // input, badge-*); wildloop's own shortcuts below win on a shared name.
+    ...roleShortcuts,
     // No padding here: a shortcut is emitted after the utilities, so its
     // `p-5` beat any `p-0` on the same element and framed every map in a card.
     // The default padding lives in styles.stx at zero specificity instead.

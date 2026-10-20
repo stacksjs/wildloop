@@ -76,7 +76,7 @@ const formattedArea = formatArea(props.areaSize)
         </div>
       </dl>
 
-      <StxLink x-to="'/territory/' + props.id" class="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <StxLink x-to="'/territory/' + props.id" class="btn-primary mt-4 flex min-h-11 w-full items-center justify-center gap-2 active:scale-[0.98]">
         <Icon name="map" size="16" />
         View on map
       </StxLink>

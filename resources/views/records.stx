@@ -117,7 +117,7 @@
           The fastest known times on Wildloop's routes. Every time is filed under the style it was run in, verified against its GPS trace, and ranked on elapsed time from the trailhead.
         </p>
       </div>
-      <StxLink to="/trails" class="shrink-0 self-start rounded-full bg-emerald-600 px-5 py-2.5 sm:self-auto text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <StxLink to="/trails" class="btn-primary shrink-0 self-start px-5 py-2.5 sm:self-auto text-sm active:scale-[0.98]">
         Find a route
       </StxLink>
     </div>
@@ -183,7 +183,7 @@
         <p class="mx-auto mb-6 max-w-sm text-sm text-gray-500 dark:text-slate-400">
           {{ eligibilityNote + ' Open a route and file the first time on it.' }}
         </p>
-        <StxLink to="/trails" class="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Browse routes</StxLink>
+        <StxLink to="/trails" class="btn-primary px-6 py-2.5 text-sm">Browse routes</StxLink>
       </div>
     </div>
 

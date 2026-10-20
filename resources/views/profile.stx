@@ -218,7 +218,7 @@
       <h1 class="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Your profile</h1>
       <p class="mx-auto mt-2 max-w-sm text-slate-500 dark:text-slate-400">Your runs, achievements, saved trails and the ground you hold all live here.</p>
       <div class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <button type="button" @click="openLogin()" class="min-h-11 w-full rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98] sm:w-auto">Log in</button>
+        <button type="button" @click="openLogin()" class="btn-primary min-h-11 w-full px-6 text-sm active:scale-[0.98] sm:w-auto">Log in</button>
         <button type="button" @click="openSignup()" class="min-h-11 w-full rounded-full border border-slate-300 px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] sm:w-auto dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">Create account</button>
       </div>
     </div>
@@ -288,7 +288,7 @@
     {{-- Tabs --}}
     <div :if="currentUser" class="mb-4 mt-8 flex items-center justify-between gap-3">
       <SegmentedControl label="Show" v-model:value="activeTab" :options="tabChoices()" />
-      <StxLink :if="activeTab === 'activities'" to="/record" class="hidden min-h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] sm:inline-flex">
+      <StxLink :if="activeTab === 'activities'" to="/record" class="btn-primary hidden min-h-10 items-center gap-1.5 px-4 text-sm shadow-sm active:scale-[0.98] sm:inline-flex">
         <i class="i-lucide-plus h-4 w-4" aria-hidden="true"></i>Record
       </StxLink>
     </div>
@@ -331,7 +331,7 @@
       </div>
       <h3 class="text-base font-semibold text-slate-900 dark:text-white">No activities yet</h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record your first run, hike, or walk.</p>
-      <StxLink to="/record" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Record an activity</StxLink>
+      <StxLink to="/record" class="btn-primary mt-5 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Record an activity</StxLink>
     </div>
 
     {{-- Saved: the trail's cover beside its name, like the catalog. --}}
@@ -370,7 +370,7 @@
       </div>
       <h3 class="text-base font-semibold text-slate-900 dark:text-white">No saved trails</h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Tap the heart on any trail to save it.</p>
-      <StxLink to="/trails" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Explore trails</StxLink>
+      <StxLink to="/trails" class="btn-primary mt-5 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Explore trails</StxLink>
     </div>
   </div>
 

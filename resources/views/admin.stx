@@ -348,7 +348,7 @@
                 </label>
                 <div class="grid grid-cols-2 gap-2">
                   <button type="button" @click="decide(record, 'reject')" x-disabled="reviewing() !== 0" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-200 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40">{{ reviewing() === record.id && reviewDecision() === 'reject' ? 'Saving…' : 'Reject' }}</button>
-                  <button type="button" @click="decide(record, 'verify')" x-disabled="reviewing() !== 0" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-slate-900">{{ reviewing() === record.id && reviewDecision() === 'verify' ? 'Saving…' : 'Verify' }}</button>
+                  <button type="button" @click="decide(record, 'verify')" x-disabled="reviewing() !== 0" class="btn-primary inline-flex min-h-11 items-center justify-center px-4 text-sm shadow-sm dark:focus:ring-offset-slate-900">{{ reviewing() === record.id && reviewDecision() === 'verify' ? 'Saving…' : 'Verify' }}</button>
                 </div>
               </div>
             </li>

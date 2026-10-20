@@ -375,7 +375,7 @@
     </div>
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Territory not found</h1>
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been dissolved, or the link is wrong.</p>
-    <StxLink to="/territories" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to the map</StxLink>
+    <StxLink to="/territories" class="btn-primary mt-6 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Back to the map</StxLink>
   </div>
 @else
   <div :if="!territory && lookupDone" class="px-4 py-24 text-center">
@@ -388,7 +388,7 @@
     <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Territory not found</h1>
 @endif
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">It may have been dissolved, or the link is wrong.</p>
-    <StxLink to="/territories" class="mt-6 inline-flex min-h-11 items-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">Back to the map</StxLink>
+    <StxLink to="/territories" class="btn-primary mt-6 inline-flex min-h-11 items-center px-6 text-sm active:scale-[0.98]">Back to the map</StxLink>
   </div>
 @endif
 @endsection

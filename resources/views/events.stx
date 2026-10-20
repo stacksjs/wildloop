@@ -88,7 +88,7 @@
           Backyard ultras, races, and group runs. A live event reports every lap as it lands, so anyone with the link can follow along.
         </p>
       </div>
-      <button @click="openCreate()" class="shrink-0 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]">
+      <button @click="openCreate()" class="btn-primary shrink-0 px-5 py-2.5 text-sm active:scale-[0.98]">
         Host an event
       </button>
     </div>
@@ -257,7 +257,7 @@
       <p class="mx-auto mb-6 max-w-sm text-gray-500 dark:text-slate-400">
         Host a backyard ultra and Wildloop runs the corral clock, records every lap, and publishes the standings live.
       </p>
-      <button @click="openCreate()" class="rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">Host an event</button>
+      <button @click="openCreate()" class="btn-primary px-6 py-2.5 text-sm">Host an event</button>
     </div>
   </div>
 
@@ -333,7 +333,7 @@
         <p :if="createError" class="text-sm text-red-500">{{ createError }}</p>
 
         <div class="flex gap-2 pt-1">
-          <button @click="submitCreate()" class="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">{{ submitting ? 'Creating…' : 'Create event' }}</button>
+          <button @click="submitCreate()" class="btn-primary flex-1 px-4 py-2.5 text-sm">{{ submitting ? 'Creating…' : 'Create event' }}</button>
           <button @click="closeCreate()" class="px-4 py-2.5 text-sm font-medium text-gray-500 transition hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200">Cancel</button>
         </div>
       </div>

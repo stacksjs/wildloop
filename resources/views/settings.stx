@@ -570,7 +570,7 @@
         <div class="flex flex-wrap gap-2">
           {{-- A label opens the picker without any script, and keeps the
                native file input (sr-only) as the thing assistive tech reads. --}}
-          <label for="profile-photo-input" x-class="'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500/40 ' + (profilePhotoBusy() ? 'pointer-events-none opacity-50' : '')">
+          <label for="profile-photo-input" x-class="btn-primary 'inline-flex min-h-11 cursor-pointer items-center gap-2 px-5 text-sm focus-within:ring-2 focus-within:ring-emerald-500/40 ' + (profilePhotoBusy() ? 'pointer-events-none opacity-50' : '')">
             <i class="i-lucide-camera h-4 w-4" aria-hidden="true"></i>
             {{ profileHasPhoto() ? 'Change photo' : 'Add photo' }}
           </label>
@@ -607,7 +607,7 @@
     </div>
 
     <div class="mt-5 flex flex-wrap items-center gap-3">
-      <button type="button" @click="saveProfile()" x-disabled="profileSaving" class="min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">{{ profileSaving() ? 'Saving…' : 'Save profile' }}</button>
+      <button type="button" @click="saveProfile()" x-disabled="profileSaving" class="btn-primary min-h-11 px-5 text-sm">{{ profileSaving() ? 'Saving…' : 'Save profile' }}</button>
       <p :if="profileError()" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ profileError() }}</p>
       <p :if="profileNotice()" role="status" aria-live="polite" class="text-sm text-emerald-700 dark:text-emerald-300">{{ profileNotice() }}</p>
     </div>
@@ -670,7 +670,7 @@
             <label class="flex cursor-pointer items-start gap-3"><input type="checkbox" x-checked="showPreciseTerritories" @change="showPreciseTerritories.set($event.target.checked)" class="mt-0.5 h-5 w-5 shrink-0 rounded accent-emerald-600" /><span>Show my precise territory outlines to everyone</span></label>
           </div>
         </div>
-        <button :if="!privacyLoading" type="button" @click="savePrivacy()" x-disabled="privacyWorking" class="mt-5 min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">Save privacy settings</button>
+        <button :if="!privacyLoading" type="button" @click="savePrivacy()" x-disabled="privacyWorking" class="btn-primary mt-5 min-h-11 px-5 text-sm">Save privacy settings</button>
       </div>
     </div>
   </section>
@@ -714,7 +714,7 @@
         <p :if="passwordError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400">{{ passwordError }}</p>
         <p :if="passwordNotice" class="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{{ passwordNotice }}</p>
 
-        <button type="button" @click="savePassword()" x-disabled="passwordWorking" class="mt-5 min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50">
+        <button type="button" @click="savePassword()" x-disabled="passwordWorking" class="btn-primary mt-5 min-h-11 px-5 text-sm">
           {{ passwordWorking() ? 'Changing…' : 'Change password' }}
         </button>
 
@@ -763,7 +763,7 @@
             type="button"
             @click="connectGarmin()"
             x-disabled="garminWorking()"
-            class="min-h-11 px-5 font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 transition-colors active:scale-[0.98]"
+            class="btn-primary min-h-11 px-5 text-sm active:scale-[0.98]"
           >
             Connect Garmin
           </button>
