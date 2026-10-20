@@ -22,6 +22,14 @@
     "ts-qr-codes": "^0.1.8",
     "ts-web-scraper": "^0.1.10"
   },
+  "overrides": {
+    "@stacksjs/components": "0.2.594",
+    "@stacksjs/desktop": "0.2.594",
+    "@stacksjs/sanitizer": "0.2.594",
+    "@stacksjs/stx": "0.2.594",
+    "bun-plugin-stx": "0.2.594",
+    "stx-router": "0.2.594"
+  },
   "bugs": {
     "url": "https://github.com/stacksjs/wildloop/issues"
   },

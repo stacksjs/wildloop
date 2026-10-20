@@ -30,6 +30,8 @@ bun install
 
 The frontend and API are served by Stacks. Views are STX, application actions/models live under `app/`, and migrations live under `database/migrations/`.
 
+Keep the six published STX package versions in `package.json`'s `overrides` aligned with the direct STX and components dependencies. Stacks also resolves its view server and components transitively; an older lock entry can otherwise serve a browser runtime that lacks APIs required by the application's components. Update the whole cohort together and run `tests/unit/stx-runtime-cohort.test.ts` after a clean frozen install.
+
 ## Mobile UI testing
 
 Generate both native projects, or only the platform currently under test:
