@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import {
   CHALLENGE_TAB_LABELS,
   CHALLENGE_TABS,
@@ -46,7 +47,12 @@ const rows = state<any[]>([])
 const viewerId = state(0)
 const loading = state(true)
 const error = state('')
-const signedOut = state(false)
+{{-- Not "signed out": the guard above has already sent anybody without an
+     account to Login, so reaching this means the device still holds a bearer
+     the server has stopped accepting. Bouncing straight back to Login on a
+     401 would loop against a server having a bad minute, so it is said on
+     the screen instead — the same thing Settings says. --}}
+const sessionExpired = state(false)
 const busyId = state(0)
 const api = createNativeApi(craft)
 let active = true
@@ -90,12 +96,7 @@ async function load(): Promise<void> {
   loading.set(true)
   error.set('')
   try {
-    const token = await api.readToken()
-    if (!token) {
-      if (active && currentLoad === loadVersion)
-        signedOut.set(true)
-      return
-    }
+    if (!await requireNativeAccount(craft, '/challenges')) return
 
     /*
      * The id first: without it every row is a card about two strangers, and
@@ -104,7 +105,7 @@ async function load(): Promise<void> {
     const me = await api.send('/api/me')
     if (!me.ok || !me.body?.user?.id) {
       if (active && currentLoad === loadVersion)
-        signedOut.set(true)
+        sessionExpired.set(true)
       return
     }
     if (active && currentLoad === loadVersion)
@@ -180,8 +181,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
 
     <ActivityIndicator :show="loading" testID="challenges-loading" class="mt-6" />
     <ErrorState :show="error()" testID="challenges-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
-    <Text :show="signedOut" testID="challenges-signed-out" class="mt-4 text-warning">Sign in to see your challenges.</Text>
-    <Button :show="signedOut" testID="challenges-sign-in" @click="craft.navigation.open('/login?next=/challenges')">Sign in</Button>
+    <Text :show="sessionExpired" testID="challenges-session-expired" class="mt-4 text-warning">Your session has expired. Log in again to see your challenges.</Text>
+    <Button :show="sessionExpired" testID="challenges-log-in-again" @click="craft.navigation.open('/login?next=/challenges')">Log in again</Button>
 
     <View class="mt-4 gap-2">
       <View :for="row in shown()" :key="row.id" class="rounded-xl bg-panel p-3">
@@ -202,6 +203,6 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); viewerId.set(0)
       </View>
     </View>
 
-    <EmptyState :show="!loading && !error && !signedOut && shown().length === 0" testID="challenges-empty" variant="bare" className="mt-6" :title="emptyText()" />
+    <EmptyState :show="!loading && !error && !sessionExpired && shown().length === 0" testID="challenges-empty" variant="bare" className="mt-6" :title="emptyText()" />
   </ScrollView>
 </View>

@@ -1,5 +1,6 @@
 <script client>
 import { nativeApiOrigin } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import type { NativeCraft } from '@stacksjs/stx/native'
 import {
   allTrailsPath,
@@ -152,6 +153,7 @@ function openQuickLink(link: any): void {
 
 onMount(() => {
   craft.navigation.setOptions({ title: 'Search', largeTitle: true })
+  void requireNativeAccount(craft, '/search')
 })
 
 onDestroy(() => {

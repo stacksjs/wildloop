@@ -3,6 +3,7 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { onNativeAccountChange, createNativeApi, nativeApiOrigin } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import {
   trailPath,
   trailPlaceLine,
@@ -22,7 +23,11 @@ const NATIVE_PAGE = 30
 const query = state(String(craft.route.params.q ?? ''))
 const listMode=state(['saved','completed'].includes(String(craft.route.params.list)) ? String(craft.route.params.list) : 'all')
 const mine=state<any[]>([])
-const signedOut=state(false)
+{{-- Not "signed out": the guard has already sent anybody without an account
+     to Login, so reaching this means the device still holds a bearer the
+     server has stopped accepting. Bouncing back to Login on a 401 would loop
+     against a server having a bad minute, so it is said on the screen. --}}
+const sessionExpired=state(false)
 const difficulty=state(String(craft.route.params.difficulty ?? 'all'))
 const routeType=state(String(craft.route.params.routeType ?? 'all'))
 const country=state(String(craft.route.params.country ?? ''))
@@ -76,13 +81,13 @@ async function load(more=false): Promise<void> {
   error.set('')
   try {
     craft.navigation.setOptions({title:listMode()==='saved'?'Saved trails':listMode()==='completed'?'Completed trails':'Trails',largeTitle:true})
+    if(!await requireNativeAccount(craft,'/trails?list='+listMode()))return
     if(listMode()!=='all'){
       const api=createNativeApi(craft)
-      if(!await api.readToken()){if(active && currentLoad===loadVersion){signedOut.set(true);mine.set([])}return}
       const me=await api.send('/api/me')
       if(!active || currentLoad!==loadVersion)return
-      if(!me.ok){signedOut.set(true);mine.set([]);return}
-      signedOut.set(false)
+      if(!me.ok){sessionExpired.set(true);mine.set([]);return}
+      sessionExpired.set(false)
       const response=await api.send(listMode()==='saved'?`/api/users/${me.body.user.id}/saved-trails?limit=200&offset=${more?mine().length:0}`:'/api/me/completed-trails')
       if(!active || currentLoad!==loadVersion)return
       if(!response.ok)throw new Error('Your trails could not be loaded. Pull down to retry.')
@@ -191,9 +196,9 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); mine.set([]); v
       </View>
     </View>
     <View :show="listMode() !== 'all'" class="mt-3 gap-3">
-      <Button :show="signedOut" @click="craft.navigation.open('/login?next='+encodeURIComponent('/trails?list='+listMode()))">Log in to view your trails</Button>
+      <Button :show="sessionExpired" testID="trails-log-in-again" @click="craft.navigation.open('/login?next='+encodeURIComponent('/trails?list='+listMode()))">Your session has expired. Log in again.</Button>
       <Pressable :for="entry in mineShown()" :key="entry.trailId" class="rounded-xl bg-panel p-4 gap-2" @click="openTrail(entry.trail)"><Text class="text-base font-semibold text-fg" :text="entry.trail.name" /><Text class="text-sm text-fg-muted" :text="entry.trail.location" /><Text class="text-sm text-fg-muted" :text="entry.trail.distance+' mi · '+entry.trail.elevation+' ft gain'" /></Pressable>
-      <Text :show="!loading() && !signedOut() && !mineShown().length" class="text-fg-muted">No trails in this collection yet.</Text>
+      <Text :show="!loading() && !sessionExpired() && !mineShown().length" class="text-fg-muted">No trails in this collection yet.</Text>
     </View>
     <ActivityIndicator :show="loading" testID="trails-loading" class="mt-6" />
     <ErrorState :show="error()" testID="trails-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />

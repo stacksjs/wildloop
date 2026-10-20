@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, loadOutcome } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { pathIdFrom } from '../functions/route-id'
 import {
   CATEGORY_LABELS,
@@ -227,6 +228,8 @@ async function load(): Promise<void> {
         missing.set(true)
       return
     }
+
+    if (!await requireNativeAccount(craft, `/effort/${wanted}`)) return
 
     const result = await api.send(effortPath(wanted), 'GET')
     if (!active || currentLoad !== loadVersion)

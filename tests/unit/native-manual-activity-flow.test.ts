@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, segmentChosen, start, waitForRequest } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, nativeBundle, nodesByTestId, requests, segmentChosen, start, waitForRequest } from '../fixtures/nativeScreen'
 
 const ROOT = join(import.meta.dir, '../..')
 
@@ -22,11 +22,7 @@ describe('Wildloop native manual activity flow', () => {
     await manual.event('notes-input', 'onChangeText', { text: 'ridge loop' })
     await manual.event('save-activity', 'onPress')
 
-    const tokenRequest = requests(manual).at(-1)
-    expect(tokenRequest.payload).toMatchObject({ module: 'SecureStorage', method: 'get', args: ['auth_token'] })
-    const requestCount = requests(manual).length
-    answer(manual, tokenRequest, 'native-token')
-    const post = await waitForRequest(manual, requestCount, request => request.payload?.module === 'Network')
+    const post = await waitForRequest(manual, 0, request => request.payload?.module === 'Network')
     const request = post.payload.args[0]
     expect(post.payload.module).toBe('Network')
     expect(post.payload.method).toBe('fetch')
@@ -88,13 +84,10 @@ describe('Wildloop native manual activity flow', () => {
     await manual.event('duration-input', 'onChangeText', { text: '28:00' })
     await manual.event('save-activity', 'onPress')
 
-    const tokenRequest = requests(manual).at(-1)
-    expect(tokenRequest.payload, 'the token is read before anything is refused')
-      .toMatchObject({ module: 'SecureStorage', method: 'get', args: ['auth_token'] })
-
-    const before = requests(manual).length
-    answer(manual, tokenRequest, 'native-token')
-    const post = await waitForRequest(manual, before, request => request.payload?.module === 'Network')
+    // The bearer is read before anything is posted; the fixture's device
+    // holds one, so the screen gets as far as the request.
+    expect(requests(manual).some((r: any) => r.payload?.module === 'SecureStorage' && r.payload.args[0] === 'auth_token')).toBe(true)
+    const post = await waitForRequest(manual, 0, request => request.payload?.module === 'Network')
     const body = JSON.parse(post.payload.args[0].body)
 
     expect(post.payload.args[0].headers.authorization).toBe('Bearer native-token')
@@ -120,9 +113,7 @@ describe('Wildloop native manual activity flow', () => {
     expect(segmentChosen(manual, 'visibility-private')).toBe(true)
     await manual.event('save-activity', 'onPress')
 
-    const before = requests(manual).length
-    answer(manual, requests(manual).at(-1), 'native-token')
-    const post = await waitForRequest(manual, before, request => request.payload?.module === 'Network')
+    const post = await waitForRequest(manual, 0, request => request.payload?.module === 'Network')
     expect(JSON.parse(post.payload.args[0].body)).toMatchObject({ activity_type: 'Hike', visibility: 'private' })
   })
 
@@ -133,16 +124,10 @@ describe('Wildloop native manual activity flow', () => {
    * nowhere to put it. Same rule as Record: ask on the way in.
    */
   it('sends a signed-out viewer to log in instead of taking a form it cannot save', async () => {
-    const screen = await start('ManualActivity', { userId: 12 })
-    for (let attempt = 0; attempt < 40; attempt++) {
-      for (const request of requests(screen).filter((r: any) => r.payload?.module === 'SecureStorage' && !r.answered)) {
-        ;(request as any).answered = true
-        answer(screen, request, null)
-      }
-      if (screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN')) break
+    const screen = await start('ManualActivity', { userId: 12 }, undefined, {}, nativeKeychain(null))
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN'); attempt++)
       await Bun.sleep(1)
-    }
-    expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN' && message.payload.path === '/login?next=/activity/new')).toBe(true)
+    expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN' && message.payload.path === '/login?next=%2Factivity%2Fnew')).toBe(true)
   })
 
   it('keeps route state isolated and supports back, replace, and teardown cancellation', async () => {
@@ -164,10 +149,7 @@ describe('Wildloop native manual activity flow', () => {
     await pending.event('distance-input', 'onChangeText', { text: '3' })
     await pending.event('duration-input', 'onChangeText', { text: '30:00' })
     await pending.event('save-activity', 'onPress')
-    const tokenRequest = requests(pending).at(-1)
-    const requestCount = requests(pending).length
-    answer(pending, tokenRequest, 'native-token')
-    const post = await waitForRequest(pending, requestCount, request => request.payload?.module === 'Network')
+    const post = await waitForRequest(pending, 0, request => request.payload?.module === 'Network')
     pending.scope.__stxNativeUnmount()
     expect(pending.sent).toContainEqual(expect.objectContaining({
       type: 'API_CANCEL',

@@ -2,6 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { settledFollowerCount } from '../functions/athletes'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { nativeUi } from '../functions/native-ui'
 import {
   CLUB_FILTER_LABELS,
@@ -44,7 +45,6 @@ const chosenFilter = state<string>(CLUB_FILTERS[0])
 const rows = state<any[]>([])
 const loading = state(true)
 const error = state('')
-const signedOut = state(false)
 const api = createNativeApi(craft)
 let active = true
 
@@ -89,6 +89,7 @@ async function load(): Promise<void> {
   const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
+  if (!await requireNativeAccount(craft, '/clubs')) return
   try {
     const result = await api.send(clubsPath())
     if (!active || currentLoad !== loadVersion)
@@ -124,11 +125,7 @@ async function toggleMembership(club: any): Promise<void> {
     return
   }
 
-  const token = await api.readToken()
-  if (!token) {
-    signedOut.set(true)
-    return
-  }
+  if (!await requireNativeAccount(craft, '/clubs')) return
 
   const was = club.isMember === true
   const countWas = Number(club.memberCount) || 0
@@ -188,10 +185,6 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 
     <ActivityIndicator :show="loading() && rows().length === 0" testID="clubs-loading" class="mt-8" />
     <ErrorState :show="error()" testID="clubs-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
-    <EmptyState :show="signedOut()" testID="clubs-signed-out" variant="bare" className="mt-4" title="Sign in to join a club." description="Clubs are crews of athletes who train together.">
-      <Button testID="clubs-sign-in" :class="ui.action" @click="craft.navigation.open('/login?next=/clubs')">Sign in</Button>
-    </EmptyState>
-
     {{-- Rows from the grouped vocabulary rather than GroupedListRow: a crew's
          place, its week and its door are separate lines, and the week line is
          the one a join changes in place. --}}

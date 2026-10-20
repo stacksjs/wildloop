@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, visibility, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 /**
  * Challenges, natively.
@@ -36,9 +36,7 @@ function ok(body: unknown) {
  * without the id, "sent", "received", "You" and "Won" all mean nothing.
  */
 async function board(token: string | null = 'tok_abc', rows: unknown = CHALLENGES) {
-  const screen = await start('Challenges')
-  const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  answer(screen, keychain, token)
+  const screen = await start('Challenges', {}, undefined, {}, nativeKeychain(token === null ? null : ME, token ?? undefined))
   if (token === null)
     return { screen, me: null, request: null }
 
@@ -65,14 +63,17 @@ describe('Wildloop native challenges screen', () => {
     expect(request.payload.args[0].headers.authorization).toBe('Bearer tok_abc')
   })
 
-  it('asks for nothing at all when nobody is signed in', async () => {
+  /*
+   * The app needs an account, so a signed-out viewer never reads this screen:
+   * it asks the server for nothing and sends them to Login, naming itself so
+   * they come back here once they have signed in.
+   */
+  it('sends a viewer with no account to Login without asking the server anything', async () => {
     const { screen } = await board(null)
-    const texts = await waitForText(screen, 'Sign in to see your challenges.')
-    // …and a way to do it: this screen used to send a guest to a browser.
-    expect(SOURCE).toContain("craft.navigation.open('/login?next=/challenges')")
-
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN'); attempt++)
+      await Bun.sleep(1)
+    expect(screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN' && m.payload.path === '/login?next=%2Fchallenges')).toBe(true)
     expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
-    expect(texts).toContain('Sign in to see your challenges.')
   })
 
   it('puts the viewer on whichever side of the challenge they are on', async () => {

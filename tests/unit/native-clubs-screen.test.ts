@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 import { clubMemberText, clubWeekLine } from '../../resources/functions/clubs'
 
 /**
@@ -35,14 +35,15 @@ function ok(body: unknown) {
 }
 
 /*
- * The listing is public, but `isMember` is not: without the viewer's token
- * every club comes back as one they are not in. So the screen reads the
- * keychain before it reads the directory, and the test answers that first.
+ * The listing is not public any more — the app needs an account — and
+ * `isMember` never was: without the viewer's bearer every club comes back as
+ * one they are not in. So the screen settles who is asking before it reads
+ * the directory, and the fixture's device is the answer.
  */
 async function directory(token: string | null = 'tok_abc') {
-  const screen = await start('Clubs')
-  const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  answer(screen, keychain, token)
+  const screen = await start('Clubs', {}, undefined, {}, nativeKeychain(token === null ? null : 7, token ?? undefined))
+  if (token === null)
+    return { screen }
   const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
   return { screen, request }
 }
@@ -59,22 +60,31 @@ describe('Wildloop native clubs screen', () => {
   it('reads the directory with the viewer\'s token, so membership is real', async () => {
     const { request } = await directory()
 
-    expect(request.payload.args[0].url).toBe('https://wildloop.org/api/clubs')
-    expect(request.payload.args[0].headers.authorization).toBe('Bearer tok_abc')
+    expect(request!.payload.args[0].url).toBe('https://wildloop.org/api/clubs')
+    expect(request!.payload.args[0].headers.authorization).toBe('Bearer tok_abc')
   })
 
-  it('still reads the directory when nobody is signed in', async () => {
-    const { request } = await directory(null)
-
-    expect(request.payload.args[0].url).toBe('https://wildloop.org/api/clubs')
-    expect(request.payload.args[0].headers.authorization).toBeUndefined()
+  it('sends a viewer with no account to Login without reading the directory', async () => {
+    const { screen } = await directory(null)
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN'); attempt++)
+      await Bun.sleep(1)
+    expect(screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN' && m.payload.path === '/login?next=%2Fclubs')).toBe(true)
+    expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
   })
 
-  it('reads the keychain once, however many callers want the token', async () => {
+  /*
+   * Three reads, measured, and not one per caller: the guard reads the pair
+   * that makes an account — the bearer, and the record that has to match it —
+   * and `createNativeApi` then reads the bearer once more into its own cache,
+   * which every row and every join shares. The duplicate bearer read is the
+   * price of the guard not knowing about the api's cache; it costs one
+   * keychain round trip on a screen that is about to make a network one.
+   */
+  it('settles who is asking once, however many callers want the token', async () => {
     const { screen } = await directory()
 
-    const keychainReads = requests(screen).filter((r: any) => r.payload?.module === 'SecureStorage')
-    expect(keychainReads).toHaveLength(1)
+    const keys = requests(screen).filter((r: any) => r.payload?.module === 'SecureStorage').map((r: any) => r.payload.args[0])
+    expect(keys).toEqual(['auth_token', 'wildloop-account', 'auth_token'])
   })
 
   it('shows each crew with the numbers the shared module computes', async () => {
@@ -207,20 +217,7 @@ describe('Wildloop native clubs screen', () => {
     expect(since).toContain('Join')
   })
 
-  it('says to sign in rather than failing silently, when there is no token', async () => {
-    const { screen, request } = await directory(null)
-    answer(screen, request, ok({ clubs: [CLUBS.clubs[0]] }))
-    await waitForText(screen, 'Queen City Trail Club')
 
-    const before = requests(screen).length
-    await screen.event('club-action', 'onPress')
-    const texts = await waitForText(screen, 'Sign in to join a club.')
-    // …and a way to do it: this screen used to send a guest to a browser.
-    expect(SOURCE).toContain("craft.navigation.open('/login?next=/clubs')")
-
-    expect(requests(screen).length).toBe(before)
-    expect(texts).toContain('Join')
-  })
 
   it('pushes a row to the club\'s own screen', async () => {
     const { screen, request } = await directory()

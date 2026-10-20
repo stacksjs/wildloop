@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { nativeUi } from '../../resources/functions/native-ui'
-import { nativeNodeProps, nativeNodeText, answer, answerNativeCsrf, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeKeychain, nativeNodeProps, nativeNodeText, answer, answerNativeCsrf, compileNativeBundle, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 describe('native account forms',()=>{
   beforeAll(compileNativeBundle,30000)
@@ -68,7 +68,7 @@ describe('native account forms',()=>{
       expect(nativeNodeText(screen, testID)).toBe(label)
   })
   it('stores a successful login in keychain and returns to the native trail',async()=>{
-    const screen=await start('Login',{next:'/trail/7'})
+    const screen=await start('Login',{next:'/trail/7'},undefined,{},nativeKeychain(null))
     await screen.event('login-email','onChangeText',{text:'  native@example.test '})
     await screen.event('login-password','onChangeText',{text:'Native-QA-password'})
     await screen.event('login-submit','onPress')
@@ -90,7 +90,7 @@ describe('native account forms',()=>{
     expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/trail/7')).toBe(true)
   })
   it('shows a refused login without persisting or navigating',async()=>{
-    const screen=await start('Login')
+    const screen=await start('Login',{},undefined,{},nativeKeychain(null))
     await screen.event('login-email','onChangeText',{text:'native@example.test'})
     await screen.event('login-password','onChangeText',{text:'incorrect'})
     await screen.event('login-submit','onPress')
@@ -102,7 +102,7 @@ describe('native account forms',()=>{
     expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN')).toBe(false)
   })
   it('requires native registration consent before sending an account request',async()=>{
-    const screen=await start('Register')
+    const screen=await start('Register',{},undefined,{},nativeKeychain(null))
     for(const [id,text] of [['register-name','Native tester'],['register-email','native@example.test'],['register-password','Native-QA-password'],['register-confirmation','Native-QA-password']])await screen.event(id,'onChangeText',{text})
     await screen.event('register-submit','onPress')
     await waitForText(screen,'Accept the terms to create your account.')

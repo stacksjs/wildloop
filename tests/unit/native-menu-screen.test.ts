@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answerKeychain, compileNativeBundle, shownText, start, waitForText } from '../fixtures/nativeScreen'
+import { nativeKeychain, compileNativeBundle, shownText, start, waitForText } from '../fixtures/nativeScreen'
 
 /**
  * The menu, now that there is only one kind of viewer.
@@ -24,9 +24,7 @@ describe('Wildloop native menu screen', () => {
 
   it('lists every destination, with nothing held back for a guest', async () => {
     const screen = await start('Menu')
-    const keychain = answerKeychain(screen)
     await waitForText(screen, 'Your profile')
-    keychain()
 
     const text = shownText(screen).join(' | ')
     for (const offered of ['Your profile', 'Achievements', 'Stats', 'Notifications', 'Territory', 'Conquests', 'Challenges', 'Plans', 'Trails', 'Leaderboard', 'Battles', 'Records', 'Find athletes', 'Clubs', 'Events', 'Settings'])
@@ -45,8 +43,7 @@ describe('Wildloop native menu screen', () => {
    * the guard is also called from a loader that does not wait for `onAppear`.
    */
   it('waits until the tab is shown before sending a viewer without an account to Login', async () => {
-    const screen = await start('Menu', {}, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog'], { __stxNativeFocused: false })
-    const keychain = answerKeychain(screen, null)
+    const screen = await start('Menu', {}, undefined, { __stxNativeFocused: false }, nativeKeychain(null))
     for (let attempt = 0; attempt < 40; attempt++)
       await Bun.sleep(1)
     expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN')).toBe(false)
@@ -54,7 +51,6 @@ describe('Wildloop native menu screen', () => {
     screen.receive({ type: 'SCREEN_FOCUS', payload: { focused: true } })
     for (let attempt = 0; attempt < 60 && !screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN'); attempt++)
       await Bun.sleep(1)
-    keychain()
     expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN' && message.payload.path === '/login?next=%2Fmenu')).toBe(true)
   })
 })

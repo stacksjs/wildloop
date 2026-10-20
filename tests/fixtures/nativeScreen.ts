@@ -53,7 +53,23 @@ export function nodesByTestId(node: any, found = new Map<string, string>()): Map
  * `globals` are what the host sets on the screen's context before its script
  * runs - `__stxNativeFocused: false` is a tab the shell prepared hidden.
  */
-export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog'], globals: Record<string, unknown> = {}): Promise<NativeSession> {
+/**
+ * The device keychain a screen starts with: signed in as user 7.
+ *
+ * Every screen now asks for this before it draws anything, because the app
+ * needs an account (`requireNativeAccount`), so answering it in each test
+ * would be two dozen copies of the same plumbing. Pass `null` as `keychain`
+ * for a device with no account, or your own record to pin a bearer a test
+ * asserts on.
+ */
+export const NATIVE_TEST_TOKEN = 'native-token'
+export function nativeKeychain(userId: number | null = 7, token = NATIVE_TEST_TOKEN): Record<string, string | null> {
+  if (userId === null)
+    return { auth_token: '', 'wildloop-account': null }
+  return { auth_token: token, 'wildloop-account': JSON.stringify({ token, user: { id: userId } }) }
+}
+
+export async function start(route: string, params: Record<string, unknown> = {}, capabilities = ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog'], globals: Record<string, unknown> = {}, keychain: Record<string, string | null> | null = nativeKeychain()): Promise<NativeSession> {
   const sent: any[] = []
   let callback: (raw: string) => void = () => {}
   /*
@@ -108,7 +124,30 @@ export async function start(route: string, params: Record<string, unknown> = {},
       platform: 'ios',
       capabilityProtocolVersion: 1,
       capabilities,
-      postMessage: (raw: string) => sent.push(JSON.parse(raw)),
+      postMessage: (raw: string) => {
+        const message = JSON.parse(raw)
+        sent.push(message)
+        /*
+         * The keychain answers itself. A screen reads `auth_token` and
+         * `wildloop-account` before it draws, and a test that had to answer
+         * those by hand grew an interval to do it — five files had their own
+         * copy, and an uncleared one is how the native suite used to flake.
+         * A test that wants to answer a key itself still can: this only
+         * claims the keys it was seeded with, and marks them as answered so
+         * a manual pump skips them.
+         */
+        if (!keychain || message.type !== 'API_REQUEST' || message.payload?.module !== 'SecureStorage' || message.payload?.method !== 'get')
+          return
+        const key = String(message.payload.args?.[0] ?? '')
+        if (!(key in keychain))
+          return
+        message.answered = true
+        queueMicrotask(() => callback(JSON.stringify({
+          type: 'API_RESPONSE',
+          correlationId: message.id,
+          payload: { version: 1, requestId: message.id, data: keychain[key] },
+        })))
+      },
       onMessage: (receiver: typeof callback) => { callback = receiver },
     },
   }
@@ -152,28 +191,6 @@ export function answer(session: NativeSession, request: any, data: unknown): voi
     correlationId: request.id,
     payload: { version: 1, requestId: request.id, data },
   })
-}
-
-/**
- * The device's keychain, answering for as long as the screen keeps asking.
- *
- * `requireNativeAccount` reads two keys — the bearer and the account record
- * that has to match it — and it reads them again whenever a screen reloads,
- * so a test cannot answer the batch that happens to exist on the first tick
- * and be done. Five test files had grown their own copy of this interval.
- *
- * Pass `null` for a signed-out device: both keys answer empty, which is what
- * the guard treats as no account.
- */
-export function answerKeychain(session: NativeSession, userId: number | null = 7, token = 'native-token'): () => void {
-  const record = userId === null ? null : JSON.stringify({ token, user: { id: userId } })
-  const pump = setInterval(() => {
-    for (const request of requests(session).filter(entry => entry.payload.module === 'SecureStorage' && !entry.answered)) {
-      request.answered = true
-      answer(session, request, request.payload.args[0] === 'auth_token' ? (userId === null ? '' : token) : record)
-    }
-  }, 1)
-  return () => clearInterval(pump)
 }
 
 export function requests(session: NativeSession): any[] {

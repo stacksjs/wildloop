@@ -1,13 +1,12 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, nativeNodeStyle, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { nativeKeychain, chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, nativeNodeStyle, requests, shownText, start, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 const LINE = [[37.7, -119.5], [37.71, -119.51], [37.72, -119.5]]
 const TRAIL = { id: 7, name: 'Native Ridge Loop', latitude: 37.75, longitude: -119.55, distance: 3, elevation: 600, location: 'Yosemite, CA', surface: 'dirt;rock', geometry: JSON.stringify(LINE) }
 const OWN = { id: 5, userId: 12, userName: 'Tester', rating: 4, content: 'A quiet loop with great views.', visitDate: '2026-10-15', conditions: 'dry', photos: '["https://wildloop.org/photo.jpg"]' }
 function ok(body: unknown) { return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } }
 async function open(signedIn = true, geometry: string | null = TRAIL.geometry, reviewRows: any[] = signedIn ? [OWN] : [], personalReview: any = reviewRows.find(row=>row.userId===12) ?? null, personalStatus = 200) {
-  const screen = await start('TrailDetail', { id: '7' }, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog', 'share', 'linking', 'files'])
-  answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage'), signedIn ? 'test_token' : null)
+  const screen = await start('TrailDetail', { id: '7' }, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog', 'share', 'linking', 'files'], {}, nativeKeychain(signedIn ? 12 : null, 'test_token'))
   answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'Network'), ok({ success: true, trail: { ...TRAIL, geometry } }))
   const review = await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/reviews'))
   answer(screen, review, ok({ reviews: reviewRows }))
@@ -181,7 +180,7 @@ describe('native trail details', () => {
     await waitForText(screen, 'Your review has been deleted.')
   })
   it('shows the trailhead for trails without recorded geometry', async () => {
-    const screen = await open(false, null)
+    const screen = await open(true, null)
     expect(shownText(screen)).toContain('No recorded route line. The map shows the trailhead.')
     expect(shownText(screen)).toContain('Elevation data is unavailable for this route.')
   })

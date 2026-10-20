@@ -1,6 +1,6 @@
 <script client lang="ts">
 import { nativeApiOrigin } from '../functions/native-api'
-import { readNativeAccount } from '../functions/native-session'
+import { readNativeAccount, requireNativeAccount } from '../functions/native-session'
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { ACTIVITY_VISIBILITIES, buildManualActivity, MANUAL_ACTIVITY_TYPES, todayLocal } from '../functions/manual-activity'
 
@@ -107,15 +107,7 @@ async function submit() {
      device still has a user for, since a revoked token outlives its session
      and still reads as truthy. --}}
 async function requireAccount(): Promise<void> {
-  try {
-    if ((await readNativeAccount(craft))?.id) return
-  }
-  catch {
-    // The keychain read was cancelled because the screen closed. A screen
-    // nobody is looking at does not need to be sent anywhere.
-    return
-  }
-  craft.navigation.open('/login?next=/activity/new')
+  await requireNativeAccount(craft, '/activity/new')
 }
 
 onMount(() => {

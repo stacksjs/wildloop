@@ -1,7 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeApiOrigin, nativeImageUrl } from '../functions/native-api'
-import { clearNativeSession, storeNativeSession } from '../functions/native-session'
+import { clearNativeSession, storeNativeSession, requireNativeAccount } from '../functions/native-session'
 import { nativeOAuthCallback } from '../functions/native-oauth'
 import { formatHealthSummary } from '../functions/health-summary'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
@@ -46,7 +46,7 @@ async function load() {
   error.set('')
   api = createNativeApi(craft)
   try {
-    if (!await api.readToken()) { user.set(null); return }
+    if (!await requireNativeAccount(craft, '/settings')) { user.set(null); return }
     const me = await api.send('/api/me')
     if (!me.ok) throw new Error('Log in again to change your settings.')
     if (!active || currentLoad !== loadVersion) return

@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { formatTerritoryArea, territoryColor } from '../functions/territory-style'
 import {
   filterTerritories,
@@ -48,7 +49,12 @@ const viewerId = state(0)
 const viewport = state<any>(null)
 const loading = state(true)
 const error = state('')
-const signedOut = state(false)
+{{-- Not "signed out": the guard above has already sent anybody without an
+     account to Login, so reaching this means the device still holds a bearer
+     the server has stopped accepting. Bouncing straight back to Login on a
+     401 would loop against a server having a bad minute, so it is said on
+     the screen instead — the same thing Settings says. --}}
+const sessionExpired = state(false)
 const api = createNativeApi(craft)
 let active = true
 
@@ -134,17 +140,12 @@ async function load(): Promise<void> {
   loading.set(true)
   error.set('')
   try {
-    const token = await api.readToken()
-    if (!token) {
-      if (active && currentLoad === loadVersion)
-        signedOut.set(true)
-      return
-    }
+    if (!await requireNativeAccount(craft, '/territories')) return
 
     const me = await api.send('/api/me')
     if (!me.ok || !me.body?.user?.id) {
       if (active && currentLoad === loadVersion)
-        signedOut.set(true)
+        sessionExpired.set(true)
       return
     }
     if (active && currentLoad === loadVersion)
@@ -226,8 +227,8 @@ onMount(() => onNativeAccountChange(craft, () => { rows.set([]); void load() }))
 
     <ActivityIndicator :show="loading" testID="territories-loading" class="mt-6" />
     <ErrorState :show="error()" testID="territories-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
-    <Text :show="signedOut" testID="territories-signed-out" class="mt-4 text-warning">Sign in to see your territory.</Text>
-    <Button :show="signedOut" testID="territories-sign-in" @click="craft.navigation.open('/login?next=/territories')">Sign in</Button>
+    <Text :show="sessionExpired" testID="territories-session-expired" class="mt-4 text-warning">Your session has expired. Log in again to see your territory.</Text>
+    <Button :show="sessionExpired" testID="territories-log-in-again" @click="craft.navigation.open('/login?next=/territories')">Log in again</Button>
 
     <View :show="rows().length > 0" testID="territories-body" class="mt-5 gap-4">
       {{-- The map. `fitToBounds` frames whatever is drawn, so the screen opens

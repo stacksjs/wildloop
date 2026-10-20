@@ -1,5 +1,6 @@
 <script client>
 import { nativeApiOrigin } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import type { NativeCraft } from '@stacksjs/stx/native'
 import {
   CATEGORY_LABELS,
@@ -75,6 +76,7 @@ function rowFrom(effort: any): RecordRow {
 
 let loadVersion = 0
 async function load(): Promise<void> {
+  if (!await requireNativeAccount(craft, '/records')) return
   const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')

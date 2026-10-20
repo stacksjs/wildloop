@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import {
   achievementsPath,
   activitiesPath,
@@ -41,7 +42,12 @@ const records = state<any[]>([])
 const months = state<any[]>([])
 const loading = state(true)
 const error = state('')
-const signedOut = state(false)
+{{-- Not "signed out": the guard above has already sent anybody without an
+     account to Login, so reaching this means the device still holds a bearer
+     the server has stopped accepting. Bouncing straight back to Login on a
+     401 would loop against a server having a bad minute, so it is said on
+     the screen instead — the same thing Settings says. --}}
+const sessionExpired = state(false)
 const api = createNativeApi(craft)
 let active = true
 
@@ -94,17 +100,12 @@ async function load(): Promise<void> {
   loading.set(true)
   error.set('')
   try {
-    const token = await api.readToken()
-    if (!token) {
-      if (active && currentLoad === loadVersion)
-        signedOut.set(true)
-      return
-    }
+    if (!await requireNativeAccount(craft, '/achievements')) return
 
     const me = await api.send('/api/me')
     if (!me.ok || !me.body?.user?.id) {
       if (active && currentLoad === loadVersion)
-        signedOut.set(true)
+        sessionExpired.set(true)
       return
     }
     const userId = Number(me.body.user.id)
@@ -166,8 +167,8 @@ onMount(() => onNativeAccountChange(craft, () => { badges.set([]); records.set([
 
     <ActivityIndicator :show="loading" testID="achievements-loading" class="mt-6" />
     <ErrorState :show="error()" testID="achievements-error" :title="error()" message="Check your connection, then try again." :busy="loading()" className="mt-4" @retry="load()" />
-    <Text :show="signedOut" testID="achievements-signed-out" class="mt-4 text-warning">Sign in to see your achievements.</Text>
-    <Button :show="signedOut" testID="achievements-sign-in" @click="craft.navigation.open('/login?next=/achievements')">Sign in</Button>
+    <Text :show="sessionExpired" testID="achievements-session-expired" class="mt-4 text-warning">Your session has expired. Log in again to see your achievements.</Text>
+    <Button :show="sessionExpired" testID="achievements-log-in-again" @click="craft.navigation.open('/login?next=/achievements')">Log in again</Button>
 
     {{-- The year, as twelve bars. A month that was run always gets a sliver:
          nothing and almost nothing look the same otherwise, and only one of
@@ -203,6 +204,6 @@ onMount(() => onNativeAccountChange(craft, () => { badges.set([]); records.set([
       </View>
     </View>
 
-    <EmptyState :show="!loading && !error && !signedOut && badges().length === 0 && records().length === 0" testID="achievements-empty" variant="bare" className="mt-6" title="Record runs and take territory to start unlocking badges." />
+    <EmptyState :show="!loading && !error && !sessionExpired && badges().length === 0 && records().length === 0" testID="achievements-empty" variant="bare" className="mt-6" title="Record runs and take territory to start unlocking badges." />
   </ScrollView>
 </View>

@@ -1,6 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { exportNativeGpx } from '../functions/native-export'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
@@ -46,7 +47,7 @@ async function load() {
 async function postComment() {
   if (!comment().trim() || busy()) return
   const api = createNativeApi(craft)
-  if (!await api.readToken()) { craft.navigation.open(`/login?next=${encodeURIComponent(`/activity/${id}`)}`); return }
+  if (!await requireNativeAccount(craft, `/activity/${id}`)) return
   busy.set(true)
   try {
     const response = await api.send(`/api/activities/${id}/comments`, 'POST', {body: comment().trim()})
@@ -81,7 +82,7 @@ function remove(){void perform(async()=>{
 })}
 function kudos(){void perform(async()=>{
   const api=createNativeApi(craft)
-  if(!await api.readToken()){craft.navigation.open('/login?next='+encodeURIComponent('/activity/'+id));return}
+  if (!await requireNativeAccount(craft, `/activity/${id}`)) return
   const response=await api.send(`/api/activities/${id}/kudos`,kudosed()?'DELETE':'PUT')
   if(!response.ok)throw new Error('Kudos could not be updated.')
   kudosed.set(Boolean(response.body.kudosed));activity.set({...activity(),kudosCount:response.body.kudosCount})

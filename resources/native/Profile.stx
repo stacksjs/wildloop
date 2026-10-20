@@ -1,6 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
@@ -19,7 +20,7 @@ async function load() {
   error.set('')
   try {
     const api = createNativeApi(craft)
-    if (!await api.readToken()) { user.set(null); return }
+    if (!await requireNativeAccount(craft, '/profile')) { user.set(null); return }
     const me = await api.send('/api/me')
     if (!me.ok) throw new Error('Your session has expired. Log in again.')
     if (!alive || currentLoad !== loadVersion) return

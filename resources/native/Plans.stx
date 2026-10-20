@@ -1,6 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { readNativeAccount } from '../functions/native-session'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { trailheadPosition } from '../functions/trail-map'
@@ -86,7 +87,7 @@ async function edit(plan?:TripPlan){
 async function save(){
   if(busy())return
   const api=createNativeApi(craft)
-  if(!await api.readToken()){craft.navigation.open('/login?next=/plans');return}
+  if (!await requireNativeAccount(craft, '/plans')) return
   const input={title:title(),planned_for:date(),start_time:time()||null,timezone:zone(),activity_type:activity(),notes:notes(),latitude:latitude().trim() ? Number(latitude()) : NaN,longitude:longitude().trim() ? Number(longitude()) : NaN,trail_id:trailId(),custom_route_id:customRouteId()}
   const checked=validateTripPlan(input,{today:today()})
   if(Object.keys(checked.fields).length){error.set(Object.values(checked.fields).join('. '));return}

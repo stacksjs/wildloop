@@ -1,6 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, loadOutcome, nativeImageUrl } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
@@ -217,6 +218,7 @@ async function load() {
   error.set('')
   // Returning after native sign-in reads the current keychain session.
   api = createNativeApi(craft)
+  if (!await requireNativeAccount(craft, `/trail/${wanted}`)) return
   try {
     const response = await api.send(`/api/trails/${wanted}`)
     if (!alive || current !== generation) return

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * The athlete's own record in the territory game, natively.
@@ -43,9 +43,7 @@ const OWN = {
 }
 
 async function board(token: string | null = 'tok_abc', payload: unknown = OWN) {
-  const screen = await start('Conquests')
-  const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  answer(screen, keychain, token)
+  const screen = await start('Conquests', {}, undefined, {}, nativeKeychain(token === null ? null : ME, token ?? undefined))
   if (token === null)
     return { screen }
 
@@ -77,14 +75,17 @@ describe('Wildloop native conquests screen', () => {
     expect(request.payload.args[0].headers.authorization).toBe('Bearer tok_abc')
   })
 
-  it('asks for nothing at all when nobody is signed in', async () => {
+  /*
+   * The app needs an account, so a signed-out viewer never reads this screen:
+   * it asks the server for nothing and sends them to Login, naming itself so
+   * they come back here once they have signed in.
+   */
+  it('sends a viewer with no account to Login without asking the server anything', async () => {
     const { screen } = await board(null)
-    await waitForText(screen, 'Sign in to see your record.')
-    // …and a way to do it: this screen used to send a guest to a browser.
-    expect(SOURCE).toContain("craft.navigation.open('/login?next=/conquests')")
-
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN'); attempt++)
+      await Bun.sleep(1)
+    expect(screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN' && m.payload.path === '/login?next=%2Fconquests')).toBe(true)
     expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
-    expect(visibility(screen, 'conquests-body')).toBe('none')
   })
 
   /*

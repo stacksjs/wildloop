@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import {
   athleteRowsFrom,
   athleteSearchPath,
@@ -40,7 +41,11 @@ const following = state<number[]>([])
 const viewerId = state(0)
 const loading = state(true)
 const error = state('')
-const signedOut = state(false)
+{{-- Not "signed out": the guard has already sent anybody without an account
+     to Login, so reaching this means the device still holds a bearer the
+     server has stopped accepting. Bouncing back to Login on a 401 would loop
+     against a server having a bad minute, so it is said on the screen. --}}
+const sessionExpired = state(false)
 const api = createNativeApi(craft)
 let active = true
 
@@ -87,10 +92,11 @@ function followLabel(row: any): string {
 
 /** The viewer's own follow set, so a row does not offer what it already has. */
 async function loadFollowing(): Promise<void> {
+  if (!await requireNativeAccount(craft, '/athletes')) return
   const me = await api.send('/api/me')
   if (!me.ok || !me.body?.user?.id) {
     if (active)
-      signedOut.set(true)
+      sessionExpired.set(true)
     return
   }
   const id = Number(me.body.user.id)
@@ -135,7 +141,7 @@ async function toggleFollow(row: any): Promise<void> {
 
   const token = await api.readToken()
   if (!token) {
-    signedOut.set(true)
+    sessionExpired.set(true)
     return
   }
 
@@ -181,7 +187,7 @@ onDestroy(() => {
 
     <ActivityIndicator :show="loading" testID="athletes-loading" class="mt-6" />
     <Text :show="error" testID="athletes-error" class="mt-4 text-danger" :text="error" />
-    <Text :show="signedOut" testID="athletes-signed-out" class="mt-3 text-xs text-fg-soft">
+    <Text :show="sessionExpired" testID="athletes-session-expired" class="mt-3 text-xs text-fg-soft">
       Sign in to follow athletes and see their runs in your feed.
     </Text>
 

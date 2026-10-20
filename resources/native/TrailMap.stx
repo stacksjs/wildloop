@@ -1,6 +1,7 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
@@ -74,6 +75,7 @@ async function directions() {
 }
 let loadVersion = 0
 async function load() {
+  if (!await requireNativeAccount(craft, `/trail/${id}/map`)) return
   const currentLoad = ++loadVersion
   try {
     const api = createNativeApi(craft)

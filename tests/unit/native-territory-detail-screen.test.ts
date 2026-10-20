@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 import { territoryIdFrom } from '../../resources/functions/territories'
 
 /**
@@ -54,7 +54,7 @@ const FEED = {
 
 /** Start on an id, answer the keychain, `/api/me`, the territory and the feed. */
 async function open(id: unknown = '7', territory: unknown = TERRITORY, status = 200) {
-  const screen = await start('TerritoryDetail', { id })
+  const screen = await start('TerritoryDetail', { id }, undefined, {}, nativeKeychain(ME, 'tok_abc'))
 
   /*
    * A parameter that cannot be a territory does no I/O at all — the screen
@@ -63,9 +63,6 @@ async function open(id: unknown = '7', territory: unknown = TERRITORY, status = 
    */
   if (territoryIdFrom(id) === null)
     return { screen }
-
-  const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  answer(screen, keychain, 'tok_abc')
 
   const me = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
   answer(screen, me, ok({ success: true, user: { id: ME } }))

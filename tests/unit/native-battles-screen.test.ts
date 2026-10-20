@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, segmentChosen, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * The live battle feed, natively.
@@ -45,10 +45,10 @@ const FEED = {
   ],
 }
 
-async function board(token: string | null = null, payload: unknown = FEED) {
-  const screen = await start('Battles')
-  const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  answer(screen, keychain, token)
+async function board(token: string | null = 'tok_abc', payload: unknown = FEED) {
+  const screen = await start('Battles', {}, undefined, {}, nativeKeychain(token === null ? null : 7, token ?? undefined))
+  if (token === null)
+    return { screen }
   const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
   answer(screen, request, payload === null ? { status: 500, statusText: 'Server Error', headers: {}, body: '{}' } : ok(payload))
   return { screen, request }
@@ -67,18 +67,25 @@ describe('Wildloop native battles screen', () => {
    * must not, or a signed-out athlete is told to sign in to watch a game that
    * would have answered them.
    */
-  it('loads the feed with no token at all', async () => {
-    const { screen, request } = await board(null)
+  /*
+   * The board used to answer a guest, and this test used to pin that. The app
+   * needs an account now, so the only feed there is is one with a bearer on
+   * it — which is also the one where a viewer's blocks are applied.
+   */
+  it('loads the feed under the viewer, so their blocks are applied', async () => {
+    const { screen, request } = await board()
 
-    expect(request.payload.args[0].url).toBe('https://wildloop.org/api/territories/battles?limit=200')
-    expect(request.payload.args[0].headers.authorization).toBeUndefined()
+    expect(request!.payload.args[0].url).toBe('https://wildloop.org/api/territories/battles?limit=200')
+    expect(request!.payload.args[0].headers.authorization).toBe('Bearer tok_abc')
     await waitForText(screen, 'Marta is attacking Balboa Loop')
   })
 
-  it('sends the token when there is one, so blocks are applied', async () => {
-    const { request } = await board('tok_abc')
-
-    expect(request.payload.args[0].headers.authorization).toBe('Bearer tok_abc')
+  it('sends a viewer with no account to Login without asking the server anything', async () => {
+    const { screen } = await board(null)
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN'); attempt++)
+      await Bun.sleep(1)
+    expect(screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN' && m.payload.path === '/login?next=%2Fbattles')).toBe(true)
+    expect(requests(screen).filter((r: any) => r.payload?.module === 'Network')).toHaveLength(0)
   })
 
   /*
@@ -145,7 +152,7 @@ describe('Wildloop native battles screen', () => {
   })
 
   it('says plainly when nothing has been fought over', async () => {
-    const { screen } = await board(null, { success: true, battles: [] })
+    const { screen } = await board('tok_abc', { success: true, battles: [] })
     await waitForText(screen, 'Nobody has fought over anything today.')
 
     await waitForVisibility(screen, 'battles-empty', 'flex')
@@ -162,7 +169,7 @@ describe('Wildloop native battles screen', () => {
   })
 
   it('reports a feed it could not load, and shows no battles', async () => {
-    const { screen } = await board(null, null)
+    const { screen } = await board('tok_abc', null)
     await waitForText(screen, 'Could not load the battle feed')
 
     expect(visibility(screen, 'battles-body')).toBe('none')

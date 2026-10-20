@@ -1,5 +1,6 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
+import { requireNativeAccount } from '../functions/native-session'
 
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const params = craft.route.params
@@ -21,6 +22,10 @@ function logAnother() {
 
 onMount(() => {
   craft.navigation.setOptions({ title: 'Activity saved', largeTitle: false })
+  {{-- This screen asks the server for nothing — it is handed its figures by
+       the recorder — so without this it would show a signed-out viewer a
+       confirmation for an activity nobody saved. --}}
+  void requireNativeAccount(craft, '/activity/saved')
 })
 </script>
 

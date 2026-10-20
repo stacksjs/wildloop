@@ -1,21 +1,11 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answerKeychain, answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
 async function recover(userId=7) {
-  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'])
-  // Answered as they arrive, not only the batch that existed on the first
-  // tick: the screen reads the keychain to decide whether a signed-out viewer
-  // belongs here at all, and those reads come before the checkpoint.
-  const keychain=setInterval(()=>{
-    for(const request of requests(screen).filter(r=>r.payload.module==='SecureStorage' && !r.answered)) {
-      request.answered=true
-      answer(screen,request,request.payload.args[0]==='auth_token' ? 'record-token' : JSON.stringify({token:'record-token',user:{id:userId}}))
-    }
-  },1)
+  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{},nativeKeychain(userId,'record-token'))
   const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
-  clearInterval(keychain)
   answer(screen,stored,checkpoint)
   const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
   answer(screen,host,{active:false,paused:false,locations:[]})
@@ -27,15 +17,8 @@ async function recover(userId=7) {
  */
 async function live(samples:unknown[],startedAt:number) {
   const track={...checkpoint,startedAt,samples,pending:undefined}
-  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'])
-  const keychain=setInterval(()=>{
-    for(const request of requests(screen).filter(r=>r.payload.module==='SecureStorage' && !r.answered)) {
-      request.answered=true
-      answer(screen,request,request.payload.args[0]==='auth_token' ? 'record-token' : JSON.stringify({token:'record-token',user:{id:7}}))
-    }
-  },1)
+  const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{},nativeKeychain(7,'record-token'))
   const stored=await waitForRequest(screen,0,r=>r.payload.module==='Storage' && r.payload.method==='get')
-  clearInterval(keychain)
   answer(screen,stored,track)
   const host=await waitForRequest(screen,0,r=>r.payload.method==='getRecordingState')
   answer(screen,host,{active:true,paused:false,id:'run-7',locations:[]})
@@ -54,15 +37,9 @@ describe('native Record checkpoint recovery',()=>{
    * Start was pressed — reported from a device, 19 Oct 2026.
    */
   it('sends a signed-out viewer to log in rather than offering to record',async()=>{
-    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'])
-    for(let attempt=0;attempt<40;attempt++){
-      for(const request of requests(screen).filter((r:any)=>r.payload.module==='SecureStorage' && !r.answered)){
-        ;(request as any).answered=true
-        answer(screen,request,null)
-      }
-      if(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN'))break
+    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{},nativeKeychain(null))
+    for(let attempt=0;attempt<60 && !screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN');attempt++)
       await Bun.sleep(1)
-    }
     expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=%2Frecord')).toBe(true)
     // And it does not go looking for a checkpoint to recover on the way out.
     expect(requests(screen).some((r:any)=>r.payload.module==='Storage')).toBe(false)
@@ -76,21 +53,13 @@ describe('native Record checkpoint recovery',()=>{
    * and asks when it is shown.
    */
   it('waits until the prepared tab is shown before sending anybody to log in',async()=>{
-    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{__stxNativeFocused:false})
-    const answerKeychain=async()=>{
-      for(let attempt=0;attempt<40;attempt++){
-        for(const request of requests(screen).filter((r:any)=>r.payload.module==='SecureStorage' && !r.answered)){
-          ;(request as any).answered=true
-          answer(screen,request,null)
-        }
-        await Bun.sleep(1)
-      }
-    }
-    await answerKeychain()
+    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{__stxNativeFocused:false},nativeKeychain(null))
+    for(let attempt=0;attempt<40;attempt++)await Bun.sleep(1)
     expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN')).toBe(false)
 
     screen.receive({type:'SCREEN_FOCUS',payload:{focused:true}})
-    await answerKeychain()
+    for(let attempt=0;attempt<60 && !screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN');attempt++)
+      await Bun.sleep(1)
     expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=%2Frecord')).toBe(true)
   })
 
@@ -146,13 +115,11 @@ describe('native Record checkpoint recovery',()=>{
    */
   it('asks the hidden prepared tab for nothing until it is shown',async()=>{
     const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{__stxNativeFocused:false})
-    const keychain=answerKeychain(screen)
     for(let attempt=0;attempt<40;attempt++)await Bun.sleep(1)
     expect(requests(screen).some((r:any)=>r.payload?.module==='Location' && r.payload.method==='getCurrentPosition')).toBe(false)
 
     screen.receive({type:'SCREEN_FOCUS',payload:{focused:true}})
     await waitForRequest(screen,0,r=>r.payload?.module==='Location' && r.payload.method==='getCurrentPosition')
-    keychain()
   })
 
   it('ignores a position that carries no coordinates',async()=>{

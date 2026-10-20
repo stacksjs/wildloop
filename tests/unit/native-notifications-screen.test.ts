@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, segmentChosen, shownText, shownTextSince, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { timeAgo } from '../../resources/functions/notifications'
@@ -45,11 +45,9 @@ function ok(body: unknown) {
 
 async function signedInScreen() {
   const screen = await start('Notifications')
-  const tokenRequest = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  expect(tokenRequest.payload).toMatchObject({ method: 'get', args: ['auth_token'] })
-  const before = requests(screen).length
-  answer(screen, tokenRequest, 'native-token')
-  const read = await waitForRequest(screen, before, r => r.payload?.module === 'Network')
+  // The bearer is settled before anything is asked for.
+  expect(requests(screen).some((r: any) => r.payload?.module === 'SecureStorage' && r.payload.args[0] === 'auth_token')).toBe(true)
+  const read = await waitForRequest(screen, 0, r => r.payload?.module === 'Network')
   return { screen, read }
 }
 
@@ -147,12 +145,12 @@ describe('Wildloop native notifications screen', () => {
    * No token at all is not an error to apologise for — it is a screen with
    * nothing to show yet, and it says what signing in would get you.
    */
-  it('asks a signed-out visitor to sign in rather than reporting a failure', async () => {
-    const screen = await start('Notifications')
-    const tokenRequest = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-    answer(screen, tokenRequest, null)
+  it('sends a viewer with no account to Login rather than reporting a failure', async () => {
+    const screen = await start('Notifications', {}, undefined, {}, nativeKeychain(null))
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN'); attempt++)
+      await Bun.sleep(1)
 
-    await waitForText(screen, 'Sign in to hear when somebody gives you kudos, challenges you, or takes your ground.')
+    expect(screen.sent.some((m: any) => m.type === 'NAVIGATE_OPEN' && m.payload.path === '/login?next=%2Fnotifications')).toBe(true)
     expect(requests(screen).some(request => request.payload?.module === 'Network')).toBe(false)
     expect(shownText(screen).some(text => text.includes('Could not load'))).toBe(false)
   })

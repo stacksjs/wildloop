@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { nativeKeychain, answer, compileNativeBundle, requests, waitForGeometry, shownText, start, visibility, waitForRequest, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
 
 /**
  * One record attempt, natively.
@@ -74,14 +74,12 @@ const TRAIL = { trail: { id: 7, geometry: [[37.90, -122.64], [37.91, -122.65], [
 
 /** Start on an id and answer the keychain, the attempt and the course. */
 async function open(id: unknown, body: unknown = effortBody(), status = 200, trail: unknown = TRAIL) {
-  const screen = await start('EffortDetail', { id })
+  const screen = await start('EffortDetail', { id }, undefined, {}, nativeKeychain(7, 'tok_abc'))
 
   // A parameter that cannot be an attempt does no I/O at all.
   if (!/^\d+$/.test(String(id ?? '')) || Number(id) <= 0)
     return { screen }
 
-  const keychain = await waitForRequest(screen, 0, r => r.payload?.module === 'SecureStorage')
-  answer(screen, keychain, 'tok_abc')
 
   const request = await waitForRequest(screen, 0, r => r.payload?.module === 'Network' && r.payload.args[0].url.includes('/api/route-efforts/'))
   if (status !== 200) {
@@ -282,7 +280,10 @@ describe('Wildloop native effort detail screen', () => {
     await waitForVisibility(screen, 'effort-review', 'flex')
 
     expect(visibility(screen, 'effort-actions')).toBe('none')
-    expect(SOURCE).not.toContain('/effort/${wanted')
+    // Never a hand-off to its own path: `navigation.open` is not "open the
+    // web view", it is "let the shell route this", and this path is native.
+    // (Naming itself as a `next` for Login is a return address, not a route.)
+    expect(SOURCE).not.toContain('navigation.open(`/effort/')
   })
 
   it('verifies with the note the reviewer wrote', async () => {

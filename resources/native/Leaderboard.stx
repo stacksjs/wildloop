@@ -1,6 +1,7 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeApiOrigin, nativeImageUrl } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { avatarInitial, avatarUrl } from '../functions/avatars'
 import {
   LEADERBOARD_METRICS,
@@ -88,6 +89,7 @@ function initial(row: any): string {
 
 let loadVersion = 0
 async function load(): Promise<void> {
+  if (!await requireNativeAccount(craft, '/leaderboard')) return
   const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
