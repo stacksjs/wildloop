@@ -15,7 +15,7 @@
     "@stacksjs/mobile": "^0.75.219",
     "@stacksjs/stx": "^0.2.605",
     "@ts-analytics/tracking": "^0.1.17",
-    "craft-native": "^0.0.248",
+    "craft-native": "^0.0.251",
     "stacks": "^0.75.219",
     "ts-health": "^0.1.0",
     "ts-maps": "^0.5.5",
