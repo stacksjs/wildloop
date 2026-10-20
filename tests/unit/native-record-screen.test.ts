@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { answerKeychain, answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
@@ -119,11 +119,12 @@ describe('native Record checkpoint recovery',()=>{
    * Philippines opened on the Philippines, a phone in Oregon on the United
    * States. Either way the runner is a speck under the Start button.
    *
-   * Asking for a position on mount is right on this screen and wrong on the
-   * route planner — Record is the screen whose job is GPS, and the app's
-   * purpose string describes exactly this, so the prompt is one the viewer
-   * invited. A refusal is silent: the caption under the clock is where the
-   * GPS story gets told.
+   * Asking for a position is right on this screen and wrong on the route
+   * planner — Record is the screen whose job is GPS, and the app's purpose
+   * string describes exactly this, so the prompt is one the viewer invited.
+   * It has to be invited from the front, though; the test below is the half
+   * of that which cost a device pass to find. A refusal is silent: the
+   * caption under the clock is where the GPS story gets told.
    */
   it('opens the map where the device is, and yields to the track once there is one',async()=>{
     const screen=await recover()
@@ -134,6 +135,24 @@ describe('native Record checkpoint recovery',()=>{
     expect(region.center).toEqual({latitude:45.5152,longitude:-122.6784})
     // Tight enough to read a street, not a country.
     expect(region.span.latitudeDelta).toBeLessThan(0.05)
+  })
+
+  /*
+   * The prompt belongs to whoever opened Record, and nobody has. The shell
+   * prepares this tab hidden beside the Feed at launch, so asking from there
+   * put "Wildloop uses your location while you record an activity" over the
+   * feed of somebody who had not gone near Record. Seen on a device the first
+   * time the app was launched after the framing landed.
+   */
+  it('asks the hidden prepared tab for nothing until it is shown',async()=>{
+    const screen=await start('Record',{},['fetch','secureStorage','storage','geolocation','lifecycle','liveActivity'],{__stxNativeFocused:false})
+    const keychain=answerKeychain(screen)
+    for(let attempt=0;attempt<40;attempt++)await Bun.sleep(1)
+    expect(requests(screen).some((r:any)=>r.payload?.module==='Location' && r.payload.method==='getCurrentPosition')).toBe(false)
+
+    screen.receive({type:'SCREEN_FOCUS',payload:{focused:true}})
+    await waitForRequest(screen,0,r=>r.payload?.module==='Location' && r.payload.method==='getCurrentPosition')
+    keychain()
   })
 
   it('ignores a position that carries no coordinates',async()=>{

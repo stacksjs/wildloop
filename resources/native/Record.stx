@@ -48,6 +48,25 @@ const coordinates = derived(() => recording()?.samples.flatMap(sample => [sample
  * second complaint.
  */
 const here = state<any>(null)
+let framed = false
+/**
+ * Open the map where the runner is, once, and only from the front.
+ *
+ * Asking the device for a position raises the location prompt, and the shell
+ * prepares this tab hidden beside the Feed at launch — so asking at mount put
+ * "Wildloop uses your location while you record an activity" over somebody's
+ * feed before they had been anywhere near Record. Same rule as the account
+ * guard below, learned the same way: only a screen in front does anything a
+ * viewer can see. Found on a device, 20 Oct 2026.
+ *
+ * Once per screen. The camera only needs a starting point, and asking again
+ * on every return would yank it back from a viewer who has panned the map.
+ */
+function frameWhenShown(): void {
+  if (framed || !craft.navigation.isFocused()) return
+  framed = true
+  void frameOnDevice()
+}
 async function frameOnDevice(): Promise<void> {
   try {
     const point = await craft.location?.getCurrentPosition({enableHighAccuracy:true,timeout:15000})
@@ -295,9 +314,9 @@ onMount(()=>onNativeAccountChange(craft,()=>{recording.set(null);running.set(fal
 onMount(()=>{
   craft.navigation.setOptions({title:'Record',largeTitle:false})
   guarded()
-  void frameOnDevice()
+  frameWhenShown()
   const clock=useIntervalFn(()=>{if(running() && !paused())now.set(Date.now())},1000)
-  const appear=craft.navigation.onAppear(()=>{guarded()})
+  const appear=craft.navigation.onAppear(()=>{guarded();frameWhenShown()})
   const lifecycle=craft.lifecycle.onStateChange(value=>{if(value==='active') void recover()})
   return()=>{alive=false;clock.pause();appear();lifecycle();if(watch!==null)craft.location?.clearWatch(watch)}
 })
