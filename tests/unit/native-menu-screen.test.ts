@@ -1,16 +1,16 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { compileNativeBundle, shownText, start, waitForText, waitForVisibility } from '../fixtures/nativeScreen'
+import { answerKeychain, compileNativeBundle, shownText, start, waitForText } from '../fixtures/nativeScreen'
 
 /**
- * The menu, as the two kinds of viewer see it.
+ * The menu, now that there is only one kind of viewer.
  *
- * The app lets a guest browse — trails, the leaderboard, athletes — so the
- * menu it opened on listed nineteen destinations, twelve of which answer 401
- * without a bearer, under a heading that said 'You'. What it pins: a guest is
- * offered only what works plus one way to sign in, and the moment an account
- * arrives the rest of the menu appears without the screen being reopened.
+ * It used to have two shapes. The app let a guest browse, so the menu listed
+ * nineteen destinations, twelve of which answer 401 without a bearer, and it
+ * filtered them down to what worked plus one way to sign in. Wildloop needs
+ * an account now — login or you do not use the app — so the filtered shape is
+ * gone and the guard is what stands in its place.
  */
 const SOURCE = readFileSync(join(import.meta.dir, '../../resources/native/Menu.stx'), 'utf8')
 
@@ -22,46 +22,39 @@ describe('Wildloop native menu screen', () => {
     expect(SOURCE).not.toContain('<FlatList')
   })
 
-  it('offers a guest one sign-in and nothing that needs an account', async () => {
+  it('lists every destination, with nothing held back for a guest', async () => {
     const screen = await start('Menu')
-    await waitForText(screen, 'Trails')
-    await waitForVisibility(screen, 'menu-signed-out', 'flex')
-
-    const text = shownText(screen).join(' | ')
-    expect(text).toContain('Sign in')
-    for (const absent of ['Your profile', 'Achievements', 'Notifications', 'Territory', 'Challenges', 'Plans'])
-      expect(text).not.toContain(absent)
-    // The heading goes with its rows, rather than standing over nothing.
-    expect(text).not.toContain('You |')
-    // What a guest can actually open is still there.
-    for (const offered of ['Trails', 'Leaderboard', 'Battles', 'Records', 'Find athletes', 'Clubs', 'Events', 'Settings'])
-      expect(text).toContain(offered)
-  })
-
-  /*
-   * Signing in happens on another screen. The menu is already mounted when the
-   * session lands, so it has to answer the snapshot rather than only what it
-   * read on the way in.
-   */
-  it('fills in the rest of the menu when an account arrives', async () => {
-    const screen = await start('Menu')
-    await waitForText(screen, 'Trails')
-    expect(shownText(screen).join(' | ')).not.toContain('Your profile')
-
-    await screen.scope.craft.snapshots.set('wildloop-session', { user: { id: 7 }, version: 1 })
+    const keychain = answerKeychain(screen)
     await waitForText(screen, 'Your profile')
+    keychain()
 
     const text = shownText(screen).join(' | ')
-    for (const offered of ['Your profile', 'Achievements', 'Stats', 'Notifications', 'Territory', 'Conquests', 'Challenges', 'Plans'])
+    for (const offered of ['Your profile', 'Achievements', 'Stats', 'Notifications', 'Territory', 'Conquests', 'Challenges', 'Plans', 'Trails', 'Leaderboard', 'Battles', 'Records', 'Find athletes', 'Clubs', 'Events', 'Settings'])
       expect(text).toContain(offered)
-    await waitForVisibility(screen, 'menu-signed-out', 'none')
+    expect(text).not.toContain('Sign in')
   })
 
   /*
-   * The sign-in button names where it came from, so the login screen returns
-   * the viewer to the menu they were reading rather than the feed.
+   * From `onAppear`, not from mount: the shell prepares this tab hidden beside
+   * the Feed at launch, and a guard that ran at mount would push Login over
+   * the Feed.
+   *
+   * Two things stop that and this sees only their sum — nothing navigates
+   * until the tab is shown. Removing either one on its own still passes here,
+   * so the `isFocused` half is pinned by the Record screen's own test, where
+   * the guard is also called from a loader that does not wait for `onAppear`.
    */
-  it('sends the viewer back to the menu after signing in', () => {
-    expect(SOURCE).toContain("craft.navigation.open('/login?next=/menu')")
+  it('waits until the tab is shown before sending a viewer without an account to Login', async () => {
+    const screen = await start('Menu', {}, ['fetch', 'secureStorage', 'haptics', 'lifecycle', 'dialog'], { __stxNativeFocused: false })
+    const keychain = answerKeychain(screen, null)
+    for (let attempt = 0; attempt < 40; attempt++)
+      await Bun.sleep(1)
+    expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN')).toBe(false)
+
+    screen.receive({ type: 'SCREEN_FOCUS', payload: { focused: true } })
+    for (let attempt = 0; attempt < 60 && !screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN'); attempt++)
+      await Bun.sleep(1)
+    keychain()
+    expect(screen.sent.some((message: any) => message.type === 'NAVIGATE_OPEN' && message.payload.path === '/login?next=%2Fmenu')).toBe(true)
   })
 })

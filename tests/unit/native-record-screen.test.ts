@@ -63,7 +63,7 @@ describe('native Record checkpoint recovery',()=>{
       if(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN'))break
       await Bun.sleep(1)
     }
-    expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=/record')).toBe(true)
+    expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=%2Frecord')).toBe(true)
     // And it does not go looking for a checkpoint to recover on the way out.
     expect(requests(screen).some((r:any)=>r.payload.module==='Storage')).toBe(false)
     expect(requests(screen).some((r:any)=>r.payload.method==='startRecording')).toBe(false)
@@ -91,7 +91,7 @@ describe('native Record checkpoint recovery',()=>{
 
     screen.receive({type:'SCREEN_FOCUS',payload:{focused:true}})
     await answerKeychain()
-    expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=/record')).toBe(true)
+    expect(screen.sent.some((message:any)=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/login?next=%2Frecord')).toBe(true)
   })
 
   /*

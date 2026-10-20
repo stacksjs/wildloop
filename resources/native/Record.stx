@@ -3,7 +3,7 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import { createLiveActivity } from '@stacksjs/stx/native/live-activity'
 import { createHealthWorkout } from '../functions/health-workout'
 import { useIntervalFn } from '@stacksjs/composables'
-import { readNativeAccount } from '../functions/native-session'
+import { readNativeAccount, requireNativeAccount } from '../functions/native-session'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
 import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
@@ -188,30 +188,15 @@ async function recover() {
  * nowhere to put it — the screen used to let them in and only say so when
  * they pressed Start.
  *
- * A retained recording is the exception: it was started by somebody who was
- * signed in, and bouncing them to a login screen is how a run gets lost.
+ * A retained recording is the exception, and the only reason this wrapper
+ * exists: it was started by somebody who was signed in, and bouncing them to
+ * a login screen is how a run gets lost. Everything else about the check —
+ * that an account is a bearer the device still has a user for, and that an
+ * unfocused tab root sends nobody anywhere — is `requireNativeAccount`.
  */
 async function requireAccount(): Promise<boolean> {
   if (recording()) return true
-  {{-- `readNativeAccount` is the test, not the bearer on its own. A token
-       outlives the session it belongs to — logging out revokes it server-side
-       and a stale one left on the device still reads as truthy, which is
-       exactly how this screen kept letting a signed-out viewer in while
-       Territory, which asks the server, said they were signed out. An account
-       is a bearer the device still has a user for. --}}
-  try {
-    if ((await readNativeAccount(craft))?.id) return true
-  }
-  catch {
-    // Cancelled because the screen closed; there is nobody to send anywhere.
-    return true
-  }
-  // Only a screen in front sends anybody anywhere. The shell prepares this
-  // tab hidden beside the Feed at launch, and a guard that ran there pushed
-  // Login over the Feed; it asks again when the tab is shown (onAppear).
-  if (!craft.navigation.isFocused()) return false
-  craft.navigation.open('/login?next=/record')
-  return false
+  return requireNativeAccount(craft, '/record')
 }
 function guarded(): void {
   void (async () => { if (await requireAccount()) await recover() })()

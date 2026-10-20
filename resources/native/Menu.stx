@@ -1,32 +1,26 @@
 <script client lang="ts">
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { mobileMenuGroups } from '../functions/mobile-menu'
-import { nativeAccountId, onNativeAccountChange } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
 import { nativeUi as ui } from '../functions/native-ui'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
-{{-- The snapshot, not the keychain: the id is already in memory, and a menu
-     that waited on a round trip would draw the signed-out shape first and
-     rearrange itself a moment later. --}}
-const account = state(nativeAccountId(craft))
-function groups(): { title: string, items: any[] }[] { return mobileMenuGroups(account() > 0) }
+{{-- Every item in the list is behind an account, and so is the menu itself:
+     the guard sends a viewer without one to Login before they read it. So
+     there is no signed-out shape left to draw, and nothing here has to wait
+     on a keychain round trip to know which shape to draw. `mobileMenuGroups`
+     keeps its argument for the web app, which still has public pages. --}}
+function groups(): { title: string, items: any[] }[] { return mobileMenuGroups(true) }
 onMount(() => {
   craft.navigation.setOptions({ title: 'Menu', largeTitle: true })
-  {{-- Signing in happens on another screen, so the menu re-reads on the way
-       back rather than only when the account id changes under it. --}}
-  const appear = craft.navigation.onAppear(() => account.set(nativeAccountId(craft)))
-  const changed = onNativeAccountChange(craft, () => account.set(nativeAccountId(craft)))
-  return () => { appear?.(); changed() }
+  {{-- From `onAppear`, not from here: the shell prepares this tab hidden
+       beside the Feed at launch, and a guard that ran at mount would push
+       Login over the Feed. --}}
+  const appear = craft.navigation.onAppear(() => { void requireNativeAccount(craft, '/menu') })
+  return () => { appear?.() }
 })
 </script>
 <View :class="ui.screen">
   <ScrollView class="flex-1 pb-6" testID="native-menu">
-    {{-- A guest is told what an account is for and given one way to get one.
-         Everything behind it has already been filtered out of the list below,
-         so this is the only mention of an account on the screen. --}}
-    <View :show="account() === 0" testID="menu-signed-out" :class="ui.card" class="mt-4 p-4">
-      <Text class="text-base font-semibold text-fg">Your runs, trails and territory, on every device.</Text>
-      <Button testID="menu-sign-in" :class="ui.action" class="mt-4" @click="craft.navigation.open('/login?next=/menu')" title="Sign in" />
-    </View>
     <View :for="group in groups()" :key="group.title">
       <Text :class="ui.header" :text="group.title" />
       <View :class="ui.card">

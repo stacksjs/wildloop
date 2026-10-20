@@ -154,6 +154,28 @@ export function answer(session: NativeSession, request: any, data: unknown): voi
   })
 }
 
+/**
+ * The device's keychain, answering for as long as the screen keeps asking.
+ *
+ * `requireNativeAccount` reads two keys — the bearer and the account record
+ * that has to match it — and it reads them again whenever a screen reloads,
+ * so a test cannot answer the batch that happens to exist on the first tick
+ * and be done. Five test files had grown their own copy of this interval.
+ *
+ * Pass `null` for a signed-out device: both keys answer empty, which is what
+ * the guard treats as no account.
+ */
+export function answerKeychain(session: NativeSession, userId: number | null = 7, token = 'native-token'): () => void {
+  const record = userId === null ? null : JSON.stringify({ token, user: { id: userId } })
+  const pump = setInterval(() => {
+    for (const request of requests(session).filter(entry => entry.payload.module === 'SecureStorage' && !entry.answered)) {
+      request.answered = true
+      answer(session, request, request.payload.args[0] === 'auth_token' ? (userId === null ? '' : token) : record)
+    }
+  }, 1)
+  return () => clearInterval(pump)
+}
+
 export function requests(session: NativeSession): any[] {
   return session.sent.filter(message => message.type === 'API_REQUEST')
 }

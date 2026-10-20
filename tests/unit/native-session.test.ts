@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { clearNativeSession, readNativeAccount, storeNativeSession } from '../../resources/functions/native-session'
+import { clearNativeSession, readNativeAccount, requireNativeAccount, storeNativeSession } from '../../resources/functions/native-session'
 
-function host() {
-  const keychain=new Map<string,string>(), snapshots=new Map<string,unknown>()
-  return {keychain,snapshots,host:{secureStorage:{get:async(key:string)=>keychain.get(key) ?? null,set:async(key:string,value:string)=>{keychain.set(key,value)},delete:async(key:string)=>{keychain.delete(key)}},snapshots:{get:(key:string)=>snapshots.get(key),set:async(key:string,value:unknown)=>{snapshots.set(key,value)}}} as any}
+function host(focused=true) {
+  const keychain=new Map<string,string>(), snapshots=new Map<string,unknown>(), opened:string[]=[]
+  return {keychain,snapshots,opened,host:{secureStorage:{get:async(key:string)=>keychain.get(key) ?? null,set:async(key:string,value:string)=>{keychain.set(key,value)},delete:async(key:string)=>{keychain.delete(key)}},snapshots:{get:(key:string)=>snapshots.get(key),set:async(key:string,value:unknown)=>{snapshots.set(key,value)}},navigation:{open:(path:string)=>{opened.push(path)},isFocused:()=>focused}} as any}
 }
 describe('native account identity across offline recovery',()=>{
   it('stores the bearer in keychain and publishes only the user',async()=>{
@@ -37,5 +37,49 @@ describe('native account identity across offline recovery',()=>{
     expect(JSON.stringify(state.snapshots.get('wildloop-session'))).not.toBe(before)
     expect(state.snapshots.get('wildloop-session')).toEqual({user:{id:7},version:2})
     expect(await readNativeAccount(state.host)).toEqual({id:7})
+  })
+})
+
+/**
+ * The gate: Wildloop needs an account, so a screen without one sends the
+ * viewer to Login rather than drawing a public version of itself.
+ */
+describe('requiring an account before a screen draws',()=>{
+  it('lets an account through and opens nothing',async()=>{
+    const state=host()
+    await storeNativeSession(state.host,'token-7',{id:7})
+    expect(await requireNativeAccount(state.host,'/stats')).toBe(true)
+    expect(state.opened).toEqual([])
+  })
+  /*
+   * A bearer is not an account. Logging out revokes the token server side and
+   * the stale one left on the device still reads as truthy, which is how
+   * Record kept letting a signed-out viewer in.
+   */
+  it('refuses a bearer the device has no user for',async()=>{
+    const state=host()
+    state.keychain.set('auth_token','orphan-token')
+    expect(await requireNativeAccount(state.host,'/stats')).toBe(false)
+    expect(state.opened).toEqual(['/login?next=%2Fstats'])
+  })
+  it('returns the viewer to where they were going, query and all',async()=>{
+    const state=host()
+    expect(await requireNativeAccount(state.host,'/trails?list=mine')).toBe(false)
+    expect(state.opened).toEqual(['/login?next=%2Ftrails%3Flist%3Dmine'])
+  })
+  /*
+   * The shell prepares the Record and Menu tabs hidden beside the Feed at
+   * launch. A guard that navigated from there pushed Login over the Feed.
+   */
+  it('sends nobody anywhere from a screen that is not in front',async()=>{
+    const state=host(false)
+    expect(await requireNativeAccount(state.host,'/menu')).toBe(false)
+    expect(state.opened).toEqual([])
+  })
+  it('stands aside when the keychain read was cancelled by the screen closing',async()=>{
+    const state=host()
+    state.host.secureStorage.get=async()=>{throw new Error('screen closed')}
+    expect(await requireNativeAccount(state.host,'/menu')).toBe(true)
+    expect(state.opened).toEqual([])
   })
 })

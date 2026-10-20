@@ -30,3 +30,43 @@ export async function clearNativeSession(host: SessionHost): Promise<void> {
   await host.secureStorage.delete(ACCOUNT_KEY)
   await host.snapshots.set('wildloop-session',null)
 }
+
+/**
+ * The app needs an account.
+ *
+ * Wildloop is not browsable without one. A screen reached with no account
+ * sends the viewer to Login and comes back to itself once they have signed
+ * in, rather than drawing a public version of itself or parking a Sign in
+ * button in an empty state. It answers `false` once it has navigated, so a
+ * loader can bail on the same line.
+ *
+ * Three things it is careful about, each of them learned on a device:
+ *
+ *   - **A bearer is not an account.** Logging out revokes the token server
+ *     side, and the stale one left on the device still reads as truthy — which
+ *     is how Record kept letting a signed-out viewer in while Territories,
+ *     which asks the server, said they were signed out. `readNativeAccount`
+ *     is the test: a bearer the device still has a user for.
+ *   - **Only a screen in front sends anybody anywhere.** The shell prepares
+ *     the Record and Menu tabs hidden beside the Feed at launch, so a guard
+ *     that ran at their mount pushed Login over the Feed. A tab root asks
+ *     again from `onAppear`, when it is the screen somebody is looking at.
+ *   - **The four auth screens never call this**, which is the whole reason the
+ *     guard lives in the screens instead of in `startNativeApp`. A password
+ *     reset opens `/password/reset/:token` with no account by design, and an
+ *     app-level gate would stomp it the moment the session resolved.
+ */
+export async function requireNativeAccount(host: SessionHost & Pick<NativeCraft, 'navigation'>, next: string): Promise<boolean> {
+  try {
+    if ((await readNativeAccount(host))?.id)
+      return true
+  }
+  catch {
+    // Cancelled because the screen closed; there is nobody to send anywhere.
+    return true
+  }
+  if (!host.navigation.isFocused())
+    return false
+  host.navigation.open(`/login?next=${encodeURIComponent(next)}`)
+  return false
+}

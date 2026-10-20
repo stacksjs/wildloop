@@ -4,6 +4,7 @@ import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../funct
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { routeShapeFor } from '../functions/route-shape'
+import { requireNativeAccount } from '../functions/native-session'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
 const api=createNativeApi(craft)
 const rows = state<any[]>([])
@@ -25,6 +26,10 @@ async function load(more = false) {
   const currentLoad = ++loadVersion
   loading.set(true)
   error.set('')
+  {{-- The gate. The feed is the launch screen, so this is where somebody with
+       no account meets the app: Login, with no tab bar and no way back. There
+       is no public Wildloop to browse, so there is no public feed to draw. --}}
+  if (!await requireNativeAccount(craft, '/feed')) return
   try {
     const response = await api.send(`/api/activities?limit=30&offset=${more ? rows().length : 0}&scope=${scope()}${filter() === 'all' ? '' : '&activity_type=' + encodeURIComponent(filter())}`)
     if (!response.ok) throw new Error('The feed could not be loaded. Pull down to retry.')
@@ -37,12 +42,12 @@ async function load(more = false) {
   finally { if (active && currentLoad === loadVersion) loading.set(false) }
 }
 async function chooseScope(value:string) {
-  if(value==='following' && !await api.readToken()){craft.navigation.open('/login?next=/feed');return}
+  if(value==='following' && !await requireNativeAccount(craft,'/feed'))return
   scope.set(value);void load()
 }
 async function kudos(row: any) {
   if (pending()[row.id]) return
-  if (!await api.readToken()) { craft.navigation.open('/login?next=/feed'); return }
+  if (!await requireNativeAccount(craft, '/feed')) return
   pending.set({ ...pending(), [row.id]: true })
   try {
     const response = await api.send(`/api/activities/${row.id}/kudos`, kudosed()[row.id] ? 'DELETE' : 'PUT')
