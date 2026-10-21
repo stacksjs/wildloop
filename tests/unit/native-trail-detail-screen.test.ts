@@ -184,4 +184,18 @@ describe('native trail details', () => {
     expect(shownText(screen)).toContain('No recorded route line. The map shows the trailhead.')
     expect(shownText(screen)).toContain('Elevation data is unavailable for this route.')
   })
+  it('lets the viewer save once their own state lands, without waiting for the elevation profile or forecast', async () => {
+    const screen = await start('TrailDetail', { id: 7 })
+    answer(screen, await waitForRequest(screen, 0, r => r.payload?.module === 'Network'), ok({ success: true, trail: TRAIL }))
+    answer(screen, await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/reviews')), ok({ reviews: [] }))
+    answer(screen, await waitForRequest(screen, 0, r => r.payload?.args?.[0]?.url?.endsWith('/viewer')), ok({ userId: 12, saved: false, review: null }))
+    // The profile and the forecast are still being asked for.
+    expect(requests(screen).some(r => r.payload?.args?.[0]?.url?.endsWith('/profile'))).toBe(true)
+    await waitForText(screen, 'Native Ridge Loop')
+    for (let attempt = 0; attempt < 20; attempt++) await Bun.sleep(1)
+    const before = requests(screen).length
+    await screen.event('trail-save', 'onPress')
+    const save = await waitForRequest(screen, before, r => r.payload?.args?.[0]?.url?.endsWith('/save'))
+    expect(save.payload.args[0].method).toBe('PUT')
+  })
 })

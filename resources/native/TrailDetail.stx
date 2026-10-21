@@ -122,7 +122,8 @@ function signedIn(): boolean {
   return false
 }
 async function toggleSaved() {
-  if (loading() || !viewerReady() || busy() || !signedIn()) return
+  // The viewer's own state is enough: the profile and forecast can still be loading.
+  if (!trail() || !viewerReady() || busy() || !signedIn()) return
   busy.set(true)
   try {
     const response = await api.send(`/api/trails/${wanted}/save`, saved() ? 'DELETE' : 'PUT')
@@ -134,7 +135,7 @@ async function toggleSaved() {
   finally { busy.set(false) }
 }
 function editReview() {
-  if (loading() || !viewerReady() || busy() || !signedIn()) return
+  if (!trail() || !viewerReady() || busy() || !signedIn()) return
   const own = ownReview()
   rating.set(own?.rating ?? 0)
   content.set(own?.content ?? '')
@@ -233,25 +234,36 @@ async function load() {
     craft.navigation.setOptions({ title: normalized.name, largeTitle: false })
     const token = await api.readToken()
     if (!alive || current !== generation) return
-    const [reviewResponse, weatherResponse, profileResponse, personalResponse] = await Promise.all([
-      api.send(`/api/trails/${wanted}/reviews`), api.send(`/api/trails/${wanted}/forecast`),
-      api.send(`/api/trails/${wanted}/profile`), token ? api.send(`/api/trails/${wanted}/viewer`) : Promise.resolve(null),
+    // Asked together, and each drawn as it lands: the elevation profile and
+    // the forecast took 600-800ms where reviews and the viewer's save state
+    // took 25ms, and waiting for all four kept Save disabled for the slowest.
+    const still = () => alive && current === generation
+    await Promise.all([
+      api.send(`/api/trails/${wanted}/reviews`).then((reviewResponse) => {
+        if (!still()) return
+        reviews.set(reviewResponse.ok ? reviewResponse.body.reviews ?? [] : [])
+        if (!reviewResponse.ok) notice.set('Reviews could not be loaded. Pull down to retry.')
+      }),
+      api.send(`/api/trails/${wanted}/forecast`).then((weatherResponse) => {
+        if (still()) forecast.set(weatherResponse.ok ? weatherResponse.body : null)
+      }),
+      api.send(`/api/trails/${wanted}/profile`).then((profileResponse) => {
+        if (still()) profile.set(profileResponse.ok ? profileResponse.body.points ?? [] : [])
+      }),
+      (token ? api.send(`/api/trails/${wanted}/viewer`) : Promise.resolve(null)).then((personalResponse) => {
+        if (!still()) return
+        if (!personalResponse || personalResponse.status === 401) {
+          viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(true)
+        }
+        else if (personalResponse.ok) {
+          viewer.set(Number(personalResponse.body.userId) || 0)
+          saved.set(Boolean(personalResponse.body.saved))
+          ownReview.set(personalResponse.body.review ?? null)
+          viewerReady.set(true)
+        }
+        else notice.set('Your saved state and review could not load. Pull down to retry before making changes.')
+      }),
     ])
-    if (!alive || current !== generation) return
-    reviews.set(reviewResponse.ok ? reviewResponse.body.reviews ?? [] : [])
-    if (!reviewResponse.ok) notice.set('Reviews could not be loaded. Pull down to retry.')
-    forecast.set(weatherResponse.ok ? weatherResponse.body : null)
-    profile.set(profileResponse.ok ? profileResponse.body.points ?? [] : [])
-    if (!personalResponse || personalResponse.status === 401) {
-      viewer.set(0); saved.set(false); ownReview.set(null); viewerReady.set(true)
-    }
-    else if (personalResponse.ok) {
-      viewer.set(Number(personalResponse.body.userId) || 0)
-      saved.set(Boolean(personalResponse.body.saved))
-      ownReview.set(personalResponse.body.review ?? null)
-      viewerReady.set(true)
-    }
-    else notice.set('Your saved state and review could not load. Pull down to retry before making changes.')
   }
   catch (cause) { if (alive && current === generation) error.set(cause instanceof Error ? cause.message : 'The trail could not be loaded.') }
   finally { if (alive && current === generation) loading.set(false) }
@@ -346,7 +358,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       <Text :class="ui.header">Reviews</Text>
       <View :class="ui.card">
         <Text :text="trail()?.reviewCount ? trail().rating.toFixed(1) + ' out of 5, ' + trail().reviewCount + ' reviews' : 'No ratings yet'" :class="ui.titleStrong" />
-        <Button testID="trail-write-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.action" @click="editReview()" :title="loading() ? 'Loading your review…' : !viewerReady() ? 'Review unavailable' : ownReview() ? 'Edit your review' : 'Leave a review'" />
+        <Button testID="trail-write-review" :disabled="busy() || !trail() || !viewerReady()" :class="ui.action" @click="editReview()" :title="!viewerReady() ? (loading() ? 'Loading your review…' : 'Review unavailable') : ownReview() ? 'Edit your review' : 'Leave a review'" />
         <Button :show="ownReview()" testID="trail-delete-review" :disabled="busy() || loading() || !viewerReady()" :class="ui.danger" @click="deleteReview()">Delete your review</Button>
         <Text :show="!reviews().length" :class="ui.caption">No reviews yet. Yours would be the first.</Text>
         <View :for="review in reviews()" :key="review.id" class="mt-5 gap-2">
@@ -361,7 +373,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
   </ScrollView>
   <Text :show="notice" :text="notice" :class="ui.caption" class="mx-4 my-2" testID="trail-notice" />
   <View :show="trail()" class="flex-row gap-2 px-4 py-3 bg-panel" testID="trail-sticky-actions">
-    <Button testID="trail-save" class="flex-1" :class="ui.action" :disabled="busy() || loading() || !viewerReady()" @click="toggleSaved()" :title="saved() ? 'Saved' : 'Save'" :accessibilityHint="!loading() && !viewerReady() ? 'Your saved trail status is unavailable. Pull down to retry.' : ''" />
+    <Button testID="trail-save" class="flex-1" :class="ui.action" :disabled="busy() || !trail() || !viewerReady()" @click="toggleSaved()" :title="saved() ? 'Saved' : 'Save'" :accessibilityHint="!loading() && !viewerReady() ? 'Your saved trail status is unavailable. Pull down to retry.' : ''" />
     <Button testID="trail-directions" class="flex-1" :class="ui.secondary" @click="directions()">Directions</Button>
     <Button testID="trail-share" class="flex-1" :class="ui.secondary" @click="shareTrail()">Share</Button>
   </View>
