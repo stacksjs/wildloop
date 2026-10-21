@@ -98,3 +98,4 @@ storage/framework/native/
 # Pickier's lint cache. Tracking it shipped stale clean results: 455 problems
 # inside a committed native bundle stayed invisible until the cache went cold.
 .pickiercache
+tests/ios-ui/WildloopUITests.xcodeproj/

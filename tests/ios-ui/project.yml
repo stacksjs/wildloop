@@ -1,0 +1,51 @@
+# A UI test project that does not own the app.
+#
+# Craft regenerates storage/framework/mobile/ios from its own template on every
+# `build:ios`, filling the target list from its config — there is no hook for
+# one of ours, so a test target added there is gone on the next build. This
+# project never builds Wildloop: the tests drive whatever is already installed,
+# by bundle id, which is also what makes them work the same against a simulator
+# and a phone.
+name: WildloopUITests
+options:
+  bundleIdPrefix: org.wildloop
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ${WILDLOOP_UI_TEST_TEAM_ID}
+targets:
+  WildloopUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - WildloopUITests
+    settings:
+      INFOPLIST_FILE: WildloopUITests/Info.plist
+      PRODUCT_BUNDLE_IDENTIFIER: org.wildloop.uitests
+      SWIFT_VERSION: "5.0"
+      # No TEST_TARGET_NAME and no TEST_HOST on purpose: the bundle runs in
+      # XCTRunner and reaches the app through XCUIApplication(bundleIdentifier:).
+      TARGETED_DEVICE_FAMILY: "1"
+schemes:
+  WildloopUITests:
+    build:
+      targets:
+        WildloopUITests: [test]
+    test:
+      config: Debug
+      # The runner's environment, substituted by xcodegen when it writes the
+      # project. `xcodebuild`'s documented `TEST_RUNNER_<VAR>` build settings
+      # reach nothing in a UI test bundle with no host app — measured: the
+      # runner process saw none of them — and the scheme does.
+      #
+      # These are the seeded staging credentials that already sit in
+      # `database/seeders/UserSeeder.ts`, and the project this writes them into
+      # is generated per run and git-ignored.
+      environmentVariables:
+        E2E_EMAIL: ${E2E_EMAIL}
+        E2E_PASSWORD: ${E2E_PASSWORD}
+        WILDLOOP_BUNDLE_ID: ${WILDLOOP_BUNDLE_ID}
+      targets:
+        - WildloopUITests
