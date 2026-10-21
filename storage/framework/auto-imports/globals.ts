@@ -286,8 +286,6 @@ declare global {
   const onNativeAccountChange: typeof autoImports.onNativeAccountChange
   const WILDLOOP_ORIGIN: typeof autoImports.WILDLOOP_ORIGIN
   const startNativeApp: typeof autoImports.startNativeApp
-  const nativeBasemap: typeof autoImports.nativeBasemap
-  const nativeOutdoorTiles: typeof autoImports.nativeOutdoorTiles
   const nativeBasemapOptions: typeof autoImports.nativeBasemapOptions
   const chooseNativeChoice: typeof autoImports.chooseNativeChoice
   const nativeChoiceLabel: typeof autoImports.nativeChoiceLabel

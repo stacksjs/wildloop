@@ -2,7 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, loadOutcome, nativeImageUrl } from '../functions/native-api'
 import { requireNativeAccount } from '../functions/native-session'
-import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
@@ -39,7 +39,6 @@ const busy = state(false)
 const error = state('')
 const notice = state('')
 const mapType = state('outdoors')
-const basemap = derived(() => nativeBasemap(mapType()))
 const region = state<any>(null)
 const inspected = state<TrailProfilePoint | null>(null)
 const profileOpen = state(true)
@@ -301,7 +300,7 @@ onMount(() => onNativeAccountChange(craft, () => { viewer.set(0); saved.set(fals
       <Text :class="ui.header">Explore the route</Text>
       <View :class="ui.card">
         <View class="relative h-[480px] -mx-4 -mt-4 overflow-hidden rounded-[12px]">
-        <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
+        <Map testID="trail-native-map" class="absolute inset-0 h-full w-full" :region="routeAvailable() ? region() : mapRegion()" :fitToBounds="region() === null && routeAvailable()" :edgePadding="{top:32,right:32,bottom:profileOpen() ? 220 : 88,left:32}" :basemap="mapType()" :scrollEnabled="false" :zoomEnabled="false" :rotateEnabled="false" :showsCompass="true" :showsScale="true" :showsUserLocation="showLocation" :cameraPitch="pitch" :cameraHeading="heading" @region-change-complete="camera($event)">
           <MapPolyline :for="(part, index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
           <MapPolyline :for="(part, index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />
           <MapMarker :for="(sign,index) in directionSigns()" :key="index" :id="'direction-' + index" :geometry="sign.point" :bearing="sign.bearing" title="Recorded route direction" />

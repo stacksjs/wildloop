@@ -2,7 +2,6 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi } from '../functions/native-api'
 import { requireNativeAccount } from '../functions/native-session'
-import { nativeBasemap } from '../functions/native-basemaps'
 import { nativeUi as ui } from '../functions/native-ui'
 import { trailPath, trailPlaceLine, trailRowsFrom, trailsPath, trailStatsLine } from '../functions/trails'
 import { EXPLORE_LIMIT, exploreMarkers, exploreMovedFar, exploreRadius, exploreRegionFor, type ExploreRegion } from '../functions/trail-explore'
@@ -24,7 +23,6 @@ const loading = state(true)
 const error = state('')
 const offerArea = derived(() => visible() !== null && exploreMovedFar(searched(), visible()!) && !loading())
 const summary = derived(() => loading() ? 'Finding trails…' : markers().length ? `${markers().length} ${markers().length === 1 ? 'trail' : 'trails'} on the map` : 'No trails here yet. Move the map or search.')
-const basemap = nativeBasemap('outdoors')
 let alive = true
 let loadVersion = 0
 /** The viewer searched or moved the map: a position arriving later must not take the map away from them. */
@@ -123,7 +121,7 @@ onMount(() => {
 </script>
 <View :class="ui.screen" testID="explore-screen">
   <Map class="absolute inset-0 w-full h-full" testID="explore-map"
-    :region="region" :mapType="basemap.mapType" :tileOverlay="basemap.tileOverlay"
+    :region="region" basemap="outdoors"
     :showsUserLocation="here() !== null" :showsCompass="true" :showsScale="true" :scrollEnabled="true" :zoomEnabled="true" :rotateEnabled="false"
     @region-change-complete="moved($event)">
     <MapMarker :for="marker in markers()" :key="marker.id" :id="'trail-' + marker.id" :title="marker.title" :geometry="marker.geometry"

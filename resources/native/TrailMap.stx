@@ -2,7 +2,7 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi } from '../functions/native-api'
 import { requireNativeAccount } from '../functions/native-session'
-import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { normalizeTrailsPayload } from '../assets/scripts/trail-data'
@@ -22,7 +22,6 @@ const region = state<any>(null)
 const loading = state(true)
 const error = state('')
 const mapType = state('outdoors')
-const basemap = derived(() => nativeBasemap(mapType()))
 const pitch = state(0)
 const heading = state(0)
 const showLocation = state(false)
@@ -100,7 +99,7 @@ onMount(() => { void load(); return () => { alive = false } })
   <View class="relative flex-1 overflow-hidden" testID="trail-map-screen">
     <Map :show="trail()" class="absolute inset-0 w-full h-full" testID="trail-full-map"
       :region="parts().some(part=>part.length>2) ? region() : currentRegion()" :fitToBounds="region() === null && parts().some(part=>part.length>2)" :edgePadding="{top:88,left:40,right:40,bottom:profileOpen() ? 240 : 100}"
-      :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" :cameraPitch="pitch" :cameraHeading="heading" :showsCompass="true" :showsScale="true" :scrollEnabled="true" :zoomEnabled="true" :rotateEnabled="true" :showsUserLocation="showLocation"
+      :basemap="mapType()" :cameraPitch="pitch" :cameraHeading="heading" :showsCompass="true" :showsScale="true" :scrollEnabled="true" :zoomEnabled="true" :rotateEnabled="true" :showsUserLocation="showLocation"
       @region-change-complete="camera($event)">
       <MapPolyline :for="(part,index) in parts()" :key="'route-outline-' + index" :id="'route-outline-' + index" :geometry="part" :strokeColor="trailRouteStyle.casing" :strokeWidth="9" />
       <MapPolyline :for="(part,index) in parts()" :key="index" :id="'route-' + index" :geometry="part" :strokeColor="trailRouteStyle.line" :strokeWidth="5" />

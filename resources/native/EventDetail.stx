@@ -344,7 +344,7 @@ onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(nul
       {{-- The loop, drawn open: it is a lap, and closing it would draw a leg
            nobody ran. --}}
       <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-panel">
-        <Map testID="event-map" class="flex-1" :fitToBounds="true" mapType="standard">
+        <Map testID="event-map" class="flex-1" :fitToBounds="true" basemap="standard">
           <MapPolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>

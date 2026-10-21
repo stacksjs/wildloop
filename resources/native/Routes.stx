@@ -3,7 +3,7 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import type { RoutePair } from '../functions/trail-geometry'
 import { createNativeApi, onNativeAccountChange } from '../functions/native-api'
 import { requireNativeAccount } from '../functions/native-session'
-import { nativeBasemap, nativeBasemapOptions } from '../functions/native-basemaps'
+import { nativeBasemapOptions } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { decodeRouteParts } from '../functions/trail-geometry'
@@ -28,7 +28,6 @@ const seedParts = state<RoutePair[][]>([])
 const selectedPart = state(0)
 const region = state<any>(null)
 const mapType = state('outdoors')
-const basemap = derived(() => nativeBasemap(mapType()))
 const pitch = state(0)
 const elevation = state<number | null>(null)
 const points = derived<RoutePair[]>(() => legs().length ? [legs()[0][0], ...legs().flatMap(leg => leg.slice(1))] : first() ? [first()!] : [])
@@ -203,7 +202,7 @@ onMount(()=>onNativeAccountChange(craft,()=>{accountGeneration++;editGeneration+
       <View class="flex-row justify-between items-center"><Text :class="ui.body">Follow paths</Text><Switch testID="route-follow-paths" :value="followPaths" @change="followPaths.set($event.value)" /></View>
       <Text :show="!followPaths()" :class="ui.caption">Straight segments do not establish a walkable or accessible route.</Text>
     </View>
-    <Map testID="route-builder-map" class="h-[420px] mx-4 mt-3 rounded-[12px]" :region="region()" :fitToBounds="region() === null && points().length > 1" :initialRegion="points().length < 2 ? {center:{latitude:39.5,longitude:-98.35},span:{latitudeDelta:30,longitudeDelta:60}} : null" :showsCompass="true" :showsScale="true" :cameraPitch="pitch" :mapType="basemap().mapType" :tileOverlay="basemap().tileOverlay" @click="add($event)" @region-change-complete="region.set({center:$event.center,span:$event.span})">
+    <Map testID="route-builder-map" class="h-[420px] mx-4 mt-3 rounded-[12px]" :region="region()" :fitToBounds="region() === null && points().length > 1" :initialRegion="points().length < 2 ? {center:{latitude:39.5,longitude:-98.35},span:{latitudeDelta:30,longitudeDelta:60}} : null" :showsCompass="true" :showsScale="true" :cameraPitch="pitch" :basemap="mapType()" @click="add($event)" @region-change-complete="region.set({center:$event.center,span:$event.span})">
       <MapPolyline testID="route-builder-line" :show="points().length > 1" id="custom-route" :geometry="points().flat()" strokeColor="#24724b" :strokeWidth="5" />
       <MapMarker :show="first()" id="route-start" :geometry="first()" title="Route start" />
       <MapMarker :for="(leg,index) in legs()" :key="index" :id="'waypoint-' + index" :geometry="leg.at(-1)" :title="'Waypoint ' + (index + 2)" />

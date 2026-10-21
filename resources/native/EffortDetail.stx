@@ -301,7 +301,7 @@ onMount(() => onNativeAccountChange(craft, () => { effort.set(null); void load()
       {{-- The course. Open, not closed: a route is a line that goes somewhere,
            and joining its ends would draw a leg nobody ran. --}}
       <View :show="shape().length > 0" testID="effort-map-frame" class="h-56 overflow-hidden rounded-2xl bg-panel">
-        <Map testID="effort-map" class="flex-1" :fitToBounds="true" mapType="standard">
+        <Map testID="effort-map" class="flex-1" :fitToBounds="true" basemap="standard">
           <MapPolyline :geometry="shape()" strokeColor="#059669" :strokeWidth="4" />
         </Map>
       </View>

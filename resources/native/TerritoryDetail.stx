@@ -218,7 +218,7 @@ onMount(() => onNativeAccountChange(craft, () => { territory.set(null); battles.
       {{-- The zone itself. `fitToBounds` frames the boundary, which is the only
            thing drawn, so the map opens on the ground rather than the ocean. --}}
       <View :show="shape().length > 0" testID="detail-map-frame" class="h-56 overflow-hidden rounded-2xl bg-panel">
-        <Map testID="detail-map" class="flex-1" :fitToBounds="true" mapType="standard">
+        <Map testID="detail-map" class="flex-1" :fitToBounds="true" basemap="standard">
           <MapPolyline :geometry="shape()" :strokeColor="shapeColor()" :strokeWidth="3" />
         </Map>
       </View>

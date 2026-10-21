@@ -5,7 +5,6 @@ import { createHealthWorkout } from '../functions/health-workout'
 import { useIntervalFn } from '@stacksjs/composables'
 import { readNativeAccount, requireNativeAccount } from '../functions/native-session'
 import { onNativeAccountChange, createNativeApi } from '../functions/native-api'
-import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 import { nativeRecordingDuration, movingSeconds, recordingFigures, recordingPayload, recordingSamples, recordingStoppedAt, type NativeRecording } from '../functions/native-recording'
@@ -330,7 +329,7 @@ onMount(()=>{
       <Text :text="figures().distance.toFixed(2) + ' mi'" class="text-[42px] font-bold text-fg" testID="record-distance" />
       <Text :text="nativeRecordingDuration(movingTime()) + ' moving · ' + Math.round(figures().elevation) + ' ft gain'" :class="ui.body" testID="record-time" />
       <Text :text="recordingState()" :class="ui.caption" testID="record-state" />
-      <Map testID="record-native-map" :tileOverlay="nativeOutdoorTiles" class="h-[320px] rounded-[12px]" :initialRegion="coordinates().length >= 4 ? null : here()" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
+      <Map testID="record-native-map" basemap="outdoors" class="h-[320px] rounded-[12px]" :initialRegion="coordinates().length >= 4 ? null : here()" :fitToBounds="coordinates().length >= 4" :showsUserLocation="running" :showsCompass="true" :showsScale="true" :rotateEnabled="true">
         <MapPolyline :geometry="coordinates()" strokeColor="#24724b" :strokeWidth="5" />
       </Map>
     </View>

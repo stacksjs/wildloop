@@ -3,7 +3,6 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import { onNativeAccountChange, createNativeApi, nativeImageUrl } from '../functions/native-api'
 import { requireNativeAccount } from '../functions/native-session'
 import { exportNativeGpx } from '../functions/native-export'
-import { nativeOutdoorTiles } from '../functions/native-basemaps'
 import { chooseNativeChoice, nativeChoiceLabel } from '../functions/native-choice'
 import { nativeUi as ui } from '../functions/native-ui'
 const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
@@ -118,7 +117,7 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
         <Text :text="activity()?.activityType || ''" :class="ui.titleStrong" />
         <Text :text="(activity()?.distance || 0) + ' mi · ' + (activity()?.duration || '') + ' · ' + (activity()?.elevation || 0) + ' ft'" :class="ui.body" />
         <Text :show="activity()?.notes" :text="activity()?.notes || ''" :class="ui.body" />
-        <Map testID="activity-native-map" :tileOverlay="nativeOutdoorTiles" :show="route().length >= 4" :fitToBounds="true" :showsCompass="true" class="h-[320px] rounded-[12px]">
+        <Map testID="activity-native-map" basemap="outdoors" :show="route().length >= 4" :fitToBounds="true" :showsCompass="true" class="h-[320px] rounded-[12px]">
           <MapPolyline :geometry="route()" strokeColor="#24724b" :strokeWidth="4" />
         </Map>
         <View :for="photo in activity()?.photos ?? []" :key="photo.id"><Image :source="{uri:photoUrl(photo)}" class="h-48 w-full rounded-[12px]" resizeMode="cover" /><Button :show="own" :disabled="busy" @click="removePhoto(photo)">Delete photo</Button></View>

@@ -54,7 +54,7 @@ describe('native trail details', () => {
     expect(nativeNodeProps(screen,'trail-native-map').region.center).toEqual({latitude:37.72,longitude:-119.5})
     await screen.event('trail-fit-route', 'onPress')
     expect(nativeNodeProps(screen,'trail-elevation-slider').value).toBe(0)
-    expect(props(screen).some(p => p.mapType === 'satellite')).toBe(true)
+    expect(props(screen).some(p => p.basemap === 'satellite')).toBe(true)
     expect(nativeNodeProps(screen, 'trail-native-map')).toMatchObject({fitToBounds:true,region:null,edgePadding:{bottom:220}})
   })
   it('saves using explicit intent and waits for the server response', async () => {

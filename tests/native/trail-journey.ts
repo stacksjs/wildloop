@@ -161,6 +161,15 @@ const explore:SimulatorStep[] = [
  {command:'expect',text:'on the map',seconds:20},
  {command:'shot',name:'native-explore'},
  {command:'tree',name:'native-explore'},
+ // A pin shows its trail's card, and the card opens the trail.
+ {command:'tapid',text:`trail-${input.trailId}`},
+ {command:'expectid',text:'explore-card',seconds:10},
+ {command:'shot',name:'native-explore-card'},
+ {command:'tapid',text:'explore-open'},
+ {command:'expectid',text:'trail-native-map',seconds:15},
+ // The map is a link of its own too.
+ {command:'openurl',url:'wildloop://explore'},
+ {command:'expectid',text:'explore-map',seconds:15},
  {command:'typeid',id:'explore-search',text:input.trailName},
  {command:'tapid',text:'explore-submit'},
  {command:'expect',text:'1 trail on the map',seconds:20},
