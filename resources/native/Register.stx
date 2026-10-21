@@ -23,7 +23,7 @@ async function register() {
     if (!response.ok || !response.body?.token) throw new Error(Object.values(response.body?.fields ?? {}).flat().join(' ') || response.body?.error || 'Your account could not be created.')
     await storeNativeSession(craft, response.body.token, response.body.user)
     password.set('');confirmation.set('')
-    craft.navigation.open('/feed')
+    craft.navigation.replace('/feed')
   }
   catch (cause) { error.set(cause instanceof Error ? cause.message : 'Your account could not be created.') }
   finally { busy.set(false) }

@@ -20,7 +20,9 @@ async function login() {
     await storeNativeSession(craft, response.body.token, response.body.user)
     password.set('')
     const next = String(craft.route.params.next || '/feed')
-    craft.navigation.open(nativeDestination(next) ?? '/feed')
+    // Replaced, not pushed over: Back from where signing in leads must not
+    // return to a filled-in sign-in form (HQ's Login does the same).
+    craft.navigation.replace(nativeDestination(next) ?? '/feed')
   }
   catch (cause) { error.set(cause instanceof Error ? cause.message : 'Sign-in failed.') }
   finally { busy.set(false) }

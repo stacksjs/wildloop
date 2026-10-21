@@ -85,9 +85,10 @@ describe('native account forms',()=>{
     const owner=await waitForRequest(screen,requests(screen).indexOf(bearer)+1,r=>r.payload.module==='SecureStorage')
     expect(JSON.parse(owner.payload.args[1])).toEqual({token:'native-login-token',user:{id:7}})
     answer(screen,owner,true)
-    for(let attempt=0;attempt<20 && !screen.sent.some(message=>message.type==='NAVIGATE_OPEN');attempt++)await Bun.sleep(1)
+    for(let attempt=0;attempt<20 && !screen.sent.some(message=>message.type==='NAVIGATE_REPLACE');attempt++)await Bun.sleep(1)
     expect(screen.scope.__snapshots.get('wildloop-session')).toEqual({user:{id:7,name:'Native tester'},version:1})
-    expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN' && message.payload.path==='/trail/7')).toBe(true)
+    // Replaced, not pushed: Back from the trail must not land on Login again.
+    expect(screen.sent.some(message=>message.type==='NAVIGATE_REPLACE' && message.payload.screen==='/trail/7')).toBe(true)
   })
   it('shows a refused login without persisting or navigating',async()=>{
     const screen=await start('Login',{},undefined,{},nativeKeychain(null))
@@ -99,7 +100,7 @@ describe('native account forms',()=>{
     answer(screen,await waitForRequest(screen,0,r=>r.payload.module==='Network' && r.payload.args[0].method==='POST'),{status:401,headers:{'content-type':'application/json'},body:JSON.stringify({error:'Incorrect email or password'})})
     await waitForText(screen,'Incorrect email or password')
     expect(requests(screen).some(r=>r.payload.module==='SecureStorage' && r.payload.method==='set')).toBe(false)
-    expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN')).toBe(false)
+    expect(screen.sent.some(message=>message.type==='NAVIGATE_OPEN' || message.type==='NAVIGATE_REPLACE')).toBe(false)
   })
   it('requires native registration consent before sending an account request',async()=>{
     const screen=await start('Register',{},undefined,{},nativeKeychain(null))
