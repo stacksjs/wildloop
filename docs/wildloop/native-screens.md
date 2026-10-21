@@ -65,7 +65,7 @@ bun run build:android
 inspection. The mobile build generates platform projects and bundles from the
 published packages. Generated host sources are build output, never patches to
 maintain by hand. XcodeGen is resolved through Pantry by `./buddy setup:ios`.
-Android map builds require the configured `ANDROID_MAPS_API_KEY`.
+Android maps use MapLibre with the same raster topography as iOS, so no maps SDK key is needed.
 
 `tests/fixtures/nativeScreen.ts` runs the actual minified native bundle through
 a Craft bridge fixture. It handles nodes added by keyed loops and applies

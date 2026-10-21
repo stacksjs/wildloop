@@ -10,8 +10,8 @@ pages that preceded this migration.
 - Bun 1.3 or newer, Java 17 or newer, and Maestro CLI 2.8.0.
 - For iOS: Xcode and an installed iPhone simulator runtime. Run
   `./buddy setup:ios` to install the configured XcodeGen through Pantry.
-- For Android: Android SDK tools, one running emulator, and a configured
-  `ANDROID_MAPS_API_KEY` restricted to the app package and signing certificate.
+- For Android: Android SDK tools and one running emulator. Maps are MapLibre
+  over raster topography, so no maps SDK key is needed.
 
 Install the Maestro CLI from its official mobile-dev-inc/Maestro release.
 The workflows verify the archive's checksum. The similarly named desktop

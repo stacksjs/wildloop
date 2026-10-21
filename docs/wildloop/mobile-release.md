@@ -8,9 +8,9 @@ background-location behaviour.
 
 - Set `IOS_BUNDLE_ID`, `IOS_APP_VERSION`, `IOS_BUILD_NUMBER`, and
   `APPLE_TEAM_ID` for the release lane.
-- Set the Android package name, version, version code, `ANDROID_MAPS_API_KEY`,
-  and production Firebase configuration for the Android release lane. Restrict
-  the Maps SDK key to the package and signing certificate used by that lane.
+- Set the Android package name, version, version code, and production
+  Firebase configuration for the Android release lane. Maps need no SDK key:
+  they are MapLibre over the same raster topography as iOS.
 - Confirm `https://wildloop.org` is the intended mobile origin and that its
   associated-domain and app-link files cover `org.wildloop.app`.
 - Create the matching identifiers and capabilities in the Apple Developer

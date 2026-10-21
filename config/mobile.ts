@@ -168,7 +168,10 @@ export default {
     urlSchemes: ['wildloop'],
     appIcon: 'public/images/app/wildloop-app-icon.png',
     googleServicesFile: envVars.ANDROID_GOOGLE_SERVICES_FILE,
-    mapsApiKey: envVars.ANDROID_MAPS_API_KEY,
+    // MapLibre, drawing the same raster topography iOS draws (Esri, the
+    // outdoors basemap), not Google Maps: no SDK key to provision or bill, and
+    // the trail maps look alike on both phones.
+    mapProvider: 'maplibre' as const,
     nativeScreens,
     capabilities: {
       backgroundLocation: true,

@@ -32,7 +32,6 @@ jobs:
   source-projects:
     env:
       ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
-      ANDROID_MAPS_API_KEY: ${{ secrets.ANDROID_MAPS_API_KEY }}
     strategy:
       fail-fast: false
       matrix:
