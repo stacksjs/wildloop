@@ -146,8 +146,30 @@ const location:SimulatorStep[] = [
  {command:'tree',name:'native-location'},
  {command:'shot',name:'native-location'},
 ]
+// The round button beside the tab pill: every trail around you on a map,
+// with search, opened from the app's shared chrome (functions/native-chrome).
+const explore:SimulatorStep[] = [
+ // Before launch: changing a permission ends a running app.
+ {command:'exec',name:'reset-location'},
+ {command:'exec',name:'seed-location'},
+ ...arrival,
+ {command:'tapid',text:'craft-tab-accessory'},
+ {command:'expectid',text:'explore-map',seconds:15},
+ // The map asks where you are, and shows trails meanwhile.
+ {command:'systemexpect',text:'Allow Once',seconds:10},
+ {command:'systemtap',text:'Allow Once'},
+ {command:'expect',text:'on the map',seconds:20},
+ {command:'shot',name:'native-explore'},
+ {command:'tree',name:'native-explore'},
+ {command:'typeid',id:'explore-search',text:input.trailName},
+ {command:'tapid',text:'explore-submit'},
+ {command:'expect',text:'1 trail on the map',seconds:20},
+ {command:'shot',name:'native-explore-search'},
+ {command:'tree',name:'native-explore-search'},
+]
 return [
  {name:'maps',steps:maps,completion:'PASS expectid trail-sticky-actions'},
+ {name:'explore',steps:explore,completion:'PASS expect 1 trail on the map'},
  {name:'reviews',steps:reviews,completion:`PASS expect ${input.edit.trim()}`},
  {name:'review-delete',steps:reviewDelete,completion:`PASS absent ${input.review}`},
  {name:'sharing',steps:sharing,completion:'exec verify-share: PASS native share copied the trail link'},

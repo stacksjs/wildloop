@@ -60,6 +60,12 @@ export async function runNativeTrailE2e(): Promise<void> {
       if(url.pathname==='/exec') {
         try {
           const hook=url.searchParams.get('name')
+          if(hook==='reset-location') {
+            // Whatever an earlier run answered, the app asks again: a journey
+            // that meets the prompt meets it every time.
+            await command(['xcrun','simctl','privacy',device,'reset','location','org.wildloop.app'],'location-reset.log')
+            return new Response('PASS owned simulator location permission reset for the app')
+          }
           if(hook==='seed-location') {
             const first=primaryRoutePart([...decodeRouteParts(trail.geometry),...(Array.isArray(trail.pieceRoutes)?trail.pieceRoutes:[])])[0]
             if(!first)throw new Error('The seeded trail has no recorded route start.')

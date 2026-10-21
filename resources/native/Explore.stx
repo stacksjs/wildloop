@@ -20,13 +20,15 @@ const region = state<ExploreRegion | null>(null)
 const searched = state<ExploreRegion | null>(null)
 const visible = state<ExploreRegion | null>(null)
 const here = state<{ lat: number, lng: number } | null>(null)
-const loading = state(false)
+const loading = state(true)
 const error = state('')
 const offerArea = derived(() => visible() !== null && exploreMovedFar(searched(), visible()!) && !loading())
-const summary = derived(() => loading() ? 'Finding trails…' : markers().length ? `${markers().length} trails on the map` : 'No trails here yet. Move the map or search.')
+const summary = derived(() => loading() ? 'Finding trails…' : markers().length ? `${markers().length} ${markers().length === 1 ? 'trail' : 'trails'} on the map` : 'No trails here yet. Move the map or search.')
 const basemap = nativeBasemap('outdoors')
 let alive = true
 let loadVersion = 0
+/** The viewer searched or moved the map: a position arriving later must not take the map away from them. */
+let steered = false
 
 /** The text out of a native input event, the way every other screen reads it. */
 function eventText(event: { text?: unknown }): string {
@@ -82,8 +84,15 @@ async function nearMe() {
 }
 
 function search() {
+  steered = true
   selectedId.set(0)
   void load(query().trim() ? null : visible(), true)
+}
+
+function searchArea() {
+  steered = true
+  selectedId.set(0)
+  void load(visible(), false)
 }
 
 function moved(event: any) {
@@ -100,8 +109,10 @@ onMount(() => {
   craft.navigation.setOptions({ title: 'Explore', largeTitle: false, hidden: true })
   void (async () => {
     if (!await requireNativeAccount(craft, '/explore')) return
-    await locate()
-    await load(null, true)
+    // Trails first, the position when it comes: waiting on the location
+    // prompt left the map empty behind it.
+    void load(null, true)
+    if (await locate() && alive && !steered && !query().trim()) await load(null, true)
   })()
   const stop = craft.route.onParams((params) => {
     query.set(String(params.q ?? ''))
@@ -129,7 +140,7 @@ onMount(() => {
       <Button testID="explore-near-me" :class="ui.floating" accessibilityLabel="Trails near me" @click="nearMe()">Near me</Button>
       <Button testID="explore-list" :class="ui.floating" accessibilityLabel="Show as a list" @click="craft.navigation.open(query().trim() ? '/trails?q=' + encodeURIComponent(query().trim()) : '/trails?near=me')">List</Button>
     </View>
-    <Button :show="offerArea" testID="explore-search-area" class="self-center" :class="ui.floating" @click="selectedId.set(0);load(visible(), false)">Search this area</Button>
+    <Button :show="offerArea" testID="explore-search-area" class="self-center" :class="ui.floating" @click="searchArea()">Search this area</Button>
   </View>
 
   <View class="absolute left-4 right-4 bottom-28 gap-2">
