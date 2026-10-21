@@ -52,8 +52,9 @@ export const trailMapCssUrl = TRAIL_MAP_CSS
     <div class="native-tab-visibility" x-class="signedIn() ? '' : 'guest-tabs-hidden'" x-cloak>
       <NativeTabBar label="Wildloop navigation">
         <NativeTabItem label="Feed" href="/feed" icon="i-lucide-house" />
+        <NativeTabItem label="Discover" href="/trails" icon="i-lucide-search" />
         <NativeTabItem label="Record" href="/record" icon="i-lucide-circle-dot" />
-        <NativeTabItem label="Menu" href="/menu" icon="i-lucide-menu" />
+        <NativeTabItem label="Me" href="/menu" icon="i-lucide-circle-user" />
       </NativeTabBar>
     </div>
   </template>

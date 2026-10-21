@@ -291,6 +291,12 @@ declare global {
   const nativeBasemapOptions: typeof autoImports.nativeBasemapOptions
   const chooseNativeChoice: typeof autoImports.chooseNativeChoice
   const nativeChoiceLabel: typeof autoImports.nativeChoiceLabel
+  const nativeHeaderFrom: typeof autoImports.nativeHeaderFrom
+  const nativeChrome: typeof autoImports.nativeChrome
+  const installNativeChrome: typeof autoImports.installNativeChrome
+  const NATIVE_HEADER_SNAPSHOT: typeof autoImports.NATIVE_HEADER_SNAPSHOT
+  const ME_TAB: typeof autoImports.ME_TAB
+  const BARE_SCREENS: typeof autoImports.BARE_SCREENS
   const nativeDestination: typeof autoImports.nativeDestination
   const nativeShortcutDestination: typeof autoImports.nativeShortcutDestination
   const exportNativeGpx: typeof autoImports.exportNativeGpx
@@ -467,6 +473,13 @@ declare global {
   const difficultyIsEstimated: typeof autoImports.difficultyIsEstimated
   const trailDifficultyLabel: typeof autoImports.trailDifficultyLabel
   const difficultyTitle: typeof autoImports.difficultyTitle
+  const exploreRadius: typeof autoImports.exploreRadius
+  const exploreMovedFar: typeof autoImports.exploreMovedFar
+  const exploreMarkers: typeof autoImports.exploreMarkers
+  const exploreRegionFor: typeof autoImports.exploreRegionFor
+  const EXPLORE_MIN_RADIUS: typeof autoImports.EXPLORE_MIN_RADIUS
+  const EXPLORE_MAX_RADIUS: typeof autoImports.EXPLORE_MAX_RADIUS
+  const EXPLORE_LIMIT: typeof autoImports.EXPLORE_LIMIT
   const normalizeTagKey: typeof autoImports.normalizeTagKey
   const readTags: typeof autoImports.readTags
   const featureFromTag: typeof autoImports.featureFromTag

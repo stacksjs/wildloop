@@ -11,7 +11,7 @@ const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
      keeps its argument for the web app, which still has public pages. --}}
 function groups(): { title: string, items: any[] }[] { return mobileMenuGroups(true) }
 onMount(() => {
-  craft.navigation.setOptions({ title: 'Menu', largeTitle: true })
+  craft.navigation.setOptions({ title: 'Me', largeTitle: true })
   {{-- From `onAppear`, not from here: the shell prepares this tab hidden
        beside the Feed at launch, and a guard that ran at mount would push
        Login over the Feed. --}}

@@ -14,10 +14,14 @@ const mobileContent = {
   appearance: 'system' as const,
   backgroundColor: '#f2f4ef',
   backgroundColorDark: '#101c16',
+  // HQ's four, in Wildloop's words: the Me tab wears the account's picture
+  // and unread count, and the round button beside the pill is the trail map
+  // (resources/functions/native-chrome.ts).
   tabs: [
     { id: '/feed', title: 'Feed', symbol: 'house' },
+    { id: '/trails', title: 'Discover', symbol: 'magnifyingglass' },
     { id: '/record', title: 'Record', symbol: 'record.circle' },
-    { id: '/menu', title: 'Menu', symbol: 'square.grid.2x2' },
+    { id: '/menu', title: 'Me', symbol: 'person.crop.circle' },
   ],
 }
 const nativeScreens = {
@@ -28,7 +32,7 @@ const nativeScreens = {
   '/battles': 'Battles', '/challenges': 'Challenges', '/club/:id': 'ClubDetail', '/clubs': 'Clubs',
   '/conquests': 'Conquests', '/effort/:id': 'EffortDetail', '/event/:id': 'EventDetail', '/events': 'Events',
   '/records': 'Records', '/search': 'Search', '/stats': 'Stats', '/territories': 'Territories',
-  '/territory/:id': 'TerritoryDetail', '/trails': 'Trails', '/trail/:id': 'TrailDetail', '/trail/:id/map': 'TrailMap',
+  '/territory/:id': 'TerritoryDetail', '/trails': 'Trails', '/explore': 'Explore', '/trail/:id': 'TrailDetail', '/trail/:id/map': 'TrailMap',
   '/notifications': 'Notifications', '/leaderboard': 'Leaderboard',
   '/activity/new': 'ManualActivity', '/activity/saved': 'ActivitySaved',
 }

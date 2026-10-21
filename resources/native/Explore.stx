@@ -1,0 +1,145 @@
+<script client lang="ts">
+import type { NativeCraft } from '@stacksjs/stx/native'
+import { createNativeApi } from '../functions/native-api'
+import { requireNativeAccount } from '../functions/native-session'
+import { nativeBasemap } from '../functions/native-basemaps'
+import { nativeUi as ui } from '../functions/native-ui'
+import { trailPath, trailPlaceLine, trailRowsFrom, trailsPath, trailStatsLine } from '../functions/trails'
+import { EXPLORE_LIMIT, exploreMarkers, exploreMovedFar, exploreRadius, exploreRegionFor, type ExploreRegion } from '../functions/trail-explore'
+
+{{-- The map behind the tab bar's map button: the trails around you, pinned,
+     with search on top, the way a trail app opens. A pin shows its trail in
+     a card; the card opens it. --}}
+const craft = (globalThis as typeof globalThis & { craft: NativeCraft }).craft
+const query = state(String(craft.route.params.q ?? ''))
+const trails = state<any[]>([])
+const markers = derived(() => exploreMarkers(trails()))
+const selectedId = state(0)
+const selected = derived(() => trails().find(trail => Number(trail.id) === selectedId()) ?? null)
+const region = state<ExploreRegion | null>(null)
+const searched = state<ExploreRegion | null>(null)
+const visible = state<ExploreRegion | null>(null)
+const here = state<{ lat: number, lng: number } | null>(null)
+const loading = state(false)
+const error = state('')
+const offerArea = derived(() => visible() !== null && exploreMovedFar(searched(), visible()!) && !loading())
+const summary = derived(() => loading() ? 'Finding trails…' : markers().length ? `${markers().length} trails on the map` : 'No trails here yet. Move the map or search.')
+const basemap = nativeBasemap('outdoors')
+let alive = true
+let loadVersion = 0
+
+/** The text out of a native input event, the way every other screen reads it. */
+function eventText(event: { text?: unknown }): string {
+  return event?.text == null ? '' : String(event.text)
+}
+
+async function load(around: ExploreRegion | null, fit: boolean) {
+  const current = ++loadVersion
+  loading.set(true)
+  error.set('')
+  try {
+    const centre = around ? { lat: around.center.latitude, lng: around.center.longitude } : here()
+    const typed = query().trim()
+    // A typed search looks everywhere, nearest first, as the trail list does;
+    // browsing asks for what the visible map covers.
+    const path = trailsPath({ q: typed, ...(centre ?? {}), ...(around && !typed ? { radius: exploreRadius(around) } : {}), sort: centre ? 'nearest' : undefined, limit: EXPLORE_LIMIT })
+    const response = await createNativeApi(craft).send(path)
+    if (!alive || current !== loadVersion) return
+    if (!response.ok) throw new Error('Trails could not be loaded. Try again.')
+    const result = trailRowsFrom(response.body)
+    trails.set(result.rows)
+    if (!result.rows.some(trail => Number(trail.id) === selectedId())) selectedId.set(0)
+    searched.set(around ?? visible())
+    if (fit) {
+      const next = exploreRegionFor(exploreMarkers(result.rows), typed ? null : centre)
+      if (next) {
+        region.set(next)
+        searched.set(next)
+      }
+    }
+  }
+  catch (cause) { if (alive && current === loadVersion) error.set(cause instanceof Error ? cause.message : 'Trails could not be loaded.') }
+  finally { if (alive && current === loadVersion) loading.set(false) }
+}
+
+async function locate(): Promise<boolean> {
+  try {
+    if (!craft.location) return false
+    const point = await craft.location.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 })
+    here.set({ lat: point.latitude, lng: point.longitude })
+    return true
+  }
+  catch { return false }
+}
+
+async function nearMe() {
+  query.set('')
+  if (!await locate()) {
+    error.set('Your position could not be found. Allow location for Wildloop in Settings.')
+    return
+  }
+  await load(null, true)
+}
+
+function search() {
+  selectedId.set(0)
+  void load(query().trim() ? null : visible(), true)
+}
+
+function moved(event: any) {
+  if (!event?.center || !event?.span) return
+  visible.set({ center: event.center, span: event.span })
+}
+
+function openSelected() {
+  const trail = selected()
+  if (trail) craft.navigation.open(trailPath(Number(trail.id)))
+}
+
+onMount(() => {
+  craft.navigation.setOptions({ title: 'Explore', largeTitle: false, hidden: true })
+  void (async () => {
+    if (!await requireNativeAccount(craft, '/explore')) return
+    await locate()
+    await load(null, true)
+  })()
+  const stop = craft.route.onParams((params) => {
+    query.set(String(params.q ?? ''))
+    void load(null, true)
+  })
+  return () => { alive = false; stop() }
+})
+</script>
+<View :class="ui.screen" testID="explore-screen">
+  <Map class="absolute inset-0 w-full h-full" testID="explore-map"
+    :region="region" :mapType="basemap.mapType" :tileOverlay="basemap.tileOverlay"
+    :showsUserLocation="here() !== null" :showsCompass="true" :showsScale="true" :scrollEnabled="true" :zoomEnabled="true" :rotateEnabled="false"
+    @region-change-complete="moved($event)">
+    <MapMarker :for="marker in markers()" :key="marker.id" :id="'trail-' + marker.id" :title="marker.title" :geometry="marker.geometry"
+      :pinColor="selectedId() === marker.id ? '#1f6f43' : '#c2410c'" @press="selectedId.set(marker.id)" />
+  </Map>
+
+  <View class="absolute top-0 left-0 right-0 px-4 pt-14 gap-2">
+    <View class="flex-row gap-2 items-center">
+      <TextInput testID="explore-search" class="flex-1" :class="ui.search" accessibilityLabel="Search trails" placeholder="Search trails, parks or places"
+        placeholderTextColor="#65725f" returnKeyType="search" :value="query" @input="query.set(eventText($event))" @submit="search()" />
+      <Button testID="explore-submit" :class="ui.floating" @click="search()">Search</Button>
+    </View>
+    <View class="flex-row gap-2">
+      <Button testID="explore-near-me" :class="ui.floating" accessibilityLabel="Trails near me" @click="nearMe()">Near me</Button>
+      <Button testID="explore-list" :class="ui.floating" accessibilityLabel="Show as a list" @click="craft.navigation.open(query().trim() ? '/trails?q=' + encodeURIComponent(query().trim()) : '/trails?near=me')">List</Button>
+    </View>
+    <Button :show="offerArea" testID="explore-search-area" class="self-center" :class="ui.floating" @click="selectedId.set(0);load(visible(), false)">Search this area</Button>
+  </View>
+
+  <View class="absolute left-4 right-4 bottom-28 gap-2">
+    <Text :show="error() !== ''" testID="explore-error" class="rounded-xl bg-panel p-3" :class="ui.danger" :text="error" />
+    <Pressable :show="selected()" testID="explore-card" :class="ui.card" class="p-4 gap-1" accessibilityRole="button" :accessibilityLabel="'Open ' + (selected()?.name ?? 'trail')" @click="openSelected()">
+      <Text :class="ui.titleStrong" :text="selected()?.name ?? ''" />
+      <Text :class="ui.subtitle" :text="trailPlaceLine(selected())" />
+      <Text :class="ui.caption" :text="trailStatsLine(selected())" />
+      <Button testID="explore-open" class="mt-2" :class="ui.action" @click="openSelected()">View trail</Button>
+    </Pressable>
+    <Text :show="!selected()" testID="explore-summary" class="self-center rounded-full bg-panel px-4 py-2" :class="ui.caption" :text="summary" />
+  </View>
+</View>

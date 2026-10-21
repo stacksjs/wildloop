@@ -2,6 +2,7 @@ import type { NativeCraft } from '@stacksjs/stx/native'
 import { createNativeApi, nativeApiOrigin } from './native-api'
 import { readNativeAccount, storeNativeSession } from './native-session'
 import { nativeDestination, nativeShortcutDestination } from './native-destinations'
+import { NATIVE_HEADER_SNAPSHOT, nativeHeaderFrom } from './native-chrome'
 
 /** Application-wide session and opted-in push work, beside Craft's native screens. */
 export function startNativeApp(host: NativeCraft): () => void {
@@ -28,6 +29,27 @@ export function startNativeApp(host: NativeCraft): () => void {
     catch { if(alive)await host.snapshots.set('wildloop-push',{error:'Device notifications could not be refreshed. Open Settings to reconnect them.'}) }
     finally {registering=false}
   }
+  // The account the bar and the Me tab show, asked for once here rather than
+  // by every screen (native-chrome.ts), and published only when it changed.
+  let loadingHeader=false
+  async function header() {
+    if(!alive || loadingHeader)return
+    loadingHeader=true
+    try {
+      // Who is signed in is what restore published; asking the keychain again
+      // cost two round trips every time the session changed.
+      if(!Number(host.snapshots.get<{user?:{id?:number}}>('wildloop-session')?.user?.id)){
+        if(host.snapshots.get(NATIVE_HEADER_SNAPSHOT)!=null)await host.snapshots.set(NATIVE_HEADER_SNAPSHOT,null)
+        return
+      }
+      const [me,notifications]=await Promise.all([api.send('/api/me'),api.send('/api/notifications?limit=1')])
+      if(!alive || !me.ok)return
+      const next=nativeHeaderFrom(me.body?.user,notifications.ok?notifications.body?.unreadCount:0)
+      if(JSON.stringify(next)!==JSON.stringify(host.snapshots.get(NATIVE_HEADER_SNAPSHOT) ?? null))await host.snapshots.set(NATIVE_HEADER_SNAPSHOT,next)
+    }
+    catch { /* Offline: the last header stays, as the session does. */ }
+    finally {loadingHeader=false}
+  }
   async function restore() {
     if(!alive || refreshing)return
     refreshing=true
@@ -46,13 +68,13 @@ export function startNativeApp(host: NativeCraft): () => void {
         if(alive && me.ok)await storeNativeSession(host,await api.readToken(),me.body.user)
       }
       else await host.snapshots.set('wildloop-session',null)
-      if(alive)await push()
+      if(alive)await Promise.all([push(),header()])
     }
     catch { /* Offline startup retains the last authenticated on-device session. */ }
     finally {refreshing=false}
   }
   const stopLifecycle=host.lifecycle.onStateChange(state=>{if(state==='active')void restore()})
-  const stopSession=host.snapshots.onChange(name=>{if(name==='wildloop-session')void push()})
+  const stopSession=host.snapshots.onChange(name=>{if(name==='wildloop-session'){void push();void header()}})
   const stopToken=host.push?.onToken(token=>{void push(token)})
   void restore()
   return()=>{alive=false;stopLifecycle();stopSession();stopToken?.();globalThis.removeEventListener('craftShortcut',shortcut);globalThis.removeEventListener('craftSiriShortcut',shortcut);globalThis.removeEventListener('craftNotificationResponse',notification)}

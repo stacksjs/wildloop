@@ -59,11 +59,12 @@ async function kudos(row: any) {
   finally { pending.set({ ...pending(), [row.id]: false }) }
 }
 onMount(() => {
-  craft.navigation.setOptions({ title: 'Feed', largeTitle: true, rightButtons: [{ id: 'search', symbol: 'magnifyingglass', accessibilityLabel: 'Search' }, { id: 'notifications', symbol: 'bell', accessibilityLabel: 'Notifications' }] })
-  const buttons = craft.navigation.onButton(event => craft.navigation.open(event.id === 'search' ? '/search' : '/notifications'))
+  // Search is the Discover tab and Notifications is in the app's chrome
+  // (functions/native-chrome.ts), so the Feed's bar carries no buttons of its own.
+  craft.navigation.setOptions({ title: 'Feed', largeTitle: true })
   const appear = craft.navigation.onAppear(() => { void load() })
   void load()
-  return () => { active = false; buttons(); appear() }
+  return () => { active = false; appear() }
 })
 onMount(() => onNativeAccountChange(craft, () => { rows.set([]); kudosed.set({}); scope.set('all'); void load() }))
 </script>

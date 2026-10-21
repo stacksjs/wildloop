@@ -1,4 +1,5 @@
 import type { NativeCraft } from '@stacksjs/stx/native'
+import { installNativeChrome } from './native-chrome'
 
 type SessionHost = Pick<NativeCraft, 'secureStorage' | 'snapshots'>
 const ACCOUNT_KEY = 'wildloop-account'
@@ -58,8 +59,12 @@ export async function clearNativeSession(host: SessionHost): Promise<void> {
  */
 export async function requireNativeAccount(host: SessionHost & Pick<NativeCraft, 'navigation'>, next: string): Promise<boolean> {
   try {
-    if ((await readNativeAccount(host))?.id)
+    if ((await readNativeAccount(host))?.id) {
+      // A signed-in screen wears the app's bar buttons and tabs; the auth
+      // screens never get here, so they never do.
+      installNativeChrome(host)
       return true
+    }
   }
   catch {
     // Cancelled because the screen closed; there is nobody to send anywhere.

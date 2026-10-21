@@ -10,10 +10,10 @@
     "@bughq/stacks": "^0.2.2",
     "@iconify-json/lucide": "^1.2.137",
     "@loghq/stacks": "^0.2.6",
-    "@stacksjs/components": "^0.2.605",
+    "@stacksjs/components": "^0.2.624",
     "@stacksjs/composables": "^0.75.248",
     "@stacksjs/mobile": "^0.75.248",
-    "@stacksjs/stx": "^0.2.605",
+    "@stacksjs/stx": "^0.2.624",
     "@ts-analytics/tracking": "^0.1.17",
     "craft-native": "^0.0.254",
     "stacks": "^0.75.248",
@@ -23,12 +23,12 @@
     "ts-web-scraper": "^0.1.10"
   },
   "overrides": {
-    "@stacksjs/components": "0.2.605",
-    "@stacksjs/desktop": "0.2.605",
-    "@stacksjs/sanitizer": "0.2.605",
-    "@stacksjs/stx": "0.2.605",
-    "bun-plugin-stx": "0.2.605",
-    "stx-router": "0.2.605"
+    "@stacksjs/components": "0.2.624",
+    "@stacksjs/desktop": "0.2.624",
+    "@stacksjs/sanitizer": "0.2.624",
+    "@stacksjs/stx": "0.2.624",
+    "bun-plugin-stx": "0.2.624",
+    "stx-router": "0.2.624"
   },
   "bugs": {
     "url": "https://github.com/stacksjs/wildloop/issues"
