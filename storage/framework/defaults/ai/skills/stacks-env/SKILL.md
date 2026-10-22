@@ -207,7 +207,7 @@ const { parsed, errors, skippedEncrypted } = parse(envContent, {
 ## Encryption (X25519 + AES-256-GCM)
 
 ```typescript
-import { aesEncrypt, aesDecrypt, generateKeypair, encryptValue, decryptValue, getPrivateKey } from '@stacksjs/env'
+import { aesEncrypt, aesDecrypt, generateKeypair, encryptValue, decryptValue, getPrivateKey, isValidPublicKey } from '@stacksjs/env'
 
 // AES-256-GCM symmetric encryption
 const encrypted = aesEncrypt(plaintext, password)
@@ -215,6 +215,7 @@ const decrypted = aesDecrypt(encrypted, password)
 
 // Versioned ephemeral-static X25519 envelope encryption
 const keypair = generateKeypair()
+const validPublicKey = isValidPublicKey(keypair.publicKey) // canonical current X25519 public metadata
 const encrypted = encryptValue(value, keypair.publicKey)
 const decrypted = decryptValue(encrypted, keypair.privateKey)
 ```
@@ -223,7 +224,7 @@ const decrypted = decryptValue(encrypted, keypair.privateKey)
 
 ```bash
 buddy env:get APP_NAME                    # get single var
-buddy env:get --all --format json         # all vars as JSON
+buddy env:get --all --format json         # every var in the file as JSON (never the process env)
 buddy env:set APP_NAME "My App"           # set var
 buddy env:encrypt                          # encrypt .env file
 buddy env:decrypt                          # decrypt .env file
@@ -238,6 +239,28 @@ Restore the environment's matching private key through `.env.keys` or its
 `DOTENV_PRIVATE_KEY_<ENVIRONMENT>` process secret. A request for one plaintext
 key remains readable independently. `buddy deploy` stops on an incomplete or
 unreadable environment instead of deploying a partial map.
+
+`isValidPublicKey(value: unknown): value is string` returns false for private,
+legacy, malformed, or noncanonical public metadata without throwing or exposing
+parser errors. Strict committed-env checks reject that metadata and all nonempty
+private-key assignments, including encrypted ones. Legacy decryption remains
+supported for migration through `buddy env:rotate`; non-strict scans retain
+their existing compatibility behavior.
+
+`publicKeyMatchesPrivateKey(publicKey: unknown, privateKey: unknown): boolean`
+validates a current X25519 pair without returning either key or parser errors.
+Use it with the actual private half before accepting public metadata for future
+writes. Strict `env:check` rejects mismatches, and `env:set`/`env:encrypt` refuse
+to add ciphertext under a header unrelated to an available private key. Reading
+old ciphertext and rotating legacy keys retain their existing migration policy.
+
+For CLI/file operations, use
+`resolveEnvPrivateKey({ file?: string, keysFile?: string, cwd?: string })`.
+Its order is target-scoped local key, target-scoped process key, generic local
+key, then generic process key. The keys file defaults to `.env.keys` relative to
+`cwd`. `getEnv`, encrypted writers, and strict Buddy checks share this resolver.
+The cached application-runtime `resolvePrivateKey` remains process-first so
+server/browser test configuration can intentionally override local defaults.
 
 ## Tenant isolation on a shared box
 

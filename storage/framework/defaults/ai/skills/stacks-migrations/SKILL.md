@@ -18,7 +18,9 @@ Schema change management via migration files.
 ## CLI Commands
 
 ```bash
-buddy migrate                       # run pending migrations
+buddy migrate                       # run pending migrations (and generate new ones from the models, in an interactive terminal only)
+buddy migrate --generate            # generate from the models even when not interactive
+buddy migrate --no-generate         # apply committed migrations only, even in a terminal
 buddy migrate --diff                # show SQL without running
 buddy migrate --auth                # include auth tables
 buddy migrate:fresh                 # drop ALL tables and re-migrate
@@ -26,11 +28,32 @@ buddy migrate:fresh --seed          # drop, migrate, then seed
 buddy make:migration <name>         # create new migration file
 buddy seed                          # seed database
 buddy generate:migrations           # generate migrations from model diffs
+buddy generate:migrations --dialect postgres  # into another dialect's corpus, no Postgres needed
+buddy generate:migrations --dialect all       # the connected dialect and every other corpus
 buddy migrate:regenerate <dialect>  # rebuild the whole corpus from the models
 buddy migrate:status                # corpus vs ledger vs live schema; lists hand-written files
 buddy migrate:align                 # plan repairs of a database that drifted from the models
 buddy migrate:align --apply         # rename legacy indexes, add missing indexes/FKs/columns, widen losslessly
 ```
+
+An app that develops on one dialect and deploys on another keeps a corpus per
+dialect (`database/migrations/<dialect>/`, each with its own snapshot). A plain
+`generate:migrations` moves only the connected dialect and then warns, naming
+any other corpus the models have left behind; `--dialect <name>` or `--dialect
+all` brings it up to date from the models and that dialect's snapshot, without a
+database of that dialect (#2949).
+
+`buddy migrate` never writes the committed migration files. What it adapts for
+the connected database (idempotent ALTERs on Postgres, statements SQLite cannot
+run, gated features) happens to a copy of the corpus made for that run, so a
+SQLite app's migrations stay SQLite after a migrate against Postgres (#2929).
+
+A non-interactive `buddy migrate` (CI, a deploy step) generates nothing unless
+given `--generate` (#2948). Generating there authored a migration nobody
+reviewed and applied it in the same run, and on a deploy box the file then
+vanished with the release directory. Generate locally, commit the files, and let
+the deploy apply them; add `--strict` in CI to fail when the models have drifted
+from the committed migrations.
 
 ## Creating a Schema Migration
 
@@ -61,6 +84,14 @@ schema and excludes framework demo tables. Set
 `database.models.includeFrameworkDefaults` only when the application deliberately
 wants the merged registry; application models override matching framework names.
 Discovered package model roots also contribute their declared models.
+
+The framework's default routes follow the same exclusion. At boot, a default
+route whose framework action uses an excluded model is not registered when the
+database has no table for that model, and one warning names each such route
+(#2943). Before this, those routes answered 500. If the table exists (for
+example, the app created it before the exclusion), the route registers as usual.
+Publish the model (`buddy publish model <Name>`) to serve the route from the
+app's own schema.
 
 The generator diffs the resolved registry against the committed dialect snapshot.
 An application does not need an `app/Models/` directory for fallback framework
