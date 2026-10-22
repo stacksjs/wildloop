@@ -72,6 +72,25 @@ async function rejection(bytes: Uint8Array): Promise<string | null> {
   }
 }
 
+/*
+ * Bun's default per-test timeout is 5s, and two of these do real codec work
+ * that lands close enough to it to lose on a busy machine.
+ *
+ * Measured on this Mac with nothing else running: shrinking a 3000x1000
+ * source takes 2.1s and the three-upload queue takes 1.6s. Almost none of
+ * that is the source — the same test at 2100x700 still takes 1.7s, because
+ * the cost is in producing the 2048-wide display image and the 640-wide
+ * thumbnail, and those sizes come from PHOTO_LIMITS rather than from the
+ * input. So there is no smaller photo that makes this test cheap while
+ * leaving it about anything.
+ *
+ * The full suite runs 358 files, and under that load 2.1s became 5.1s and
+ * 6.0s — failing on about half of the runs, and passing five times out of
+ * five on its own, which is what a timeout looks like from the outside when
+ * nothing prints the timeout.
+ */
+const CODEC_TIMEOUT = 30_000
+
 describe('fitWithin', () => {
   it('scales the long edge down to the limit and keeps the proportions', () => {
     expect(fitWithin(4032, 3024, 2048)).toEqual({ width: 2048, height: 1536 })
@@ -130,7 +149,7 @@ describe('processPhoto', () => {
     expect({ width: result.width, height: result.height }).toEqual({ width: 2048, height: 683 })
     const thumb = await decode(result.thumb)
     expect({ width: thumb.width, height: thumb.height }).toEqual({ width: 640, height: 213 })
-  })
+  }, CODEC_TIMEOUT)
 
   it('converts a PNG to JPEG', async () => {
     const result = await processPhoto(await makeImage(30, 30, 'png'))
@@ -145,7 +164,7 @@ describe('processPhoto', () => {
     const uploads = await Promise.all([makeImage(1200, 800), makeImage(600, 400), makeImage(20, 20)])
     await Promise.all(uploads.map(upload => processPhoto(upload)))
     expect(photoProcessingPeak()).toBe(1)
-  })
+  }, CODEC_TIMEOUT)
 
   it('keeps working after a rejected upload', async () => {
     await expect(processPhoto(new Uint8Array(0))).rejects.toBeInstanceOf(PhotoRejectedError)
