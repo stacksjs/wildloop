@@ -121,8 +121,23 @@ onMount(() => onNativeAccountChange(craft, () => { activity.set(null); saveNotic
           <MapPolyline :geometry="route()" strokeColor="#24724b" :strokeWidth="4" />
         </Map>
         <View :for="photo in activity()?.photos ?? []" :key="photo.id"><Image :source="{uri:photoUrl(photo)}" class="h-48 w-full rounded-[12px]" resizeMode="cover" /><Button :show="own" :disabled="busy" @click="removePhoto(photo)">Delete photo</Button></View>
-        <View class="flex-row flex-wrap gap-3"><Button testID="activity-kudos" :disabled="busy" @click="kudos()" :text="(kudosed() ? 'Kudos given' : 'Give kudos') + ' · ' + (activity()?.kudosCount ?? 0)" /><Button @click="share()">Share</Button><Button :show="route().length >= 4" @click="exportRoute()">Export GPX</Button></View>
-        <View :show="own" class="flex-row flex-wrap gap-3"><Button testID="activity-edit" :disabled="busy" @click="edit()">Edit activity</Button><Button :disabled="busy" @click="addPhoto()">Add a photo</Button><Button testID="activity-delete" :disabled="busy" :class="ui.danger" @click="remove()">Delete activity</Button></View>
+        {{-- Six buttons here carried no class at all, so they drew as bare
+             green words in two wrapped rows while "View trail" below them
+             was a button — one screen, two vocabularies. Kudos is what the
+             feed is built around, so it takes the filled one; the rest sit
+             beside it at the same width. --}}
+        <View class="flex-row gap-3">
+          <Button testID="activity-kudos" :disabled="busy" :class="ui.action" class="flex-1" @click="kudos()" :text="(kudosed() ? 'Kudos given' : 'Give kudos') + ' · ' + (activity()?.kudosCount ?? 0)" />
+          <Button :class="ui.secondary" class="flex-1" @click="share()">Share</Button>
+        </View>
+        <Button :show="route().length >= 4" :class="ui.secondary" @click="exportRoute()">Export GPX</Button>
+        <View :show="own" class="flex-row gap-3">
+          <Button testID="activity-edit" :disabled="busy" :class="ui.secondary" class="flex-1" @click="edit()">Edit activity</Button>
+          <Button :disabled="busy" :class="ui.secondary" class="flex-1" @click="addPhoto()">Add a photo</Button>
+        </View>
+        {{-- On its own line. It was a peer of "Add a photo", in red, a
+             thumb's width away, and it cannot be undone. --}}
+        <Button :show="own" testID="activity-delete" :disabled="busy" :class="ui.danger" class="mt-2" @click="remove()">Delete activity</Button>
         <Button :show="activity()?.trailId" :class="ui.secondary" @click="craft.navigation.open('/trail/' + activity().trailId)">View trail</Button>
       </View>
       <Text :class="ui.header">Comments</Text>
