@@ -61,7 +61,10 @@ onMount(() => onNativeAccountChange(craft, () => { user.set(null); profile.set(n
         <Text :show="user()?.bio" :text="user()?.bio || ''" :class="ui.body" />
         <Text :show="user()?.location" :text="user()?.location || ''" :class="ui.caption" />
         <Text :show="profile()" :text="(profile()?.stats?.activityCount || 0) + ' activities · ' + (profile()?.stats?.totalDistance || 0) + ' mi · ' + (profile()?.stats?.territoriesOwned || 0) + ' territories'" :class="ui.body" />
-        <Button :class="ui.secondary" @click="craft.navigation.open('/settings')">Edit profile</Button>
+        {{-- No "Edit profile" beside this: it opened `/settings`, which is
+             exactly where the gear in the title bar already goes. Two controls
+             for one destination, one of them naming a screen that does more
+             than editing a profile. --}}
         <Button :class="ui.secondary" @click="craft.navigation.open('/athlete/' + user().id)">View public profile</Button>
       </View>
       <Button class="mx-4 mt-4" :class="ui.secondary" :title="'Profile section' + ': ' + nativeChoiceLabel([{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],tab())" accessibilityLabel="Profile section" :accessibilityValue="nativeChoiceLabel([{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],tab())" @click="chooseNativeChoice(craft,'Profile section',[{value:'activities',label:'Activities'},{value:'saved',label:'Saved trails'}],choice=>{tab.set(choice)},message=>error.set(message))" />
