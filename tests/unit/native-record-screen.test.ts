@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { nativeKeychain, answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { visibility, waitForVisibility, nativeKeychain, answer, compileNativeBundle, nativeNodeStyle, nativeNodeProps, nativeNodeText, requests, shownText, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const checkpoint={userId:7,id:'run-7',startedAt:100000,type:'Hike',visibility:'private',gameMode:'free',targetTerritoryId:null,pauses:[],samples:[],pending:{upload_id:'run:run-7',completed_at:'2026-10-17T12:00:00Z'}}
 function ok(body:unknown,status=200){return {status,headers:{'content-type':'application/json'},body:JSON.stringify(body)}}
@@ -176,6 +176,35 @@ describe('native Record checkpoint recovery',()=>{
     expect(requests(screen).some(r=>r.payload.module==='Network')).toBe(false)
     expect(requests(screen).some(r=>r.payload.method==='startRecording')).toBe(false)
   })
+  /*
+   * A save in flight must not read like one that failed.
+   *
+   * The screen said "Recording retained on device" over a Retry button for
+   * the whole upload — the same words and the same two buttons as a failure.
+   * Seen on a device, where a save took most of a minute: long enough to
+   * believe it, and Discard sits right there.
+   */
+  it('says it is saving, and offers neither retry nor discard while it is',async()=>{
+    const screen=await recover()
+    await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')
+    await screen.event('record-retry','onPress')
+    answer(screen,await waitForRequest(screen,4,r=>r.payload.module==='SecureStorage' && r.payload.args[0]==='auth_token'),'record-token')
+    const me=await waitForRequest(screen,0,r=>r.payload.module==='Network')
+
+    // Answer nothing: this is the screen mid-upload.
+    await waitForText(screen,'Saving your activity…')
+    expect(visibility(screen,'record-retry')).toBe('none')
+    expect(visibility(screen,'record-discard')).toBe('none')
+
+    answer(screen,me,ok({user:{id:7}}))
+    const post=await waitForRequest(screen,requests(screen).indexOf(me)+1,r=>r.payload.module==='Network')
+    answer(screen,post,ok({error:'Temporarily unavailable'},503))
+    // And once it has failed, both come back.
+    await waitForText(screen,'Temporarily unavailable')
+    await waitForVisibility(screen,'record-retry','flex')
+    expect(visibility(screen,'record-discard')).toBe('flex')
+  })
+
   it('retains a finished track when uploading fails and retries the same identity',async()=>{
     const screen=await recover()
     await waitForText(screen,'Your finished recording is saved on this device. Retry the upload when connected.')

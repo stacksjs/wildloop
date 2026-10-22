@@ -17,6 +17,17 @@ const recording = state<NativeRecording|null>(null)
 const running = state(false)
 const paused = state(false)
 const busy = state(false)
+/*
+ * Whether the finished track is being sent right now.
+ *
+ * Distinct from `busy`, which covers starting, pausing and discarding too.
+ * Without it the screen said "Recording retained on device" over a Retry
+ * button while the upload was still running — the same words, and the same
+ * two buttons, as a save that had failed. Measured on a device: a save took
+ * most of a minute, and for all of it the screen read as a failure somebody
+ * should either retry or throw away.
+ */
+const saving = state(false)
 const loading = state(true)
 const error = state('')
 const notice = state('')
@@ -127,6 +138,8 @@ const GPS_SILENCE_SECONDS = 30
  * than a pessimistic caption.
  */
 function recordingState(): string {
+  if (saving())
+    return 'Saving your activity…'
   if (!running())
     return recording() ? 'Recording retained on device' : 'Ready to explore'
   if (paused())
@@ -261,28 +274,32 @@ function togglePause() { void perform(async () => {
 async function upload() {
   const value=recording()
   if (!value?.pending) return
-  const me=await api.send('/api/me')
-  if (!me.ok || Number(me.body?.user?.id) !== value.userId) throw new Error('Log in as the account that started this recording before uploading it.')
-  const response=await api.send('/api/activities','POST',value.pending)
-  if (!response.ok || !response.body?.activity?.id) throw new Error(response.body?.error || 'Upload failed. Your finished track is saved on this device; retry when connected.')
-  const activity=response.body.activity
-  let result='Activity saved.'
-  if (value.gameMode === 'capture' && activity.captureEligible) {
-    const claim=await api.send('/api/territories/claim','POST',{activity_id:activity.id})
-    const conquest=await api.send('/api/territories/process-conquest','POST',{activity_id:activity.id,...value.targetTerritoryId ? {target_territory_id:value.targetTerritoryId}:{}})
-    if (claim.status >= 500 || conquest.status >= 500) throw new Error('Your activity is saved. Territory processing will be retried with the same activity when you retry the upload.')
-    result=claim.body?.success ? `Activity saved. ${claim.body.xpGained ?? 0} XP earned.` : `Activity saved. ${claim.body?.error || 'Your territory results are ready.'}`
+  saving.set(true)
+  try {
+    const me=await api.send('/api/me')
+    if (!me.ok || Number(me.body?.user?.id) !== value.userId) throw new Error('Log in as the account that started this recording before uploading it.')
+    const response=await api.send('/api/activities','POST',value.pending)
+    if (!response.ok || !response.body?.activity?.id) throw new Error(response.body?.error || 'Upload failed. Your finished track is saved on this device; retry when connected.')
+    const activity=response.body.activity
+    let result='Activity saved.'
+    if (value.gameMode === 'capture' && activity.captureEligible) {
+      const claim=await api.send('/api/territories/claim','POST',{activity_id:activity.id})
+      const conquest=await api.send('/api/territories/process-conquest','POST',{activity_id:activity.id,...value.targetTerritoryId ? {target_territory_id:value.targetTerritoryId}:{}})
+      if (claim.status >= 500 || conquest.status >= 500) throw new Error('Your activity is saved. Territory processing will be retried with the same activity when you retry the upload.')
+      result=claim.body?.success ? `Activity saved. ${claim.body.xpGained ?? 0} XP earned.` : `Activity saved. ${claim.body?.error || 'Your territory results are ready.'}`
+    }
+    else if (value.gameMode === 'capture' && !activity.captureEligible) result=`Saved to your log. This track cannot capture territory: ${activity.integrityReason || 'route telemetry was not eligible'}`
+    if(craft.health && await craft.secureStorage.get('wildloop_health_connected')==='true') {
+      try {await craft.health.saveWorkout(createHealthWorkout({activityId:activity.id,activityType:value.type as 'Trail Run'|'Hike'|'Walk'|'Bike',startedAt:value.startedAt,endedAt:Date.parse(String(value.pending.completed_at)),distanceMiles:recordingFigures(value).distance,elapsedSeconds:movingSeconds(value,Date.parse(String(value.pending.completed_at))),samples:value.samples}))}
+      catch {result+=' Your workout could not be exported to Health; check its permission in Settings.'}
+    }
+    await craft.snapshots.set('wildloop-activity-notice',{activityId:activity.id,message:result})
+    await writes.catch(()=>{})
+    await craft.storage.remove(KEY)
+    recording.set(null);notice.set(result)
+    craft.navigation.open(`/activity/${activity.id}`)
   }
-  else if (value.gameMode === 'capture' && !activity.captureEligible) result=`Saved to your log. This track cannot capture territory: ${activity.integrityReason || 'route telemetry was not eligible'}`
-  if(craft.health && await craft.secureStorage.get('wildloop_health_connected')==='true') {
-    try {await craft.health.saveWorkout(createHealthWorkout({activityId:activity.id,activityType:value.type as 'Trail Run'|'Hike'|'Walk'|'Bike',startedAt:value.startedAt,endedAt:Date.parse(String(value.pending.completed_at)),distanceMiles:recordingFigures(value).distance,elapsedSeconds:movingSeconds(value,Date.parse(String(value.pending.completed_at))),samples:value.samples}))}
-    catch {result+=' Your workout could not be exported to Health; check its permission in Settings.'}
-  }
-  await craft.snapshots.set('wildloop-activity-notice',{activityId:activity.id,message:result})
-  await writes.catch(()=>{})
-  await craft.storage.remove(KEY)
-  recording.set(null);notice.set(result)
-  craft.navigation.open(`/activity/${activity.id}`)
+  finally { saving.set(false) }
 }
 function finish() { void perform(async () => {
   if (!recording() || !craft.location) return
@@ -347,8 +364,8 @@ onMount(()=>{
       <Button testID="record-pause" :disabled="busy" :class="ui.secondary" class="flex-1" @click="togglePause()" :text="paused() ? 'Resume' : 'Pause'" />
       <Button testID="record-finish" :disabled="busy" :class="ui.action" class="flex-1" @click="finish()" title="Finish and save" />
     </View>
-    <Button :show="recording()?.pending" testID="record-retry" :disabled="busy" :class="ui.action" @click="retry()" title="Retry upload" />
-    <Button :show="recording() && !running() && !recording()?.pending" :disabled="busy" @click="finish()">Save retained recording</Button>
-    <Button :show="recording() && !running()" :disabled="busy" :class="ui.danger" @click="discard()">Discard recording</Button>
+    <Button :show="recording()?.pending && !saving()" testID="record-retry" :disabled="busy" :class="ui.action" @click="retry()" title="Retry upload" />
+    <Button :show="recording() && !running() && !recording()?.pending && !saving()" :disabled="busy" @click="finish()">Save retained recording</Button>
+    <Button :show="recording() && !running() && !saving()" testID="record-discard" :disabled="busy" :class="ui.danger" @click="discard()">Discard recording</Button>
   </View>
 </View>
