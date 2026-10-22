@@ -55,28 +55,34 @@ by a bundle id of `""`. That fails as `FBSApplicationLibrary returned nil for
 
 ## How long it takes
 
-The three signed-out tests take about 25 seconds between them. The
-signed-in one takes either ~22 seconds or ~740, and the difference is not
-the test.
+About 53 seconds for all four, the signed-in one being roughly half of
+that. It used to be 765, and the story is worth keeping.
 
-**The app never reports its animations complete.** XCUITest blocks every
-*interaction* until the app under test goes quiescent, waits 60 seconds,
-then logs `App animations complete notification not received, will
-attempt to continue` and proceeds. The signed-in test is the only one
-that taps anything — the other three only query, and queries do not wait
-— so it is the only one that pays, ten times over: sign-in alone is six
-taps and types.
+XCUITest blocks every *interaction* until the app under test goes
+quiescent, waits 60 seconds, then logs `App animations complete
+notification not received, will attempt to continue` and proceeds. The
+signed-in test is the only one that taps — the other three only query,
+and queries do not wait — so it was the only one that paid, twelve times
+over at a minute each.
 
-Measured on 23 Oct 2026: the first idle wait is at t=5.4s, on the login
-screen, before a feed or a map has been drawn. So it is not the feed's
-refresh spinner and not the trail map beside the tabs — that accessory
-is a button, not a resident view. What does keep the app busy is not yet
-known. The tab roots Craft prepares hidden at launch are the obvious
-place to look next, since they are the only thing running that the login
-screen does not show.
+The cause was a spinner nobody could see. Craft prepares the tab roots
+hidden beside the visible screen, so on a signed-out launch the Feed
+mounted behind the gate, set `loading` true, met `requireNativeAccount`,
+and returned to send the viewer to Login — with the flag still true. Its
+`ActivityIndicator` and its pull-to-refresh control then animated for as
+long as the app lived, and an animation that never ends is UIKit's
+definition of an app that is not idle.
 
-Worth knowing beyond the test: whatever this is, the app is telling
-UIKit it is still animating when nobody is looking at it.
+Two things made it hard to see. It only appears signed out, so a device
+with a session left on it from an earlier run was fast, which read as
+flakiness. And the screen doing it was not the screen on display:
+the first stall lands at t=5.4s with Login in front, which sent me
+looking at Login, at the trail map beside the tabs, and at the feed's
+refresh spinner as a *visible* thing, all of them wrong.
+
+`native-feed-screen.test.ts` pins it now: a feed that bails to Login
+leaves `feed-loading` hidden. Clubs and TrailDetail had the same shape
+and were fixed with it.
 
 ## What it cannot cover
 

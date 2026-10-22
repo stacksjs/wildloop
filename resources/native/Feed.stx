@@ -29,7 +29,17 @@ async function load(more = false) {
   {{-- The gate. The feed is the launch screen, so this is where somebody with
        no account meets the app: Login, with no tab bar and no way back. There
        is no public Wildloop to browse, so there is no public feed to draw. --}}
-  if (!await requireNativeAccount(craft, '/feed')) return
+  if (!await requireNativeAccount(craft, '/feed')) {
+    // Stop the spinner before leaving. A screen that returns here is on its
+    // way to Login, but Craft prepares the tab roots hidden beside the
+    // visible screen, so this one went on spinning behind the gate — and an
+    // animating spinner is an animation that never ends, which is UIKit's
+    // definition of an app that is not idle. XCUITest then blocks every tap
+    // for sixty seconds waiting for quiescence, and the device suite went
+    // from 22 seconds to 740. Found 23 Oct 2026.
+    loading.set(false)
+    return
+  }
   try {
     const response = await api.send(`/api/activities?limit=30&offset=${more ? rows().length : 0}&scope=${scope()}${filter() === 'all' ? '' : '&activity_type=' + encodeURIComponent(filter())}`)
     if (!response.ok) throw new Error('The feed could not be loaded. Pull down to retry.')

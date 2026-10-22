@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { nativeKeychain, chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
+import { visibility, nativeKeychain, chooseNativeOption, answer, compileNativeBundle, nativeNodeProps, requests, start, waitForRequest, waitForText } from '../fixtures/nativeScreen'
 
 const activity={id:7,userId:2,userName:'Trail friend',activityType:'Hike',title:'Ridge day',distance:3,duration:'1:00:00',elevationGain:300,kudosCount:1,viewerKudosed:true,route:[]}
 function ok(activities:unknown[]){return {status:200,headers:{'content-type':'application/json'},body:JSON.stringify({activities,meta:{hasMore:false}})}}
@@ -45,5 +45,23 @@ describe('native Feed',()=>{
       await Bun.sleep(1)
     expect(screen.sent.some(m=>m.type==='NAVIGATE_OPEN' && m.payload.path==='/login?next=%2Ffeed')).toBe(true)
     expect(requests(screen).some(r=>r.payload.module==='Network')).toBe(false)
+  })
+  /*
+   * And it stops spinning on the way out.
+   *
+   * Craft prepares the tab roots hidden beside the visible screen, so a feed
+   * that bailed to Login with `loading` still true went on animating behind
+   * the gate. An animating spinner is an animation that never ends, which is
+   * UIKit's definition of an app that is not idle, and XCUITest blocks every
+   * interaction for sixty seconds waiting for quiescence: the device suite
+   * went from 22 seconds to 740, and the cause read as anything but a
+   * spinner nobody could see.
+   */
+  it('stops its spinner when it bails to Login, rather than animating behind the gate',async()=>{
+    const screen=await start('Feed',{},undefined,{},nativeKeychain(null))
+    for(let attempt=0;attempt<60 && !screen.sent.some(m=>m.type==='NAVIGATE_OPEN');attempt++)
+      await Bun.sleep(1)
+    await Bun.sleep(5)
+    expect(visibility(screen,'feed-loading')).toBe('none')
   })
 })
