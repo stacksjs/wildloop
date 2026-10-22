@@ -55,11 +55,28 @@ by a bundle id of `""`. That fails as `FBSApplicationLibrary returned nil for
 
 ## How long it takes
 
-About 50 seconds of tests, plus a reinstall and an xcodebuild. One run of the
-signed-in test took 735 seconds instead of its usual 22 — the step it sat on
-was the Record screen arriving, so the likely cause is the dev server
-compiling a route rather than anything in the test. Worth knowing before you
-assume a hang: let it finish once before killing it.
+The three signed-out tests take about 25 seconds between them. The
+signed-in one takes either ~22 seconds or ~740, and the difference is not
+the test.
+
+**The app never reports its animations complete.** XCUITest blocks every
+*interaction* until the app under test goes quiescent, waits 60 seconds,
+then logs `App animations complete notification not received, will
+attempt to continue` and proceeds. The signed-in test is the only one
+that taps anything — the other three only query, and queries do not wait
+— so it is the only one that pays, ten times over: sign-in alone is six
+taps and types.
+
+Measured on 23 Oct 2026: the first idle wait is at t=5.4s, on the login
+screen, before a feed or a map has been drawn. So it is not the feed's
+refresh spinner and not the trail map beside the tabs — that accessory
+is a button, not a resident view. What does keep the app busy is not yet
+known. The tab roots Craft prepares hidden at launch are the obvious
+place to look next, since they are the only thing running that the login
+screen does not show.
+
+Worth knowing beyond the test: whatever this is, the app is telling
+UIKit it is still animating when nobody is looking at it.
 
 ## What it cannot cover
 

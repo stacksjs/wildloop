@@ -74,5 +74,24 @@ extension XCTestCase {
         password.typeText(account.password)
 
         app.buttons["login-submit"].tap()
+        dismissPasswordSavePrompt()
+    }
+
+    /// iOS offers to save the password it just saw typed.
+    ///
+    /// It is SpringBoard's, not the app's, and it covers the screen the test
+    /// is waiting on — so a run that ignores it waits out its timeout and then
+    /// reports whatever it was looking for as missing. It only appears on a
+    /// device that has not answered it before, which is why this surfaced on a
+    /// freshly created simulator and not on the one used the day before.
+    ///
+    /// An `addUIInterruptionMonitor` would also do it, but only fires once the
+    /// test touches a blocked element; this asks directly and stays quiet when
+    /// there is nothing to dismiss.
+    func dismissPasswordSavePrompt() {
+        let notNow = Wildloop.springboard.buttons["Not Now"]
+        if notNow.waitForExistence(timeout: 5) {
+            notNow.tap()
+        }
     }
 }
