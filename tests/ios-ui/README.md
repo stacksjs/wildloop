@@ -88,7 +88,7 @@ and were fixed with it.
 
 The home-screen long-press menu, which is where the App Shortcut leak closed
 in 14245c1b came through. Neither stx's native runtime nor craft-native has a
-Shortcuts module, so `craft.shortcuts` does not exist in an all-native build
-and nothing registers the quick actions — `registerAppShortcuts` answers
-`unsupported`, correctly. Siri and Spotlight are unaffected: those come from
+Shortcuts module (craft-native/craft#412), so `craft.shortcuts` does not
+exist in an all-native build and nothing registers the quick actions —
+`registerAppShortcuts` answers `unsupported`, correctly. Siri and Spotlight are unaffected: those come from
 the App Intents Craft generates out of `config/mobile.ts`.

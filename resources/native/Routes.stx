@@ -81,7 +81,8 @@ function choosePlace(place: any) {
  * `'undetermined'` for every permission except notifications
  * (`native/runtime/craft-bridge.js`), so it reads the same whether the viewer
  * allowed, denied, or was never asked. It is typed, it never throws, and it is
- * wrong — the `useDebounceFn` shape of trap. The host has the real check
+ * wrong — the `useDebounceFn` shape of trap. Filed as stacksjs/stx#2115.
+ * The host has the real check
  * (`locationPermissionGranted` in `CraftNativeScreen.swift`) and the native
  * bridge serves no Permissions module to reach it.
  */

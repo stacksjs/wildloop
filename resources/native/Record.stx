@@ -125,7 +125,8 @@ const GPS_SILENCE_SECONDS = 30
  * reads identically whether the viewer allowed, denied or was never asked.
  * The host has the real check (`locationPermissionGranted` in
  * `CraftNativeScreen.swift`); the native bridge serves no Permissions module
- * to reach it.
+ * to reach it. Filed as stacksjs/stx#2115 — still true in 0.2.663, where the
+ * stub also overrides any host implementation via `Object.assign`.
  *
  * It does not matter here, because a recording holding no samples at all is
  * either waiting for a fix or never going to get one, and both of those are
