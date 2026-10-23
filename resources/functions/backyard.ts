@@ -251,6 +251,14 @@ export function formatClock(ms: number): string {
  */
 const PACE_SAMPLE_LAPS = 3
 
+/**
+ * A runner still on the loop has not crossed the line, so they never reach the
+ * end of it. Without this an overdue runner lands on exactly the point the
+ * corral stands on, and the one runner whose position matters most — the one
+ * about to miss the cutoff — is drawn underneath the people already resting.
+ */
+const MAX_ON_LOOP = 0.985
+
 export interface BackyardRunnerLaps extends BackyardEntrantState {
   /** This runner's own lap durations in seconds, oldest first. */
   lapSeconds?: number[]
@@ -319,10 +327,10 @@ export function backyardProgress(
     const raw = pace > 0 ? elapsed / pace : 0
     return {
       ...base,
-      progress: Math.min(1, Math.max(0, raw)),
+      progress: Math.min(MAX_ON_LOOP, Math.max(0, raw)),
       state: 'running' as const,
-      // Held at the line rather than sent round again: a runner past their own
-      // lap time is somewhere near the end of it, not starting a second one.
+      // Held just short of the line rather than sent round again: a runner
+      // past their own lap time is near the end of it, not starting a second.
       overdue: raw > 1,
     }
   })

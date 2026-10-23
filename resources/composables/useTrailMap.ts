@@ -1040,11 +1040,32 @@ export interface RunnerHead {
   overdue: boolean
   /** No laps of their own behind the estimate, so the position is a guess. */
   guessed: boolean
+  /**
+   * How many more runners are standing on this exact spot. Only the corral
+   * uses it: between yards the whole still-in field is on the start line, and
+   * one head per runner there would draw the field as a single person. A
+   * count says how many without inventing positions for them.
+   */
+  others?: number
 }
 
 export interface RunnerHeadsLayer {
   update: (heads: RunnerHead[]) => Promise<void>
   destroy: () => void
+}
+
+/**
+ * Who wins an overlap.
+ *
+ * Heads near the line sit close together at any useful zoom, and no epsilon in
+ * the arithmetic fixes that — it is the ordering that decides which one you
+ * can see. A runner about to miss the cutoff is the one worth seeing, and the
+ * corral behind them is only a count.
+ */
+function headDepth(head: RunnerHead): number {
+  if (head.overdue)
+    return 1400
+  return head.state === 'corral' ? 1000 : 1200
 }
 
 function headClass(head: RunnerHead): string {
@@ -1072,7 +1093,8 @@ function headHtml(head: RunnerHead): string {
   const face = head.avatar && head.avatar.startsWith('https://')
     ? `<img src="${escapeHtml(head.avatar)}" alt="" loading="lazy" />`
     : `<b>${escapeHtml(avatarInitial(head.name))}</b>`
-  return `<span title="${name}">${face}</span>`
+  const more = head.others && head.others > 0 ? `<i>+${head.others}</i>` : ''
+  return `<span title="${name}">${face}</span>${more}`
 }
 
 /**
@@ -1098,7 +1120,7 @@ export async function createRunnerHeads(map: TsMapType): Promise<RunnerHeadsLaye
       }
 
       for (const head of heads) {
-        const look = `${headClass(head)}|${head.avatar ?? ''}|${head.name}`
+        const look = `${headClass(head)}|${head.avatar ?? ''}|${head.name}|${head.others ?? 0}`
         const held = markers.get(head.userId)
         if (held) {
           held.marker.setLatLng(head.point)
@@ -1106,6 +1128,7 @@ export async function createRunnerHeads(map: TsMapType): Promise<RunnerHeadsLaye
           // poll throws away the element the browser is mid-transition on.
           if (held.look !== look) {
             held.marker.setIcon(maps.divIcon({ className: headClass(head), html: headHtml(head), iconSize: [30, 30], iconAnchor: [15, 15] }))
+            held.marker.setZIndexOffset?.(headDepth(head))
             held.look = look
           }
           continue
@@ -1113,7 +1136,7 @@ export async function createRunnerHeads(map: TsMapType): Promise<RunnerHeadsLaye
         const marker = new maps.Marker(head.point, {
           icon: maps.divIcon({ className: headClass(head), html: headHtml(head), iconSize: [30, 30], iconAnchor: [15, 15] }),
           keyboard: false,
-          zIndexOffset: 1200,
+          zIndexOffset: headDepth(head),
         })
         map.addLayer(marker)
         markers.set(head.userId, { marker, look })

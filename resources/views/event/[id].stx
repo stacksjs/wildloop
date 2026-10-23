@@ -219,22 +219,37 @@
     const runners = backyardRunnersFrom(live)
     const faceOf = new Map(runners.map(runner => [runner.userId, runner.avatar]))
 
-    return backyardProgress(runners, backyardScheduleFrom(detail), at)
-      .map((runner) => {
-        const point = pointAlongLine(line, runner.progress)
-        if (!point)
-          return null
-        return {
-          userId: runner.userId,
-          name: runner.name ?? 'Runner',
-          avatar: faceOf.get(runner.userId) ?? null,
-          point: [point.lat, point.lng],
-          state: runner.state,
-          overdue: runner.overdue,
-          guessed: runner.basedOnLaps === 0,
-        }
-      })
-      .filter(Boolean)
+    const placed = backyardProgress(runners, backyardScheduleFrom(detail), at)
+    const head = (runner, extra) => {
+      const point = pointAlongLine(line, runner.progress)
+      if (!point)
+        return null
+      return {
+        userId: runner.userId,
+        name: runner.name ?? 'Runner',
+        avatar: faceOf.get(runner.userId) ?? null,
+        point: [point.lat, point.lng],
+        state: runner.state,
+        overdue: runner.overdue,
+        guessed: runner.basedOnLaps === 0,
+        ...extra,
+      }
+    }
+
+    // Everyone in the corral is on the start line, so between yards a head
+    // each would draw the whole resting field as one person. The leader of
+    // them wears the count instead, and the title names the rest: a number is
+    // honest about how many are there, where a ring of invented positions
+    // would not be.
+    const resting = placed.filter(runner => runner.state === 'corral')
+    const corral = resting.length > 1
+      ? [head(resting[0], {
+          others: resting.length - 1,
+          name: `${resting.length} in the corral: ${resting.map(runner => runner.name ?? 'Runner').join(', ')}`,
+        })]
+      : resting.map(runner => head(runner))
+
+    return [...placed.filter(runner => runner.state !== 'corral').map(runner => head(runner)), ...corral].filter(Boolean)
   })
 
   async function mountLoopMap() {

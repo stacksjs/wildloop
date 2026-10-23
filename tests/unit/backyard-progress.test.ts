@@ -60,7 +60,10 @@ describe('placing the field on the loop', () => {
     // runner a quarter of the way into a second lap, it is a runner in trouble.
     const ada = runner({ yardsCompleted: 2, lapSeconds: [2400, 2400], lastLapAt: new Date(START_MS + 2 * HOUR - MINUTE).toISOString() })
     const [at] = backyardProgress([ada], schedule, START_MS + 2 * HOUR + 50 * MINUTE)
-    expect(at.progress).toBe(1)
+    // Short of the line, never on it: the corral stands on that exact point,
+    // and a runner who has not finished must not be drawn among them.
+    expect(at.progress).toBeLessThan(1)
+    expect(at.progress).toBeCloseTo(0.985, 3)
     expect(at.overdue).toBe(true)
   })
 

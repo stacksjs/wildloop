@@ -14,3 +14,8 @@
 /* The pace behind this position was borrowed from the field, so say so rather
    than drawing a guess as confidently as a measurement. */
 .wl-runner-head.is-guessed > span { opacity: .55; border-style: dashed; }
+/* The rest of the corral, counted rather than drawn: between yards every
+   still-in runner is on the start line, and stacking a head per runner there
+   shows the field as one person. */
+.wl-runner-head { position: relative; }
+.wl-runner-head i { position: absolute; right: -7px; bottom: -3px; min-width: 9px; padding: 0 3px; border: 1px solid #fff; border-radius: 999px; background: #0f172a; color: #fff; font-size: 9px; font-style: normal; font-weight: 700; line-height: 13px; text-align: center; }
