@@ -3,6 +3,7 @@
 @section('title', 'Live Event - Wildloop')
 
 @section('content')
+<link rel="stylesheet" href="../../../public/css/runner-heads.css">
 <script server>
   /*
    * This event's own metadata in the HTML — see `trail/[id].stx` for the
@@ -112,8 +113,10 @@
   import { pathIdFrom } from '../../functions/route-id'
   import { eventTypeLabel, standingStatusText } from '../../functions/events'
   import { shareLink, shareNote } from '../../composables/useShareLink'
-  import { createTrailMap, drawTrailRoute, runWhenMapReady, type TrailMapHandle } from '../../composables/useTrailMap'
-  import { formatClock } from '../../functions/backyard'
+  import { createRunnerHeads, createTrailMap, drawTrailRoute, runWhenMapReady, type RunnerHeadsLayer, type TrailMapHandle } from '../../composables/useTrailMap'
+  import { backyardProgress, formatClock } from '../../functions/backyard'
+  import { backyardRunnersFrom, backyardScheduleFrom } from '../../functions/events'
+  import { pointAlongLine } from '../../functions/geo'
 
   useHead({ title: 'Live Event - Wildloop' })
 
@@ -190,6 +193,49 @@
   const shareMessage = derived(() => shareNote())
 
   let loopMap: TrailMapHandle | null = null
+  let heads: RunnerHeadsLayer | null = null
+
+  /**
+   * Where the field probably is, as of the clock the board was read on.
+   *
+   * Dead reckoning, not telemetry — see `backyardProgress`. The position comes
+   * from `serverTime` rather than this device's clock for the same reason the
+   * countdown does: a laptop three minutes fast would otherwise draw the whole
+   * field three minutes up the course. With no usable server clock the field
+   * is simply not drawn, which beats drawing it somewhere wrong.
+   */
+  const runnerHeads = derived(() => {
+    const detail = event()
+    const live = board()
+    const route = detail?.loopRoute
+    if (!detail || live?.status !== 'live' || !Array.isArray(route) || route.length < 2)
+      return []
+
+    const at = Date.parse(String(live.serverTime ?? ''))
+    if (!Number.isFinite(at))
+      return []
+
+    const line = route.map(([lat, lng]) => ({ lat, lng }))
+    const runners = backyardRunnersFrom(live)
+    const faceOf = new Map(runners.map(runner => [runner.userId, runner.avatar]))
+
+    return backyardProgress(runners, backyardScheduleFrom(detail), at)
+      .map((runner) => {
+        const point = pointAlongLine(line, runner.progress)
+        if (!point)
+          return null
+        return {
+          userId: runner.userId,
+          name: runner.name ?? 'Runner',
+          avatar: faceOf.get(runner.userId) ?? null,
+          point: [point.lat, point.lng],
+          state: runner.state,
+          overdue: runner.overdue,
+          guessed: runner.basedOnLaps === 0,
+        }
+      })
+      .filter(Boolean)
+  })
 
   async function mountLoopMap() {
     const route = event()?.loopRoute
@@ -199,11 +245,22 @@
     if (!loopMap) return
     await drawTrailRoute(loopMap.map, route, { color: '#059669', weight: 5 })
     loopMap.fitPoints(route, [28, 28])
+    heads = await createRunnerHeads(loopMap.map)
+    await heads.update(runnerHeads())
   }
+
+  // Each poll moves the markers that are already there rather than replacing
+  // them, so the field reads as running rather than blinking from spot to spot.
+  effect(() => {
+    const field = runnerHeads()
+    void heads?.update(field)
+  })
 
   onMount(() => runWhenMapReady('event-loop-map', mountLoopMap))
 
   onDestroy(() => {
+    heads?.destroy()
+    heads = null
     loopMap?.destroy()
     loopMap = null
   })
@@ -480,6 +537,11 @@
             <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div id="event-loop-map" data-stx-ignore class="ts-map-container h-72"></div>
             </div>
+            {{-- Say what the heads are. A position nobody broadcast, drawn as
+                 confidently as one that was, is the way this feature misleads. --}}
+            <p :if="runnerHeads().length > 0" class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Positions are worked out from the corral clock and each runner's recent laps — nobody is broadcasting a location. A dashed head means we are going on the field's pace rather than their own.
+            </p>
           </div>
         </div>
 

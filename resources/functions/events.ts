@@ -7,6 +7,7 @@
  * in, and what a backyard ultra's standing reads like mid-race.
  */
 
+import type { BackyardRunnerLaps, BackyardSchedule } from './backyard'
 import { formatClock } from './backyard'
 
 export const EVENT_TYPES = ['backyard', 'race', 'group_run', 'time_trial'] as const
@@ -293,4 +294,59 @@ export function canReportLap(me: any, live: any, event: any): boolean {
 /** The lap a report is for: the yard the board says is running. */
 export function nextLapBody(live: any): { yard: number } {
   return { yard: Math.max(1, Number(live?.currentYard ?? 0) || 1) }
+}
+
+/**
+ * The live board, rearranged into what `backyardProgress` needs to place the
+ * field on the loop.
+ *
+ * The board already carries everything: the schedule rides on the event, and
+ * each runner's recent lap times are in the lap feed. Nothing new is fetched
+ * and nobody broadcasts a position.
+ *
+ * One honest limit: the feed is capped (40 laps at the time of writing) across
+ * the *whole field*, so deep into a long race a back-marker may have none of
+ * their own laps in it. That is not a failure — they fall back to the field's
+ * pace and report `basedOnLaps: 0`, which is the board's cue to dim them.
+ */
+export function backyardScheduleFrom(event: any): BackyardSchedule {
+  return {
+    startTime: String(event?.startTime ?? ''),
+    yardMinutes: Number(event?.yardMinutes) || 60,
+    loopDistance: Number(event?.loopDistance) || undefined,
+    maxYards: event?.maxYards ?? null,
+  }
+}
+
+/** A runner the board can draw: the timing fields, plus the face. */
+export interface BackyardRunnerRow extends BackyardRunnerLaps {
+  avatar: string | null
+}
+
+export function backyardRunnersFrom(live: any): BackyardRunnerRow[] {
+  const laps = recentLapsFrom(live)
+  const byRunner = new Map<number, number[]>()
+  // The feed arrives newest first; a pace wants them oldest first so the tail
+  // of the list is the most recent running.
+  for (let i = laps.length - 1; i >= 0; i--) {
+    const userId = Number(laps[i]?.userId)
+    const seconds = Number(laps[i]?.durationSeconds)
+    if (!Number.isFinite(userId) || !Number.isFinite(seconds) || seconds <= 0)
+      continue
+    const seen = byRunner.get(userId)
+    if (seen)
+      seen.push(seconds)
+    else
+      byRunner.set(userId, [seconds])
+  }
+
+  return standingsFrom(live).map((standing: any) => ({
+    userId: Number(standing?.userId) || 0,
+    name: standing?.name,
+    avatar: standing?.avatar ?? null,
+    status: standing?.status,
+    yardsCompleted: Number(standing?.yardsCompleted) || 0,
+    lastLapAt: standing?.lastLapAt ?? null,
+    lapSeconds: byRunner.get(Number(standing?.userId)) ?? [],
+  }))
 }

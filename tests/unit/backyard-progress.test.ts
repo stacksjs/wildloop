@@ -2,6 +2,7 @@ import type { Coordinate } from '../../resources/functions/geo'
 import type { BackyardRunnerLaps, BackyardSchedule } from '../../resources/functions/backyard'
 import { describe, expect, it } from 'bun:test'
 import { backyardProgress, STANDARD_YARD_MILES } from '../../resources/functions/backyard'
+import { backyardRunnersFrom, backyardScheduleFrom } from '../../resources/functions/events'
 import { pointAlongLine } from '../../resources/functions/geo'
 
 /**
@@ -120,5 +121,48 @@ describe('walking a line to a fraction', () => {
     const stacked = [{ lat: 1, lng: 1 }, { lat: 1, lng: 1 }]
     expect(pointAlongLine(stacked, 0.5)).toEqual({ lat: 1, lng: 1 })
     expect(pointAlongLine(line, Number.NaN)).toEqual({ lat: 0, lng: 0 })
+  })
+})
+
+describe('reading the field off the live board', () => {
+  // The board as the server sends it: laps newest first, capped across the
+  // whole field, with the schedule riding on the event rather than the board.
+  const board = {
+    status: 'live',
+    serverTime: new Date(START_MS + 2 * HOUR + 20 * MINUTE).toISOString(),
+    standings: [
+      { userId: 1, name: 'Ada', avatar: 'https://example.test/ada.jpg', status: 'running', yardsCompleted: 2, lastLapAt: new Date(START_MS + 2 * HOUR - 5 * MINUTE).toISOString() },
+      { userId: 2, name: 'Grace', avatar: null, status: 'running', yardsCompleted: 2, lastLapAt: new Date(START_MS + 2 * HOUR - 8 * MINUTE).toISOString() },
+    ],
+    recentLaps: [
+      { userId: 1, durationSeconds: 3000, finishedAt: new Date(START_MS + 2 * HOUR - 5 * MINUTE).toISOString() },
+      { userId: 2, durationSeconds: 2000, finishedAt: new Date(START_MS + 2 * HOUR - 8 * MINUTE).toISOString() },
+      { userId: 1, durationSeconds: 1800, finishedAt: new Date(START_MS + HOUR - 5 * MINUTE).toISOString() },
+    ],
+  }
+
+  it('gives each runner their own laps, oldest first', () => {
+    const [ada, grace] = backyardRunnersFrom(board)
+    // The feed is newest first, and a pace that reads it in that order would
+    // treat Ada's opening 30-minute lap as her most recent.
+    expect(ada.lapSeconds).toEqual([1800, 3000])
+    expect(grace.lapSeconds).toEqual([2000])
+    expect(ada.avatar).toBe('https://example.test/ada.jpg')
+  })
+
+  it('leaves a runner with nothing in the capped feed an empty history, not a wrong one', () => {
+    const backMarker = { ...board, standings: [...board.standings, { userId: 3, name: 'Edsger', avatar: null, status: 'running', yardsCompleted: 2, lastLapAt: null }] }
+    const runners = backyardRunnersFrom(backMarker)
+    expect(runners.find(runner => runner.userId === 3)?.lapSeconds).toEqual([])
+    // And that runner is then drawn on the field's pace, flagged as a guess.
+    const placed = backyardProgress(runners, backyardScheduleFrom({ startTime: START, yardMinutes: 60 }), Date.parse(board.serverTime))
+    expect(placed.find(runner => runner.userId === 3)?.basedOnLaps).toBe(0)
+  })
+
+  it('takes the schedule off the event, where it lives', () => {
+    expect(backyardScheduleFrom({ startTime: START, yardMinutes: 30, loopDistance: 2.5, maxYards: 12 }))
+      .toEqual({ startTime: START, yardMinutes: 30, loopDistance: 2.5, maxYards: 12 })
+    // A board that arrived without a yard length still has to tick somewhere.
+    expect(backyardScheduleFrom({}).yardMinutes).toBe(60)
   })
 })

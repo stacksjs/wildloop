@@ -219,6 +219,8 @@ declare global {
   const entryLabel: typeof autoImports.entryLabel
   const canReportLap: typeof autoImports.canReportLap
   const nextLapBody: typeof autoImports.nextLapBody
+  const backyardScheduleFrom: typeof autoImports.backyardScheduleFrom
+  const backyardRunnersFrom: typeof autoImports.backyardRunnersFrom
   const EVENT_TYPES: typeof autoImports.EVENT_TYPES
   const EVENT_TYPE_LABELS: typeof autoImports.EVENT_TYPE_LABELS
   const ENTRANT_STATUS_LABELS: typeof autoImports.ENTRANT_STATUS_LABELS

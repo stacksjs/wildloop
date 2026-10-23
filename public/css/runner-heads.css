@@ -1,0 +1,16 @@
+/* The field on a backyard loop (composables/useTrailMap createRunnerHeads).
+   Linked by the one page that draws it rather than preflighted into all 22:
+   the generated stylesheet is per-page, so a preflight would put these rules
+   on every page that never shows a race. */
+.wl-runner-head { border: 0; background: transparent; }
+.wl-runner-head > span { display: grid; width: 30px; height: 30px; overflow: hidden; place-items: center; border: 2px solid #059669; border-radius: 999px; background: #fff; box-shadow: 0 1px 4px #17231240; transition: transform .25s ease; }
+.wl-runner-head img { width: 100%; height: 100%; object-fit: cover; }
+.wl-runner-head b { font-size: 12px; font-weight: 700; color: #065f46; }
+/* Back in the corral, not on the loop: smaller, so a cluster of resting
+   runners at the start line does not read as a crowd out on the course. */
+.wl-runner-head.is-corral > span { width: 24px; height: 24px; border-color: #94a3b8; }
+/* Past their own lap time, and in danger of the cutoff. */
+.wl-runner-head.is-overdue > span { border-color: #dc2626; box-shadow: 0 0 0 3px #dc262633; }
+/* The pace behind this position was borrowed from the field, so say so rather
+   than drawing a guess as confidently as a measurement. */
+.wl-runner-head.is-guessed > span { opacity: .55; border-style: dashed; }

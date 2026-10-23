@@ -1,3 +1,4 @@
+import { avatarInitial } from '../functions/avatars'
 import { trailDirectionSigns, trailDirectionVisibility, trailRouteStyle } from '../functions/trail-map'
 import { TRAIL_MAP_CSS, TRAIL_MAP_JS } from '../assets/scripts/map-assets'
 import type { CircleMarker as CircleMarkerType, Marker as MarkerType } from 'ts-maps'
@@ -1018,4 +1019,110 @@ export async function createLiveRouteLine(
     layer.addPoint([lng, lat])
   }
   return live
+}
+
+/**
+ * The field, placed on a backyard loop.
+ *
+ * These heads are an estimate — see `backyardProgress`, which works out where
+ * each runner probably is from the corral clock and their own recent laps.
+ * Nobody is broadcasting a position, so the layer carries that uncertainty in
+ * what it draws: a runner whose pace was borrowed from the field is dimmed,
+ * and one who is past their own lap time is ringed in red.
+ */
+export interface RunnerHead {
+  userId: number
+  name: string
+  avatar: string | null
+  point: LatLng
+  /** Out on the loop, or back in the corral waiting for the next gun. */
+  state: 'running' | 'corral'
+  overdue: boolean
+  /** No laps of their own behind the estimate, so the position is a guess. */
+  guessed: boolean
+}
+
+export interface RunnerHeadsLayer {
+  update: (heads: RunnerHead[]) => Promise<void>
+  destroy: () => void
+}
+
+function headClass(head: RunnerHead): string {
+  const parts = ['wl-runner-head']
+  if (head.state === 'corral')
+    parts.push('is-corral')
+  if (head.overdue)
+    parts.push('is-overdue')
+  if (head.guessed)
+    parts.push('is-guessed')
+  return parts.join(' ')
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[character] ?? character
+  ))
+}
+
+function headHtml(head: RunnerHead): string {
+  const name = escapeHtml(head.name || 'Runner')
+  // An https face, or their initial. The same rule as the Me tab: initials
+  // beat a broken image box, and a non-https src is not worth the mixed-content
+  // warning on a page served over TLS.
+  const face = head.avatar && head.avatar.startsWith('https://')
+    ? `<img src="${escapeHtml(head.avatar)}" alt="" loading="lazy" />`
+    : `<b>${escapeHtml(avatarInitial(head.name))}</b>`
+  return `<span title="${name}">${face}</span>`
+}
+
+/**
+ * Markers are moved, never rebuilt, while a runner stays on the loop.
+ *
+ * The board re-polls every few seconds and removing and re-adding a marker
+ * each time makes the whole field blink. `setLatLng` on the marker already
+ * there is what makes a runner read as moving rather than teleporting, and it
+ * is why this returns a handle instead of a fresh layer per poll.
+ */
+export async function createRunnerHeads(map: TsMapType): Promise<RunnerHeadsLayer> {
+  const maps = await ensureTsMaps()
+  const markers = new Map<number, { marker: any, look: string }>()
+
+  return {
+    async update(heads: RunnerHead[]): Promise<void> {
+      const wanted = new Set(heads.map(head => head.userId))
+      for (const [userId, held] of markers) {
+        if (!wanted.has(userId)) {
+          map.removeLayer(held.marker)
+          markers.delete(userId)
+        }
+      }
+
+      for (const head of heads) {
+        const look = `${headClass(head)}|${head.avatar ?? ''}|${head.name}`
+        const held = markers.get(head.userId)
+        if (held) {
+          held.marker.setLatLng(head.point)
+          // Only when the look actually changed: rebuilding the icon every
+          // poll throws away the element the browser is mid-transition on.
+          if (held.look !== look) {
+            held.marker.setIcon(maps.divIcon({ className: headClass(head), html: headHtml(head), iconSize: [30, 30], iconAnchor: [15, 15] }))
+            held.look = look
+          }
+          continue
+        }
+        const marker = new maps.Marker(head.point, {
+          icon: maps.divIcon({ className: headClass(head), html: headHtml(head), iconSize: [30, 30], iconAnchor: [15, 15] }),
+          keyboard: false,
+          zIndexOffset: 1200,
+        })
+        map.addLayer(marker)
+        markers.set(head.userId, { marker, look })
+      }
+    },
+    destroy(): void {
+      for (const held of markers.values())
+        map.removeLayer(held.marker)
+      markers.clear()
+    },
+  }
 }
