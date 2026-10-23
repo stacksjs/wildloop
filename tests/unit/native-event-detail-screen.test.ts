@@ -363,3 +363,120 @@ describe('Wildloop native event detail screen', () => {
     )
   })
 })
+
+describe('the field on the loop', () => {
+  beforeAll(compileNativeBundle, 30000)
+
+  /**
+   * Every pin the host was told to draw, by its id, with the last colour and
+   * title it was given. Markers carry an `id` rather than a testID, so this
+   * reads the operations instead of going through `nativeNodeProps`.
+   */
+  function pins(session: any): Array<{ id: string, pinColor?: string, title?: string, geometry?: number[] }> {
+    // Keyed by stx's own node id, which is what an operation carries; the
+    // authored `id` is a prop, and only the initial RENDER has it. Props are
+    // merged across both because the markers' geometry lands a batch later.
+    const byNode = new Map<string, any>()
+    const merge = (nodeId: string, props: any) => {
+      if (props)
+        byNode.set(nodeId, { ...(byNode.get(nodeId) ?? {}), ...props })
+    }
+
+    const walk = (node: any) => {
+      if (!node || typeof node !== 'object')
+        return
+      if (node.id !== undefined)
+        merge(String(node.id), node.props)
+      for (const child of node.children ?? [])
+        walk(child)
+    }
+
+    for (const message of session.sent) {
+      if (message.type === 'RENDER')
+        walk(message.payload?.tree ?? message.payload)
+      else if (message.type === 'MUTATE')
+        for (const operation of message.payload.operations)
+          merge(String(operation.id), operation.patch?.props ?? operation.props)
+    }
+
+    return [...byNode.values()].filter(props => String(props.id ?? '').startsWith('runner-'))
+  }
+
+  const START = '2026-10-16T07:00:00.000Z'
+
+  /** Yard 8, twenty minutes in. */
+  function field(over: Record<string, unknown> = {}) {
+    return board({
+      serverTime: '2026-10-16T14:20:00.000Z',
+      currentYard: 8,
+      standings: [
+        // Forty-minute laps, twenty minutes elapsed: half way round.
+        { rank: 1, userId: 51, name: 'Ada', status: 'running', yardsCompleted: 7, stillIn: true, lastLapAt: '2026-10-16T13:45:00.000Z' },
+        // Fifteen-minute laps: already past her own lap time.
+        { rank: 2, userId: 52, name: 'Grace', status: 'running', yardsCompleted: 7, stillIn: true, lastLapAt: '2026-10-16T13:50:00.000Z' },
+        // Both finished yard 8 already and are sitting in the corral.
+        { rank: 3, userId: 53, name: 'Edsger', status: 'running', yardsCompleted: 8, stillIn: true, lastLapAt: '2026-10-16T14:10:00.000Z' },
+        { rank: 4, userId: 54, name: 'Barbara', status: 'running', yardsCompleted: 8, stillIn: true, lastLapAt: '2026-10-16T14:05:00.000Z' },
+        // Missed the corral: not on the course at all.
+        { rank: 5, userId: 55, name: 'Rui', status: 'timed_out', yardsCompleted: 5, stillIn: false, lastLapAt: null },
+      ],
+      recentLaps: [
+        { userId: 51, name: 'Ada', yard: 7, finishedAt: '2026-10-16T13:45:00.000Z', durationSeconds: 2400, distance: null, activityId: null, source: 'recorder' },
+        { userId: 52, name: 'Grace', yard: 7, finishedAt: '2026-10-16T13:50:00.000Z', durationSeconds: 900, distance: null, activityId: null, source: 'recorder' },
+        { userId: 53, name: 'Edsger', yard: 8, finishedAt: '2026-10-16T14:10:00.000Z', durationSeconds: 1800, distance: null, activityId: null, source: 'recorder' },
+        { userId: 54, name: 'Barbara', yard: 8, finishedAt: '2026-10-16T14:05:00.000Z', durationSeconds: 1800, distance: null, activityId: null, source: 'recorder' },
+      ],
+      ...over,
+    })
+  }
+
+  it('pins the runners on the loop and gathers the corral into one', async () => {
+    const { screen } = await open('9', detail({ startTime: START }, field()))
+    await waitForVisibility(screen, 'event-map-frame', 'flex')
+    await waitForGeometry(screen, 2)
+
+    const drawn = pins(screen)
+    const ids = drawn.map(pin => pin.id).sort()
+    // Two out on the loop, and one pin for the two in the corral rather than
+    // two stacked on the start line. The runner who missed the corral is not
+    // on the course and gets none.
+    expect(ids).toEqual(['runner-51', 'runner-52', 'runner-53'])
+    expect(drawn.some(pin => String(pin.title ?? '').includes('Rui'))).toBe(false)
+  })
+
+  it('says in colour and in words which positions are measured and which are not', async () => {
+    const { screen } = await open('9', detail({ startTime: START }, field()))
+    await waitForVisibility(screen, 'event-map-frame', 'flex')
+    await waitForGeometry(screen, 2)
+
+    const drawn = pins(screen)
+    const byId = new Map(drawn.map(pin => [pin.id, pin]))
+
+    // Grace is past her own lap time: the one runner a spectator needs to spot.
+    expect(byId.get('runner-52')?.pinColor).toBe('#dc2626')
+    expect(byId.get('runner-52')?.title).toContain('past their own lap time')
+    // Ada is running on her own measured pace.
+    expect(byId.get('runner-51')?.pinColor).toBe('#059669')
+    expect(byId.get('runner-51')?.title).toBe('Ada')
+    // The corral names everyone standing in it, since one pin stands for two.
+    expect(byId.get('runner-53')?.pinColor).toBe('#94a3b8')
+    expect(byId.get('runner-53')?.title).toContain('2 in the corral')
+    expect(byId.get('runner-53')?.title).toContain('Barbara')
+  })
+
+  it('draws no field at all when the board carries no usable server clock', async () => {
+    // The race is deliberately under way by THIS DEVICE's clock, three hours
+    // and twenty minutes in, with the entrants' yards to match. So a screen
+    // that quietly fell back to the device would draw a full field here, and
+    // only the missing server time keeps the map empty. Pinning it against a
+    // fixed past date instead proved nothing: the fallback found nobody still
+    // in and drew nothing either, so the test passed whatever the code did.
+    const deviceStart = new Date(Date.now() - (3 * 60 + 20) * 60_000).toISOString()
+    const { screen } = await open('9', detail({ startTime: deviceStart }, field({ serverTime: 'not a time', currentYard: 4 })))
+    await waitForVisibility(screen, 'event-map-frame', 'flex')
+    await waitForGeometry(screen, 1)
+
+    expect(pins(screen)).toEqual([])
+    expect(visibility(screen, 'event-map-note')).toBe('none')
+  })
+})

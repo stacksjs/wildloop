@@ -1,6 +1,8 @@
 <script client>
 import type { NativeCraft } from '@stacksjs/stx/native'
 import {
+  backyardRunnersFrom,
+  backyardScheduleFrom,
   canReportLap,
   corralCountdownText,
   currentYardText,
@@ -26,6 +28,8 @@ import {
 } from '../functions/events'
 import { onNativeAccountChange, createNativeApi, loadOutcome } from '../functions/native-api'
 import { requireNativeAccount } from '../functions/native-session'
+import { backyardProgress } from '../functions/backyard'
+import { pointAlongLine } from '../functions/geo'
 import { courseGeometry } from '../functions/route-records'
 import { pathIdFrom } from '../functions/route-id'
 
@@ -154,6 +158,74 @@ function mayReportLap(): boolean {
 /** The loop, open: a lap is a line that goes round, not a closed boundary. */
 function loop(): number[] {
   return courseGeometry(event()?.loopRoute ?? null)
+}
+
+/**
+ * The field on that loop, as of the clock the board was read on.
+ *
+ * Dead reckoning, not telemetry — the same `backyardProgress` the web board
+ * uses, so a spectator on a laptop and a runner's crew on a phone cannot be
+ * shown the field in two different places. The position comes off the board's
+ * `serverTime`, never this device's clock, for the reason the countdown above
+ * does; with no usable server clock the field is simply not drawn.
+ *
+ * A pin, not a face: Craft's `MapMarker` takes a colour and a title and has no
+ * image prop, so where the web draws avatar heads this says the same four
+ * states in colour, and the title carries what the colour cannot.
+ */
+function heads(): any[] {
+  const detail = event()
+  const board = live()
+  const route = detail?.loopRoute
+  if (!detail || board?.status !== 'live' || !Array.isArray(route) || route.length < 2)
+    return []
+
+  const at = Date.parse(String(board.serverTime ?? ''))
+  if (!Number.isFinite(at))
+    return []
+
+  const line = route.map((pair: [number, number]) => ({ lat: pair[0], lng: pair[1] }))
+  const placed = backyardProgress(backyardRunnersFrom(board), backyardScheduleFrom(detail), at)
+
+  function pin(runner: any, title: string, userId: number): any {
+    const point = pointAlongLine(line, runner.progress)
+    if (!point)
+      return null
+    const colour = runner.overdue
+      ? '#dc2626'
+      : runner.state === 'corral'
+        ? '#94a3b8'
+        : runner.basedOnLaps === 0 ? '#6ee7b7' : '#059669'
+    return { id: `runner-${runner.userId}`, userId, title, geometry: [point.lat, point.lng], colour }
+  }
+
+  function label(runner: any): string {
+    const name = String(runner.name ?? 'Runner')
+    if (runner.overdue)
+      return `${name} · past their own lap time`
+    // The one thing a colour cannot say on its own, and the one a spectator
+    // would most wrongly believe: this position is the field's pace, not theirs.
+    if (runner.basedOnLaps === 0)
+      return `${name} · placed on the field's pace`
+    return name
+  }
+
+  // Everyone in the corral stands on the start line, so one pin each would
+  // draw the whole resting field as a single runner. They travel as one pin
+  // that names them; it opens nobody, since it is not one person.
+  const resting = placed.filter((runner: any) => runner.state === 'corral')
+  const corral = resting.length > 1
+    ? [pin(resting[0], `${resting.length} in the corral: ${resting.map((runner: any) => String(runner.name ?? 'Runner')).join(', ')}`, 0)]
+    : resting.map((runner: any) => pin(runner, label(runner), runner.userId))
+
+  return [...placed.filter((runner: any) => runner.state !== 'corral').map((runner: any) => pin(runner, label(runner), runner.userId)), ...corral]
+    .filter(Boolean)
+}
+
+function openRunner(head: any): void {
+  const id = Number(head?.userId) || 0
+  if (id > 0)
+    craft.navigation.push('AthleteDetail', { id: String(id) })
 }
 
 function openStanding(standing: any): void {
@@ -346,8 +418,13 @@ onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(nul
       <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-panel">
         <Map testID="event-map" class="flex-1" :fitToBounds="true" basemap="standard">
           <MapPolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
+          <MapMarker :for="head in heads()" :key="head.id" :id="head.id" :title="head.title" :geometry="head.geometry" :pinColor="head.colour" @press="openRunner(head)" />
         </Map>
       </View>
+      {{-- Say what the pins are. A position nobody broadcast, drawn as
+           confidently as one that was, is how this misleads. --}}
+      <Text :show="heads().length > 0" testID="event-map-note" class="text-xs text-fg-soft"
+        text="Worked out from the corral clock and each runner's recent laps, as of the board above — nobody is broadcasting a location." />
 
       <View :show="standings().length > 0" testID="event-standings" class="gap-2">
         <Text class="text-xs font-semibold uppercase text-fg-soft">The board</Text>
