@@ -665,3 +665,53 @@ export function generateLoopCoordinates(
 
   return coords
 }
+
+/**
+ * The point a given fraction of the way along a line, measured by distance
+ * rather than by vertex count.
+ *
+ * Vertices are not evenly spaced — a GPS track lays down far more of them
+ * through a switchback than along a straight — so indexing by vertex would
+ * park a runner in every corner and skip the straights. Walking the real
+ * metres is what makes a steady pace look steady.
+ *
+ * `fraction` is clamped to 0..1: a loop's start and end are the same place on
+ * the ground, and a caller asking for 1.2 wants the line's end, not a second
+ * lap. Returns null for a line with nothing to walk along.
+ */
+export function pointAlongLine(line: Coordinate[], fraction: number): Coordinate | null {
+  if (!Array.isArray(line) || line.length === 0)
+    return null
+  if (line.length === 1 || !Number.isFinite(fraction))
+    return { ...line[0] }
+
+  const clamped = Math.min(1, Math.max(0, fraction))
+  let total = 0
+  const spans: number[] = []
+  for (let i = 1; i < line.length; i++) {
+    const span = haversineDistance(line[i - 1], line[i])
+    spans.push(span)
+    total += span
+  }
+
+  // Every vertex sits on the same spot, so there is no distance to divide by
+  // and no span to interpolate along.
+  if (total === 0)
+    return { ...line[0] }
+
+  let target = clamped * total
+  for (let i = 0; i < spans.length; i++) {
+    if (target > spans[i]) {
+      target -= spans[i]
+      continue
+    }
+    // A zero-length span here would divide by zero; it is also a duplicated
+    // vertex, so its own start is the right answer.
+    const ratio = spans[i] === 0 ? 0 : target / spans[i]
+    const from = line[i]
+    const to = line[i + 1]
+    return { lat: from.lat + (to.lat - from.lat) * ratio, lng: from.lng + (to.lng - from.lng) * ratio }
+  }
+
+  return { ...line[line.length - 1] }
+}

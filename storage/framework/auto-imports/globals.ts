@@ -101,6 +101,7 @@ declare global {
   const standings: typeof autoImports.standings
   const resolveOutcome: typeof autoImports.resolveOutcome
   const formatClock: typeof autoImports.formatClock
+  const backyardProgress: typeof autoImports.backyardProgress
   const STANDARD_YARD_MILES: typeof autoImports.STANDARD_YARD_MILES
   const STANDARD_YARD_MINUTES: typeof autoImports.STANDARD_YARD_MINUTES
   const barGeometry: typeof autoImports.barGeometry
@@ -244,6 +245,7 @@ declare global {
   const findLinePolygonIntersections: typeof autoImports.findLinePolygonIntersections
   const splitPolygonByRoute: typeof autoImports.splitPolygonByRoute
   const generateLoopCoordinates: typeof autoImports.generateLoopCoordinates
+  const pointAlongLine: typeof autoImports.pointAlongLine
   const parseGpx: typeof autoImports.parseGpx
   const parseJsonCoordinates: typeof autoImports.parseJsonCoordinates
   const parseGpsData: typeof autoImports.parseGpsData

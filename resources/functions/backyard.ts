@@ -228,3 +228,102 @@ export function formatClock(ms: number): string {
   const pad = (value: number) => String(value).padStart(2, '0')
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`
 }
+
+/**
+ * Where each runner probably is on the loop, right now.
+ *
+ * This is dead reckoning, not telemetry: nobody is broadcasting a position.
+ * What makes it work for this format and no other is that a backyard ultra
+ * sends everybody round the *same* loop at the *same* gun, so elapsed time
+ * divided by a runner's own lap time is genuinely where they are. In a road
+ * race, where runners start apart and cover different ground, the same
+ * arithmetic would be worthless.
+ *
+ * It is still an estimate. A runner who stops to change shoes shows ahead of
+ * themselves until their next lap lands and corrects the pace. `basedOnLaps`
+ * says how much of their own history went into it so a board can be honest
+ * about which heads it is guessing at.
+ */
+
+/**
+ * Recent laps only. Backyard runners fade over the day, so a pace built from
+ * the whole race would keep insisting a runner is faster than they now are.
+ */
+const PACE_SAMPLE_LAPS = 3
+
+export interface BackyardRunnerLaps extends BackyardEntrantState {
+  /** This runner's own lap durations in seconds, oldest first. */
+  lapSeconds?: number[]
+}
+
+export interface BackyardProgress {
+  userId: number
+  name?: string
+  /** 0..1 round the loop from the start line. */
+  progress: number
+  /** On the loop, or back in the corral waiting for the next gun. */
+  state: 'running' | 'corral'
+  /** Out longer than their own lap usually takes, and in danger of the cutoff. */
+  overdue: boolean
+  /** Laps of this runner's own behind the pace estimate. 0 means it is borrowed. */
+  basedOnLaps: number
+}
+
+/** The median of a runner's recent laps, in ms, or null with nothing to go on. */
+function paceMs(lapSeconds: number[] | undefined): number | null {
+  const usable = (lapSeconds ?? [])
+    .filter(value => Number.isFinite(value) && value > 0)
+    .slice(-PACE_SAMPLE_LAPS)
+    .sort((a, b) => a - b)
+  if (usable.length === 0)
+    return null
+  const middle = Math.floor(usable.length / 2)
+  const seconds = usable.length % 2 === 1 ? usable[middle] : (usable[middle - 1] + usable[middle]) / 2
+  return seconds * 1000
+}
+
+export function backyardProgress(
+  entrants: BackyardRunnerLaps[],
+  schedule: BackyardSchedule,
+  now: number = Date.now(),
+): BackyardProgress[] {
+  const yard = currentYard(schedule, now)
+  const elapsed = msIntoCurrentYard(schedule, now)
+  const gunAt = now - elapsed
+  const running = entrants.filter(entrant => isStillIn(entrant, schedule, now))
+
+  // A runner on their first yard has no laps of their own, so the field's
+  // pace stands in: on yard one everybody is running about the same, which is
+  // the only time this matters. Failing that, the yard itself — a runner who
+  // takes the whole interval finishes exactly at the next gun.
+  const sampled = running.map(entrant => paceMs(entrant.lapSeconds)).filter((value): value is number => value !== null)
+  const fieldPace = sampled.length > 0 ? sampled.sort((a, b) => a - b)[Math.floor(sampled.length / 2)] : intervalMs(schedule)
+
+  return running.map((entrant) => {
+    const own = paceMs(entrant.lapSeconds)
+    const basedOnLaps = Math.min(PACE_SAMPLE_LAPS, (entrant.lapSeconds ?? []).filter(value => Number.isFinite(value) && value > 0).length)
+    const base = { userId: entrant.userId, name: entrant.name, basedOnLaps }
+
+    // Before the gun there is no loop to be on, only a start line.
+    if (yard === 0)
+      return { ...base, progress: 0, state: 'corral' as const, overdue: false }
+
+    // Already back. Their last lap landed inside this yard, so they are in a
+    // chair, not on the course — the single thing a naive board gets wrong,
+    // because the clock says the yard is running and they are not.
+    const lastLap = entrant.lastLapAt ? Date.parse(entrant.lastLapAt) : Number.NaN
+    if (Number.isFinite(lastLap) && lastLap >= gunAt)
+      return { ...base, progress: 0, state: 'corral' as const, overdue: false }
+
+    const pace = own ?? fieldPace
+    const raw = pace > 0 ? elapsed / pace : 0
+    return {
+      ...base,
+      progress: Math.min(1, Math.max(0, raw)),
+      state: 'running' as const,
+      // Held at the line rather than sent round again: a runner past their own
+      // lap time is somewhere near the end of it, not starting a second one.
+      overdue: raw > 1,
+    }
+  })
+}
