@@ -112,16 +112,6 @@ jobs:
         ports:
           - 6379:6379
 
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: test_db
-          MYSQL_USER: user
-          MYSQL_PASSWORD: password
-        ports:
-          - 3306:3306
-
       dynamodb:
         image: amazon/dynamodb-local
         ports:

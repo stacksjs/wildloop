@@ -95,7 +95,11 @@ export default {
 
   DB_CONNECTION: {
     validation: schema.enum(['mysql', 'sqlite', 'postgres']),
-    default: 'mysql',
+    // SQLite, matching config/database.ts, which explains why: this app ships
+    // a file database that the API and the ingest worker both open. Declaring
+    // mysql here said the opposite of what the app does, which is enough to
+    // send somebody looking for a MySQL server that was never there.
+    default: 'sqlite',
   },
 
   DB_HOST: {
