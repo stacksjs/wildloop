@@ -160,12 +160,11 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
-      # Known broken as of stacks 0.75.328: this writes no files, while
-      # `./buddy migrate` against the same empty MySQL still reports all 30
-      # model tables missing. On 0.75.264 the identical command wrote 30. So
-      # this job currently fails here rather than at the seeders, and the
-      # timestamp fix from stacksjs/stacks#3014 that shipped in 0.75.328 has
-      # not actually been exercised end to end yet.
+      # Writes the corpus AND `storage/framework/database/model-snapshot.mysql.json`,
+      # and diffs against that snapshot next time. Deleting the corpus while
+      # leaving the snapshot makes this a silent no-op — correctly, since the
+      # snapshot says there is nothing new. A fresh CI checkout has neither,
+      # so it always generates; locally, delete both or neither.
       - name: Generate the MySQL migration corpus
         run: ./buddy generate:migrations --dialect mysql --no-interaction
 
