@@ -106,11 +106,22 @@ jobs:
   # cannot drift from the models the way a second checked-in corpus would.
   #
   # Non-blocking on purpose. As of 27 Oct 2026 this job FAILS, for three real
-  # reasons worth tracking rather than hiding: models write timestamps as
-  # `.toISOString()` and MySQL DATETIME rejects the `T`/`Z` form, the
-  # `user_notifications.read` column is a MySQL reserved word the builder does
-  # not quote, and `trails_fts` is a SQLite FTS5 virtual table with no MySQL
-  # equivalent. When this goes green, the app is portable; until then it is a
+  # reasons worth tracking rather than hiding: the app stores timestamps as
+  # ISO-8601 UTC strings and the generated MySQL schema types those columns
+  # DATETIME, which rejects the trailing `Z`; the `user_notifications.read`
+  # column is a MySQL reserved word the builder does not quote; and
+  # `trails_fts` is a SQLite FTS5 virtual table with no MySQL equivalent.
+  #
+  # On the first of those: the `Z` is the entire blocker. MySQL accepts
+  # `2026-10-27T11:40:12` and `2026-10-27 11:40:12` without complaint. Do NOT
+  # "fix" it by dropping the `Z` — measured 27 Oct 2026, JS parses a
+  # timezone-less datetime as LOCAL, so `new Date('2026-10-27T11:40:12')`
+  # resolves to 03:40Z on this machine. Every timestamp in the app would move
+  # by the host's UTC offset, and SQLite would go on storing the `Z` form, so
+  # the codebase would hold two incompatible conventions at once.
+  # The app is self-consistent here — 102 writes, 13 parsing reads, all
+  # ISO-UTC. It is the column type that disagrees with it, so the fix belongs
+  # in what the generator emits for a timestamp column, not in app code. When this goes green, the app is portable; until then it is a
   # progress meter, not a gate.
   mysql-portability:
     runs-on: ubuntu-latest
