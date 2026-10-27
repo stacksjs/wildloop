@@ -1,5 +1,6 @@
 <script client>
 import { formatCurrency } from '@stacksjs/commerce/money'
+import { parseDashboardDate } from '../../../../functions/dashboard-dates'
 /**
  * The data table.
  *
@@ -209,16 +210,45 @@ const actionLabelKey = useReactiveProp('actionLabelKey', '')
  */
 const busyKey = useReactiveProp('busyKey', '')
 const busyValue = useReactiveProp<unknown>('busyValue', '')
+/**
+ * The parent's own ordering, for a page whose sort select orders the rows
+ * Table receives.
+ *
+ * A header click overrides that order, and nothing used to hand it back:
+ * once a column was sorted, changing the select changed nothing visible, so
+ * the page had two sort controls that disagreed (stacksjs/stacks#2977). Pass
+ * the select's value here and a change to it clears the header sort, so the
+ * order on screen is always the one the viewer chose last.
+ */
+const sortResetKey = useReactiveProp<unknown>('sortResetKey', '')
+/**
+ * The parent's search and filters, for a page that filters the rows Table
+ * receives. A change returns to the first page, as a parent that paged
+ * itself always did: a narrower result read from page 3 is a page that
+ * looks empty or unrelated to what was just typed (stacksjs/stacks#2977).
+ */
+const pageResetKey = useReactiveProp<unknown>('pageResetKey', '')
 
 const selectedKeys = state<TableKey[]>([])
 const sortKey = state('')
 const sortDirection = state<SortDirection>('asc')
+
+effect(() => {
+  sortResetKey()
+  sortKey.set('')
+})
 const query = state('')
 const columnFilters = state<Record<string, string>>({})
 const hiddenColumns = state<string[]>([])
 const page = state(1)
+
+effect(() => {
+  sortResetKey()
+  pageResetKey()
+  page.set(1)
+})
 const columnMenuOpen = state(false)
-const emit = defineEmits()
+const emit = defineEmits(['column-visibility-change', 'page-change', 'page-size-change', 'update:selectedKeys', 'selection-change', 'sort', 'filter-change', 'search', 'export', 'row-action'])
 
 /* ---------------------------------------------------------------- columns */
 
@@ -276,14 +306,14 @@ function displayValue(row: DashboardTableRow, column: DashboardTableColumn): str
     return Number.isFinite(amount) ? amount.toLocaleString() : String(value)
   }
   if (column.type === 'date') {
-    const at = toDate(value)
+    const at = parseDashboardDate(value)
     return Number.isNaN(at.getTime()) ? String(value) : at.toLocaleDateString()
   }
   // An event or log row is ordered by when it happened, and to the minute, so
   // the date alone is not enough to read it. Separate from `date` rather than
   // a flag on it because the two render differently everywhere they appear.
   if (column.type === 'datetime') {
-    const at = toDate(value)
+    const at = parseDashboardDate(value)
     return Number.isNaN(at.getTime())
       ? String(value)
       : at.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -346,20 +376,6 @@ function hasBadge(row: DashboardTableRow, column: DashboardTableColumn): boolean
   return badgeLabel(row, column) !== ''
 }
 
-/**
- * Parse a stored timestamp.
- *
- * SQLite hands back `2026-01-01 12:00:00`, with a space and no zone. `new
- * Date()` reads that as local time where it reads it at all, so every row
- * shifted by the viewer's offset - a date near midnight landing on the wrong
- * day. The hand-rolled tables each normalised it themselves; this is the same
- * knowledge in the one place that needs it.
- */
-function toDate(value: unknown): Date {
-  const text = String(value)
-  return new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? `${text.replace(' ', 'T')}Z` : text)
-}
-
 /** The pill's text: the mapped label, else the value with its underscores read as spaces. */
 function badgeLabel(row: DashboardTableRow, column: DashboardTableColumn): string {
   const value = rawValue(row, column.key)
@@ -397,7 +413,7 @@ function compare(a: any, b: any, type: DashboardTableColumn['type']): number {
   // comparison below, which is only accidentally right for ISO timestamps and
   // wrong for every other format.
   if (type === 'date' || type === 'datetime')
-    return toDate(a).getTime() - toDate(b).getTime()
+    return parseDashboardDate(a).getTime() - parseDashboardDate(b).getTime()
   if (type === 'boolean')
     return (a ? 1 : 0) - (b ? 1 : 0)
 
@@ -499,10 +515,20 @@ function toggleRow(row: DashboardTableRow, event: Event): void {
 
 /* ------------------------------------------------------------------ sort */
 
+/**
+ * Ascending, descending, then off. Off is the order the rows arrived in,
+ * which on a page with its own sort select is that select's order; without
+ * a third state a header click could never be undone.
+ */
 function sort(column: DashboardTableColumn): void {
   if (!column.sortable)
     return
-  const direction: SortDirection = sortKey() === column.key && sortDirection() === 'asc' ? 'desc' : 'asc'
+  if (sortKey() === column.key && sortDirection() === 'desc') {
+    sortKey.set('')
+    emit('sort', { key: '', direction: 'asc' })
+    return
+  }
+  const direction: SortDirection = sortKey() === column.key ? 'desc' : 'asc'
   sortKey.set(column.key)
   sortDirection.set(direction)
   emit('sort', { key: column.key, direction })
@@ -511,7 +537,7 @@ function sort(column: DashboardTableColumn): void {
 function sortLabel(column: DashboardTableColumn): string {
   if (sortKey() !== column.key)
     return `Sort by ${column.label}`
-  return `Sort by ${column.label} ${sortDirection() === 'asc' ? 'descending' : 'ascending'}`
+  return sortDirection() === 'asc' ? `Sort by ${column.label} descending` : `Stop sorting by ${column.label}`
 }
 
 /** Mirrors sort state into aria-sort so screen readers announce it. */

@@ -103,6 +103,7 @@ export default defineModel({
     text: {
       required: false,
       fillable: true,
+      type: 'text',
       validation: {
         rule: schema.string(),
       },
@@ -197,7 +198,6 @@ export default defineModel({
       validation: {
         rule: schema.number(),
       },
-      factory: faker => faker.number.int({ min: 1, max: 8 }),
     },
 
     scheduledAt: {

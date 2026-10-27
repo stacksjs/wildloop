@@ -374,6 +374,14 @@ declare module '@stacksjs/database' {
       currency: string
       notes: string
       applied_coupon_id: string
+      session_token: string
+      checkout_step: "cart" | "shipping" | "payment" | "placed"
+      email: string
+      shipping_name: string
+      shipping_address: string
+      shipping_city: string
+      shipping_state: string
+      shipping_zip: string
       customer_id: number
       coupon_id: number
     }
@@ -388,7 +396,7 @@ declare module '@stacksjs/database' {
       slug: string
       image_url: string
       is_active: number
-      parent_category_id: string
+      parent_category_id: number
       display_order: number
     }
     categorizable_models: {
@@ -1408,6 +1416,7 @@ declare module '@stacksjs/database' {
       created_at: string
       updated_at: string | null
       name: string
+      slug: string
       description: string
       price: number
       image_url: string

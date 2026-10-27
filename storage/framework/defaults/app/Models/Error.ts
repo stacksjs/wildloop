@@ -15,6 +15,8 @@ export default defineModel({
   ],
 
   traits: {
+    // So a fresh seed fills its dashboard page (stacksjs/stacks#3000).
+    useSeeder: { count: 10 },
     useTimestamps: true,
   },
 
@@ -32,6 +34,7 @@ export default defineModel({
 
     message: {
       fillable: true,
+      type: 'text',
       validation: {
         rule: schema.string().required(),
         message: {
@@ -43,6 +46,7 @@ export default defineModel({
 
     stack: {
       fillable: true,
+      type: 'text',
       validation: {
         rule: schema.string(),
         message: {
@@ -86,6 +90,7 @@ export default defineModel({
 
     additional_info: {
       fillable: true,
+      type: 'text',
       validation: {
         rule: schema.string(),
         message: {

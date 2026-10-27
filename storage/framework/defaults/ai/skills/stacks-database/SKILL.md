@@ -12,7 +12,7 @@ allowed-tools: Read Edit Write Bash Grep Glob
 - Database package: `storage/framework/core/database/src/`
 - Configuration: `config/database.ts`
 - QB config: `config/query-builder.ts`
-- Migrations: `database/migrations/` (239 migration files, `.sql` format)
+- Migrations: `database/migrations/` (247 migration files, `.sql` format)
 - QB state: `.qb/`
 - ORM: `storage/framework/orm/`
 
@@ -287,9 +287,7 @@ SQLite's SQL on a Turso or `sqld` server. Configure `TURSO_DATABASE_URL`
   migrationLocks: 'migration_locks',
   queryLogging: {
     // Defaults on outside production and off in production. Production also
-    // skips query hooks unless persistent history is explicitly enabled,
-    // except one onQueryError hook on PostgreSQL and MySQL that reports a
-    // pool broken by oven-sh/bun#42804.
+    // skips query hooks unless persistent history is explicitly enabled.
     enabled: env.DB_QUERY_LOGGING_ENABLED ?? !['production', 'prod'].includes(env.APP_ENV || ''),
     captureAllTraces: false, // slow and failed queries always keep traces
     // Bound values in query_logs.bindings, credentials stored as `<redacted>`

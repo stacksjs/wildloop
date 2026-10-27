@@ -1,6 +1,6 @@
 ---
 name: stacks-migrations
-description: Use when working with database migrations in a Stacks application - creating migration files, running migrations, fresh migration (drop + recreate), seeding after migration, migration file naming conventions, or the 239 built-in migration files. For the database API itself (queries, connections, SQL helpers), see stacks-database.
+description: Use when working with database migrations in a Stacks application - creating migration files, running migrations, fresh migration (drop + recreate), seeding after migration, migration file naming conventions, or the 247 built-in migration files. For the database API itself (queries, connections, SQL helpers), see stacks-database.
 license: MIT
 compatibility: Bun >= 1.3.0, TypeScript, SQLite >= 3.47.2
 allowed-tools: Read Edit Write Bash Grep Glob
@@ -30,9 +30,11 @@ buddy seed                          # seed database
 buddy generate:migrations           # generate migrations from model diffs
 buddy generate:migrations --dialect postgres  # into another dialect's corpus, no Postgres needed
 buddy generate:migrations --dialect all       # the connected dialect and every other corpus
+buddy generate:db-types --dialect postgres    # generate committed raw-row types for an explicit target
 buddy migrate:regenerate <dialect>  # rebuild the whole corpus from the models
 buddy migrate:status                # corpus vs ledger vs live schema; lists hand-written files
 buddy migrate:align                 # plan repairs of a database that drifted from the models
+buddy migrate:align --relax-constraints # also plan lossless removal of obsolete constraints
 buddy migrate:align --apply         # rename legacy indexes, add missing indexes/FKs/columns, widen losslessly
 ```
 
@@ -234,6 +236,15 @@ lossless widenings; reports everything destructive), then
 - Do not commit a second snapshot under `.qb/`; that indicates a missing `snapshotDir` configuration
 - If a generated SQLite migration rebuilds tables, test it against a copy of the current database and run `PRAGMA integrity_check` plus `PRAGMA foreign_key_check`
 - `--seed` flag after `migrate:fresh` seeds the database with factory data
-- 239 migration files exist by default for all framework models
+- 247 migration files exist by default for all framework models
 - SQLite >= 3.47.2 is required (system requirement)
 - For the database API (queries, connections), see the `stacks-database` skill
+
+`migrate:align --relax-constraints` also plans removal of legacy NOT NULL
+constraints where the current model allows null, and foreign keys on polymorphic
+id/type pairs where the model declares no single-table reference. It also removes
+a conflicting parent reference when the model's correct foreign key is already
+enforced. If that key is missing, the first pass adds it after an orphan check;
+a later pass can remove the obsolete key. It never makes
+nullable data required or relaxes primary keys. Inspect the plan, then add `--apply`
+to run it. The default continues to report these differences without changing them.
