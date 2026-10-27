@@ -160,6 +160,12 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
+      # Known broken as of stacks 0.75.328: this writes no files, while
+      # `./buddy migrate` against the same empty MySQL still reports all 30
+      # model tables missing. On 0.75.264 the identical command wrote 30. So
+      # this job currently fails here rather than at the seeders, and the
+      # timestamp fix from stacksjs/stacks#3014 that shipped in 0.75.328 has
+      # not actually been exercised end to end yet.
       - name: Generate the MySQL migration corpus
         run: ./buddy generate:migrations --dialect mysql --no-interaction
 
