@@ -96,6 +96,77 @@ jobs:
       - name: Typecheck application
         run: bun run typecheck:app
 
+  # Is the app actually portable to MySQL? Nothing else answers that: the test
+  # suite never opens the configured database — it passes unchanged against a
+  # database that does not exist — so running `bun test` under mysql would be a
+  # green check that proves nothing.
+  #
+  # Migrating and seeding does exercise it, through the real ORM and the real
+  # query builder. The corpus is generated here rather than committed, so it
+  # cannot drift from the models the way a second checked-in corpus would.
+  #
+  # Non-blocking on purpose. As of 27 Oct 2026 this job FAILS, for three real
+  # reasons worth tracking rather than hiding: models write timestamps as
+  # `.toISOString()` and MySQL DATETIME rejects the `T`/`Z` form, the
+  # `user_notifications.read` column is a MySQL reserved word the builder does
+  # not quote, and `trails_fts` is a SQLite FTS5 virtual table with no MySQL
+  # equivalent. When this goes green, the app is portable; until then it is a
+  # progress meter, not a gate.
+  mysql-portability:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    services:
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wildloop_mysql
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_CONNECTION: mysql
+      DB_DATABASE: wildloop_mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate the MySQL migration corpus
+        run: ./buddy generate:migrations --dialect mysql --no-interaction
+
+      - name: Migrate
+        run: ./buddy migrate --no-interaction
+
+      # The seeders are the probe: they insert across most models through the
+      # ORM, so a dialect difference surfaces as a failed seeder rather than a
+      # silently empty table.
+      - name: Seed, and fail if any seeder could not
+        run: |
+          ./buddy seed --no-interaction 2>&1 | tee seed.log
+          if grep -qE "seeder\(s\) completed, [1-9]" seed.log; then
+            echo "::error::A seeder failed under mysql — the app is not portable yet."
+            grep -E "Application seeder .* failed" seed.log || true
+            exit 1
+          fi
+
   test:
     runs-on: ${{ matrix.os }}
     permissions:
