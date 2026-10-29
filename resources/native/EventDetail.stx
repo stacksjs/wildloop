@@ -169,9 +169,11 @@ function loop(): number[] {
  * `serverTime`, never this device's clock, for the reason the countdown above
  * does; with no usable server clock the field is simply not drawn.
  *
- * A pin, not a face: Craft's `MapMarker` takes a colour and a title and has no
- * image prop, so where the web draws avatar heads this says the same four
- * states in colour, and the title carries what the colour cannot.
+ * Faces where there are faces. `MapMarker.image` arrived in craft-native
+ * 0.0.369 (craft-native/craft#413), so this draws the same avatar heads the
+ * web board does. Colour still carries the state behind the photo — and is
+ * the whole of it for an athlete with no picture, and for the one marker that
+ * stands for everybody in the corral.
  */
 function heads(): any[] {
   const detail = event()
@@ -185,7 +187,9 @@ function heads(): any[] {
     return []
 
   const line = route.map((pair: [number, number]) => ({ lat: pair[0], lng: pair[1] }))
-  const placed = backyardProgress(backyardRunnersFrom(board), backyardScheduleFrom(detail), at)
+  const runners = backyardRunnersFrom(board)
+  const placed = backyardProgress(runners, backyardScheduleFrom(detail), at)
+  const faceOf = new Map(runners.map((runner: any) => [runner.userId, runner.avatar]))
 
   function pin(runner: any, title: string, userId: number): any {
     const point = pointAlongLine(line, runner.progress)
@@ -196,7 +200,13 @@ function heads(): any[] {
       : runner.state === 'corral'
         ? '#94a3b8'
         : runner.basedOnLaps === 0 ? '#6ee7b7' : '#059669'
-    return { id: `runner-${runner.userId}`, userId, title, geometry: [point.lat, point.lng], colour }
+    // The face, where there is one. `image` is https-only on the host side
+    // (craft-native/craft#413), and a marker standing for the whole corral
+    // gets none on purpose: one person's photo for several of them would be
+    // a lie the title then has to correct.
+    const avatar = userId > 0 ? faceOf.get(userId) : null
+    const image = typeof avatar === 'string' && avatar.startsWith('https://') ? avatar : null
+    return { id: `runner-${runner.userId}`, userId, title, geometry: [point.lat, point.lng], colour, image }
   }
 
   function label(runner: any): string {
@@ -418,7 +428,8 @@ onMount(() => onNativeAccountChange(craft, () => { event.set(null); live.set(nul
       <View :show="loop().length > 0" testID="event-map-frame" class="h-48 overflow-hidden rounded-2xl bg-panel">
         <Map testID="event-map" class="flex-1" :fitToBounds="true" basemap="standard">
           <MapPolyline :geometry="loop()" strokeColor="#059669" :strokeWidth="4" />
-          <MapMarker :for="head in heads()" :key="head.id" :id="head.id" :title="head.title" :geometry="head.geometry" :pinColor="head.colour" @press="openRunner(head)" />
+          <MapMarker :for="head in heads()" :key="head.id" :id="head.id" :title="head.title" :geometry="head.geometry"
+            :pinColor="head.colour" :image="head.image" :imageSize="30" imageShape="circle" @press="openRunner(head)" />
         </Map>
       </View>
       {{-- Say what the pins are. A position nobody broadcast, drawn as

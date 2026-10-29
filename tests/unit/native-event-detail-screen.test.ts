@@ -411,11 +411,11 @@ describe('the field on the loop', () => {
       currentYard: 8,
       standings: [
         // Forty-minute laps, twenty minutes elapsed: half way round.
-        { rank: 1, userId: 51, name: 'Ada', status: 'running', yardsCompleted: 7, stillIn: true, lastLapAt: '2026-10-16T13:45:00.000Z' },
+        { rank: 1, userId: 51, name: 'Ada', avatar: 'https://example.test/ada.jpg', status: 'running', yardsCompleted: 7, stillIn: true, lastLapAt: '2026-10-16T13:45:00.000Z' },
         // Fifteen-minute laps: already past her own lap time.
         { rank: 2, userId: 52, name: 'Grace', status: 'running', yardsCompleted: 7, stillIn: true, lastLapAt: '2026-10-16T13:50:00.000Z' },
         // Both finished yard 8 already and are sitting in the corral.
-        { rank: 3, userId: 53, name: 'Edsger', status: 'running', yardsCompleted: 8, stillIn: true, lastLapAt: '2026-10-16T14:10:00.000Z' },
+        { rank: 3, userId: 53, name: 'Edsger', avatar: 'https://example.test/edsger.jpg', status: 'running', yardsCompleted: 8, stillIn: true, lastLapAt: '2026-10-16T14:10:00.000Z' },
         { rank: 4, userId: 54, name: 'Barbara', status: 'running', yardsCompleted: 8, stillIn: true, lastLapAt: '2026-10-16T14:05:00.000Z' },
         // Missed the corral: not on the course at all.
         { rank: 5, userId: 55, name: 'Rui', status: 'timed_out', yardsCompleted: 5, stillIn: false, lastLapAt: null },
@@ -442,6 +442,22 @@ describe('the field on the loop', () => {
     // on the course and gets none.
     expect(ids).toEqual(['runner-51', 'runner-52', 'runner-53'])
     expect(drawn.some(pin => String(pin.title ?? '').includes('Rui'))).toBe(false)
+  })
+
+  it('wears each runner\'s own face, and none for the marker that is several people', async () => {
+    const { screen } = await open('9', detail({ startTime: START }, field()))
+    await waitForVisibility(screen, 'event-map-frame', 'flex')
+    await waitForGeometry(screen, 2)
+
+    const byId = new Map(pins(screen).map(pin => [pin.id, pin]))
+    // Ada has an https picture, so the pin is her face rather than a dot.
+    expect((byId.get('runner-51') as any)?.image).toBe('https://example.test/ada.jpg')
+    // Grace has none; the colour is all there is to go on.
+    expect((byId.get('runner-52') as any)?.image).toBeNull()
+    // And the corral marker stands for two people, so it wears nobody's face
+    // — Edsger HAS a picture, and it is deliberately not used here, because
+    // one person's photo standing for both is a lie the title then corrects.
+    expect((byId.get('runner-53') as any)?.image).toBeNull()
   })
 
   it('says in colour and in words which positions are measured and which are not', async () => {
