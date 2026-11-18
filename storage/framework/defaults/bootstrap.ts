@@ -22,6 +22,7 @@
  */
 
 import { config, feature } from '@stacksjs/config'
+import process from 'node:process'
 import { frameworkPath } from '@stacksjs/path'
 import { log } from '@stacksjs/logging/runtime'
 import { bundleMounts, DEFAULT_ROUTE_BUNDLE_FEATURES, route, withRouteAdmission } from '@stacksjs/router'
@@ -95,8 +96,9 @@ async function registerDefaultBundles(): Promise<void> {
   if (mounts('auth'))
     await route.register(frameworkPath('defaults/routes/auth.ts'))
 
-  // The rest of dashboard.ts: email subscribe, storefront cart/checkout,
-  // reviews, sitemap, AI, voice, and the admin dashboard's REST surface. Still
+  // The rest of dashboard.ts: email subscribe, sitemap, AI, voice, and the
+  // admin dashboard's REST surface (its CMS and commerce groups follow their
+  // features). The storefront moved to its own bundle below. Still
   // one file and still one gate — splitting auth out was the case with a
   // reporter behind it; marketing.ts / commerce.ts / monitoring.ts remain the
   // obvious next cuts.
@@ -108,7 +110,11 @@ async function registerDefaultBundles(): Promise<void> {
     await route.register(frameworkPath('defaults/routes/dashboard.ts'))
     // JSON endpoints for the dev dashboard UI. Kept separate from the view
     // routes above so the data layer is one obvious file to grep.
-    await route.register(frameworkPath('defaults/routes/dashboard-api.ts'))
+    // The standalone dashboard registers this after the app loader finishes,
+    // outside table admission. Its home endpoint intentionally reports optional
+    // stores as unavailable instead of disappearing when Request is not used.
+    if (process.env.STACKS_DASHBOARD_WORKER !== '1')
+      await route.register(frameworkPath('defaults/routes/dashboard-api.ts'))
     // The dev dashboard boots through this file rather than the application
     // router's importRoutes() path, so load model-declared useApi routes here too.
     //
@@ -159,6 +165,13 @@ async function registerDefaultBundles(): Promise<void> {
     await route.register(frameworkPath('defaults/routes/delivery.ts'))
   }
 
+  // The storefront: cart, checkout and buyer reviews, behind the default
+  // `cart`, `checkout` and `orders` pages. Gated with the commerce surface, so
+  // an app without commerce neither mounts these routes nor serves the pages.
+  if (mounts('storefront')) {
+    await route.register(frameworkPath('defaults/routes/storefront.ts'))
+  }
+
   // The payment provider's webhook, which applies payments and refunds to
   // orders. Gated with the commerce surface; it answers 401 until the driver's
   // webhook secret is configured.
@@ -175,6 +188,18 @@ async function registerDefaultBundles(): Promise<void> {
     await route.register(frameworkPath('defaults/routes/paddle.ts'))
   }
 
+  // Software licensing: activate, check, release, resend, transfer and team
+  // seats (`@stacksjs/commerce` `licensing`). An opt-in bundle like `social`:
+  // an app that named its bundles decides outright, and an app that said
+  // nothing gets it exactly when it has a license signing key, since without
+  // one no token can be issued and the routes are surface for nothing.
+  const mountLicensing = selection?.explicit
+    ? selection.bundles.has('licensing')
+    : Boolean(process.env.LICENSE_SIGNING_KEY)
+  if (mountLicensing) {
+    await route.register(frameworkPath('defaults/routes/licensing.ts'))
+  }
+
   // Social sign-in: `/auth/{provider}` + `/auth/{provider}/callback`
   // (stacksjs/stacks#2276). An opt-in bundle, NOT part of the implicit default
   // set or `all` — OAuth callback URLs in an app that configured no provider
@@ -189,6 +214,29 @@ async function registerDefaultBundles(): Promise<void> {
     : configuredSocialProviders().length > 0
   if (mountSocial) {
     await route.register(frameworkPath('defaults/routes/socials.ts'))
+  }
+
+  // The desktop update feed (`/api/updates/{platform}/{arch}`): what an
+  // installed desktop app asks for a newer version. Like `social`, it exists
+  // exactly when the app configured it - `webview.updates` or `macos.updates`
+  // in config/desktop.ts - so no existing app gains a route. The config file
+  // is read directly: the desktop build package is not loaded at server boot.
+  if (await publishesDesktopUpdates()) {
+    await route.register(frameworkPath('defaults/routes/desktop-updates.ts'))
+  }
+}
+
+async function publishesDesktopUpdates(): Promise<boolean> {
+  const { existsSync } = await import('node:fs')
+  const { projectPath } = await import('@stacksjs/path')
+  const file = projectPath('config/desktop.ts')
+  if (!existsSync(file)) return false
+  try {
+    const desktop = (await import(file) as { default?: { webview?: { updates?: unknown }, macos?: { updates?: unknown } } }).default
+    return Boolean(desktop?.webview?.updates || desktop?.macos?.updates)
+  }
+  catch {
+    return false
   }
 }
 

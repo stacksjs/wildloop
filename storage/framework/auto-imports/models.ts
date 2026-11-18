@@ -66,6 +66,7 @@ export { default as PaymentProduct } from '@stacksjs/defaults/app/Models/Payment
 export { default as PaymentTransaction } from '@stacksjs/defaults/app/Models/PaymentTransaction.ts'
 export { default as PersonalAccessToken } from '@stacksjs/defaults/app/Models/PersonalAccessToken.ts'
 export { default as QueryLog } from '@stacksjs/defaults/app/Models/QueryLog.ts'
+export { default as QueueWorker } from '@stacksjs/defaults/app/Models/QueueWorker.ts'
 export { default as Referral } from '@stacksjs/defaults/app/Models/Referral.ts'
 export { default as ReferralCode } from '@stacksjs/defaults/app/Models/ReferralCode.ts'
 export { default as Release } from '@stacksjs/defaults/app/Models/Release.ts'

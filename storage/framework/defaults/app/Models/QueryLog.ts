@@ -189,4 +189,13 @@ export default defineModel({
       },
     },
   },
+
+  dashboard: {
+    columns: ['query', 'duration', 'status', 'connection', 'model', 'executedAt'],
+    // SQL reads as code, and a query is timed in milliseconds.
+    fields: {
+      query: { format: 'code' },
+      duration: { format: 'duration' },
+    },
+  },
 } as const)

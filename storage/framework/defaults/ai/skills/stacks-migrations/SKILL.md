@@ -1,6 +1,6 @@
 ---
 name: stacks-migrations
-description: Use when working with database migrations in a Stacks application - creating migration files, running migrations, fresh migration (drop + recreate), seeding after migration, migration file naming conventions, or the 247 built-in migration files. For the database API itself (queries, connections, SQL helpers), see stacks-database.
+description: Use when working with database migrations in a Stacks application - creating migration files, running migrations, fresh migration (drop + recreate), seeding after migration, migration file naming conventions, or the 256 built-in migration files. For the database API itself (queries, connections, SQL helpers), see stacks-database.
 license: MIT
 compatibility: Bun >= 1.3.0, TypeScript, SQLite >= 3.47.2
 allowed-tools: Read Edit Write Bash Grep Glob
@@ -209,6 +209,16 @@ are excluded. Removing a feature from generation is not permission to drop its
 live data. MySQL/PostgreSQL/Vitess/Turso require their own SQL and evidence
 checks; never run SQLite SQL on a different provider because its filename exists.
 
+Two functions answer "which models are in this app's schema", by the same
+rules. `resolveModelSources()` is the generator's: it also stages the models
+into one flat directory, deleting and rebuilding it on every call when the
+framework defaults are merged in. Only generating migrations may call it.
+Anything that just needs the list (a dashboard request, search indexing,
+`generate:erd`, `generate:vschema`, starting the dev dashboard) calls
+`listModelSources()`, which reads directory listings and writes nothing.
+`tests/unit/dashboard-model-sources.test.ts` fails if another package calls
+the generator's.
+
 Source: `core/database/src/{migrations,model-sources,migration-ledger,
 safe-migrations,schema-drift,fk-audit,unique-audit}.ts`, `config/query-builder.ts`,
 and their retained database tests.
@@ -227,6 +237,14 @@ adds missing indexes, foreign keys after an orphan check, missing columns, and
 lossless widenings; reports everything destructive), then
 `migrate:status --reconcile` and `migrate`.
 
+A database that moved onto a corpus of its own (Postgres beside a SQLite
+`database/migrations`) keeps a row for every file it ran from the old corpus.
+`migrate:status` lists those as history, not drift, and reconcile never
+repoints, prunes or deletes them: the files are still in the other corpus, and
+the rows stop them running twice. Reconcile names every ledger row it changes.
+A row whose name several files share (`auto-misc`) is ambiguous, never a
+duplicate.
+
 ## Gotchas
 - `migrate:fresh` drops ALL tables — only use in development
 - Migrations run in filename order; two files with one number run alphabetically, which `--strict` refuses
@@ -236,7 +254,7 @@ lossless widenings; reports everything destructive), then
 - Do not commit a second snapshot under `.qb/`; that indicates a missing `snapshotDir` configuration
 - If a generated SQLite migration rebuilds tables, test it against a copy of the current database and run `PRAGMA integrity_check` plus `PRAGMA foreign_key_check`
 - `--seed` flag after `migrate:fresh` seeds the database with factory data
-- 247 migration files exist by default for all framework models
+- 256 migration files exist by default for all framework models
 - SQLite >= 3.47.2 is required (system requirement)
 - For the database API (queries, connections), see the `stacks-database` skill
 

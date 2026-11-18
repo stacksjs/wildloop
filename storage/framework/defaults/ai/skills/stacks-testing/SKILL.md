@@ -24,11 +24,21 @@ before deciding what to test, and this one for how.
 ## Test Setup
 
 ```typescript
-import { setupTestEnvironment } from '@stacksjs/testing'
-import { refreshDatabase, setupDatabase, truncateMysql, truncateSqlite } from '@stacksjs/testing/database'
+// tests/setup.ts, the bunfig [test] preload
+import { bootTestEnvironment } from '@stacksjs/testing'
 
-// Set NODE_ENV and APP_ENV to 'test'
-setupTestEnvironment()
+// NODE_ENV/APP_ENV = 'test', then the server auto-imports (models, jobs,
+// Action, route, response, ...), app listeners and gates
+await bootTestEnvironment()
+```
+
+`bun test` never runs the framework preloader, so this is what makes the
+auto-imported names exist in a test. Without it, loading an action written
+without imports throws "Action is not defined". `setupTestEnvironment()` still
+exists and only sets the env.
+
+```typescript
+import { refreshDatabase, setupDatabase, truncateMysql, truncateSqlite } from '@stacksjs/testing/database'
 
 // MySQL database setup; this helper does not initialize SQLite
 await setupDatabase()
@@ -154,6 +164,8 @@ The lightweight root also exports:
   the real mail singleton through the capture driver and restore automatically.
 - `freezeTime`, `travelTo`, `useRealTime`. Explicitly register
   `afterEach(useRealTime)`; frozen time is not restored implicitly.
+  Standalone Bun fixtures import these from `@stacksjs/testing/time` and
+  restore the clock in `finally`; this subpath imports no lifecycle hooks.
 - `command(args)` returns an awaitable child-process builder with `withInput`,
   `withEnv`, `withCwd` and `withTimeout`. Assert exitCode/output/timedOut. Run
   file-writing commands in a disposable fixture project using `withCwd`.
@@ -169,7 +181,7 @@ expect(result.exitCode).toBe(0)
 
 Retained implementation evidence lives under `core/testing/tests/`:
 `http-client`, `acting-as`, `database-assertions`, `events`, `mail`, `time`,
-`console`, `isolated`, `disposable-database`, `browser` and `declarations` (what dtsx
+`console`, `isolated`, `disposable-database`, `schema`, `browser` and `declarations` (what dtsx
 publishes for `browser.ts` / `isolated.ts`: no `unknown` fields) test files. Fixture mechanics live in `core/testing/src/`;
 `package.json` declares the root and database/DynamoDB/browser export boundaries.
 
@@ -180,7 +192,11 @@ module for the rest of that run, so a mock in one file leaks into the next. A
 framework booted against one database also stays booted. When a test needs a
 clean process, run it in a child (`src/isolated.ts`); when it needs real rows,
 give it a database nobody else uses (`src/disposable-database.ts`). Both are on
-the root, with no framework import.
+the root, with no framework import. For direct PostgreSQL queries, use
+`new SQL(database.sqlOptions!)`: Bun can let an inherited `PGDATABASE` override
+a URL's database name. The helper's explicit SQL options select its owned
+database. Pass `database.env` last to isolated children; it supplies matching
+`DB_*`, `PG_*`, `POSTGRES_URL` and `DATABASE_URL` values.
 
 ```ts
 import { assertIsolatedOk, disposablePostgresUrl, runIsolated, test, withDisposableDatabase } from '@stacksjs/testing'
@@ -203,7 +219,10 @@ for (const dialect of ['sqlite', 'postgres'] as const) {
 - `runIsolated(file, { env, timeoutMs = 60_000, args, cwd, mode, preload, bunfig, envFile, inheritEnv, stdin })`
   resolves `{ code, signal, stdout, stderr, timedOut, durationMs, command }`. `mode: 'auto'` runs
   `*.test.*` / `*.spec.*` with `bun test`, anything else as a script; `env` values of `undefined`
-  remove a variable. The watchdog sends SIGTERM at the timeout and SIGKILL 2 s later.
+  remove a variable. Native ownership disposes the command and normally inherited descendants
+  before returning, including after a normal early command exit. POSIX uses an anchored group
+  with SIGTERM then SIGKILL after 2 seconds; Windows uses a parent-held Job Object and confirms
+  zero active members. Deliberate POSIX breakaway is outside this lifecycle contract.
 - `bunfig: 'path/bunfig.toml'` runs the child with that config (`--config=`), resolved against
   `cwd`; it must exist. `preload` instead generates a config holding only those preloads. They are
   exclusive (a TypeError): list the preloads in your bunfig. Bun resolves a bunfig's relative
@@ -216,6 +235,15 @@ for (const dialect of ['sqlite', 'postgres'] as const) {
   `DB_USERNAME`/`DB_PASSWORD`); `database.directory` is removed with it.
 - `createDisposableDatabase` returns the same with `drop()` and `Symbol.asyncDispose`
   (`await using`), for setups that span hooks.
+- `applyTestSchema(statements)` applies trusted, transaction-compatible schema SQL
+  to the initialized SQLite or PostgreSQL test database atomically. PostgreSQL
+  sends one protocol batch; SQLite executes the statements inside one transaction.
+  A failure rolls back the complete batch, including created tables and seed rows.
+  Use it inside the isolated fixture after configuring its disposable database;
+  it does not order model dependencies, disable constraints, or replace production
+  migrations (for example, concurrent indexes require their own migration policy).
+  Standalone fixture scripts import it from `@stacksjs/testing/schema`; the root
+  testing barrel registers Bun test-runner hooks and is for `bun test` files.
 
 ## Browser tests: `@stacksjs/testing/browser`
 
@@ -267,7 +295,14 @@ expect(pageAuditClean(report)).toBe(true) // no duplicate /api/ requests, failed
   pattern holds with no listener stays held (a hanging request on purpose).
   `matchesUrlPattern(pattern, url)` and `pausedRequestMatches(pattern, paused)` are Chrome's
   matching rules (`*`, `?`, `\` escape; stage and resource type).
-- `settle(cdp, { quietMs, timeoutMs })` resolves false (not throws) when a page never goes quiet.
+- `settle(cdp, { quietMs, timeoutMs, includeSpeculative? })` resolves false (not throws) when a page never goes quiet.
+  By default all finite requests count. `includeSpeculative: false` uses `cdp.foregroundInFlight`,
+  excluding only Chrome `Prefetch` requests and explicit `Purpose` / `Sec-Purpose: prefetch`
+  declarations. The raw `inFlight` map and all HTTP, duplicate API, console and runtime audit
+  failures remain observable. `navigate` and `auditPage` accept the same option.
+- `click(cdp, selector | { selector, text }, { timeoutMs? })` scrolls the unique target into view,
+  waits for unchanged geometry across two animation-frame intervals, enabled state and an unobscured hit test, then uses Chrome's real mouse input.
+  Use it for journey controls instead of local coordinate-click helpers or DOM-dispatched clicks.
 - `auditPage(url, { cdp?, launch?, viewport?, isApiRequest?, beforeNavigate?, pageLoads?, quietMs, timeoutMs })`
   returns `{ url, finalUrl, apiRequests, duplicates, loads, failed, errors, settled, durationMs }`
   and never throws for a page problem. `beforeNavigate` is where to seed a token
@@ -285,9 +320,19 @@ expect(pageAuditClean(report)).toBe(true) // no duplicate /api/ requests, failed
   Chrome's bundle id while an update is pending; to a test that looks like a hung page. When
   `CHROME_PATH` is not set, `launch()` runs `prepareMacChrome()`: a `cp -cR` clone in the temp
   directory with the `KS*` updater keys deleted from `Info.plist`, its own `CFBundleIdentifier`,
-  and `codesign --force --deep --sign -`, reused per Chrome version. `--use-mock-keychain` is what
+  and a complete ad-hoc signature, reused per Chrome version. `--use-mock-keychain` is what
   keeps that clone from hanging on an invisible "Chrome Safe Storage" Keychain prompt at its first
   http page. Measured: the installed Chrome closed at 32 s, the clone kept navigating past 60 s.
+- **The clone is made once and then reused in about a tenth of a second** (stacksjs/stacks#3302).
+  It leaves out the framework versions the updater keeps for a browser that is still running
+  (each about 730 MB; only `Versions/Current` is ever loaded), and a copy that passed
+  `codesign --verify --deep --strict` is remembered by a digest of every file's path, size and
+  modification time in `Chrome.app.verified` beside it. Unchanged, it is not read again; changed
+  in any of those, it is verified in full, and an invalid one gets a replacement generation
+  while the old bundle is kept. Before this, strict verification ran before every reuse: 19 to
+  28 s with two updates pending, which a test that gives its page 30 s never survived. The first
+  browser test after a Chrome update still pays for the copy, about 15 to 30 s once; if that
+  test's own deadline is shorter, it fails once and the next browser test finishes the copy.
 - The package's own real-Chrome tests (`core/testing/tests/browser.test.ts`) run wherever a Chrome
   is found, except in CI unless `STACKS_BROWSER_TESTS=1`; `STACKS_BROWSER_TESTS=0` skips them locally.
 

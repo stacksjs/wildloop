@@ -211,17 +211,17 @@ onMount(() => {
 })
 </script>
 
-<div class="space-y-6">
+<div class="flex flex-col gap-6">
   <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h1 class="font-semibold text-2xl text-neutral-900 tracking-tight dark:text-white">Access Tokens</h1>
+      <h1 class="font-bold text-2xl text-neutral-900 tracking-tight dark:text-white">Access Tokens</h1>
       <p class="mt-1 text-neutral-500 text-sm dark:text-neutral-400">Create and revoke personal API credentials for the signed-in account.</p>
     </div>
     <Button :if="!loading() && !authenticationRequired()" @click="openCreate">
       <span class="h-4 w-4 i-hugeicons-key-02"></span>
       Create Token
     </Button>
-    <Button :if="!loading() && authenticationRequired()" tag="a" href="/login">
+    <Button :if="!loading() && authenticationRequired()" tag="a" href="/login?redirect=/access-tokens">
       <span class="h-4 w-4 i-hugeicons-login-03"></span>
       Sign in
     </Button>
@@ -271,7 +271,7 @@ onMount(() => {
       description="Personal access tokens belong to an authenticated account. Sign in to create, inspect, or revoke them."
     >
       <template #action>
-        <Button tag="a" href="/login">
+        <Button tag="a" href="/login?redirect=/access-tokens">
           <span class="h-4 w-4 i-hugeicons-login-03"></span>
           Sign in
         </Button>
@@ -298,13 +298,11 @@ onMount(() => {
       "Never", so it sorts on the date itself.
     --}}
     <div :if="!loading() && !authenticationRequired() && tokens().length > 0">
-      <Table :columns="TOKEN_COLUMNS" :data="tokenRows()" paginated :page-size="25">
+      <Table :columns="TOKEN_COLUMNS" :data="tokenRows()" paginated :page-size="25" :framed="false">
         <template #cell="{ row, column }">
           <template :if="column.key === 'scopesLabel'">
             <div class="flex flex-wrap gap-1">
-              <template :for="scope in row.scopes" :key="scope">
-                <span class="inline-flex px-2 py-0.5 font-medium text-blue-700 text-xs dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded" x-text="scope"></span>
-              </template>
+              <span :for="scope in row.scopes" :key="scope" class="inline-flex px-2 py-0.5 font-medium text-blue-700 text-xs dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded" x-text="scope"></span>
             </div>
           </template>
           <template :else>

@@ -37,7 +37,7 @@ jobs:
           # read. It is format 1 now, and a canary runner tested a runtime
           # nothing ships on: its bun test killed the QA servers as dangling
           # and hung the dashboard, failures 1.4.2 and production do not have.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       # Reuse downloaded archives; materialize the dependency tree from this
       # lockfile so an older nested STX engine cannot survive a cache restore.
@@ -75,7 +75,7 @@ jobs:
           # read. It is format 1 now, and a canary runner tested a runtime
           # nothing ships on: its bun test killed the QA servers as dangling
           # and hung the dashboard, failures 1.4.2 and production do not have.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       # Reuse downloaded archives; materialize the dependency tree from this
       # lockfile so an older nested STX engine cannot survive a cache restore.
@@ -155,7 +155,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       - name: Install Dependencies
         run: bun install --frozen-lockfile
@@ -216,7 +216,7 @@ jobs:
           # read. It is format 1 now, and a canary runner tested a runtime
           # nothing ships on: its bun test killed the QA servers as dangling
           # and hung the dashboard, failures 1.4.2 and production do not have.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       # Reuse downloaded archives; materialize the dependency tree from this
       # lockfile so an older nested STX engine cannot survive a cache restore.
@@ -249,7 +249,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           # Production's Bun, as in the jobs above.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
       - name: Install app dependencies
         run: bun install --frozen-lockfile
       # Isolated test dependencies: no changes to the app's hoisted ORM tree.
@@ -318,7 +318,7 @@ jobs:
           # read. It is format 1 now, and a canary runner tested a runtime
           # nothing ships on: its bun test killed the QA servers as dangling
           # and hung the dashboard, failures 1.4.2 and production do not have.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       # Reuse downloaded archives; materialize the dependency tree from this
       # lockfile so an older nested STX engine cannot survive a cache restore.

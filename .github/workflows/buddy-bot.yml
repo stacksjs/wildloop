@@ -183,7 +183,7 @@ jobs:
           # commit what it writes, so they must write what every other install
           # reads: canary, pinned while the lockfile was format 2, may move it
           # to a format the pinned Bun cannot read.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       - name: Setup PHP and Composer (if needed)
         if: ${{ hashFiles('composer.json') != '' }}
@@ -227,7 +227,7 @@ jobs:
           # commit what it writes, so they must write what every other install
           # reads: canary, pinned while the lockfile was format 2, may move it
           # to a format the pinned Bun cannot read.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       - name: Install dependencies
         run: bun install
@@ -315,7 +315,7 @@ jobs:
           # commit what it writes, so they must write what every other install
           # reads: canary, pinned while the lockfile was format 2, may move it
           # to a format the pinned Bun cannot read.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       - name: Setup PHP and Composer (if needed)
         if: ${{ hashFiles('composer.json') != '' }}
@@ -429,7 +429,7 @@ jobs:
           # commit what it writes, so they must write what every other install
           # reads: canary, pinned while the lockfile was format 2, may move it
           # to a format the pinned Bun cannot read.
-          bun-version: '1.4.2'
+          bun-version: '1.4.4'
 
       - name: Install dependencies
         run: bun install

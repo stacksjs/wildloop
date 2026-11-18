@@ -5,10 +5,14 @@ import type {
   ReviewSummary,
 } from '../../../../app/Actions/Dashboard/Commerce/review-records'
 import { DashboardApiError, dashboardApi } from '../../../../functions/dashboard-api'
+import { useServerList } from '../../../../functions/dashboard-list'
 import { pushToast } from '../../../../functions/toasts'
 
 interface ReviewIndexResponse {
   records: ReviewRecord[]
+  total: number
+  page: number
+  perPage: number
   summary: ReviewSummary
   products: ReviewProductOption[]
 }
@@ -35,16 +39,12 @@ const emptySummary: ReviewSummary = {
   averageRating: 0,
 }
 
-const records = state<ReviewRecord[]>([])
 const summary = state<ReviewSummary>({ ...emptySummary })
 const products = state<ReviewProductOption[]>([])
-const search = state('')
 const productFilter = state('all')
 const ratingFilter = state('all')
 const moderationFilter = state('all')
 const sort = state('newest')
-const loading = state(true)
-const loadError = state('')
 const editingReview = state<ReviewRecord | null>(null)
 const deletingReview = state<ReviewRecord | null>(null)
 const saving = state(false)
@@ -52,66 +52,54 @@ const deleting = state(false)
 const busyId = state('')
 const validationErrors = state<Record<string, string>>({})
 
-function timestamp(value: string): number {
-  if (!value)
-    return 0
-  const numeric = /^\d{10,13}$/.test(value)
-    ? Number(value) * (value.length === 10 ? 1000 : 1)
-    : Number.NaN
-  if (Number.isFinite(numeric))
-    return numeric
-  const normalized = /^\d{4}-\d{2}-\d{2} \d/.test(value)
-    ? `${value.replace(' ', 'T')}Z`
-    : value
-  const result = new Date(normalized).getTime()
-  return Number.isFinite(result) ? result : 0
+const SELECT_SORTS: Record<string, { sort: string, direction: 'asc' | 'desc' }> = {
+  'newest': { sort: 'created', direction: 'desc' },
+  'oldest': { sort: 'created', direction: 'asc' },
+  'rating-high': { sort: 'rating', direction: 'desc' },
+  'rating-low': { sort: 'rating', direction: 'asc' },
+  'helpful': { sort: 'helpful', direction: 'desc' },
 }
 
-/** Rated reviews in `direction` order, unrated ones last either way. */
-function byRating(left: ReviewRecord, right: ReviewRecord, direction: 1 | -1): number {
-  if (left.rating === null || right.rating === null)
-    return Number(left.rating === null) - Number(right.rating === null)
-  return (left.rating - right.rating) * direction
+/** The table's sortable columns, as the server's sort names. */
+const COLUMN_SORTS: Record<string, string> = {
+  customerLabel: 'customer',
+  productLabel: 'product',
+  rating: 'rating',
+  moderation: 'approved',
 }
 
-function filteredRecords(): ReviewRecord[] {
-  const query = search().trim().toLowerCase()
-  const product = productFilter()
-  const rating = ratingFilter()
-  const moderation = moderationFilter()
-  return [...records()]
-    .filter((review) => {
-      if (product !== 'all' && review.productId !== product)
-        return false
-      if (rating !== 'all' && String(review.rating ?? 'none') !== rating)
-        return false
-      if (moderation === 'approved' && !review.approved)
-        return false
-      if (moderation === 'pending' && review.approved)
-        return false
-      if (moderation === 'featured' && !review.featured)
-        return false
-      if (moderation === 'verified' && !review.verifiedPurchase)
-        return false
-      return !query || [
-        review.customerName,
-        review.customerEmail,
-        review.productName,
-        review.title,
-        review.content,
-      ].some(value => value.toLowerCase().includes(query))
-    })
-    .sort((left, right) => {
-      if (sort() === 'oldest')
-        return timestamp(left.createdAt) - timestamp(right.createdAt)
-      if (sort() === 'rating-high')
-        return byRating(left, right, -1) || timestamp(right.createdAt) - timestamp(left.createdAt)
-      if (sort() === 'rating-low')
-        return byRating(left, right, 1) || timestamp(right.createdAt) - timestamp(left.createdAt)
-      if (sort() === 'helpful')
-        return right.helpfulVotes - left.helpfulVotes || timestamp(right.createdAt) - timestamp(left.createdAt)
-      return timestamp(right.createdAt) - timestamp(left.createdAt)
-    })
+// The server searches, filters, sorts and pages (stacksjs/stacks#3218);
+// useServerList keeps the request order, paging, header sort and search
+// debounce this page used to keep itself.
+const {
+  records,
+  total,
+  page,
+  perPage,
+  search,
+  loading,
+  loadError,
+  params,
+  load,
+  changePage,
+  changePageSize,
+  changeSort,
+} = useServerList<ReviewRecord>({
+  fetch: query => dashboardApi<ReviewIndexResponse>(`/api/dashboard/commerce/reviews?${query}`),
+  defaultSort: () => SELECT_SORTS[sort()] ?? SELECT_SORTS["newest"]!,
+  columnSorts: COLUMN_SORTS,
+  filters: () => ({ product: productFilter(), rating: ratingFilter(), moderation: moderationFilter() }),
+  onLoad: (result) => {
+    const data = result as ReviewIndexResponse
+    summary.set(data.summary ?? { ...emptySummary })
+    products.set(Array.isArray(data.products) ? data.products : [])
+  },
+  onError: error => pushToast('error', "Could not load reviews", { detail: error instanceof Error ? error.message : String(error) }),
+})
+
+function matchingLabel(): string {
+  const count = total()
+  return `${count} matching ${count === 1 ? 'review' : 'reviews'}`
 }
 
 function metricCards(): Array<{ label: string, value: string }> {
@@ -124,32 +112,8 @@ function metricCards(): Array<{ label: string, value: string }> {
   ]
 }
 
-/**
- * What the table is showing: a change returns it to the first page, as this
- * page's own pager did before the table took over paging.
- */
-function viewKey(): string {
-  return JSON.stringify([search(), productFilter(), ratingFilter(), moderationFilter(), sort()])
-}
-
-async function loadReviews(): Promise<void> {
-  loading.set(true)
-  loadError.set('')
-  try {
-    const data = await dashboardApi<ReviewIndexResponse>('/api/dashboard/commerce/reviews')
-    records.set(Array.isArray(data.records) ? data.records : [])
-    summary.set(data.summary ?? { ...emptySummary })
-    products.set(Array.isArray(data.products) ? data.products : [])
-  }
-  catch (error) {
-    loadError.set('Review records could not be loaded.')
-    pushToast('error', 'Could not load reviews', {
-      detail: error instanceof Error ? error.message : String(error),
-    })
-  }
-  finally {
-    loading.set(false)
-  }
+function loadReviews(): Promise<void> {
+  return load()
 }
 
 async function patchReview(review: ReviewRecord, payload: Record<string, unknown>, successMessage: string): Promise<void> {
@@ -264,7 +228,7 @@ onMount(() => {
 })
 </script>
 
-<div class="space-y-6">
+<div class="flex flex-col gap-6">
   <PageHeader :title="title()" :description="description()">
   <Button variant="secondary" :loading="loading()" @click="loadReviews">
     <span :if="!loading()" class="h-4 w-4 i-hugeicons-refresh"></span>
@@ -276,74 +240,39 @@ onMount(() => {
 
   <MetricCards label="Review metrics" columns="grid-cols-2 lg:grid-cols-5" :items="metricCards()" />
 
-  <section class="space-y-3">
+  <section class="flex flex-col gap-3">
     <div class="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
-      <div class="relative xl:col-span-2">
-        <label class="sr-only" for="review-search">Search reviews</label>
-        <span class="flex absolute inset-y-0 left-0 items-center pl-3 text-gray-400 pointer-events-none">
-          <span class="h-4 w-4 i-hugeicons-search-01"></span>
-        </span>
-        <input id="review-search" x-model="search" type="search" placeholder="Search reviews" class="pl-9 pr-3 py-2 w-full text-gray-900 text-sm dark:text-white bg-white dark:bg-neutral-800 border border-gray-300 rounded-md dark:border-neutral-700" />
-      </div>
-      <label>
-        <span class="sr-only">Product</span>
-        <select x-model="productFilter" class="px-3 py-2 w-full text-gray-900 text-sm dark:text-white bg-white dark:bg-neutral-800 border border-gray-300 rounded-md dark:border-neutral-700">
-          <option value="all">All products</option>
-          <template :for="product in products()" :key="product.id">
-            <option :value="product.id">{{ product.label }}</option>
-          </template>
-        </select>
-      </label>
-      <label>
-        <span class="sr-only">Rating</span>
-        <select x-model="ratingFilter" class="px-3 py-2 w-full text-gray-900 text-sm dark:text-white bg-white dark:bg-neutral-800 border border-gray-300 rounded-md dark:border-neutral-700">
-          <option value="all">All ratings</option>
-          <option value="5">5 stars</option>
-          <option value="4">4 stars</option>
-          <option value="3">3 stars</option>
-          <option value="2">2 stars</option>
-          <option value="1">1 star</option>
-          <option value="none">No rating</option>
-        </select>
-      </label>
-      <label>
-        <span class="sr-only">Moderation state</span>
-        <select x-model="moderationFilter" class="px-3 py-2 w-full text-gray-900 text-sm dark:text-white bg-white dark:bg-neutral-800 border border-gray-300 rounded-md dark:border-neutral-700">
-          <option value="all">All states</option>
-          <option value="approved">Approved</option>
-          <option value="pending">Pending</option>
-          <option value="featured">Featured</option>
-          <option value="verified">Verified purchase</option>
-        </select>
-      </label>
+      <div class="xl:col-span-2"><SearchFilter v-model:searchValue="search" placeholder="Search reviews" ariaLabel="Search reviews" /></div>
+      <Select v-model:value="productFilter" ariaLabel="Product" placeholder="" :options="[{ value: 'all', label: 'All products' }, ...products().map(product => ({ value: product.id, label: product.label }))]" />
+      <Select v-model:value="ratingFilter" ariaLabel="Rating" placeholder="" :options="[{ value: 'all', label: 'All ratings' }, { value: '5', label: '5 stars' }, { value: '4', label: '4 stars' }, { value: '3', label: '3 stars' }, { value: '2', label: '2 stars' }, { value: '1', label: '1 star' }, { value: 'none', label: 'No rating' }]" />
+      <Select v-model:value="moderationFilter" ariaLabel="Moderation state" placeholder="" :options="[{ value: 'all', label: 'All states' }, { value: 'approved', label: 'Approved' }, { value: 'pending', label: 'Pending' }, { value: 'featured', label: 'Featured' }, { value: 'verified', label: 'Verified purchase' }]" />
     </div>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p class="text-gray-500 text-sm dark:text-neutral-400">
-        {{ filteredRecords().length }} matching {{ filteredRecords().length === 1 ? 'review' : 'reviews' }}
+        {{ matchingLabel() }}
       </p>
       <label class="flex gap-2 items-center text-gray-500 text-sm dark:text-neutral-400">
         Sort
-        <select x-model="sort" class="px-3 py-1.5 text-gray-900 text-sm dark:text-white bg-white dark:bg-neutral-800 border border-gray-300 rounded-md dark:border-neutral-700">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="rating-high">Highest rating</option>
-          <option value="rating-low">Lowest rating</option>
-          <option value="helpful">Most helpful</option>
-        </select>
+        <Select v-model:value="sort" ariaLabel="Sort" size="sm" placeholder="" :options="[{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }, { value: 'rating-high', label: 'Highest rating' }, { value: 'rating-low', label: 'Lowest rating' }, { value: 'helpful', label: 'Most helpful' }]" />
       </label>
     </div>
 
     <CommerceReviewsTable
       :sort-reset-key="sort()"
-      :page-reset-key="viewKey()"
-      :reviews="filteredRecords()"
+      :reviews="records()"
+      :total="total()"
+      :current-page="page()"
+      :per-page="perPage()"
       :loading="loading()"
       :busy-id="busyId()"
       @approve="toggleApproval"
       @feature="toggleFeatured"
       @edit="openEdit"
       @delete="openDelete"
+      @page-change="changePage"
+      @page-size-change="changePageSize"
+      @sort="changeSort"
     />
 
   </section>

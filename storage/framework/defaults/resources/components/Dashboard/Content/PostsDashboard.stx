@@ -8,6 +8,7 @@ export const blogUrl = publicApplicationUrl('/blog')
 
 <script client>
 import { dashboardApi } from '../../../../functions/dashboard-api'
+import { useServerList } from '../../../../functions/dashboard-list'
 import { pushToast } from '../../../../functions/toasts'
 
 type PostStatus = 'draft' | 'published' | 'archived'
@@ -17,7 +18,7 @@ interface PostRecord {
   id: string
   title: string
   excerpt: string
-  content: string
+  preview: string
   poster: string
   status: PostStatus
   views: number
@@ -39,13 +40,22 @@ interface PostDraft {
   tagIds: string[]
 }
 
-const posts = state<PostRecord[]>([])
 const categories = state<OptionRecord[]>([])
 const tags = state<OptionRecord[]>([])
 const authors = state<AuthorRecord[]>([])
-const loading = state(true)
-const loadError = state('')
 const statusFilter = state('all')
+
+// The cards count every post (stacksjs/stacks#3191).
+const allCount = state(0)
+const publishedCount = state(0)
+const draftCount = state(0)
+const archivedCount = state(0)
+const totalViewCount = state(0)
+
+const loadedContent = state('')
+const contentLoading = state(false)
+const contentLoadFailed = state(false)
+let contentRequestId = 0
 
 const formOpen = state(false)
 const editingPost = state<PostRecord | null>(null)
@@ -69,7 +79,7 @@ function normalizePost(record: any): PostRecord {
     id: String(record?.id || ''),
     title: String(record?.title || ''),
     excerpt: String(record?.excerpt || ''),
-    content: String(record?.content || ''),
+    preview: String(record?.preview || ''),
     poster: String(record?.poster || ''),
     status: normalizedStatus(record?.status),
     views: Number(record?.views || 0),
@@ -111,21 +121,20 @@ const COLUMNS = [
 ]
 
 const ROW_ACTIONS = [
-  { action: 'edit', label: 'Edit post', icon: 'i-hugeicons-edit-02' },
-  { action: 'delete', label: 'Delete post', icon: 'i-hugeicons-delete-02', class: 'text-red-500' },
+  { action: 'edit', label: 'Edit post' },
+  { action: 'delete', label: 'Delete post' },
 ]
 
 /**
- * `UI/Table` owns the search, so this applies only the status filter. The
- * labels are derived onto the row because a slot body reads fields rather than
- * calling back into the component.
+ * The rows are already the page the server chose, so this only derives the
+ * labels onto each one, because a slot body reads fields rather than calling
+ * back into the component.
  */
 function visiblePosts(): PostRecord[] {
-  return posts()
-    .filter(post => statusFilter() === 'all' || post.status === statusFilter())
+  return records()
     .map(post => ({
       ...post,
-      summaryLabel: post.excerpt || post.content,
+      summaryLabel: post.excerpt || post.preview,
       authorLabel: authorName(post),
       categoriesLabel: optionNames(post.categoryIds, categories()),
       tagsLabel: optionNames(post.tagIds, tags()),
@@ -141,11 +150,7 @@ function handleRowAction(payload: { action: string, row: PostRecord }): void {
 }
 
 function postCount(value: PostStatus): number {
-  return posts().filter(post => post.status === value).length
-}
-
-function totalViews(): number {
-  return posts().reduce((sum, post) => sum + post.views, 0)
+  return value === 'published' ? publishedCount() : value === 'draft' ? draftCount() : archivedCount()
 }
 
 function formatNumber(value: number): string {
@@ -168,30 +173,125 @@ function optionNames(ids: string[], options: OptionRecord[]): string {
   return names.length ? names.join(', ') : 'None'
 }
 
-async function loadPosts(): Promise<void> {
-  loading.set(true)
-  loadError.set('')
-  try {
-    const data = await dashboardApi<{ posts?: unknown[], categories?: unknown[], tags?: unknown[], authors?: unknown[] }>('/api/dashboard/posts')
+interface PostPageResponse {
+  posts?: unknown[]
+  categories?: unknown[]
+  tags?: unknown[]
+  authors?: unknown[]
+  total?: number
+  page?: number
+  allCount?: number
+  publishedCount?: number
+  draftCount?: number
+  archivedCount?: number
+  totalViews?: number
+}
+
+// The server pages, searches, filters and sorts (stacksjs/stacks#3191);
+// useServerList keeps the request order, paging, header sort and search
+// debounce this page used to keep itself. Unsorted is newest first, which the
+// server reads as created_at descending.
+const {
+  records,
+  total,
+  page,
+  perPage,
+  search,
+  loading,
+  loadError,
+  load,
+  changePage,
+  changePageSize,
+  changeSort,
+} = useServerList<PostRecord>({
+  fetch: async (query) => {
+    const data = await dashboardApi<PostPageResponse>(`/api/dashboard/posts?${query}`)
     if (!Array.isArray(data.posts) || !Array.isArray(data.categories) || !Array.isArray(data.tags) || !Array.isArray(data.authors))
       throw new TypeError('Posts were not returned in the expected shape.')
-    posts.set(data.posts.map(normalizePost))
-    categories.set(data.categories.map(normalizeOption))
-    tags.set(data.tags.map(normalizeOption))
-    authors.set(data.authors.map(normalizeAuthor))
+    return { ...data, records: data.posts.map(normalizePost) }
+  },
+  defaultSort: { sort: 'created_at', direction: 'desc' },
+  // The table's sortable columns are named as the server sorts them.
+  columnSorts: { title: 'title', status: 'status', views: 'views' },
+  filters: () => ({ status: statusFilter() }),
+  searchParam: 'search',
+  onLoad: (result) => {
+    const data = result as PostPageResponse
+    categories.set((data.categories ?? []).map(normalizeOption))
+    tags.set((data.tags ?? []).map(normalizeOption))
+    authors.set((data.authors ?? []).map(normalizeAuthor))
+    allCount.set(Number(data.allCount || 0))
+    publishedCount.set(Number(data.publishedCount || 0))
+    draftCount.set(Number(data.draftCount || 0))
+    archivedCount.set(Number(data.archivedCount || 0))
+    totalViewCount.set(Number(data.totalViews || 0))
+  },
+  onError: error => pushToast('error', 'Could not load posts', { detail: error instanceof Error ? error.message : String(error) }),
+})
+
+function loadPosts(): Promise<void> {
+  return load()
+}
+
+/** The table's own search box; useServerList waits for typing to pause. */
+function changeSearch(term: string): void {
+  search.set(String(term || ''))
+}
+
+async function loadEditorContent(post: PostRecord): Promise<void> {
+  const requestId = ++contentRequestId
+  contentLoading.set(true)
+  contentLoadFailed.set(false)
+  saveError.set('')
+  try {
+    const data = await dashboardApi<{ content?: string }>(`/api/dashboard/posts/${post.id}`)
+    if (requestId === contentRequestId && formOpen() && editingPost()?.id === post.id)
+      loadedContent.set(String(data.content || ''))
   }
   catch (error) {
-    loadError.set(error instanceof Error ? error.message : String(error))
-    pushToast('error', 'Could not load posts', { detail: loadError() })
+    if (requestId === contentRequestId) {
+      contentLoadFailed.set(true)
+      saveError.set(`Couldn't load this post's content: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
   finally {
-    loading.set(false)
+    if (requestId === contentRequestId)
+      contentLoading.set(false)
   }
 }
 
-function openCreate(): void { editingPost.set(null); saveError.set(''); formOpen.set(true) }
-function openEdit(post: PostRecord): void { editingPost.set(post); saveError.set(''); formOpen.set(true) }
-function closeForm(): void { if (!saving()) formOpen.set(false) }
+function retryEditorContent(): void {
+  const post = editingPost()
+  if (post)
+    void loadEditorContent(post)
+}
+
+function openCreate(): void {
+  contentRequestId += 1
+  editingPost.set(null)
+  loadedContent.set('')
+  contentLoading.set(false)
+  contentLoadFailed.set(false)
+  saveError.set('')
+  formOpen.set(true)
+}
+
+function openEdit(post: PostRecord): void {
+  editingPost.set(post)
+  loadedContent.set('')
+  contentLoading.set(true)
+  contentLoadFailed.set(false)
+  saveError.set('')
+  formOpen.set(true)
+  void loadEditorContent(post)
+}
+
+function closeForm(): void {
+  if (saving())
+    return
+  contentRequestId += 1
+  formOpen.set(false)
+}
 function openDelete(post: PostRecord): void { deletingPost.set(post); deleteError.set('') }
 function closeDelete(): void { if (!deleting()) deletingPost.set(null) }
 
@@ -246,17 +346,17 @@ onMount(() => { void loadPosts() })
 
 <div class="space-y-6">
   <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div><p class="font-semibold text-blue-600 text-xs tracking-wide uppercase dark:text-blue-400">CMS</p><h1 class="mt-1 font-bold text-2xl text-gray-900 dark:text-white">Posts</h1><p class="mt-1 text-gray-500 text-sm dark:text-neutral-400">Manage persisted articles, publishing, authors, and native taxonomies.</p></div>
+    <div><p class="font-semibold text-blue-600 text-xs tracking-wide uppercase dark:text-blue-400">Content</p><h1 class="mt-1 font-bold text-2xl text-gray-900 dark:text-white">Posts</h1><p class="mt-1 text-gray-500 text-sm dark:text-neutral-400">Write and publish articles, and manage their authors, categories and tags.</p></div>
     <div class="flex flex-wrap gap-2"><Button href="{{ blogUrl }}" target="_blank" rel="noreferrer" variant="secondary"><span aria-hidden="true" class="h-4 w-4 i-hugeicons-view"></span>View blog</Button><Button :loading="loading()" variant="secondary" @click="loadPosts()"><span :if="!loading()" aria-hidden="true" class="h-4 w-4 i-hugeicons-refresh"></span>Refresh</Button><Button @click="openCreate()"><span aria-hidden="true" class="h-4 w-4 i-hugeicons-add-01"></span>New post</Button></div>
   </header>
 
   <div :if="loadError()" role="alert" class="flex gap-4 items-center justify-between p-4 text-red-700 text-sm dark:text-red-300 bg-red-50 dark:bg-red-950/30 border border-red-200 rounded-lg dark:border-red-900"><span>{{ loadError() }}</span><Button variant="secondary" size="sm" @click="loadPosts()">Retry</Button></div>
 
   <section aria-label="Post metrics" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    <article class="p-4 bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700"><p class="text-gray-500 text-xs dark:text-neutral-400">Total</p><p class="mt-2 font-semibold text-2xl text-gray-900 dark:text-white">{{ posts().length }}</p></article>
+    <article class="p-4 bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700"><p class="text-gray-500 text-xs dark:text-neutral-400">Total</p><p class="mt-2 font-semibold text-2xl text-gray-900 dark:text-white">{{ allCount() }}</p></article>
     <article class="p-4 bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700"><p class="text-gray-500 text-xs dark:text-neutral-400">Published</p><p class="mt-2 font-semibold text-2xl text-green-700 dark:text-green-300">{{ postCount('published') }}</p></article>
     <article class="p-4 bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700"><p class="text-gray-500 text-xs dark:text-neutral-400">Drafts</p><p class="mt-2 font-semibold text-2xl text-yellow-700 dark:text-yellow-300">{{ postCount('draft') }}</p></article>
-    <article class="p-4 bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700"><p class="text-gray-500 text-xs dark:text-neutral-400">Views</p><p class="mt-2 font-semibold text-2xl text-gray-900 dark:text-white">{{ formatNumber(totalViews()) }}</p></article>
+    <article class="p-4 bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700"><p class="text-gray-500 text-xs dark:text-neutral-400">Views</p><p class="mt-2 font-semibold text-2xl text-gray-900 dark:text-white">{{ formatNumber(totalViewCount()) }}</p></article>
   </section>
 
   <section class="overflow-hidden bg-white dark:bg-neutral-800 border border-gray-200 rounded-lg dark:border-neutral-700">
@@ -267,23 +367,24 @@ onMount(() => { void loadPosts() })
       :row-actions="ROW_ACTIONS"
       action-label-key="title"
       searchable
+      manual-search
       search-placeholder="Search title, excerpt, or content"
       paginated
-      :page-size="25"
+      manual-pagination
+      manual-sort
+      :total="total()"
+      :current-page="page()"
+      :page-size="perPage()"
       empty-title="No posts found"
       empty-description="Adjust the search or status filter."
       @row-action="handleRowAction"
+      @page-change="changePage"
+      @page-size-change="changePageSize"
+      @search="changeSearch"
+      @sort="changeSort"
     >
       <template #toolbar>
-        <label>
-          <span class="sr-only">Filter by status</span>
-          <select x-model="statusFilter" class="px-2.5 py-1.5 text-sm bg-white dark:bg-neutral-800 border border-stone-300 rounded-lg dark:border-neutral-600">
-            <option value="all">All statuses</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
-          </select>
-        </label>
+        <Select v-model:value="statusFilter" ariaLabel="Filter by status" size="sm" placeholder="" :options="[{ value: 'all', label: 'All statuses' }, { value: 'published', label: 'Published' }, { value: 'draft', label: 'Draft' }, { value: 'archived', label: 'Archived' }]" />
       </template>
 
       <template #cell="{ row, column }">
@@ -293,7 +394,7 @@ onMount(() => { void loadPosts() })
             <span :if="row.featured" x-tooltip="Featured" title="Featured" class="flex-shrink-0 h-4 w-4 text-amber-500 i-hugeicons-star"></span>
           </div>
           <p class="mt-1 text-gray-500 text-xs truncate dark:text-neutral-400" x-text="row.summaryLabel"></p>
-          <p class="mt-1 text-gray-400 text-xs dark:text-neutral-500" x-text="row.authorLabel"></p>
+          <p class="mt-1 text-gray-500 text-xs dark:text-neutral-500" x-text="row.authorLabel"></p>
         </template>
         <template :else>
           <p class="text-gray-500 text-xs truncate dark:text-neutral-400"><span class="font-medium text-gray-700 dark:text-neutral-200">Categories:</span> <span x-text="row.categoriesLabel"></span></p>
@@ -310,10 +411,14 @@ onMount(() => { void loadPosts() })
   :categories="categories()"
   :tags="tags()"
   :authors="authors()"
+  :loadedContent="loadedContent()"
+  :contentLoading="contentLoading()"
+  :contentLoadFailed="contentLoadFailed()"
   :busy="saving()"
   :error="saveError()"
   @close="closeForm"
   @submit="savePost"
+  @retry="retryEditorContent"
 />
 
 <ConfirmDialog

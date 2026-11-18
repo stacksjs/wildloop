@@ -312,16 +312,19 @@ await req.tokenCant('delete-users')
 import { response } from '@stacksjs/router'
 
 response.json(data, { status: 200 })
-response.created(data)         // 201
-response.noContent()           // 204
-response.badRequest(data)      // 400
-response.unauthorized()        // 401
-response.forbidden()           // 403
-response.notFound()            // 404
-response.error()               // 500
+response.success(data, 'Saved')       // 200, { success: true, data, message }
+response.created(data, location?)     // 201, { success: true, data }
+response.noContent()                  // 204
+response.badRequest(message?, errors?) // 400
+response.unauthorized(message?)       // 401
+response.forbidden(message?)          // 403
+response.notFound(message?)           // 404
+response.validationError(errors)      // 422
+response.error(message, status?)      // defaults to 400, not 500
+response.serverError(message?)        // 500
 response.redirect(url, 302)
-response.text('hello')
-response.html('<h1>Hi</h1>')
+response.text('hello', 200)
+response.view('<h1>Hi</h1>')          // HTML; there is no response.html()
 ```
 
 ## Error Responses
@@ -367,7 +370,7 @@ route.use(logger)
 ```
 
 ### Available Middleware Aliases (from app/Middleware.ts)
-maintenance, auth, guest, api, team, logger, abilities, can, throttle, local, development, staging, production, env.local, env.development, env.staging, env.production, role, permission, verified
+maintenance, cors, auth, guest, api, team, site, logger, abilities, can, throttle, signed, env, env:local, env:development, env:dev, env:staging, env:production, env:prod, role, permission, verified, csrf, compress
 
 ## Query Tracking
 
@@ -416,6 +419,31 @@ import { serve, serverResponse } from '@stacksjs/router'
 await serve({ port: 3000 })
 const response = await serverResponse(request)
 ```
+
+### Boot and shutdown hooks
+
+```typescript
+import { route } from '@stacksjs/router'
+
+// Once, after the routes load and before the first request. Optional
+// preparation only: a hook that throws is logged and the boot continues.
+route.booting('warm grammars', () => highlighter.load())
+
+// When the server is told to stop. For whatever would otherwise outlive the
+// process or end unrecorded: open sessions, child processes, a buffer to flush.
+route.stopping('terminal sessions', () => terminalSessions.closeAll())
+```
+
+- Boot hooks run in order, once per process, from `serve()`.
+- Shutdown hooks run concurrently, once per process (a second signal waits on
+  the same run). One that throws is logged and the rest still run.
+- The production API server (`core/actions/src/serve/api.ts`) runs them on
+  SIGTERM alongside draining in-flight requests. `SHUTDOWN_GRACE_MS` (default
+  fifteen seconds) caps both, so a hook that hangs cannot hold the process.
+- The list lives on `globalThis`, so a module registering through a second copy
+  of `@stacksjs/router` still reaches the one the server runs.
+- `buddy dev:api` has no shutdown handler: Ctrl-C ends the process group, and
+  shutdown hooks do not run there.
 
 ## URL Generation
 

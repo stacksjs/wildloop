@@ -7,6 +7,7 @@
 export const emails = {
   'Welcome': '../../../resources/emails/Welcome.stx',
   'email-verification': '@stacksjs/defaults/resources/emails/email-verification.stx',
+  'license': '@stacksjs/defaults/resources/emails/license.stx',
   'notification': '@stacksjs/defaults/resources/emails/notification.stx',
   'password-changed': '@stacksjs/defaults/resources/emails/password-changed.stx',
   'password-reset': '@stacksjs/defaults/resources/emails/password-reset.stx',

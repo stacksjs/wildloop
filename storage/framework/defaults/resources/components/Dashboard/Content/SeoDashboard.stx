@@ -124,7 +124,7 @@ const filteredEntries = derived(() => {
  * on a derived band and `badgeLabelKey` puts the number itself in the pill.
  */
 const SEO_ROW_ACTIONS = [
-  { action: 'edit', label: 'Edit SEO for', icon: 'i-hugeicons-edit-02' },
+  { action: 'edit', label: 'Edit SEO for' },
 ]
 
 const SEO_COLUMNS = [
@@ -227,10 +227,10 @@ void loadEntries()
 </script>
 
 <template>
-<div class="mx-auto pb-12 pt-6 px-6 space-y-6 max-w-7xl">
+<div class="flex flex-col gap-6 mx-auto pb-12 pt-6 px-6 max-w-7xl">
   <PageHeader
     title="SEO"
-    description="Review model-backed search metadata for every CMS post"
+    description="How every post appears in search results: its title, description and focus keyword"
   />
 
   <div class="px-4 py-3 text-blue-800 text-sm dark:text-blue-200 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 rounded-lg dark:border-blue-500/20">
@@ -258,28 +258,10 @@ void loadEntries()
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div class="relative max-w-sm w-full">
-      <label for="seo-search" class="sr-only">Search posts</label>
-      <span class="absolute left-3 top-1/2 h-4 w-4 text-neutral-400 pointer-events-none -translate-y-1/2 i-hugeicons-search-01"></span>
-      <input
-        id="seo-search"
-        type="search"
-        placeholder="Search posts"
-        x-model="searchQuery"
-        class="block pl-9 pr-3 py-2 w-full text-neutral-900 text-sm dark:text-white placeholder:text-neutral-400 bg-white dark:bg-white/5 border border-black/10 rounded-lg dark:border-white/15 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-      >
+      <SearchFilter v-model:searchValue="searchQuery" placeholder="Search posts" ariaLabel="Search posts" />
     </div>
     <div>
-      <label for="seo-score-filter" class="sr-only">Filter by SEO score</label>
-      <select
-        id="seo-score-filter"
-        x-model="scoreFilter"
-        class="block px-3 py-2 text-neutral-900 text-sm dark:text-white bg-white dark:bg-white/5 border border-black/10 rounded-lg dark:border-white/15 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-      >
-        <option value="all">All scores</option>
-        <option value="good">Good, 80 or higher</option>
-        <option value="medium">Medium, 50 to 79</option>
-        <option value="poor">Poor, below 50</option>
-      </select>
+      <Select v-model:value="scoreFilter" id="seo-score-filter" ariaLabel="Filter by SEO score" placeholder="" :options="[{ value: 'all', label: 'All scores' }, { value: 'good', label: 'Good, 80 or higher' }, { value: 'medium', label: 'Medium, 50 to 79' }, { value: 'poor', label: 'Poor, below 50' }]" />
     </div>
   </div>
 
@@ -299,6 +281,7 @@ void loadEntries()
          adding one to a working table, watching `/dependencies` stop
          responding, and removing it again. See stacksjs/stx#2101. --}}
     <Table
+      :framed="false"
       :columns="SEO_COLUMNS"
       :data="seoRows()"
       :loading="loading()"
@@ -306,7 +289,7 @@ void loadEntries()
       paginated
       :page-size="25"
       empty-title="No matching posts"
-      empty-description="Adjust the search or score filter, or create a CMS post first."
+      empty-description="Adjust the search or score filter, or create a post first."
       :row-actions="SEO_ROW_ACTIONS"
       action-label-key="title"
       @row-action="openEdit($event.row)"

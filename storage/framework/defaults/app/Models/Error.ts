@@ -71,7 +71,7 @@ export default defineModel({
       validation: {
         rule: schema.number(),
         message: {
-          string: 'status must be a number',
+          number: 'status must be a number',
         },
       },
       factory: faker => faker.number.int({ min: 400, max: 500 }),
@@ -99,5 +99,9 @@ export default defineModel({
       },
       factory: faker => faker.lorem.paragraph(),
     },
+  },
+
+  dashboard: {
+    columns: ['type', 'message', 'status', 'createdAt'],
   },
 } as const)

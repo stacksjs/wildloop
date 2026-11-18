@@ -10,7 +10,13 @@ const sortResetKey = useReactiveProp<unknown>('sortResetKey', '')
 /** The parent's search and filters: a change returns to the first page. */
 const pageResetKey = useReactiveProp<unknown>('pageResetKey', '')
 const currency = useReactiveProp('currency', 'USD')
-const emit = defineEmits(['view', 'edit', 'delete'])
+// One page the server chose (stacksjs/stacks#3218): it searches, filters, sorts
+// and pages the products, so this shows them as given and hands paging and
+// column sorting back to the parent.
+const total = useReactiveProp('total', 0)
+const currentPage = useReactiveProp('currentPage', 1)
+const perPage = useReactiveProp('perPage', 25)
+const emit = defineEmits(['view', 'edit', 'delete', 'page-change', 'page-size-change', 'sort'])
 
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('') || 'PR'
@@ -37,9 +43,9 @@ const COLUMNS = [
 ]
 
 const ROW_ACTIONS = [
-  { action: 'view', label: 'View product', icon: 'i-hugeicons-view' },
-  { action: 'edit', label: 'Edit product', icon: 'i-hugeicons-edit-02' },
-  { action: 'delete', label: 'Delete product', icon: 'i-hugeicons-delete-02', class: 'text-red-500' },
+  { action: 'view', label: 'View product' },
+  { action: 'edit', label: 'Edit product' },
+  { action: 'delete', label: 'Delete product' },
 ]
 
 const rows = derived(() => records().map(record => ({
@@ -59,25 +65,43 @@ const rows = derived(() => records().map(record => ({
 function handleRowAction(payload: { action: string, row: CommerceProductRecord }): void {
   emit(payload.action, payload.row)
 }
+
+function changePage(page: number): void {
+  emit('page-change', page)
+}
+
+function changePageSize(size: number): void {
+  emit('page-size-change', size)
+}
+
+function changeSort(sort: { key: string, direction: string }): void {
+  emit('sort', sort)
+}
 </script>
 
 {{--
   No `searchable` or `filterable`: the parent dashboard owns the search box
-  and the filter selects. Table pages the whole filtered list the parent passes.
+  and the filter selects, and the server pages and sorts what they match.
 --}}
 <Table
   :sort-reset-key="sortResetKey()"
-  :page-reset-key="pageResetKey()"
   :columns="COLUMNS"
   :data="rows()"
   :loading="loading()"
   :row-actions="ROW_ACTIONS"
   action-label-key="nameLabel"
   paginated
-  :page-size="10"
+  manual-pagination
+  manual-sort
+  :total="total()"
+  :current-page="currentPage()"
+  :page-size="perPage()"
   empty-title="No products found"
   empty-description="Adjust the filters or add a native Product record."
   @row-action="handleRowAction"
+  @page-change="changePage"
+  @page-size-change="changePageSize"
+  @sort="changeSort"
 >
   <template #cell="{ row, column }">
     <template :if="column.key === 'nameLabel'">
@@ -85,13 +109,13 @@ function handleRowAction(payload: { action: string, row: CommerceProductRecord }
         <div class="flex flex-none items-center justify-center h-9 w-9 font-semibold text-blue-700 text-xs dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-md" x-text="row.initials"></div>
         <div class="min-w-0">
           <p class="font-medium text-gray-900 text-sm dark:text-white" x-text="row.nameLabel"></p>
-          <p class="mt-1 max-w-52 text-gray-400 text-xs truncate dark:text-neutral-500" x-text="row.descriptionLabel"></p>
+          <p class="mt-1 max-w-52 text-gray-500 text-xs truncate dark:text-neutral-500" x-text="row.descriptionLabel"></p>
         </div>
       </div>
     </template>
     <template :if="column.key === 'inventoryCount'">
       <p :class="'font-medium text-sm ' + (row.outOfStock ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-neutral-200')" x-text="row.inventoryLabel"></p>
-      <p class="mt-1 text-gray-400 text-xs dark:text-neutral-500" x-text="row.prepLabel"></p>
+      <p class="mt-1 text-gray-500 text-xs dark:text-neutral-500" x-text="row.prepLabel"></p>
     </template>
   </template>
 </Table>

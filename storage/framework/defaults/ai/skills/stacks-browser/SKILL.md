@@ -106,6 +106,28 @@ authority over amounts, ownership and payment completion. Utility/composable
 re-exports have their own signatures in utils/ and composables/; read the native
 composable skill instead of copying another fixed inventory of globals.
 
+## On-demand 3D model inspection
+
+Import `createModelViewer`, `modelTransform` and the `ModelScene` type from
+`@stacksjs/browser/model-viewer`. This narrow module has no boot side effect or
+external renderer. It renders binary STL, boxes, square tubes and hollow/solid
+cylinders through native WebGL. Node transforms use millimeters (or one consistent
+caller unit), column-major matrices and Euler degrees. STL URLs must be same-origin.
+The renderer owns pointer orbit, pinch/wheel zoom, keyboard controls, responsive
+canvas sizing, one GPU buffer and abortable STL loads. Call `dispose()` on teardown.
+Source/format/context failures report through `onStatus`; provide a fallback.
+
+`<ModelViewer :scene="scene()" label="Frame inspection" poster="/drawing.png" />`
+is the corresponding native STX component. Its scene prop is reactive. It includes
+camera presets, loading/error states and accessible keyboard instructions. Theme
+through inherited `--model-surface`, `--model-ink`, `--model-line`, `--model-height`
+and `--model-mobile-height`. It does not perform CAD booleans, generate print files,
+validate structural strength or prescribe mechanical settings. Keep manufacturing
+geometry, export provenance and domain checks in the application.
+
+Evidence: `core/browser/src/model-viewer.ts`, its retained geometry/parser tests,
+and `tests/unit/model-viewer-component.test.ts` for live STX prop delivery.
+
 ## Source and evidence
 
 `storage/framework/core/browser/src/index.ts`, auto-init.ts, model-loader.ts,
@@ -113,3 +135,13 @@ composables/useAuth.ts/useApi.ts/csrf.ts/request-error.ts and utils/fetch.ts.
 Tests: client-bundle-safety.test.ts, use-auth-refresh.test.ts (refresh, session
 resilience, burst expiry, authGuard, handoff code), auth.test.ts, csrf.test.ts,
 request-error.test.ts and api-url.test.ts under core/browser/tests.
+
+
+## Retry timing
+
+`retry` and `calculateDelay` are available through the utilities entry. Retry
+budgets must be finite non-negative safe integers; delays and backoff factors
+must be finite non-negative numbers. Invalid options reject before invoking
+work. Retry runs once plus the allowed retries, preserving the final error.
+Backoff/jitter delays saturate at the platform timer maximum (2147483647 ms),
+including numeric overflow. Large delays never fall through to one-ms timers.

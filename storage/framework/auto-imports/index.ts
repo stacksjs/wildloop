@@ -5,4 +5,4 @@ export * from './jobs'
 export * from './controllers'
 
 // Names more than one barrel exports, which `export *` would drop (TS2308).
-export { MailPreference, NotificationDelivery, Release, TripPlan } from './models'
+export { MailPreference, NotificationDelivery, QueueWorker, Release, TripPlan } from './models'

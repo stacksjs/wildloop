@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 /**
@@ -8,14 +7,12 @@ import { join } from 'node:path'
  * dashboard uses it for the macOS-style web sidebar.
  *
  * The library ships its .stx sources in the package, so the installed
- * copy is used when present. A local stx checkout wins during framework
- * development (same convention as the Craft SDK resolution in
- * `core/actions/src/dev/dashboard.ts`), and `STX_COMPONENTS_DIR` can
- * point anywhere explicitly.
+ * copy must match the package whose controllers the app imports. Merely
+ * having a development checkout on this machine must never replace those
+ * templates. `STX_COMPONENTS_DIR` selects a source directory explicitly.
  */
 const candidates = [
   process.env.STX_COMPONENTS_DIR,
-  join(homedir(), 'Code/Tools/stx/packages/components/src/ui'),
   join(process.cwd(), 'node_modules/@stacksjs/components/src/ui'),
 ].filter((dir): dir is string => Boolean(dir))
 
@@ -45,7 +42,18 @@ function packageDirs(): string[] {
 }
 
 export default {
-  name: '@stacksjs/components',
+  /*
+   * Not `@stacksjs/components`, which is the library's own plugin name. stx
+   * treats a plugin with that name as the component package itself, so every
+   * directory listed below - the framework's first - became a "package"
+   * directory, and on a native screen the shared names (`Button`, `Checkbox`,
+   * `Switch`, `TextInput`, `Image`, `Video`) resolved to the framework's web
+   * components instead of the library's native-safe ones: four unrenderable
+   * diagnostics per `<Button>` (stacksjs/stacks#3213). Under its own name the
+   * list below is precedence and nothing more, and the library's own plugin,
+   * which stx loads by itself, is the one that answers for the shared names.
+   */
+  name: '@stacksjs/defaults/components',
   /*
    * Order is the precedence, because stx searches this list and takes the
    * first match.
