@@ -11,7 +11,7 @@
 /**
  * The tints a face can take.
  *
- * Named classes rather than utility strings, defined in `config/crosswind.ts`
+ * Named classes rather than utility strings, defined in `config/css.ts`
  * alongside the difficulty chips: a class assembled at runtime is invisible to
  * the CSS scanner, so a palette written out here would generate no rules and
  * every avatar would render grey. The same reason the difficulty colours are

@@ -80,7 +80,7 @@
   - no `<style>` block in a `.stx` file — **2,090 lines** across `resources/**`,
     down from 2,326 on 15 Oct 2026 when the route and contour classes moved out.
     An earlier count of 1,804 looked only at `resources/views/**` and missed what
-    the components carry. Tokens and `@keyframes` belong in `config/crosswind.ts`,
+    the components carry. Tokens and `@keyframes` belong in `config/css.ts`,
     repeated shapes in its `shortcuts` — and anything that has no utility to
     shortcut to goes in its **`preflights`**, which is the destination that was
     missing. `stroke`, `stroke-width` and `fill` on an SVG child have no utility,

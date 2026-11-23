@@ -2,7 +2,7 @@ import { nativeUi as grouped } from '@stacksjs/stx/native/ui'
 
 /**
  * The native screens' vocabulary: stx's grouped vocabulary, in role classes,
- * so its colours come from the role answers in config/crosswind.ts like the
+ * so its colours come from the role answers in config/css.ts like the
  * shared components' do.
  *
  * What is added here is what a Craft `<Button>` needs. A Button is one leaf -

@@ -67,7 +67,7 @@ export default {
   componentPackages: [],
   plugins: ['./resources/plugins/shared-components.ts'],
 
-  css: './crosswind.ts',
+  css: './css.ts',
 
   app: {
     head: {

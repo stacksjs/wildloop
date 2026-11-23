@@ -409,7 +409,7 @@
                   Two icons behind `:if` rather than one class chosen at
                   runtime, because the CSS scanner only sees class names written
                   in the markup — a name assembled in an expression would need
-                  adding to the safelist in config/crosswind.ts to exist at all.
+                  adding to the safelist in config/css.ts to exist at all.
                 --}}
                 <button
                   :if="activity.user_id && activity.user_id !== wl.currentUserId()"
