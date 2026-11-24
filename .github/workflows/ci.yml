@@ -376,7 +376,6 @@ jobs:
       - name: Publish Commit
         env:
           PANTRY_TOKEN: ${{ secrets.PANTRY_TOKEN }}
-          PANTRY_REGISTRY_TOKEN: ${{ secrets.PANTRY_TOKEN }}
         run: |
           if [ -z "${PANTRY_TOKEN}" ]; then
             echo "PANTRY_TOKEN is not set — skipping the commit publish."
